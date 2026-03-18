@@ -94,24 +94,24 @@ func buildK8sHTTPClient(config *rest.Config) (*http.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	rt := http.DefaultTransport.(*http.Transport).Clone()
+
+	// Apply TLS config
 	tlsConfig, err := transport.TLSConfigFor(transportConfig)
 	if err != nil {
 		return nil, err
 	}
-
-	rt := http.DefaultTransport.(*http.Transport).Clone()
 	if tlsConfig != nil {
 		rt.TLSClientConfig = tlsConfig
 	}
 
 	var roundTripper http.RoundTripper = rt
 
-	// Wrap with auth if needed
-	if transportConfig.HasTokenAuth() || transportConfig.HasBasicAuth() || transportConfig.HasCertAuth() {
-		roundTripper, err = transport.HTTPWrappersForConfig(transportConfig, roundTripper)
-		if err != nil {
-			return nil, err
-		}
+	// Always wrap with auth - this ensures bearer tokens and certs are added
+	roundTripper, err = transport.HTTPWrappersForConfig(transportConfig, roundTripper)
+	if err != nil {
+		return nil, err
 	}
 
 	return &http.Client{
