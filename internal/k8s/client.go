@@ -9,13 +9,14 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 )
 
-// ContextInfo — информация о контексте кластера
 type ContextInfo struct {
 	Name      string `json:"name"`
 	Cluster   string `json:"cluster"`
@@ -24,14 +25,14 @@ type ContextInfo struct {
 	IsCurrent bool   `json:"isCurrent"`
 }
 
-// ClusterConnection — активное подключение к кластеру
 type ClusterConnection struct {
-	Name   string
-	Client *kubernetes.Clientset
-	Config *rest.Config
+	Name            string
+	Client          *kubernetes.Clientset
+	Config          *rest.Config
+	DynamicClient   dynamic.Interface
+	DiscoveryClient discovery.DiscoveryInterface
 }
 
-// Manager — менеджер подключений к кластерам
 type Manager struct {
 	mu          sync.RWMutex
 	connections map[string]*ClusterConnection
@@ -39,41 +40,33 @@ type Manager struct {
 	rawConfig   *api.Config
 }
 
-// NewManager создаёт новый менеджер
 func NewManager() *Manager {
 	return &Manager{
 		connections: make(map[string]*ClusterConnection),
 	}
 }
 
-// GetKubeconfigPath возвращает путь к kubeconfig
 func GetKubeconfigPath() string {
-	// Приоритет: переменная окружения
 	if env := os.Getenv("KUBECONFIG"); env != "" {
 		return env
 	}
-
 	home, _ := os.UserHomeDir()
 	kubeDir := filepath.Join(home, ".kube")
 	configPath := filepath.Join(kubeDir, "config")
 
-	// Проверяем: config — это файл или папка?
 	info, err := os.Stat(configPath)
 	if err == nil {
 		if !info.IsDir() {
-			// Это файл — стандартный kubeconfig
 			return configPath
 		}
 
-		// Это папка — ищем .conf/.yaml/.yml файлы внутри
 		entries, err := os.ReadDir(configPath)
 		if err == nil {
 			for _, entry := range entries {
 				if !entry.IsDir() {
 					name := entry.Name()
-					if filepath.Ext(name) == ".conf" ||
-						filepath.Ext(name) == ".yaml" ||
-						filepath.Ext(name) == ".yml" {
+					ext := filepath.Ext(name)
+					if ext == ".conf" || ext == ".yaml" || ext == ".yml" {
 						return filepath.Join(configPath, name)
 					}
 				}
@@ -84,10 +77,8 @@ func GetKubeconfigPath() string {
 	return configPath
 }
 
-// LoadContexts загружает список контекстов из kubeconfig
 func (m *Manager) LoadContexts() ([]ContextInfo, error) {
 	path := GetKubeconfigPath()
-
 	config, err := clientcmd.LoadFromFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("не удалось загрузить kubeconfig: %w", err)
@@ -111,12 +102,33 @@ func (m *Manager) LoadContexts() ([]ContextInfo, error) {
 	return contexts, nil
 }
 
-// ConnectToContext подключается к выбранному контексту
+func buildConnection(name string, config *rest.Config) (*ClusterConnection, error) {
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка создания клиента: %w", err)
+	}
+	dynClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка создания dynamic клиента: %w", err)
+	}
+
+	discClient, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка создания discovery клиента: %w", err)
+	}
+
+	return &ClusterConnection{
+		Name:            name,
+		Client:          clientset,
+		Config:          config,
+		DynamicClient:   dynClient,
+		DiscoveryClient: discClient,
+	}, nil
+}
+
 func (m *Manager) ConnectToContext(contextName string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-
-	// Уже подключены
 	if _, exists := m.connections[contextName]; exists {
 		m.activeCtx = contextName
 		return nil
@@ -135,26 +147,19 @@ func (m *Manager) ConnectToContext(contextName string) error {
 	config.QPS = 50
 	config.Burst = 100
 
-	clientset, err := kubernetes.NewForConfig(config)
+	conn, err := buildConnection(contextName, config)
 	if err != nil {
-		return fmt.Errorf("ошибка создания клиента: %w", err)
+		return err
 	}
 
-	m.connections[contextName] = &ClusterConnection{
-		Name:   contextName,
-		Client: clientset,
-		Config: config,
-	}
+	m.connections[contextName] = conn
 	m.activeCtx = contextName
-
 	return nil
 }
 
-// GetActiveConnection возвращает активное подключение
 func (m *Manager) GetActiveConnection() (*ClusterConnection, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-
 	conn, exists := m.connections[m.activeCtx]
 	if !exists {
 		return nil, fmt.Errorf("нет активного подключения")
@@ -162,20 +167,17 @@ func (m *Manager) GetActiveConnection() (*ClusterConnection, error) {
 	return conn, nil
 }
 
-// GetActiveContext возвращает имя активного контекста
 func (m *Manager) GetActiveContext() string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.activeCtx
 }
 
-// TestConnection проверяет подключение к кластеру
 func (m *Manager) TestConnection() error {
 	conn, err := m.GetActiveConnection()
 	if err != nil {
 		return err
 	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -183,18 +185,14 @@ func (m *Manager) TestConnection() error {
 	return err
 }
 
-// ConnectToCluster подключается к кластеру из Kubron
 func (m *Manager) ConnectToCluster(clusterID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-
-	// Если уже подключен
 	if _, exists := m.connections[clusterID]; exists {
 		m.activeCtx = clusterID
 		return nil
 	}
 
-	// Получаем путь к kubeconfig
 	kcPath := GetClusterKubeconfigPath(clusterID)
 	if kcPath == "" {
 		return fmt.Errorf("kubeconfig не найден для кластера %s", clusterID)
@@ -221,28 +219,21 @@ func (m *Manager) ConnectToCluster(clusterID string) error {
 	config.QPS = 50
 	config.Burst = 100
 
-	clientset, err := kubernetes.NewForConfig(config)
+	conn, err := buildConnection(clusterID, config)
 	if err != nil {
-		return fmt.Errorf("ошибка создания клиента: %w", err)
+		return err
 	}
 
-	m.connections[clusterID] = &ClusterConnection{
-		Name:   clusterID,
-		Client: clientset,
-		Config: config,
-	}
+	m.connections[clusterID] = conn
 	m.activeCtx = clusterID
-
 	return nil
 }
 
-// GetClusterStatuses возвращает статусы всех кластеров
 func (m *Manager) GetClusterStatuses() []ClusterStatus {
 	clusters, err := ListClusters()
 	if err != nil {
 		return nil
 	}
-
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 

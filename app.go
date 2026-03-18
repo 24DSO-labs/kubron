@@ -3,6 +3,7 @@ package main
 import (
 	"analog/internal/k8s"
 	"context"
+	"time"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -36,11 +37,11 @@ func (a *App) GetClusterStatuses() []k8s.ClusterStatus {
 	return a.k8sMgr.GetClusterStatuses()
 }
 
-func (a *App) AddClusterFromFile(displayName, icon, color string) (*k8s.ClusterMeta, error) {
+func (a App) AddClusterFromFile(displayName, icon, color string) (*k8s.ClusterMeta, error) {
 	path, err := wailsRuntime.OpenFileDialog(a.ctx, wailsRuntime.OpenDialogOptions{
 		Title: "Выберите kubeconfig файл",
 		Filters: []wailsRuntime.FileFilter{
-			{DisplayName: "All Files", Pattern: "*.*"},
+			{DisplayName: "All Files", Pattern: "."},
 		},
 	})
 	if err != nil {
@@ -69,7 +70,6 @@ func (a *App) ConnectToCluster(clusterID string) error {
 	if err != nil {
 		return err
 	}
-	// Сохраняем последний активный
 	config, _ := k8s.LoadKubronConfig()
 	if config == nil {
 		config = &k8s.KubronConfig{}
@@ -259,6 +259,32 @@ func (a *App) GetPodMetrics(namespace string) ([]k8s.PodMetrics, error) {
 
 func (a *App) GetNodeMetrics() ([]k8s.NodeMetrics, error) {
 	return a.k8sMgr.GetNodeMetrics()
+}
+
+func (a *App) GetMetricsStatus() (*k8s.MetricsStackStatus, error) {
+	return a.k8sMgr.GetMetricsStatus()
+}
+
+func (a *App) InstallMetricsStack() error {
+	return a.k8sMgr.InstallMetricsStack()
+}
+
+func (a *App) UninstallMetricsStack() error {
+	return a.k8sMgr.UninstallMetricsStack()
+}
+
+func (a *App) GetClusterMetricsSnapshot() (*k8s.MetricsSnapshot, error) {
+	return a.k8sMgr.GetClusterMetricsSnapshot()
+}
+
+func (a *App) QueryPrometheus(query string) (*k8s.PromQueryResult, error) {
+	return a.k8sMgr.QueryPrometheus(query)
+}
+
+func (a *App) QueryPrometheusRange(query string, startUnix, endUnix int64, step string) (*k8s.PromQueryResult, error) {
+	start := time.Unix(startUnix, 0)
+	end := time.Unix(endUnix, 0)
+	return a.k8sMgr.QueryPrometheusRange(query, start, end, step)
 }
 
 // === Port Forward ===
