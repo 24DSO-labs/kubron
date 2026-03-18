@@ -1,3 +1,28 @@
+export interface ClusterMeta {
+  id: string
+  displayName: string
+  icon: string
+  color: string
+  kubeconfigFile: string
+  defaultNamespace: string
+  addedAt: string
+  contextName: string
+}
+
+export interface ClusterStatus {
+  id: string
+  displayName: string
+  icon: string
+  color: string
+  kubeconfigFile: string
+  defaultNamespace: string
+  addedAt: string
+  contextName: string
+  connected: boolean
+  active: boolean
+  error: string
+}
+
 export interface ContextInfo {
   name: string
   cluster: string

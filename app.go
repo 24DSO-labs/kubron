@@ -3,6 +3,8 @@ package main
 import (
 	"analog/internal/k8s"
 	"context"
+
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type App struct {
@@ -21,6 +23,68 @@ func NewApp() *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	k8s.InitKubronDir()
+}
+
+// === Kubron Cluster Management ===
+
+func (a *App) ListClusters() ([]k8s.ClusterMeta, error) {
+	return k8s.ListClusters()
+}
+
+func (a *App) GetClusterStatuses() []k8s.ClusterStatus {
+	return a.k8sMgr.GetClusterStatuses()
+}
+
+func (a *App) AddClusterFromFile(displayName, icon, color string) (*k8s.ClusterMeta, error) {
+	path, err := wailsRuntime.OpenFileDialog(a.ctx, wailsRuntime.OpenDialogOptions{
+		Title: "Выберите kubeconfig файл",
+		Filters: []wailsRuntime.FileFilter{
+			{DisplayName: "All Files", Pattern: "*.*"},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if path == "" {
+		return nil, nil
+	}
+	return k8s.AddClusterFromFile(path, displayName, icon, color)
+}
+
+func (a *App) AddClusterFromText(kubeconfigText, displayName, icon, color string) (*k8s.ClusterMeta, error) {
+	return k8s.AddClusterFromText(kubeconfigText, displayName, icon, color)
+}
+
+func (a *App) DeleteCluster(id string) error {
+	return k8s.DeleteCluster(id)
+}
+
+func (a *App) UpdateCluster(id, displayName, icon, color string) error {
+	return k8s.UpdateClusterMeta(id, displayName, icon, color)
+}
+
+func (a *App) ConnectToCluster(clusterID string) error {
+	err := a.k8sMgr.ConnectToCluster(clusterID)
+	if err != nil {
+		return err
+	}
+	// Сохраняем последний активный
+	config, _ := k8s.LoadKubronConfig()
+	if config == nil {
+		config = &k8s.KubronConfig{}
+	}
+	config.LastActiveCluster = clusterID
+	k8s.SaveKubronConfig(config)
+	return a.k8sMgr.TestConnection()
+}
+
+func (a *App) GetLastActiveCluster() string {
+	config, err := k8s.LoadKubronConfig()
+	if err != nil {
+		return ""
+	}
+	return config.LastActiveCluster
 }
 
 // === Контексты ===
