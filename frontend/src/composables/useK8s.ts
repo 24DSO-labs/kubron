@@ -389,7 +389,6 @@ export function useK8s() {
     yamlEditKind, yamlEditNs, yamlEditName,
     pfLocalPort, pfPodPort,
     selectedService,
-    
 
     // Filtered
     filteredPods, filteredDeployments, filteredStatefulSets,
@@ -401,13 +400,13 @@ export function useK8s() {
     statusClass, pct,
 
     // Actions
-    openServiceDetail, forwardServicePort,
-    loadContexts, connect, disconnect,
+    loadContexts, connect, disconnect, loadNamespaces,
     switchView, onNamespaceChange, refreshData,
     openPodDetail, loadLogs, deletePod, runExec,
     doScale, restartDeployment, loadRevisions, rollbackDeployment,
     openConfigMapDetail, showYAML, applyYAML,
     loadPodMetrics, loadNodeMetrics,
     startPortForward, stopPortForward, refreshPortForwards,
+    openServiceDetail, forwardServicePort,
   }
 }

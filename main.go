@@ -16,7 +16,7 @@ func main() {
 	app := NewApp()
 
 	err := wails.Run(&options.App{
-		Title:     "Analog",
+		Title:     "Kubron",
 		Width:     1400,
 		Height:    900,
 		MinWidth:  1000,

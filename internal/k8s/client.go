@@ -182,3 +182,87 @@ func (m *Manager) TestConnection() error {
 	_, err = conn.Client.CoreV1().Namespaces().List(ctx, metav1.ListOptions{Limit: 1})
 	return err
 }
+
+// ConnectToCluster подключается к кластеру из Kubron
+func (m *Manager) ConnectToCluster(clusterID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Если уже подключен
+	if _, exists := m.connections[clusterID]; exists {
+		m.activeCtx = clusterID
+		return nil
+	}
+
+	// Получаем путь к kubeconfig
+	kcPath := GetClusterKubeconfigPath(clusterID)
+	if kcPath == "" {
+		return fmt.Errorf("kubeconfig не найден для кластера %s", clusterID)
+	}
+
+	meta, err := LoadClusterMeta(clusterID)
+	if err != nil {
+		return fmt.Errorf("метаданные кластера не найдены: %w", err)
+	}
+
+	overrides := &clientcmd.ConfigOverrides{}
+	if meta.ContextName != "" {
+		overrides.CurrentContext = meta.ContextName
+	}
+
+	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kcPath},
+		overrides,
+	).ClientConfig()
+	if err != nil {
+		return fmt.Errorf("ошибка конфигурации: %w", err)
+	}
+
+	config.QPS = 50
+	config.Burst = 100
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return fmt.Errorf("ошибка создания клиента: %w", err)
+	}
+
+	m.connections[clusterID] = &ClusterConnection{
+		Name:   clusterID,
+		Client: clientset,
+		Config: config,
+	}
+	m.activeCtx = clusterID
+
+	return nil
+}
+
+// GetClusterStatuses возвращает статусы всех кластеров
+func (m *Manager) GetClusterStatuses() []ClusterStatus {
+	clusters, err := ListClusters()
+	if err != nil {
+		return nil
+	}
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	var statuses []ClusterStatus
+	for _, cluster := range clusters {
+		status := ClusterStatus{
+			ClusterMeta: cluster,
+			Connected:   false,
+			Active:      false,
+		}
+
+		if _, ok := m.connections[cluster.ID]; ok {
+			status.Connected = true
+		}
+		if m.activeCtx == cluster.ID {
+			status.Active = true
+		}
+
+		statuses = append(statuses, status)
+	}
+
+	return statuses
+}
