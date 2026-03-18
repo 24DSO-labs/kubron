@@ -37,16 +37,18 @@
         <main class="content">
           <div v-if="loading" class="loading">⏳ Загрузка...</div>
 
+
           <OverviewView v-if="currentView === 'overview' && !loading" :overview="overview" :pct="pct"
-            @refresh="refreshData" />
+            :cluster-name="activeClusterId" @refresh="refreshData" @navigate="switchView" />
           <PodsView v-if="currentView === 'pods' && !loading" :items="filteredPods" :search="search"
             :statusClass="statusClass" :podMetrics="podMetrics" @refresh="refreshData" @search="(v) => search = v"
             @select="openPodDetail" @yaml="(ns, n) => showYAML('pod', ns, n)" />
-          <DeploymentsView v-if="currentView === 'deployments' && !loading" :items="filteredDeployments" :search="search"
-            @refresh="refreshData" @search="(v) => search = v" @scale="doScale" @yaml="(ns, n) => showYAML('deployment', ns, n)"
-            @restart="restartDeployment" @revisions="onShowRevisions" />
-          <StatefulSetsView v-if="currentView === 'statefulsets' && !loading" :items="filteredStatefulSets" :search="search"
-            @refresh="refreshData" @search="(v) => search = v" />
+          <DeploymentsView v-if="currentView === 'deployments' && !loading" :items="filteredDeployments"
+            :search="search" @refresh="refreshData" @search="(v) => search = v" @scale="doScale"
+            @yaml="(ns, n) => showYAML('deployment', ns, n)" @restart="restartDeployment"
+            @revisions="onShowRevisions" />
+          <StatefulSetsView v-if="currentView === 'statefulsets' && !loading" :items="filteredStatefulSets"
+            :search="search" @refresh="refreshData" @search="(v) => search = v" />
           <DaemonSetsView v-if="currentView === 'daemonsets' && !loading" :items="filteredDaemonSets" :search="search"
             @refresh="refreshData" @search="(v) => search = v" />
           <JobsView v-if="currentView === 'jobs' && !loading" :items="filteredJobs" :search="search"
@@ -58,27 +60,35 @@
             @yaml="(ns, n) => showYAML('service', ns, n)" />
           <IngressesView v-if="currentView === 'ingresses' && !loading" :items="filteredIngresses" :search="search"
             @refresh="refreshData" @search="(v) => search = v" />
-          <PVView v-if="currentView === 'pv' && !loading" :items="pvs" :statusClass="statusClass" @refresh="refreshData" />
+          <PVView v-if="currentView === 'pv' && !loading" :items="pvs" :statusClass="statusClass"
+            @refresh="refreshData" />
           <PVCView v-if="currentView === 'pvc' && !loading" :items="filteredPVCs" :search="search"
             :statusClass="statusClass" @refresh="refreshData" @search="(v) => search = v" />
-          <NodesView v-if="currentView === 'nodes' && !loading" :items="nodes" :metrics="nodeMetrics"
-            :statusClass="statusClass" @refresh="refreshData" @yaml="(ns, n) => showYAML('node', ns, n)" />
+          <NodesView v-if="currentView === 'nodes' && !loading"
+  :items="nodes"
+  :metrics="nodeMetrics"
+  :statusClass="statusClass"
+  :cluster-name="activeClusterId"
+  @refresh="refreshData"
+  @yaml="(ns, n) => showYAML('node', ns, n)" />
           <EventsView v-if="currentView === 'events' && !loading" :items="events" @refresh="refreshData" />
           <ConfigMapsView v-if="currentView === 'configmaps' && !loading" :items="filteredConfigMaps" :search="search"
             @refresh="refreshData" @search="(v) => search = v" @select="openConfigMapDetail"
             @yaml="(ns, n) => showYAML('configmap', ns, n)" />
           <SecretsView v-if="currentView === 'secrets' && !loading" :items="filteredSecrets" :search="search"
             @refresh="refreshData" @search="(v) => search = v" @yaml="(ns, n) => showYAML('secret', ns, n)" />
+          <ClusterSettings v-if="currentView === 'settings' && !loading" :cluster-name="activeClusterId" />
         </main>
       </template>
     </div>
 
     <!-- Panels -->
     <PodDetailPanel v-if="selectedPod" :pod="selectedPod" :logs="podLogs" v-model:logContainer="logContainer"
-      v-model:logLines="logLines" v-model:execCmd="execCmd" :execOutput="execOutput" :statusClass="statusClass"
-      v-model:pfLocalPort="pfLocalPort" v-model:pfPodPort="pfPodPort" :portForwards="portForwards"
-      @close="selectedPod = null" @loadLogs="loadLogs" @runExec="runExec" @delete="deletePod" @startPF="startPortForward"
-      @stopPF="stopPortForward" @openTerminal="terminalOpen = true" />
+  v-model:logLines="logLines" v-model:execCmd="execCmd" :execOutput="execOutput" :statusClass="statusClass"
+  v-model:pfLocalPort="pfLocalPort" v-model:pfPodPort="pfPodPort" :portForwards="portForwards"
+  :cluster-name="activeClusterId"
+  @close="selectedPod = null" @loadLogs="loadLogs" @runExec="runExec" @delete="deletePod" @startPF="startPortForward"
+  @stopPF="stopPortForward" @openTerminal="terminalOpen = true" />
 
     <ServiceDetailPanel v-if="selectedService" :svc="selectedService" :portForwards="portForwards"
       @close="selectedService = null" @forward="forwardServicePort" @stopForward="stopPortForward" />
@@ -133,6 +143,7 @@ import NodesView from './components/views/NodesView.vue'
 import EventsView from './components/views/EventsView.vue'
 import ConfigMapsView from './components/views/ConfigMapsView.vue'
 import SecretsView from './components/views/SecretsView.vue'
+import ClusterSettings from './components/views/ClusterSettings.vue'
 
 const k8s = useK8s()
 const clustersApi = useClusters()

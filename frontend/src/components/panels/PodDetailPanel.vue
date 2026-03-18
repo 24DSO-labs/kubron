@@ -15,6 +15,21 @@
       <div class="meta-row"><span class="meta-label">Age:</span> {{ pod.age }}</div>
     </div>
 
+    <!-- ===== POD METRICS ===== -->
+    <div v-if="clusterName" class="detail-section">
+      <div class="metrics-toggle" @click="showMetrics = !showMetrics">
+        <h4>📈 Metrics</h4>
+        <span class="toggle-arrow" :class="{ open: showMetrics }">›</span>
+      </div>
+      <div v-if="showMetrics" class="pod-metrics-container">
+        <PodMetricsPanel
+          :cluster-name="clusterName"
+          :namespace="pod.namespace"
+          :pod-name="pod.name"
+        />
+      </div>
+    </div>
+
     <div class="detail-section">
       <h4>Containers</h4>
       <div v-for="c in pod.containers" :key="c.name" class="container-item">
@@ -49,11 +64,13 @@
       </div>
       <pre v-if="execOutput" class="exec-output">{{ execOutput }}</pre>
     </div>
-<div class="detail-section">
+
+    <div class="detail-section">
       <button class="btn btn-terminal" @click="emit('openTerminal')">
         🖥 Open Terminal
       </button>
     </div>
+
     <div class="detail-section pf-section">
       <h4>🌍 Port Forward</h4>
       <div class="pf-form">
@@ -77,9 +94,10 @@
     </div>
   </div>
 </template>
-
 <script lang="ts" setup>
+import { ref } from 'vue'
 import type { PortForwardSession } from '../../types'
+import PodMetricsPanel from '../metrics/PodMetricsPanel.vue'
 
 const props = defineProps<{
   pod: any
@@ -92,6 +110,7 @@ const props = defineProps<{
   pfLocalPort: number
   pfPodPort: number
   portForwards: PortForwardSession[]
+  clusterName?: string
 }>()
 
 const emit = defineEmits<{
@@ -108,6 +127,8 @@ const emit = defineEmits<{
   (e: 'stopPF', id: string): void
   (e: 'openTerminal'): void
 }>()
+
+const showMetrics = ref(false)
 
 function onLogContainerChange(e: Event) {
   emit('update:logContainer', (e.target as HTMLSelectElement).value)
