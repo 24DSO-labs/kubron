@@ -1,6 +1,6 @@
 <template>
   <div>
-    <ContentHeader icon="🚀" title="Deployments" :count="items.length" :search="search" showSearch @refresh="onRefresh" @search="onSearch" />
+    <ContentHeader icon="" title="Deployments" :count="items.length" :search="search" showSearch @refresh="onRefresh" @search="onSearch" />
     <table v-if="items.length>0" class="table">
       <thead><tr><th>Name</th><th>Namespace</th><th>Ready</th><th>Up-to-date</th><th>Strategy</th><th>Images</th><th>Age</th><th>Scale</th><th>Actions</th></tr></thead>
       <tbody>
