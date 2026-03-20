@@ -4,7 +4,7 @@ import {
   GetNamespaces, GetPods, GetPodDetail, GetPodLogs, DeletePod,
   GetDeployments, ScaleDeployment, RestartDeployment,
   GetDeploymentRevisions, RollbackDeployment,
-  GetStatefulSets, GetDaemonSets, GetJobs, GetCronJobs,
+  GetStatefulSets, GetReplicaSets, GetDaemonSets, GetJobs, GetCronJobs,
   GetServiceDetail, GetServices, GetIngresses,
   GetNodes, GetEvents,
   GetConfigMaps, GetConfigMapDetail, GetSecrets,
@@ -17,7 +17,7 @@ import {
 
 import type {
   ContextInfo, NamespaceInfo, PodInfo, PodDetailInfo,
-  DeploymentInfo, StatefulSetInfo, DaemonSetInfo,
+  DeploymentInfo, StatefulSetInfo, ReplicaSetInfo, DaemonSetInfo,
   JobInfo, CronJobInfo, ServiceInfo, IngressInfo,
   NodeInfo, EventInfo, ConfigMapInfo, SecretInfo,
   PVInfo, PVCInfo, OverviewInfo,
@@ -31,6 +31,7 @@ const namespaces = ref<NamespaceInfo[]>([])
 const pods = ref<PodInfo[]>([])
 const deployments = ref<DeploymentInfo[]>([])
 const statefulsets = ref<StatefulSetInfo[]>([])
+const replicasets = ref<ReplicaSetInfo[]>([])
 const daemonsets = ref<DaemonSetInfo[]>([])
 const jobs = ref<JobInfo[]>([])
 const cronjobs = ref<CronJobInfo[]>([])
@@ -107,6 +108,7 @@ function filterBySearch<T extends { name: string; namespace?: string }>(items: T
 const filteredPods = computed(() => filterBySearch(pods.value))
 const filteredDeployments = computed(() => filterBySearch(deployments.value))
 const filteredStatefulSets = computed(() => filterBySearch(statefulsets.value))
+const filteredReplicaSets = computed(() => filterBySearch(replicasets.value))
 const filteredDaemonSets = computed(() => filterBySearch(daemonsets.value))
 const filteredJobs = computed(() => filterBySearch(jobs.value))
 const filteredCronJobs = computed(() => filterBySearch(cronjobs.value))
@@ -138,7 +140,7 @@ async function connect(name: string) {
 function disconnect() {
   stopAutoRefresh()
   activeContext.value = ''
-  pods.value = []; deployments.value = []; statefulsets.value = []
+  pods.value = []; deployments.value = []; statefulsets.value = []; replicasets.value = []
   daemonsets.value = []; jobs.value = []; cronjobs.value = []
   services.value = []; ingresses.value = []; nodes.value = []
   events.value = []; configmaps.value = []; secrets.value = []
@@ -174,6 +176,7 @@ async function refreshData() {
       case 'pods':   pods.value = await GetPods(ns); loadPodMetrics(); break
       case 'deployments': deployments.value = await GetDeployments(ns); break
       case 'statefulsets': statefulsets.value = await GetStatefulSets(ns); break
+      case 'replicasets': replicasets.value = await GetReplicaSets(ns); break
       case 'daemonsets': daemonsets.value = await GetDaemonSets(ns); break
       case 'jobs': jobs.value = await GetJobs(ns); break
       case 'cronjobs': cronjobs.value = await GetCronJobs(ns); break
@@ -377,7 +380,7 @@ async function forwardServicePort(namespace: string, service: string, port: numb
 export function useK8s() {
   return {
     // State
-    contexts, namespaces, pods, deployments, statefulsets,
+    contexts, namespaces, pods, deployments, statefulsets, replicasets,
     daemonsets, jobs, cronjobs, services, ingresses,
     nodes, events, configmaps, secrets, pvs, pvcs, overview,
     podMetrics, nodeMetrics, revisions, portForwards,
@@ -391,7 +394,7 @@ export function useK8s() {
     selectedService,
 
     // Filtered
-    filteredPods, filteredDeployments, filteredStatefulSets,
+    filteredPods, filteredDeployments, filteredStatefulSets, filteredReplicaSets,
     filteredDaemonSets, filteredJobs, filteredCronJobs,
     filteredServices, filteredIngresses, filteredConfigMaps,
     filteredSecrets, filteredPVCs,
