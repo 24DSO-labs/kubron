@@ -55,15 +55,23 @@
             :statusClass="statusClass" @refresh="refreshData" @search="(v) => search = v" />
           <CronJobsView v-if="currentView === 'cronjobs' && !loading" :items="filteredCronJobs" :search="search"
             @refresh="refreshData" @search="(v) => search = v" />
+          <ReplicaSetsView v-if="currentView === 'replicasets' && !loading" :items="filteredReplicaSets"
+            :search="search" @refresh="refreshData" @search="(v) => search = v" />
+
           <ServicesView v-if="currentView === 'services' && !loading" :items="filteredServices" :search="search"
             @refresh="refreshData" @search="(v) => search = v" @select="openServiceDetail"
             @yaml="(ns, n) => showYAML('service', ns, n)" />
           <IngressesView v-if="currentView === 'ingresses' && !loading" :items="filteredIngresses" :search="search"
             @refresh="refreshData" @search="(v) => search = v" />
+            <EndpointsView v-if="currentView === 'endpoints' && !loading" />
+<NetworkPoliciesView v-if="currentView === 'network-policies' && !loading" />
+
           <PVView v-if="currentView === 'pv' && !loading" :items="pvs" :statusClass="statusClass"
             @refresh="refreshData" />
           <PVCView v-if="currentView === 'pvc' && !loading" :items="filteredPVCs" :search="search"
             :statusClass="statusClass" @refresh="refreshData" @search="(v) => search = v" />
+            <NamespacesView v-if="currentView === 'namespaces' && !loading" />
+
           <NodesView v-if="currentView === 'nodes' && !loading"
   :items="nodes"
   :metrics="nodeMetrics"
@@ -144,6 +152,11 @@ import EventsView from './components/views/EventsView.vue'
 import ConfigMapsView from './components/views/ConfigMapsView.vue'
 import SecretsView from './components/views/SecretsView.vue'
 import ClusterSettings from './components/views/ClusterSettings.vue'
+import ReplicaSetsView from './components/views/ReplicaSetsView.vue'
+import EndpointsView from './components/views/EndpointsView.vue'
+import NetworkPoliciesView from './components/views/NetworkPoliciesView.vue'
+import NamespacesView from './components/views/NamespacesView.vue'
+
 
 const k8s = useK8s()
 const clustersApi = useClusters()
@@ -172,29 +185,31 @@ const {
   loadNamespaces,
 } = k8s
 
-const k8sDisconnect = k8s.disconnect
+  const k8sDisconnect = k8s.disconnect
 
-// Destructure clusters
-const {
-  clusters,
-  activeClusterId,
-  showAddCluster,
-  clusterError,
-  loadClusters,
-  connectToCluster,
-  addClusterFromFile,
-  addClusterFromText,
-  deleteCluster,
-  updateCluster,
-  autoConnect,
-} = clustersApi
+  // Destructure clusters
+  const {
+    clusters,
+    activeClusterId,
+    showAddCluster,
+    clusterError,
+    loadClusters,
+    connectToCluster,
+    addClusterFromFile,
+    addClusterFromText,
+    deleteCluster,
+    updateCluster,
+    autoConnect,
+  } = clustersApi
 
-const connecting = ref(false)
-const terminalOpen = ref(false)
+  const connecting = ref(false)
+  const terminalOpen = ref(false)
 
-const activeClusterMeta = computed(() => {
-  return clusters.value.find(c => c.id === activeClusterId.value) || null
-})
+  const activeClusterMeta = computed(() => {
+    return clusters.value.find(c => c.id === activeClusterId.value) || null
+  })
+
+  const filteredReplicaSets = computed(() => k8s.filteredReplicaSets.value)
 
 const revisionDepNs = { ns: '', name: '' }
 

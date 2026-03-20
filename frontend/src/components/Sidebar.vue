@@ -51,6 +51,7 @@
           <div :class="['nav-item', { active: currentView === 'cronjobs' }]" @click="emit('navigate', 'cronjobs')">
             <span class="nav-icon"></span> Cron Jobs
           </div>
+          
         </div>
       </div>
 

@@ -163,6 +163,12 @@ func (a *App) GetStatefulSets(namespace string) ([]k8s.StatefulSetInfo, error) {
 	return a.k8sMgr.GetStatefulSets(namespace)
 }
 
+// === ReplicaSets ===
+
+func (a *App) GetReplicaSets(namespace string) ([]k8s.ReplicaSetInfo, error) {
+	return a.k8sMgr.GetReplicaSets(namespace)
+}
+
 // === DaemonSets ===
 
 func (a *App) GetDaemonSets(namespace string) ([]k8s.DaemonSetInfo, error) {
