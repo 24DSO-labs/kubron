@@ -51,3 +51,18 @@ type MetricsSnapshot struct {
 	PodsCPU   json.RawMessage `json:"podsCpu,omitempty"`
 	PodsMem   json.RawMessage `json:"podsMem,omitempty"`
 }
+
+type ResourceMetric struct {
+	Usage       float64 `json:"usage"`
+	Requests    float64 `json:"requests"`
+	Limits      float64 `json:"limits"`
+	Allocatable float64 `json:"allocatable"`
+	Capacity    float64 `json:"capacity"`
+}
+
+type NodeMetricsByRole struct {
+	Role   string         `json:"role"`
+	CPU    ResourceMetric `json:"cpu"`
+	Memory ResourceMetric `json:"memory"`
+	Pods   ResourceMetric `json:"pods"`
+}

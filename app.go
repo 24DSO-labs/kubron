@@ -273,8 +273,12 @@ func (a *App) UninstallMetricsStack() error {
 	return a.k8sMgr.UninstallMetricsStack()
 }
 
-func (a *App) GetClusterMetricsSnapshot() (*k8s.MetricsSnapshot, error) {
+func (a *App) GetClusterMetricsSnapshot() (*k8s.ClusterMetricsSnapshot, error) {
 	return a.k8sMgr.GetClusterMetricsSnapshot()
+}
+
+func (a *App) GetNodeMetricsByRole(role string) (*k8s.NodeMetricsByRole, error) {
+	return a.k8sMgr.GetNodeMetricsByRole(role)
 }
 
 func (a *App) QueryPrometheus(query string) (*k8s.PromQueryResult, error) {

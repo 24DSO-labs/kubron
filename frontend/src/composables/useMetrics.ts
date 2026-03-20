@@ -63,8 +63,10 @@ export function useMetricsStatus(clusterName: string) {
 // Cluster Metrics
 export function useClusterMetrics(clusterName: string) {
   const snapshot = ref<ClusterMetricsSnapshot | null>(null)
+  const loading = ref(false)
 
   async function fetch() {
+    loading.value = true
     try {
       const { GetClusterMetricsSnapshot } = await import('../../wailsjs/go/main/App')
       const data = await GetClusterMetricsSnapshot()
@@ -73,10 +75,12 @@ export function useClusterMetrics(clusterName: string) {
       }
     } catch (e: any) {
       console.error('Failed to fetch cluster metrics:', e)
+    } finally {
+      loading.value = false
     }
   }
 
-  return { snapshot, fetch }
+  return { snapshot, loading, fetch }
 }
 
 // Node Metrics
@@ -88,7 +92,18 @@ export function useNodeMetrics(clusterName: string) {
       const { GetNodeMetrics } = await import('../../wailsjs/go/main/App')
       const data = await GetNodeMetrics()
       if (Array.isArray(data)) {
-        metrics.value = data as unknown as NodeMetricSnapshot[]
+        metrics.value = (data as any[]).map((item: any) => ({
+          name: item.name || '',
+          cpuUsage: parseFloat(item.cpuUsage) || 0,
+          cpuPercent: item.cpuPct || 0,
+          cpuCapacity: 100,
+          memoryUsage: parseFloat(item.memUsage) || 0,
+          memoryPercent: item.memPct || 0,
+          memoryCapacity: 100,
+          diskPercent: 0,
+          diskUsage: 0,
+          diskCapacity: 100,
+        }))
       }
     } catch (e: any) {
       console.error('Failed to fetch node metrics:', e)
@@ -159,4 +174,23 @@ export function usePrometheusRange(clusterName: string) {
   }
 
   return { queryRange }
+}
+
+// Get Node Metrics by Role
+export const useMetrics = () => {
+  const getNodeMetricsByRole = async (role: 'master' | 'worker') => {
+    try {
+      // Use wails binding to call backend method
+      const { GetNodeMetricsByRole } = await import('../../wailsjs/go/main/App')
+      const data = await GetNodeMetricsByRole(role)
+      return data
+    } catch (error) {
+      console.error(`Error fetching ${role} node metrics:`, error)
+      throw error
+    }
+  }
+
+  return {
+    getNodeMetricsByRole,
+  }
 }
