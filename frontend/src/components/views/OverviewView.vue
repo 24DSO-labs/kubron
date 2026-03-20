@@ -81,7 +81,7 @@
         <ClusterMetricsPanel :clusterName="clusterName" @update:snapshot="onSnapshotUpdate" />
       </div>
 
-      <div v-else class="space-y-6">
+      <div v-else>
         <div v-if="loading" class="bg-gray-800 rounded-lg shadow p-6 text-center border border-gray-700">
           <p class="text-gray-300">Loading metrics...</p>
         </div>
@@ -89,11 +89,22 @@
           <p class="text-red-400">{{ error }}</p>
         </div>
         <template v-else-if="nodeMetrics">
-          <!-- Donut Cards Row -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <DonutCard title="CPU" :usage="nodeMetrics.CPU?.Usage || 0" :requests="nodeMetrics.CPU?.Requests || 0" :limits="nodeMetrics.CPU?.Limits || 0" :allocatable="nodeMetrics.CPU?.Allocatable || 0" :capacity="nodeMetrics.CPU?.Capacity || 0" unit="cores" />
-            <DonutCard title="Memory" :usage="nodeMetrics.Memory?.Usage || 0" :requests="nodeMetrics.Memory?.Requests || 0" :limits="nodeMetrics.Memory?.Limits || 0" :allocatable="nodeMetrics.Memory?.Allocatable || 0" :capacity="nodeMetrics.Memory?.Capacity || 0" unit="GB" />
-            <DonutCard title="Pods" :usage="nodeMetrics.Pods?.Usage || 0" :requests="nodeMetrics.Pods?.Requests || 0" :limits="nodeMetrics.Pods?.Limits || 0" :allocatable="nodeMetrics.Pods?.Allocatable || 0" :capacity="nodeMetrics.Pods?.Capacity || 0" unit="count" />
+          <!-- Layout: Chart on left, Cards on right in a row -->
+          <div class="space-y-6">
+            <!-- Chart section -->
+            <div class="bg-gray-800 rounded-lg shadow p-6 border border-gray-700">
+              <h3 class="text-lg font-semibold text-white mb-4">Memory Usage Over Time</h3>
+              <div class="h-80 bg-gray-900 rounded flex items-center justify-center">
+                <p class="text-gray-400">Time series chart</p>
+              </div>
+            </div>
+            
+            <!-- Cards section in a row -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <DonutCard title="CPU" :usage="nodeMetrics.cpu?.usage || 0" :requests="nodeMetrics.cpu?.requests || 0" :limits="nodeMetrics.cpu?.limits || 0" :allocatable="nodeMetrics.cpu?.allocatable || 0" :capacity="nodeMetrics.cpu?.capacity || 0" unit="cores" />
+              <DonutCard title="Memory" :usage="nodeMetrics.memory?.usage || 0" :requests="nodeMetrics.memory?.requests || 0" :limits="nodeMetrics.memory?.limits || 0" :allocatable="nodeMetrics.memory?.allocatable || 0" :capacity="nodeMetrics.memory?.capacity || 0" unit="GB" />
+              <DonutCard title="Pods" :usage="nodeMetrics.pods?.usage || 0" :requests="nodeMetrics.pods?.requests || 0" :limits="nodeMetrics.pods?.limits || 0" :allocatable="nodeMetrics.pods?.allocatable || 0" :capacity="nodeMetrics.pods?.capacity || 0" unit="count" />
+            </div>
           </div>
         </template>
         <div v-else class="bg-gray-800 rounded-lg shadow p-6 text-center border border-gray-700">
@@ -110,22 +121,7 @@ import ContentHeader from '../ContentHeader.vue'
 import ClusterMetricsPanel from '../metrics/ClusterMetricsPanel.vue'
 import DonutCard from '../metrics/DonutCard.vue'
 import { useMetrics } from '../../composables/useMetrics'
-
-interface ResourceMetric {
-  Usage: number
-  Requests: number
-  Limits: number
-  Allocatable: number
-  Capacity: number
-}
-
-interface NodeMetricsData {
-  role?: string
-  Role?: string
-  CPU: ResourceMetric
-  Memory: ResourceMetric
-  Pods: ResourceMetric
-}
+import type { NodeMetricsByRole } from '../../types/metrics'
 
 interface Props {
   clusterName?: string
@@ -137,7 +133,7 @@ withDefaults(defineProps<Props>(), {
 
 const selectedNodeRole = ref('')
 const selectedTimeRange = ref('1h')
-const nodeMetrics = ref<NodeMetricsData | null>(null)
+const nodeMetrics = ref<NodeMetricsByRole | null>(null)
 const loading = ref(false)
 const error = ref('')
 
@@ -174,18 +170,18 @@ onMounted(() => {
 
 // Computed percentages for gauge cards
 const cpuPercent = computed(() => {
-  if (!nodeMetrics.value?.CPU || nodeMetrics.value.CPU.Capacity === 0) return 0
-  return Math.round((nodeMetrics.value.CPU.Usage / nodeMetrics.value.CPU.Capacity) * 100)
+  if (!nodeMetrics.value?.cpu || nodeMetrics.value.cpu.capacity === 0) return 0
+  return Math.round((nodeMetrics.value.cpu.usage / nodeMetrics.value.cpu.capacity) * 100)
 })
 
 const memoryPercent = computed(() => {
-  if (!nodeMetrics.value?.Memory || nodeMetrics.value.Memory.Capacity === 0) return 0
-  return Math.round((nodeMetrics.value.Memory.Usage / nodeMetrics.value.Memory.Capacity) * 100)
+  if (!nodeMetrics.value?.memory || nodeMetrics.value.memory.capacity === 0) return 0
+  return Math.round((nodeMetrics.value.memory.usage / nodeMetrics.value.memory.capacity) * 100)
 })
 
 const podsPercent = computed(() => {
-  if (!nodeMetrics.value?.Pods || nodeMetrics.value.Pods.Capacity === 0) return 0
-  return Math.round((nodeMetrics.value.Pods.Usage / nodeMetrics.value.Pods.Capacity) * 100)
+  if (!nodeMetrics.value?.pods || nodeMetrics.value.pods.capacity === 0) return 0
+  return Math.round((nodeMetrics.value.pods.usage / nodeMetrics.value.pods.capacity) * 100)
 })
 
 const loadNodeMetrics = async () => {
@@ -199,7 +195,11 @@ const loadNodeMetrics = async () => {
   try {
     const metrics = await getNodeMetricsByRole(selectedNodeRole.value as 'master' | 'worker')
     console.log('Loaded metrics:', metrics)
-    nodeMetrics.value = metrics as unknown as NodeMetricsData
+    console.log('CPU Usage:', metrics?.cpu?.usage)
+    console.log('Memory Usage:', metrics?.memory?.usage)
+    console.log('Pods Usage:', metrics?.pods?.usage)
+    nodeMetrics.value = metrics as unknown as NodeMetricsByRole
+    console.log('nodeMetrics.value after setting:', nodeMetrics.value)
   } catch (err: any) {
     error.value = err.message || 'Failed to load metrics'
     console.error('Error loading metrics:', err)
