@@ -1,6 +1,6 @@
 <template>
   <div class="flex-1 overflow-auto bg-gray-900">
-    <ContentHeader title="Overview" icon="chart-line" />
+    <ContentHeader title="Overview" icon="" />
     <div class="p-6">
       <!-- Overview Cards for Cluster Overview (above charts) -->
       <div class="overview-grid mb-6" v-if="clusterOverview">
