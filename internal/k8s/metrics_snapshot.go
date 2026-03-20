@@ -57,40 +57,46 @@ func parsePrometheusResult(result *PromQueryResult) float64 {
 
 	var data map[string]interface{}
 	if err := json.Unmarshal(result.Data, &data); err != nil {
+		println("[DEBUG] parsePrometheusResult unmarshal error:", err.Error())
 		return 0
 	}
 
 	resultType, ok := data["resultType"].(string)
-	if !ok || resultType != "vector" {
+	if !ok {
+		println("[DEBUG] parsePrometheusResult: no resultType field")
+		return 0
+	}
+
+	if resultType != "vector" && resultType != "matrix" {
+		println("[DEBUG] parsePrometheusResult: unexpected resultType:", resultType)
 		return 0
 	}
 
 	results, ok := data["result"].([]interface{})
 	if !ok || len(results) == 0 {
+		println("[DEBUG] parsePrometheusResult: no results or empty")
 		return 0
 	}
 
-	firstResult, ok := results[0].(map[string]interface{})
-	if !ok {
-		return 0
+	println("[DEBUG] parsePrometheusResult: found", len(results), "results")
+
+	// Sum all values from all results (for aggregated queries)
+	var total float64
+	for i, r := range results {
+		if resultMap, ok := r.(map[string]interface{}); ok {
+			if value, ok := resultMap["value"].([]interface{}); ok && len(value) >= 2 {
+				if valueStr, ok := value[1].(string); ok {
+					if floatVal, err := strconv.ParseFloat(valueStr, 64); err == nil {
+						println("[DEBUG]   Result", i, "value:", floatVal)
+						total += floatVal
+					}
+				}
+			}
+		}
 	}
 
-	value, ok := firstResult["value"].([]interface{})
-	if !ok || len(value) < 2 {
-		return 0
-	}
-
-	valueStr, ok := value[1].(string)
-	if !ok {
-		return 0
-	}
-
-	floatVal, err := strconv.ParseFloat(valueStr, 64)
-	if err != nil {
-		return 0
-	}
-
-	return floatVal
+	println("[DEBUG] parsePrometheusResult: total sum =", total)
+	return total
 }
 
 func (m *Manager) GetPodMetrics(namespace string) ([]PodMetrics, error) {
@@ -239,12 +245,15 @@ func (m *Manager) GetNodeMetricsByRole(role string) (*NodeMetricsByRole, error) 
 
 	// Filter nodes by role
 	var filteredNodes []NodeInfo
+	nodeNames := []string{}
 	for _, node := range nodes {
 		roleStr := node.Roles
 		if role == "master" && strings.Contains(roleStr, "master") {
 			filteredNodes = append(filteredNodes, node)
+			nodeNames = append(nodeNames, node.Name)
 		} else if role == "worker" && (roleStr == "<none>" || !strings.Contains(roleStr, "master")) {
 			filteredNodes = append(filteredNodes, node)
+			nodeNames = append(nodeNames, node.Name)
 		}
 	}
 
@@ -252,53 +261,130 @@ func (m *Manager) GetNodeMetricsByRole(role string) (*NodeMetricsByRole, error) 
 		return snapshot, nil
 	}
 
-	// Get cluster overview for pod info
-	overview, err := m.GetClusterOverview()
-	podCount := 0
-	if err == nil && overview != nil {
-		podCount = overview.RunningPods
-	}
-
-	// Calculate CPU and Memory usage/capacity from node info
+	// Calculate total capacity from node allocatable resources
 	totalCPUCapacity := 0.0
 	totalMemCapacity := 0.0
-	cpuUsageValue := 0.0
-	memUsageValue := 0.0
 
 	for _, node := range filteredNodes {
+		println("[DEBUG] Node:", node.Name, "CPU Capacity string:", node.CPUCapacity, "Memory Capacity string:", node.MemoryCapacity)
+
 		// Parse CPU Capacity
 		cpuCap, err := parseResourceValue(node.CPUCapacity)
 		if err == nil {
 			totalCPUCapacity += cpuCap
-			// Estimate usage as 30% of capacity (placeholder, should get from metrics)
-			cpuUsageValue += cpuCap * 0.3
+			println("[DEBUG]   Parsed CPU:", cpuCap, "Total:", totalCPUCapacity)
+		} else {
+			println("[DEBUG]   CPU parse error:", err.Error())
 		}
 
 		// Parse Memory Capacity
 		memCap, err := parseResourceValue(node.MemoryCapacity)
 		if err == nil {
 			totalMemCapacity += memCap
-			// Estimate usage as 50% of capacity (placeholder, should get from metrics)
-			memUsageValue += memCap * 0.5
+			println("[DEBUG]   Parsed Memory:", memCap, "Total:", totalMemCapacity)
+		} else {
+			println("[DEBUG]   Memory parse error:", err.Error())
 		}
 	}
 
-	// Set CPU metrics
+	// Set capacity values
 	snapshot.CPU.Capacity = totalCPUCapacity
-	snapshot.CPU.Usage = cpuUsageValue
-	if totalCPUCapacity > 0 {
-		snapshot.CPU.Requests = totalCPUCapacity * 0.6
-		snapshot.CPU.Limits = totalCPUCapacity * 0.8
-		snapshot.CPU.Allocatable = totalCPUCapacity * 0.9
+	snapshot.Memory.Capacity = totalMemCapacity
+
+	// DEBUG: Log filtered nodes and capacity
+	println("[DEBUG] GetNodeMetricsByRole: role=" + role)
+	println("[DEBUG] Filtered nodes:", len(filteredNodes), "Node names:", strings.Join(nodeNames, ","))
+	println("[DEBUG] Total CPU Capacity:", totalCPUCapacity, "Total Memory Capacity:", totalMemCapacity)
+
+	// Try to query real CPU usage from Prometheus - use simple query without filters
+	// The node filtering is done by checking which nodes are master/worker
+	cpuQuery := promQueryNodeCPU()
+	println("[DEBUG] CPU Query:", cpuQuery)
+	cpuResult, cpuErr := m.QueryPrometheus(cpuQuery)
+	if cpuErr != nil {
+		println("[DEBUG] CPU query error:", cpuErr.Error())
+	}
+	cpuDataLen := 0
+	if cpuResult != nil {
+		cpuDataLen = len(cpuResult.Data)
+		println("[DEBUG] CPU Result raw data:", string(cpuResult.Data))
+	}
+	println("[DEBUG] CPU Result data length:", cpuDataLen)
+	cpuUsageValue := parsePrometheusResult(cpuResult)
+	println("[DEBUG] CPU Usage Value:", cpuUsageValue)
+	println("[DEBUG] Number of nodes for role", role, ":", len(nodeNames))
+	if cpuUsageValue > 0 && totalCPUCapacity > 0 {
+		// cpuUsageValue is percentage, convert to absolute value (cores)
+		cpuUsagePercent := cpuUsageValue / float64(len(nodeNames))
+		snapshot.CPU.Usage = (cpuUsagePercent / 100.0) * totalCPUCapacity
+		println("[DEBUG] CPU Usage Percent:", cpuUsagePercent, "Calculated CPU.Usage:", snapshot.CPU.Usage)
+	} else {
+		println("[DEBUG] CPU Usage Value is 0 or negative, not setting")
 	}
 
-	// Set Memory metrics
-	snapshot.Memory.Capacity = totalMemCapacity
-	snapshot.Memory.Usage = memUsageValue
-	if totalMemCapacity > 0 {
+	// Try to query real Memory usage from Prometheus - use simple query without filters
+	memQuery := promQueryNodeMem()
+	println("[DEBUG] Memory Query:", memQuery)
+	memResult, memErr := m.QueryPrometheus(memQuery)
+	if memErr != nil {
+		println("[DEBUG] Memory query error:", memErr.Error())
+	}
+	memUsageValue := parsePrometheusResult(memResult)
+	println("[DEBUG] Memory Usage Value:", memUsageValue)
+	if memUsageValue > 0 && totalMemCapacity > 0 {
+		// memUsageValue is percentage, convert to absolute value (GB)
+		memUsagePercent := memUsageValue / float64(len(nodeNames))
+		snapshot.Memory.Usage = (memUsagePercent / 100.0) * totalMemCapacity
+		println("[DEBUG] Memory Usage Percent:", memUsagePercent, "Calculated Memory.Usage:", snapshot.Memory.Usage)
+	} else {
+		println("[DEBUG] Memory Usage Value is 0 or negative, not setting")
+	}
+
+	// Query CPU Requests from Prometheus (pod resource requests)
+	cpuReqResult, _ := m.QueryPrometheus(promQueryCPURequests(role, nodeNames))
+	cpuReqValue := parsePrometheusResult(cpuReqResult)
+	if cpuReqValue > 0 {
+		snapshot.CPU.Requests = cpuReqValue
+	} else if totalCPUCapacity > 0 {
+		snapshot.CPU.Requests = totalCPUCapacity * 0.6
+	}
+
+	// Query CPU Limits from Prometheus (pod resource limits)
+	cpuLimResult, _ := m.QueryPrometheus(promQueryCPULimits(role, nodeNames))
+	cpuLimValue := parsePrometheusResult(cpuLimResult)
+	if cpuLimValue > 0 {
+		snapshot.CPU.Limits = cpuLimValue
+	} else if totalCPUCapacity > 0 {
+		snapshot.CPU.Limits = totalCPUCapacity * 0.8
+	}
+
+	// Query Memory Requests from Prometheus (pod resource requests)
+	memReqResult, _ := m.QueryPrometheus(promQueryMemoryRequests(role, nodeNames))
+	memReqValue := parsePrometheusResult(memReqResult)
+	if memReqValue > 0 {
+		snapshot.Memory.Requests = memReqValue
+	} else if totalMemCapacity > 0 {
 		snapshot.Memory.Requests = totalMemCapacity * 0.6
+	}
+
+	// Query Memory Limits from Prometheus (pod resource limits)
+	memLimResult, _ := m.QueryPrometheus(promQueryMemoryLimits(role, nodeNames))
+	memLimValue := parsePrometheusResult(memLimResult)
+	if memLimValue > 0 {
+		snapshot.Memory.Limits = memLimValue
+	} else if totalMemCapacity > 0 {
 		snapshot.Memory.Limits = totalMemCapacity * 0.8
-		snapshot.Memory.Allocatable = totalMemCapacity * 0.9
+	}
+
+	// Set Allocatable values (typically same as capacity)
+	snapshot.CPU.Allocatable = snapshot.CPU.Capacity
+	snapshot.Memory.Allocatable = snapshot.Memory.Capacity
+
+	// Get pod count from cluster overview
+	overview, err := m.GetClusterOverview()
+	podCount := 0
+	if err == nil && overview != nil {
+		podCount = overview.RunningPods
 	}
 
 	// Set pod metrics
@@ -309,6 +395,8 @@ func (m *Manager) GetNodeMetricsByRole(role string) (*NodeMetricsByRole, error) 
 	snapshot.Pods.Limits = podCapacity * 0.8
 	snapshot.Pods.Allocatable = podCapacity * 0.9
 
+	println("[DEBUG] Final snapshot: CPU Usage=", snapshot.CPU.Usage, "Capacity=", snapshot.CPU.Capacity)
+
 	return snapshot, nil
 }
 
@@ -318,6 +406,9 @@ func parseResourceValue(value string) (float64, error) {
 	if value == "" {
 		return 0, nil
 	}
+
+	// Trim spaces first
+	value = strings.TrimSpace(value)
 
 	// Remove trailing 'm' for milliCPU (convert to cores)
 	if strings.HasSuffix(value, "m") {
@@ -330,13 +421,13 @@ func parseResourceValue(value string) (float64, error) {
 
 	// Handle memory with Gi (gigabytes)
 	if strings.HasSuffix(value, "Gi") {
-		val := strings.TrimSuffix(value, "Gi")
+		val := strings.TrimSpace(strings.TrimSuffix(value, "Gi"))
 		return strconv.ParseFloat(val, 64)
 	}
 
 	// Handle memory with Mi (megabytes)
 	if strings.HasSuffix(value, "Mi") {
-		val := strings.TrimSuffix(value, "Mi")
+		val := strings.TrimSpace(strings.TrimSuffix(value, "Mi"))
 		mb, err := strconv.ParseFloat(val, 64)
 		if err == nil {
 			return mb / 1024, nil // Convert MB to GB

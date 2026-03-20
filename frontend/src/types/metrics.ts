@@ -68,4 +68,19 @@ export interface PrometheusResult {
   values: Array<[number, string]>
 }
 
+export interface ResourceMetric {
+  usage: number
+  requests: number
+  limits: number
+  allocatable: number
+  capacity: number
+}
+
+export interface NodeMetricsByRole {
+  role: string
+  cpu: ResourceMetric
+  memory: ResourceMetric
+  pods: ResourceMetric
+}
+
 export type TimeSeriesDataPoint = [number, number]
