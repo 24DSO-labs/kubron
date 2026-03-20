@@ -63,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import GaugeCard from './GaugeCard.vue'
 import MetricsChart from './MetricsChart.vue'
 import {
@@ -80,6 +80,8 @@ const props = defineProps<{
 const { status, fetchStatus } = useMetricsStatus(props.clusterName)
 const { metrics: allNodes, fetch: fetchNodes } = useNodeMetrics(props.clusterName)
 const { queryRange } = usePrometheusRange(props.clusterName)
+
+let refreshInterval: ReturnType<typeof setInterval> | null = null
 
 const metricsAvailable = computed(() => status.value?.status === 'installed')
 
@@ -124,6 +126,16 @@ onMounted(async () => {
   await fetchStatus()
   if (metricsAvailable.value) {
     await fetchNodes()
+    // Auto-refresh every 10 seconds
+    refreshInterval = setInterval(() => {
+      fetchNodes()
+    }, 10000)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (refreshInterval) {
+    clearInterval(refreshInterval)
   }
 })
 </script>

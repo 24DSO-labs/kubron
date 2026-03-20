@@ -3,17 +3,12 @@
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-sm font-medium text-gray-300">{{ title }}</h3>
       <div class="flex items-center gap-1">
-        <button
-          v-for="range in timeRanges"
-          :key="range.value"
-          @click="selectedRange = range.value"
-          :class="[
-            'px-2 py-0.5 text-xs rounded transition-colors',
-            selectedRange === range.value
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
-          ]"
-        >
+        <button v-for="range in timeRanges" :key="range.value" @click="selectedRange = range.value" :class="[
+          'px-2 py-0.5 text-xs rounded transition-colors',
+          selectedRange === range.value
+            ? 'bg-blue-600 text-white'
+            : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+        ]">
           {{ range.label }}
         </button>
       </div>
@@ -44,7 +39,7 @@
     </div>
 
     <!-- Chart -->
-    <div v-else class="h-48 relative">
+    <div v-else class="h-44 relative">
       <div v-if="loading" class="absolute top-0 right-0 z-10">
         <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-500"></div>
       </div>

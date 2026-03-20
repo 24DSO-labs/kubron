@@ -1,6 +1,6 @@
 <template>
   <div class="p-6 max-w-4xl">
-    <h1 class="text-xl font-semibold text-white mb-6">Cluster Settings</h1>
+    <h1 class="text-xl font-semibold text-white mb-6">Настройки кластера</h1>
 
     <div class="bg-gray-800 rounded-lg border border-gray-700">
       <!-- Header -->
@@ -14,7 +14,7 @@
               </svg>
             </div>
             <div>
-              <h2 class="text-base font-medium text-white">Metrics Stack</h2>
+              <h2 class="text-base font-medium text-white">Стек метрик</h2>
               <p class="text-sm text-gray-400">Prometheus + Node Exporter + Kube State Metrics</p>
             </div>
           </div>
@@ -26,15 +26,13 @@
         <!-- NOT INSTALLED -->
         <div v-if="currentState === 'not_installed'">
           <p class="text-sm text-gray-400 mb-4">
-            Install the Kubron metrics stack to enable cluster monitoring with CPU, memory,
-            and network graphs. Creates a
-            <code class="text-gray-300 bg-gray-700 px-1.5 py-0.5 rounded text-xs">kubron-metrics</code>
-            namespace.
+            Установите стек метрик Kubron для включения мониторинга кластера с графиками CPU, памяти и сети. Создаёт пространство имён
+            <code class="text-gray-300 bg-gray-700 px-1.5 py-0.5 rounded text-xs">kubron-metrics</code>.
           </p>
 
           <div class="bg-gray-900/50 rounded-lg p-4 mb-5">
             <h4 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">
-              Components
+              Компоненты
             </h4>
             <div class="space-y-2.5">
               <div v-for="c in componentsList" :key="c.name"
@@ -47,16 +45,16 @@
           </div>
 
           <button @click="handleInstall" :disabled="loading"
-            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800
-                   disabled:cursor-not-allowed text-white text-sm font-medium
-                   rounded-lg transition-colors flex items-center gap-2">
-            <svg v-if="loading" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+            class="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 active:from-blue-700 active:to-blue-800 disabled:from-blue-800 disabled:to-blue-800
+                   disabled:cursor-not-allowed text-white text-sm font-semibold
+                   rounded-lg transition-all duration-200 shadow-md hover:shadow-xl hover:scale-105 flex items-center gap-2">
+            <svg v-if="loading" class="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10"
-                stroke="currentColor" stroke-width="4"/>
+                stroke="currentColor" stroke-width="3"/>
               <path class="opacity-75" fill="currentColor"
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
             </svg>
-            {{ loading ? 'Installing...' : 'Install Metrics Stack' }}
+            {{ loading ? 'Установка...' : 'Установить стек метрик' }}
           </button>
         </div>
 
@@ -65,7 +63,7 @@
           <div class="flex items-center gap-3">
             <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
             <p class="text-sm text-gray-300">
-              Installing metrics stack... This may take a few minutes.
+              Установка стека метрик... Это может занять несколько минут.
             </p>
           </div>
         </div>
@@ -73,14 +71,14 @@
         <!-- INSTALLED -->
         <div v-else-if="currentState === 'installed'">
           <p class="text-sm text-gray-400 mb-4">
-            Metrics stack is running. Monitoring data is being collected.
+            Стек метрик работает. Данные мониторинга собираются.
           </p>
 
           <!-- Running components -->
           <div v-if="status?.components"
             class="bg-gray-900/50 rounded-lg p-4 mb-5">
             <h4 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">
-              Running Components
+              Работающие компоненты
             </h4>
             <div class="space-y-2.5">
               <div v-for="(comp, name) in status.components" :key="name"
@@ -92,7 +90,7 @@
                   <span class="text-gray-300">{{ fmtName(name as string) }}</span>
                 </div>
                 <span class="text-gray-500 text-xs">
-                  {{ comp.availableReplicas }}/{{ comp.replicas }} ready
+                  {{ comp.availableReplicas }}/{{ comp.replicas }} готово
                 </span>
               </div>
             </div>
@@ -102,28 +100,28 @@
           <div class="pt-4 border-t border-gray-700">
             <div class="flex items-center justify-between">
               <div>
-                <p class="text-sm text-gray-300">Remove Metrics Stack</p>
+                <p class="text-sm text-gray-300">Удалить стек метрик</p>
                 <p class="text-xs text-gray-500 mt-0.5">
-                  Deletes kubron-metrics namespace and all data
+                  Удаляет пространство имён kubron-metrics и все данные
                 </p>
               </div>
               <div v-if="!showConfirm">
                 <button @click="showConfirm = true"
-                  class="px-3 py-1.5 bg-red-900/30 hover:bg-red-900/50 text-red-400
-                         text-sm rounded-lg border border-red-800/50 transition-colors">
-                  Uninstall
+                  class="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300
+                         text-sm font-medium rounded-lg border border-red-500/50 hover:border-red-500 transition-all duration-200">
+                  Удалить
                 </button>
               </div>
               <div v-else class="flex items-center gap-2">
                 <button @click="showConfirm = false"
-                  class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300
-                         text-sm rounded-lg transition-colors">
-                  Cancel
+                  class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white
+                         text-sm font-medium rounded-lg transition-all duration-200">
+                  Отмена
                 </button>
                 <button @click="handleUninstall" :disabled="loading"
-                  class="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-red-800
-                         text-white text-sm rounded-lg transition-colors">
-                  Confirm Uninstall
+                  class="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 active:from-red-700 active:to-red-800 disabled:from-red-800 disabled:to-red-800
+                         text-white text-sm font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:cursor-not-allowed">
+                  Подтвердить удаление
                 </button>
               </div>
             </div>
@@ -142,7 +140,7 @@
                      0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
               </svg>
               <div>
-                <p class="text-sm text-yellow-300 font-medium">Metrics stack is degraded</p>
+                <p class="text-sm text-yellow-300 font-medium">Стек метрик неработоспособен</p>
                 <p class="text-xs text-yellow-400/70 mt-1">{{ status?.message }}</p>
               </div>
             </div>
@@ -158,41 +156,41 @@
                   <span class="text-gray-300">{{ fmtName(name as string) }}</span>
                 </div>
                 <span :class="['text-xs', comp.ready ? 'text-gray-500' : 'text-red-400']">
-                  {{ comp.availableReplicas }}/{{ comp.replicas }} ready
+                  {{ comp.availableReplicas }}/{{ comp.replicas }} готово
                 </span>
               </div>
             </div>
           </div>
 
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2">
             <button @click="fetchStatus"
-              class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300
-                     text-sm rounded-lg transition-colors">
-              Refresh
+              class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white
+                     text-sm font-medium rounded-lg transition-all duration-200">
+              Обновить
             </button>
             <button @click="handleReinstall" :disabled="loading"
-              class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white
-                     text-sm rounded-lg transition-colors">
-              Reinstall
+              class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 active:from-blue-700 active:to-blue-800 disabled:from-blue-800 disabled:to-blue-800
+                     text-white text-sm font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:cursor-not-allowed">
+              Переустановить
             </button>
             <button @click="showConfirm = true"
-              class="px-3 py-1.5 bg-red-900/30 hover:bg-red-900/50 text-red-400
-                     text-sm rounded-lg border border-red-800/50 transition-colors">
-              Uninstall
+              class="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300
+                     text-sm font-medium rounded-lg border border-red-500/50 hover:border-red-500 transition-all duration-200">
+              Удалить
             </button>
           </div>
 
-          <div v-if="showConfirm" class="mt-4 flex items-center gap-2">
-            <span class="text-sm text-gray-400">Are you sure?</span>
+          <div v-if="showConfirm" class="mt-4 flex items-center gap-2 bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+            <span class="text-sm text-gray-300 font-medium">Вы уверены?</span>
             <button @click="showConfirm = false"
-              class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300
-                     text-sm rounded-lg transition-colors">
-              Cancel
+              class="ml-auto px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white
+                     text-sm font-medium rounded-lg transition-all duration-200">
+              Отмена
             </button>
             <button @click="handleUninstall" :disabled="loading"
-              class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white
-                     text-sm rounded-lg transition-colors">
-              Confirm
+              class="px-3 py-1.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 active:from-red-700 active:to-red-800 disabled:from-red-800 disabled:to-red-800
+                     text-white text-sm font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:cursor-not-allowed">
+              Подтвердить
             </button>
           </div>
         </div>
@@ -205,6 +203,7 @@
     </div>
   </div>
 </template>
+
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import MetricsStatusBadge from '../metrics/MetricsStatusBadge.vue'
@@ -231,9 +230,9 @@ const currentState = computed(() => {
 })
 
 const componentsList = [
-  { name: 'Prometheus', desc: 'metrics collection & storage', dotColor: 'bg-orange-400' },
-  { name: 'Node Exporter', desc: 'hardware & OS metrics', dotColor: 'bg-green-400' },
-  { name: 'Kube State Metrics', desc: 'Kubernetes object metrics', dotColor: 'bg-blue-400' },
+  { name: 'Prometheus', desc: 'сбор и хранение метрик', dotColor: 'bg-orange-400' },
+  { name: 'Node Exporter', desc: 'метрики оборудования и ОС', dotColor: 'bg-green-400' },
+  { name: 'Kube State Metrics', desc: 'метрики объектов Kubernetes', dotColor: 'bg-blue-400' },
 ]
 
 function fmtName(raw: string): string {
