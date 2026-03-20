@@ -88,6 +88,15 @@ export interface StatefulSetInfo {
   serviceName: string
 }
 
+export interface ReplicaSetInfo {
+  name: string
+  namespace: string
+  desired: number
+  ready: number
+  age: string
+  images: string[]
+}
+
 export interface DaemonSetInfo {
   name: string
   namespace: string
