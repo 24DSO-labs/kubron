@@ -2,30 +2,52 @@
   <div class="flex-1 overflow-auto bg-gray-900">
     <ContentHeader title="Overview" icon="chart-line" />
     <div class="p-6">
-       <!-- Overview Cards for Cluster Overview (above charts) -->
-        <div class="overview-grid mb-6" v-if="clusterSnapshot">
-          <div class="overview-card">
-            <div class="card-icon">💾</div>
-            <div class="card-info">
-              <div class="card-value">{{ clusterSnapshot.cpuUsage?.toFixed(2) || '0' }}/{{ clusterSnapshot.cpuCapacity?.toFixed(2) || '0' }}</div>
-              <div class="card-label">CPU Usage</div>
-            </div>
-          </div>
-          <div class="overview-card">
-            <div class="card-icon">🧠</div>
-            <div class="card-info">
-              <div class="card-value">{{ clusterSnapshot.memoryUsage?.toFixed(2) || '0' }}/{{ clusterSnapshot.memoryCapacity?.toFixed(2) || '0' }}</div>
-              <div class="card-label">Memory Usage</div>
-            </div>
-          </div>
-          <div class="overview-card">
-            <div class="card-icon">📦</div>
-            <div class="card-info">
-              <div class="card-value">{{ clusterSnapshot.podCount || '0' }}/{{ clusterSnapshot.podCapacity || '0' }}</div>
-              <div class="card-label">Pods</div>
-            </div>
+      <!-- Overview Cards for Cluster Overview (above charts) -->
+      <div class="overview-grid mb-6" v-if="clusterOverview">
+        <div class="overview-card">
+          <div class="card-icon"></div>
+          <div class="card-info">
+            <div class="card-value">{{ clusterOverview.readyNodes }}/{{ clusterOverview.totalNodes }}</div>
+            <div class="card-label">Nodes Ready</div>
           </div>
         </div>
+        <div class="overview-card">
+          <div class="card-icon"></div>
+          <div class="card-info">
+            <div class="card-value">{{ clusterOverview.runningPods }}/{{ clusterOverview.totalPods }}</div>
+            <div class="card-label">Pods Running</div>
+          </div>
+        </div>
+        <div class="overview-card">
+          <div class="card-icon"></div>
+          <div class="card-info">
+            <div class="card-value">{{ clusterOverview.readyDeployments }}/{{ clusterOverview.totalDeployments }}</div>
+            <div class="card-label">Deployments Ready</div>
+          </div>
+        </div>
+        <div class="overview-card">
+          <div class="card-icon"></div>
+          <div class="card-info">
+            <div class="card-value">{{ clusterOverview.totalServices }}</div>
+            <div class="card-label">Services</div>
+          </div>
+        </div>
+        <div class="overview-card">
+          <div class="card-icon"></div>
+          <div class="card-info">
+            <div class="card-value">{{ clusterOverview.totalNamespaces }}</div>
+            <div class="card-label">Namespaces</div>
+          </div>
+        </div>
+        <div class="overview-card">
+          <div class="card-icon"></div>
+          <div class="card-info">
+            <div class="card-value">{{ clusterOverview.warningEvents }}/{{ clusterOverview.totalEvents }}</div>
+            <div class="card-label">Warning Events</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Dropdown для выбора Master/Worker nodes -->
       <div class="mb-6 flex items-center gap-4 bg-gray-800 rounded-lg shadow p-4 border border-gray-700">
         <div class="flex items-center gap-2">
@@ -56,7 +78,6 @@
       </div>
 
       <div v-if="!selectedNodeRole">
-       
         <ClusterMetricsPanel :clusterName="clusterName" @update:snapshot="onSnapshotUpdate" />
       </div>
 
@@ -68,8 +89,6 @@
           <p class="text-red-400">{{ error }}</p>
         </div>
         <template v-else-if="nodeMetrics">
-         
-
           <!-- Donut Cards Row -->
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <DonutCard title="CPU" :usage="nodeMetrics.CPU?.Usage || 0" :requests="nodeMetrics.CPU?.Requests || 0" :limits="nodeMetrics.CPU?.Limits || 0" :allocatable="nodeMetrics.CPU?.Allocatable || 0" :capacity="nodeMetrics.CPU?.Capacity || 0" unit="cores" />
@@ -86,7 +105,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import ContentHeader from '../ContentHeader.vue'
 import ClusterMetricsPanel from '../metrics/ClusterMetricsPanel.vue'
 import DonutCard from '../metrics/DonutCard.vue'
@@ -131,10 +150,27 @@ interface ClusterOverviewMetrics {
 }
 
 const clusterSnapshot = ref<any>(null)
+const clusterOverview = ref<any>(null)
 
 const onSnapshotUpdate = (snapshot: any) => {
   clusterSnapshot.value = snapshot
 }
+
+const loadClusterOverview = async () => {
+  try {
+    const { GetClusterOverview } = await import('../../../wailsjs/go/main/App')
+    const overview = await GetClusterOverview()
+    clusterOverview.value = overview
+  } catch (err) {
+    console.error('Error loading cluster overview:', err)
+  }
+}
+
+onMounted(() => {
+  loadClusterOverview()
+  // Refresh every 10 seconds
+  setInterval(loadClusterOverview, 10000)
+})
 
 // Computed percentages for gauge cards
 const cpuPercent = computed(() => {
