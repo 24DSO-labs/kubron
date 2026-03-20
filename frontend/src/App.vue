@@ -1,7 +1,10 @@
 <template>
   <div id="app">
     <header class="header">
-      <h1>🚀 Kubron</h1>
+      <div class="header-brand">
+        <img src="./assets/images/logo.svg" alt="Kubron Logo" class="logo" />
+        <h1>Kubron</h1>
+      </div>
       <div v-if="activeClusterId" class="connection-info">
         <span class="active-cluster-icon">{{ activeClusterMeta?.icon }}</span>
         <span class="active-cluster-name" :style="{ color: activeClusterMeta?.color }">

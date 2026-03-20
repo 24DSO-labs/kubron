@@ -11,7 +11,16 @@ body {
   padding: 8px 16px; background: #181825; border-bottom: 1px solid #313244;
   flex-shrink: 0;
 }
-.header h1 { font-size: 20px; }
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.logo {
+  height: 28px;
+  width: auto;
+}
+.header h1 { font-size: 20px; margin: 0; }
 .connection-info { font-size: 13px; color: #a6e3a1; display: flex; align-items: center; gap: 8px; }
 .btn-disconnect {
   background: #f38ba8; color: #1e1e2e; border: none; width: 24px; height: 24px;
