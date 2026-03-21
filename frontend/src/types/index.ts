@@ -401,3 +401,89 @@ export interface StorageClassInfo {
   default: boolean
   age: string
 }
+
+export interface ServiceAccount {
+  apiVersion?: string
+  kind?: string
+  metadata?: {
+    name?: string
+    namespace?: string
+    creationTimestamp?: string
+  }
+  secrets?: Array<{
+    name: string
+  }>
+  automountServiceAccountToken?: boolean
+}
+
+export interface Role {
+  apiVersion?: string
+  kind?: string
+  metadata?: {
+    name?: string
+    namespace?: string
+    creationTimestamp?: string
+  }
+  rules?: Array<{
+    verbs: string[]
+    apiGroups?: string[]
+    resources?: string[]
+    resourceNames?: string[]
+  }>
+}
+
+export interface RoleBinding {
+  apiVersion?: string
+  kind?: string
+  metadata?: {
+    name?: string
+    namespace?: string
+    creationTimestamp?: string
+  }
+  roleRef?: {
+    apiGroup: string
+    kind: string
+    name: string
+  }
+  subjects?: Array<{
+    apiGroup?: string
+    kind: string
+    name: string
+    namespace?: string
+  }>
+}
+
+export interface ClusterRole {
+  apiVersion?: string
+  kind?: string
+  metadata?: {
+    name?: string
+    creationTimestamp?: string
+  }
+  rules?: Array<{
+    verbs: string[]
+    apiGroups?: string[]
+    resources?: string[]
+    resourceNames?: string[]
+  }>
+}
+
+export interface ClusterRoleBinding {
+  apiVersion?: string
+  kind?: string
+  metadata?: {
+    name?: string
+    creationTimestamp?: string
+  }
+  roleRef?: {
+    apiGroup: string
+    kind: string
+    name: string
+  }
+  subjects?: Array<{
+    apiGroup?: string
+    kind: string
+    name: string
+    namespace?: string
+  }>
+}
