@@ -56,6 +56,11 @@ const leases = ref<any[]>([])
 const endpoints = ref<any[]>([])
 const networkpolicies = ref<any[]>([])
 const ingressclasses = ref<any[]>([])
+const serviceaccounts = ref<any[]>([])
+const roles = ref<any[]>([])
+const rolebindings = ref<any[]>([])
+const clusterroles = ref<any[]>([])
+const clusterrolebindings = ref<any[]>([])
 const pvs = ref<PVInfo[]>([])
 const pvcs = ref<PVCInfo[]>([])
 const storageclasses = ref<StorageClassInfo[]>([])
@@ -156,6 +161,11 @@ const filteredEndpoints = computed(() => filterBySearch(endpoints.value))
 const filteredNetworkPolicies = computed(() => filterBySearch(networkpolicies.value))
 const filteredIngressClasses = computed(() => filterBySearch(ingressclasses.value))
 const filteredStorageClasses = computed(() => filterBySearch(storageclasses.value))
+const filteredServiceAccounts = computed(() => filterBySearch(serviceaccounts.value))
+const filteredRoles = computed(() => filterBySearch(roles.value))
+const filteredRoleBindings = computed(() => filterBySearch(rolebindings.value))
+const filteredClusterRoles = computed(() => filterBySearch(clusterroles.value))
+const filteredClusterRoleBindings = computed(() => filterBySearch(clusterrolebindings.value))
 
 // --- Connection ---
 async function loadContexts() {
@@ -442,6 +452,71 @@ async function refreshData() {
           }
         }
         break
+      case 'serviceaccounts':
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          try {
+            const app = await import('../../wailsjs/go/main/App')
+            if (app.GetServiceAccounts) {
+              const data = await app.GetServiceAccounts(ns)
+              serviceaccounts.value = data || []
+            }
+          } catch (e) {
+            serviceaccounts.value = []
+          }
+        }
+        break
+      case 'roles':
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          try {
+            const app = await import('../../wailsjs/go/main/App')
+            if (app.GetRoles) {
+              const data = await app.GetRoles(ns)
+              roles.value = data || []
+            }
+          } catch (e) {
+            roles.value = []
+          }
+        }
+        break
+      case 'rolebindings':
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          try {
+            const app = await import('../../wailsjs/go/main/App')
+            if (app.GetRoleBindings) {
+              const data = await app.GetRoleBindings(ns)
+              rolebindings.value = data || []
+            }
+          } catch (e) {
+            rolebindings.value = []
+          }
+        }
+        break
+      case 'clusterroles':
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          try {
+            const app = await import('../../wailsjs/go/main/App')
+            if (app.GetClusterRoles) {
+              const data = await app.GetClusterRoles()
+              clusterroles.value = data || []
+            }
+          } catch (e) {
+            clusterroles.value = []
+          }
+        }
+        break
+      case 'clusterrolebindings':
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          try {
+            const app = await import('../../wailsjs/go/main/App')
+            if (app.GetClusterRoleBindings) {
+              const data = await app.GetClusterRoleBindings()
+              clusterrolebindings.value = data || []
+            }
+          } catch (e) {
+            clusterrolebindings.value = []
+          }
+        }
+        break
       case 'portforwarding': 
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           await refreshPortForwards()
@@ -676,6 +751,7 @@ export function useK8s() {
     filteredLimitRanges, filteredHPA, filteredPDB,
     filteredPriorityClasses, filteredRuntimeClasses, filteredLeases,
     filteredEndpoints, filteredNetworkPolicies, filteredIngressClasses, filteredStorageClasses,
+    filteredServiceAccounts, filteredRoles, filteredRoleBindings, filteredClusterRoles, filteredClusterRoleBindings,
 
     // Helpers
     statusClass, pct,
