@@ -3,7 +3,7 @@
     <header class="header">
       <div class="header-brand">
         <img src="./assets/images/logo.svg" alt="Kubron Logo" class="logo" />
-        <h1>Kubron</h1>
+        <h1></h1>
       </div>
       <div v-if="activeClusterId" class="connection-info">
         <span class="active-cluster-icon">{{ activeClusterMeta?.icon }}</span>
@@ -110,6 +110,18 @@
             @refresh="refreshData" @search="(v) => search = v" />
           <LeasesView v-if="currentView === 'leases' && !loading" :items="filteredLeases" :search="search"
             @refresh="refreshData" @search="(v) => search = v" />
+
+          <ServiceAccountsView v-if="currentView === 'serviceaccounts' && !loading" :items="filteredServiceAccounts" :search="search"
+            @refresh="refreshData" @search="(v) => search = v" />
+          <RolesView v-if="currentView === 'roles' && !loading" :items="filteredRoles" :search="search"
+            @refresh="refreshData" @search="(v) => search = v" />
+          <RoleBindingsView v-if="currentView === 'rolebindings' && !loading" :items="filteredRoleBindings" :search="search"
+            @refresh="refreshData" @search="(v) => search = v" />
+          <ClusterRolesView v-if="currentView === 'clusterroles' && !loading" :items="filteredClusterRoles" :search="search"
+            @refresh="refreshData" @search="(v) => search = v" />
+          <ClusterRoleBindingsView v-if="currentView === 'clusterrolebindings' && !loading" :items="filteredClusterRoleBindings" :search="search"
+            @refresh="refreshData" @search="(v) => search = v" />
+
           <ClusterSettings v-if="currentView === 'settings' && !loading" :cluster-name="activeClusterId" />
         </main>
       </template>
@@ -191,6 +203,11 @@ import IngressClassesView from './components/views/IngressClassesView.vue'
 import PortForwardingView from './components/views/PortForwardingView.vue'
 import NamespacesView from './components/views/NamespacesView.vue'
 import StorageClassesView from './components/views/StorageClassesView.vue'
+import ServiceAccountsView from './components/views/ServiceAccountsView.vue'
+import RolesView from './components/views/RolesView.vue'
+import RoleBindingsView from './components/views/RoleBindingsView.vue'
+import ClusterRolesView from './components/views/ClusterRolesView.vue'
+import ClusterRoleBindingsView from './components/views/ClusterRoleBindingsView.vue'
 
 
 const k8s = useK8s()
@@ -232,6 +249,11 @@ const filteredEndpoints = computed(() => k8s.filteredEndpoints.value || [])
 const filteredNetworkPolicies = computed(() => k8s.filteredNetworkPolicies.value || [])
 const filteredIngressClasses = computed(() => k8s.filteredIngressClasses.value || [])
 const filteredStorageClasses = computed(() => k8s.filteredStorageClasses.value || [])
+const filteredServiceAccounts = computed(() => k8s.filteredServiceAccounts.value || [])
+const filteredRoles = computed(() => k8s.filteredRoles.value || [])
+const filteredRoleBindings = computed(() => k8s.filteredRoleBindings.value || [])
+const filteredClusterRoles = computed(() => k8s.filteredClusterRoles.value || [])
+const filteredClusterRoleBindings = computed(() => k8s.filteredClusterRoleBindings.value || [])
 
   const k8sDisconnect = k8s.disconnect
 

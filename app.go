@@ -6,6 +6,7 @@ import (
 	"time"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type App struct {
@@ -287,6 +288,83 @@ func (a *App) GetNetworkPolicies(namespace string) ([]k8s.NetworkPolicyInfo, err
 
 func (a *App) GetIngressClasses() ([]k8s.IngressClassInfo, error) {
 	return a.k8sMgr.GetIngressClasses()
+}
+
+// === Access Control ===
+
+func (a *App) GetServiceAccounts(namespace string) (interface{}, error) {
+	conn, err := a.k8sMgr.GetActiveConnection()
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	list, err := conn.Client.CoreV1().ServiceAccounts(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+func (a *App) GetRoles(namespace string) (interface{}, error) {
+	conn, err := a.k8sMgr.GetActiveConnection()
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	list, err := conn.Client.RbacV1().Roles(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+func (a *App) GetRoleBindings(namespace string) (interface{}, error) {
+	conn, err := a.k8sMgr.GetActiveConnection()
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	list, err := conn.Client.RbacV1().RoleBindings(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+func (a *App) GetClusterRoles() (interface{}, error) {
+	conn, err := a.k8sMgr.GetActiveConnection()
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	list, err := conn.Client.RbacV1().ClusterRoles().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+func (a *App) GetClusterRoleBindings() (interface{}, error) {
+	conn, err := a.k8sMgr.GetActiveConnection()
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	list, err := conn.Client.RbacV1().ClusterRoleBindings().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return list.Items, nil
 }
 
 // === YAML ===
