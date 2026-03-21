@@ -104,14 +104,20 @@
           <div :class="['nav-item', { active: currentView === 'services' }]" @click="emit('navigate', 'services')">
             <span class="nav-icon"></span> Services
           </div>
-          <div :class="['nav-item', { active: currentView === 'ingresses' }]" @click="emit('navigate', 'ingresses')">
-            <span class="nav-icon"></span> Ingresses
-          </div>
           <div :class="['nav-item', { active: currentView === 'endpoints' }]" @click="emit('navigate', 'endpoints')">
             <span class="nav-icon"></span> Endpoints
           </div>
-          <div :class="['nav-item', { active: currentView === 'networkpolicies' }]" @click="emit('navigate', 'networkpolicies')">
+          <div :class="['nav-item', { active: currentView === 'ingresses' }]" @click="emit('navigate', 'ingresses')">
+            <span class="nav-icon"></span> Ingresses
+          </div>
+          <div :class="['nav-item', { active: currentView === 'ingressclasses' }]" @click="emit('navigate', 'ingressclasses')">
+            <span class="nav-icon"></span> Ingress Classes
+          </div>
+          <div :class="['nav-item', { active: currentView === 'network-policies' }]" @click="emit('navigate', 'network-policies')">
             <span class="nav-icon"></span> Network Policies
+          </div>
+          <div :class="['nav-item', { active: currentView === 'portforwarding' }]" @click="emit('navigate', 'portforwarding')">
+            <span class="nav-icon"></span> Port Forwarding
           </div>
         </div>
       </div>

@@ -66,14 +66,22 @@
             @yaml="(ns, n) => showYAML('service', ns, n)" />
           <IngressesView v-if="currentView === 'ingresses' && !loading" :items="filteredIngresses" :search="search"
             @refresh="refreshData" @search="(v) => search = v" />
-            <EndpointsView v-if="currentView === 'endpoints' && !loading" />
-<NetworkPoliciesView v-if="currentView === 'network-policies' && !loading" />
+          <EndpointsView v-if="currentView === 'endpoints' && !loading" :items="filteredEndpoints" :search="search"
+            @refresh="refreshData" @search="(v) => search = v" />
+          <IngressClassesView v-if="currentView === 'ingressclasses' && !loading" :items="filteredIngressClasses" :search="search"
+            @refresh="refreshData" @search="(v) => search = v" />
+          <NetworkPoliciesView v-if="currentView === 'network-policies' && !loading" :items="filteredNetworkPolicies" :search="search"
+            @refresh="refreshData" @search="(v) => search = v" />
+          <PortForwardingView v-if="currentView === 'portforwarding' && !loading" :items="portForwards"
+            @refresh="refreshPortForwards" @stop="stopPortForward" />
 
           <PVView v-if="currentView === 'pv' && !loading" :items="pvs" :statusClass="statusClass"
             @refresh="refreshData" />
           <PVCView v-if="currentView === 'pvc' && !loading" :items="filteredPVCs" :search="search"
             :statusClass="statusClass" @refresh="refreshData" @search="(v) => search = v" />
-            <NamespacesView v-if="currentView === 'namespaces' && !loading" />
+          <StorageClassesView v-if="currentView === 'storageclasses' && !loading" :items="filteredStorageClasses" :search="search"
+            @refresh="refreshData" @search="(v) => search = v" />
+          <NamespacesView v-if="currentView === 'namespaces' && !loading" />
 
           <NodesView v-if="currentView === 'nodes' && !loading"
   :items="nodes"
@@ -88,6 +96,20 @@
             @yaml="(ns, n) => showYAML('configmap', ns, n)" />
           <SecretsView v-if="currentView === 'secrets' && !loading" :items="filteredSecrets" :search="search"
             @refresh="refreshData" @search="(v) => search = v" @yaml="(ns, n) => showYAML('secret', ns, n)" />
+          <ResourceQuotasView v-if="currentView === 'resourcequotas' && !loading" :items="filteredResourceQuotas" :search="search"
+            @refresh="refreshData" @search="(v) => search = v" />
+          <LimitRangesView v-if="currentView === 'limitranges' && !loading" :items="filteredLimitRanges" :search="search"
+            @refresh="refreshData" @search="(v) => search = v" />
+          <HPAView v-if="currentView === 'hpa' && !loading" :items="filteredHPA" :search="search"
+            @refresh="refreshData" @search="(v) => search = v" />
+          <PDBView v-if="currentView === 'pdb' && !loading" :items="filteredPDB" :search="search"
+            @refresh="refreshData" @search="(v) => search = v" />
+          <PriorityClassesView v-if="currentView === 'priorityclasses' && !loading" :items="filteredPriorityClasses" :search="search"
+            @refresh="refreshData" @search="(v) => search = v" />
+          <RuntimeClassesView v-if="currentView === 'runtimeclasses' && !loading" :items="filteredRuntimeClasses" :search="search"
+            @refresh="refreshData" @search="(v) => search = v" />
+          <LeasesView v-if="currentView === 'leases' && !loading" :items="filteredLeases" :search="search"
+            @refresh="refreshData" @search="(v) => search = v" />
           <ClusterSettings v-if="currentView === 'settings' && !loading" :cluster-name="activeClusterId" />
         </main>
       </template>
@@ -156,9 +178,19 @@ import ConfigMapsView from './components/views/ConfigMapsView.vue'
 import SecretsView from './components/views/SecretsView.vue'
 import ClusterSettings from './components/views/ClusterSettings.vue'
 import ReplicaSetsView from './components/views/ReplicaSetsView.vue'
+import ResourceQuotasView from './components/views/ResourceQuotasView.vue'
+import LimitRangesView from './components/views/LimitRangesView.vue'
+import HPAView from './components/views/HPAView.vue'
+import PDBView from './components/views/PDBView.vue'
+import PriorityClassesView from './components/views/PriorityClassesView.vue'
+import RuntimeClassesView from './components/views/RuntimeClassesView.vue'
+import LeasesView from './components/views/LeasesView.vue'
 import EndpointsView from './components/views/EndpointsView.vue'
 import NetworkPoliciesView from './components/views/NetworkPoliciesView.vue'
+import IngressClassesView from './components/views/IngressClassesView.vue'
+import PortForwardingView from './components/views/PortForwardingView.vue'
 import NamespacesView from './components/views/NamespacesView.vue'
+import StorageClassesView from './components/views/StorageClassesView.vue'
 
 
 const k8s = useK8s()
@@ -171,7 +203,7 @@ const {
   filteredPods, filteredDeployments, filteredStatefulSets,
   filteredDaemonSets, filteredJobs, filteredCronJobs,
   filteredServices, filteredIngresses, filteredConfigMaps,
-  filteredSecrets, filteredPVCs, pvs, nodes, events,
+  filteredSecrets, filteredResourceQuotas, filteredPVCs, pvs, nodes, events,
   selectedPod, podLogs, logContainer, logLines,
   execCmd, execOutput, selectedConfigMap,
   yamlContent, yamlEditing, revisions, portForwards,
@@ -183,10 +215,23 @@ const {
   openPodDetail, loadLogs, deletePod, runExec,
   doScale, restartDeployment, loadRevisions, rollbackDeployment,
   openConfigMapDetail, showYAML, applyYAML,
-  startPortForward, stopPortForward,
+  startPortForward, stopPortForward, refreshPortForwards,
   openServiceDetail, forwardServicePort,
   loadNamespaces,
+  filteredReplicaSets,
 } = k8s
+
+// Computed filtered data for new views
+const filteredLimitRanges = computed(() => k8s.filteredLimitRanges.value || [])
+const filteredHPA = computed(() => k8s.filteredHPA.value || [])
+const filteredPDB = computed(() => k8s.filteredPDB.value || [])
+const filteredPriorityClasses = computed(() => k8s.filteredPriorityClasses.value || [])
+const filteredRuntimeClasses = computed(() => k8s.filteredRuntimeClasses.value || [])
+const filteredLeases = computed(() => k8s.filteredLeases.value || [])
+const filteredEndpoints = computed(() => k8s.filteredEndpoints.value || [])
+const filteredNetworkPolicies = computed(() => k8s.filteredNetworkPolicies.value || [])
+const filteredIngressClasses = computed(() => k8s.filteredIngressClasses.value || [])
+const filteredStorageClasses = computed(() => k8s.filteredStorageClasses.value || [])
 
   const k8sDisconnect = k8s.disconnect
 
@@ -211,8 +256,6 @@ const {
   const activeClusterMeta = computed(() => {
     return clusters.value.find(c => c.id === activeClusterId.value) || null
   })
-
-  const filteredReplicaSets = computed(() => k8s.filteredReplicaSets.value)
 
 const revisionDepNs = { ns: '', name: '' }
 

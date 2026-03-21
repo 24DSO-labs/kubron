@@ -241,6 +241,54 @@ func (a *App) GetPersistentVolumeClaims(namespace string) ([]k8s.PVCInfo, error)
 	return a.k8sMgr.GetPersistentVolumeClaims(namespace)
 }
 
+func (a *App) GetStorageClasses() ([]k8s.StorageClassInfo, error) {
+	return a.k8sMgr.GetStorageClasses()
+}
+
+// === Config (continued) ===
+
+func (a *App) GetLimitRanges(namespace string) ([]k8s.LimitRangeInfo, error) {
+	return a.k8sMgr.GetLimitRanges(namespace)
+}
+
+func (a *App) GetHPA(namespace string) ([]k8s.HPAInfo, error) {
+	return a.k8sMgr.GetHPA(namespace)
+}
+
+func (a *App) GetPodDisruptionBudgets(namespace string) ([]k8s.PDBInfo, error) {
+	return a.k8sMgr.GetPodDisruptionBudgets(namespace)
+}
+
+func (a *App) GetPriorityClasses() ([]k8s.PriorityClassInfo, error) {
+	return a.k8sMgr.GetPriorityClasses()
+}
+
+func (a *App) GetRuntimeClasses() ([]k8s.RuntimeClassInfo, error) {
+	return a.k8sMgr.GetRuntimeClasses()
+}
+
+func (a *App) GetLeases(namespace string) ([]k8s.LeaseInfo, error) {
+	return a.k8sMgr.GetLeases(namespace)
+}
+
+// === Endpoints ===
+
+func (a *App) GetEndpoints(namespace string) ([]k8s.EndpointListInfo, error) {
+	return a.k8sMgr.GetEndpoints(namespace)
+}
+
+// === Network Policies ===
+
+func (a *App) GetNetworkPolicies(namespace string) ([]k8s.NetworkPolicyInfo, error) {
+	return a.k8sMgr.GetNetworkPolicies(namespace)
+}
+
+// === Ingress Classes ===
+
+func (a *App) GetIngressClasses() ([]k8s.IngressClassInfo, error) {
+	return a.k8sMgr.GetIngressClasses()
+}
+
 // === YAML ===
 
 func (a *App) GetResourceYAML(namespace, kind, name string) (string, error) {
