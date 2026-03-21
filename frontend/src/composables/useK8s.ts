@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import {
   GetContexts, ConnectToContext, GetActiveContext,
   GetNamespaces, GetPods, GetPodDetail, GetPodLogs, DeletePod,
@@ -78,6 +78,17 @@ const pfLocalPort = ref(8080)
 const pfPodPort = ref(80)
 
 let autoRefreshTimer: any = null
+let currentRefreshView: string = ''
+let refreshAbortSignal: AbortController | null = null
+let isRefreshing = false
+
+let refreshTimeout: any = null
+function debouncedRefresh() {
+  if (refreshTimeout) clearTimeout(refreshTimeout)
+  refreshTimeout = setTimeout(async () => {
+    await refreshData()
+  }, 100)
+}
 
 // --- Helpers ---
 function statusClass(status: string): string {
@@ -96,13 +107,14 @@ function pct(a: number, b: number): string {
 }
 
 // --- Filters ---
-function filterBySearch<T extends { name: string; namespace?: string }>(items: T[]): T[] {
+function filterBySearch<T extends { name: string; namespace?: string }>(items: T[] | null | undefined): T[] {
+  const arr = Array.isArray(items) ? items : [];
   const s = search.value.toLowerCase()
-  if (!s) return items
-  return items.filter(x =>
+  if (!s) return arr;
+  return arr.filter(x =>
     x.name.toLowerCase().includes(s) ||
     (x.namespace && x.namespace.toLowerCase().includes(s))
-  )
+  );
 }
 
 const filteredPods = computed(() => filterBySearch(pods.value))
@@ -157,40 +169,138 @@ async function loadNamespaces() {
 }
 
 // --- Navigation ---
-async function switchView(view: string) {
-  currentView.value = view; search.value = ''
+function switchView(view: string) {
+  search.value = ''
   selectedPod.value = null; selectedConfigMap.value = null
   yamlContent.value = ''; execOutput.value = ''; yamlEditing.value = false
-  await refreshData()
+  // Отменяем предыдущий запрос
+  if (refreshAbortSignal) {
+    refreshAbortSignal.abort()
+    refreshAbortSignal = null
+  }
+  if (refreshTimeout) {
+    clearTimeout(refreshTimeout)
+    refreshTimeout = null
+  }
+  currentView.value = view
+  debouncedRefresh()
 }
 
-async function onNamespaceChange() { await refreshData() }
+function onNamespaceChange() {
+  debouncedRefresh()
+}
 
 // --- Data Loading ---
 async function refreshData() {
+  // Если уже обновляется, отменяем предыдущий
+  if (isRefreshing) {
+    if (refreshAbortSignal) {
+      refreshAbortSignal.abort()
+    }
+  }
+  isRefreshing = true
   loading.value = true
+  const viewId = currentView.value
+  currentRefreshView = viewId
+  // Создаем новый AbortController для этого запроса
+  refreshAbortSignal = new AbortController()
   try {
     const ns = selectedNamespace.value
-    switch (currentView.value) {
-      case 'overview': overview.value = await GetClusterOverview(); break
-      case 'pods':   pods.value = await GetPods(ns); loadPodMetrics(); break
-      case 'deployments': deployments.value = await GetDeployments(ns); break
-      case 'statefulsets': statefulsets.value = await GetStatefulSets(ns); break
-      case 'replicasets': replicasets.value = await GetReplicaSets(ns); break
-      case 'daemonsets': daemonsets.value = await GetDaemonSets(ns); break
-      case 'jobs': jobs.value = await GetJobs(ns); break
-      case 'cronjobs': cronjobs.value = await GetCronJobs(ns); break
-      case 'services': services.value = await GetServices(ns); break
-      case 'ingresses': ingresses.value = await GetIngresses(ns); break
-      case 'nodes':  nodes.value = await GetNodes(); loadNodeMetrics(); break
-      case 'events': events.value = await GetEvents(ns); break
-      case 'configmaps': configmaps.value = await GetConfigMaps(ns); break
-      case 'secrets': secrets.value = await GetSecrets(ns); break
-      case 'pv': pvs.value = await GetPersistentVolumes(); break
-      case 'pvc': pvcs.value = await GetPersistentVolumeClaims(ns); break
+    switch (viewId) {
+      case 'overview': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          overview.value = await GetClusterOverview()
+        }
+        break
+      case 'pods':   
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          pods.value = await GetPods(ns)
+          loadPodMetrics()
+        }
+        break
+      case 'deployments': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          deployments.value = await GetDeployments(ns)
+        }
+        break
+      case 'statefulsets': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          statefulsets.value = await GetStatefulSets(ns)
+        }
+        break
+      case 'replicasets': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          replicasets.value = await GetReplicaSets(ns)
+        }
+        break
+      case 'daemonsets': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          daemonsets.value = await GetDaemonSets(ns)
+        }
+        break
+      case 'jobs': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          jobs.value = await GetJobs(ns)
+        }
+        break
+      case 'cronjobs': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          cronjobs.value = await GetCronJobs(ns)
+        }
+        break
+      case 'services': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          services.value = await GetServices(ns)
+        }
+        break
+      case 'ingresses': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          ingresses.value = await GetIngresses(ns)
+        }
+        break
+      case 'nodes':  
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          nodes.value = await GetNodes()
+          loadNodeMetrics()
+        }
+        break
+      case 'events': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          events.value = await GetEvents(ns)
+        }
+        break
+      case 'configmaps': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          configmaps.value = await GetConfigMaps(ns)
+        }
+        break
+      case 'secrets': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          secrets.value = await GetSecrets(ns)
+        }
+        break
+      case 'pv': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          pvs.value = await GetPersistentVolumes()
+        }
+        break
+      case 'pvc': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          pvcs.value = await GetPersistentVolumeClaims(ns)
+        }
+        break
     }
-  } catch (e: any) { error.value = 'Ошибка: ' + (e.message || e) }
-  finally { loading.value = false }
+  } catch (e: any) { 
+    if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+      error.value = 'Ошибка: ' + (e.message || e)
+    }
+  }
+  finally { 
+    if (currentRefreshView === viewId) {
+      loading.value = false
+      isRefreshing = false
+    }
+  }
 }
 
 // --- Auto Refresh ---
@@ -378,6 +488,13 @@ async function forwardServicePort(namespace: string, service: string, port: numb
 
 // --- Export ---
 export function useK8s() {
+  // Watch for navigation changes
+  watch([currentView, selectedNamespace], () => {
+    if (activeContext.value) {
+      debouncedRefresh()
+    }
+  }, { immediate: false })
+
   return {
     // State
     contexts, namespaces, pods, deployments, statefulsets, replicasets,
