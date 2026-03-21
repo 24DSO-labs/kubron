@@ -2,9 +2,12 @@ package k8s
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -27,13 +30,20 @@ type PortForwardManager struct {
 	mu       sync.RWMutex
 	sessions map[string]*PortForwardSession
 	k8sMgr   *Manager
+	storeDir string
 }
 
 func NewPortForwardManager(k8sMgr *Manager) *PortForwardManager {
-	return &PortForwardManager{
+	pfm := &PortForwardManager{
 		sessions: make(map[string]*PortForwardSession),
 		k8sMgr:   k8sMgr,
+		storeDir: filepath.Join(GetKubronDir(), "portforwards"),
 	}
+	// Создаем директорию для хранения если она не существует
+	os.MkdirAll(pfm.storeDir, 0755)
+	// Загружаем сохраненные port forwards
+	pfm.loadFromStorage()
+	return pfm
 }
 
 func (pfm *PortForwardManager) StartPortForward(namespace, pod string, localPort, podPort int) (*PortForwardSession, error) {
@@ -106,6 +116,7 @@ func (pfm *PortForwardManager) StartPortForward(namespace, pod string, localPort
 		pfm.mu.Lock()
 		session.Status = "active"
 		pfm.mu.Unlock()
+		pfm.saveToStorage()
 	}()
 
 	return session, nil
@@ -122,6 +133,9 @@ func (pfm *PortForwardManager) StopPortForward(id string) error {
 
 	close(session.stopChan)
 	delete(pfm.sessions, id)
+	pfm.mu.Unlock()
+	pfm.saveToStorage()
+	pfm.mu.Lock()
 	return nil
 }
 
@@ -141,6 +155,53 @@ func (pfm *PortForwardManager) ListPortForwards() []PortForwardSession {
 		})
 	}
 	return result
+}
+
+func (pfm *PortForwardManager) saveToStorage() error {
+	pfm.mu.RLock()
+	var toSave []*PortForwardSession
+	for _, s := range pfm.sessions {
+		toSave = append(toSave, &PortForwardSession{
+			ID:        s.ID,
+			Namespace: s.Namespace,
+			Pod:       s.Pod,
+			LocalPort: s.LocalPort,
+			PodPort:   s.PodPort,
+			Status:    s.Status,
+		})
+	}
+	pfm.mu.RUnlock()
+
+	data, err := json.MarshalIndent(toSave, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	filePath := filepath.Join(pfm.storeDir, "sessions.json")
+	return os.WriteFile(filePath, data, 0644)
+}
+
+func (pfm *PortForwardManager) loadFromStorage() {
+	filePath := filepath.Join(pfm.storeDir, "sessions.json")
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return // файл не существует или другая ошибка чтения
+	}
+
+	var sessions []*PortForwardSession
+	if err := json.Unmarshal(data, &sessions); err != nil {
+		return
+	}
+
+	pfm.mu.Lock()
+	defer pfm.mu.Unlock()
+
+	for _, s := range sessions {
+		// Помечаем все загруженные сессии как "inactive" так как они не были активны до перезагрузки
+		s.Status = "inactive"
+		s.stopChan = make(chan struct{})
+		pfm.sessions[s.ID] = s
+	}
 }
 
 func (pfm *PortForwardManager) StopAll() {

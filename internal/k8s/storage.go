@@ -127,6 +127,56 @@ func (m *Manager) GetPersistentVolumeClaims(namespace string) ([]PVCInfo, error)
 	return items, nil
 }
 
+type StorageClassInfo struct {
+	Name          string `json:"name"`
+	Provisioner   string `json:"provisioner"`
+	ReclaimPolicy string `json:"reclaimPolicy"`
+	Default       bool   `json:"default"`
+	Age           string `json:"age"`
+}
+
+func (m *Manager) GetStorageClasses() ([]StorageClassInfo, error) {
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	list, err := conn.Client.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var items []StorageClassInfo
+	for _, sc := range list.Items {
+		isDefault := false
+		if val, ok := sc.Annotations["storageclass.kubernetes.io/is-default-class"]; ok {
+			isDefault = val == "true"
+		}
+
+		provisioner := ""
+		if sc.Provisioner != "" {
+			provisioner = sc.Provisioner
+		}
+
+		reclaimPolicy := ""
+		if sc.ReclaimPolicy != nil {
+			reclaimPolicy = string(*sc.ReclaimPolicy)
+		}
+
+		items = append(items, StorageClassInfo{
+			Name:          sc.Name,
+			Provisioner:   provisioner,
+			ReclaimPolicy: reclaimPolicy,
+			Default:       isDefault,
+			Age:           formatAge(sc.CreationTimestamp.Time),
+		})
+	}
+	return items, nil
+}
+
 func joinShort(modes []string) string {
 	result := ""
 	for i, m := range modes {
