@@ -15,14 +15,19 @@ import {
   StartPortForward, StopPortForward, ListPortForwards,
 } from '../../wailsjs/go/main/App'
 
+// For lazy-loaded functions
+const dynamicImportApp = async () => {
+  return await import('../../wailsjs/go/main/App')
+}
+
 import type {
   ContextInfo, NamespaceInfo, PodInfo, PodDetailInfo,
   DeploymentInfo, StatefulSetInfo, ReplicaSetInfo, DaemonSetInfo,
   JobInfo, CronJobInfo, ServiceInfo, IngressInfo,
-  NodeInfo, EventInfo, ConfigMapInfo, SecretInfo,
+  NodeInfo, EventInfo, ConfigMapInfo, SecretInfo, ResourceQuotaInfo,
   PVInfo, PVCInfo, OverviewInfo,
   PodMetricsInfo, NodeMetricsInfo, RevisionInfo, PortForwardSession,
-  ServiceDetail,
+  ServiceDetail, StorageClassInfo,
 } from '../types'
 
 // --- State ---
@@ -41,8 +46,19 @@ const nodes = ref<NodeInfo[]>([])
 const events = ref<EventInfo[]>([])
 const configmaps = ref<ConfigMapInfo[]>([])
 const secrets = ref<SecretInfo[]>([])
+const resourcequotas = ref<ResourceQuotaInfo[]>([])
+const limitranges = ref<any[]>([])
+const hpa = ref<any[]>([])
+const pdb = ref<any[]>([])
+const priorityclasses = ref<any[]>([])
+const runtimeclasses = ref<any[]>([])
+const leases = ref<any[]>([])
+const endpoints = ref<any[]>([])
+const networkpolicies = ref<any[]>([])
+const ingressclasses = ref<any[]>([])
 const pvs = ref<PVInfo[]>([])
 const pvcs = ref<PVCInfo[]>([])
+const storageclasses = ref<StorageClassInfo[]>([])
 const overview = ref<OverviewInfo | null>(null)
 
 const podMetrics = ref<PodMetricsInfo[]>([])
@@ -128,7 +144,18 @@ const filteredServices = computed(() => filterBySearch(services.value))
 const filteredIngresses = computed(() => filterBySearch(ingresses.value))
 const filteredConfigMaps = computed(() => filterBySearch(configmaps.value))
 const filteredSecrets = computed(() => filterBySearch(secrets.value))
+const filteredResourceQuotas = computed(() => filterBySearch(resourcequotas.value))
 const filteredPVCs = computed(() => filterBySearch(pvcs.value))
+const filteredLimitRanges = computed(() => filterBySearch(limitranges.value))
+const filteredHPA = computed(() => filterBySearch(hpa.value))
+const filteredPDB = computed(() => filterBySearch(pdb.value))
+const filteredPriorityClasses = computed(() => filterBySearch(priorityclasses.value))
+const filteredRuntimeClasses = computed(() => filterBySearch(runtimeclasses.value))
+const filteredLeases = computed(() => filterBySearch(leases.value))
+const filteredEndpoints = computed(() => filterBySearch(endpoints.value))
+const filteredNetworkPolicies = computed(() => filterBySearch(networkpolicies.value))
+const filteredIngressClasses = computed(() => filterBySearch(ingressclasses.value))
+const filteredStorageClasses = computed(() => filterBySearch(storageclasses.value))
 
 // --- Connection ---
 async function loadContexts() {
@@ -143,6 +170,7 @@ async function connect(name: string) {
     activeContext.value = await GetActiveContext()
     await loadNamespaces()
     currentView.value = 'overview'
+    await refreshPortForwards()
     await refreshData()
     startAutoRefresh()
   } catch (e: any) { error.value = 'Ошибка подключения: ' + (e.message || e) }
@@ -164,7 +192,15 @@ function disconnect() {
 }
 
 async function loadNamespaces() {
-  try { namespaces.value = await GetNamespaces() }
+  try {
+    namespaces.value = await GetNamespaces()
+    // Инициализируем selectedNamespace первым доступным namespace'ом
+    if (namespaces.value && namespaces.value.length > 0) {
+      if (!selectedNamespace.value || selectedNamespace.value === '') {
+        selectedNamespace.value = namespaces.value[0].name
+      }
+    }
+  }
   catch (e: any) { error.value = 'Namespaces error: ' + (e.message || e) }
 }
 
@@ -187,7 +223,12 @@ function switchView(view: string) {
 }
 
 function onNamespaceChange() {
-  debouncedRefresh()
+  // Сразу обновляем при изменении namespace, без debounce
+  if (refreshTimeout) {
+    clearTimeout(refreshTimeout)
+    refreshTimeout = null
+  }
+  refreshData()
 }
 
 // --- Data Loading ---
@@ -204,6 +245,10 @@ async function refreshData() {
   currentRefreshView = viewId
   // Создаем новый AbortController для этого запроса
   refreshAbortSignal = new AbortController()
+  
+  // Always refresh port forwards (separately to avoid blocking other data)
+  refreshPortForwards().catch(() => {})
+  
   try {
     const ns = selectedNamespace.value
     switch (viewId) {
@@ -287,6 +332,119 @@ async function refreshData() {
       case 'pvc': 
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           pvcs.value = await GetPersistentVolumeClaims(ns)
+        }
+        break
+      case 'resourcequotas': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          // GetResourceQuotas будет добавлен после генерации bindings
+          resourcequotas.value = []
+        }
+        break
+      case 'limitranges': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          // GetLimitRanges будет добавлен после генерации bindings
+          limitranges.value = []
+        }
+        break
+      case 'hpa': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          // GetHPA будет добавлен после генерации bindings
+          hpa.value = []
+        }
+        break
+      case 'pdb': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          // GetPodDisruptionBudgets будет добавлен после генерации bindings
+          pdb.value = []
+        }
+        break
+      case 'priorityclasses': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          try {
+            const app = await import('../../wailsjs/go/main/App')
+            if (app.GetPriorityClasses) {
+              priorityclasses.value = await app.GetPriorityClasses()
+            }
+          } catch (e) {
+            priorityclasses.value = []
+          }
+        }
+        break
+      case 'runtimeclasses': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          try {
+            const app = await import('../../wailsjs/go/main/App')
+            if (app.GetRuntimeClasses) {
+              runtimeclasses.value = await app.GetRuntimeClasses()
+            }
+          } catch (e) {
+            runtimeclasses.value = []
+          }
+        }
+        break
+      case 'leases': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          try {
+            const app = await import('../../wailsjs/go/main/App')
+            if (app.GetLeases) {
+              leases.value = await app.GetLeases(ns)
+            }
+          } catch (e) {
+            leases.value = []
+          }
+        }
+        break
+      case 'endpoints': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          try {
+            const app = await import('../../wailsjs/go/main/App')
+            if (app.GetEndpoints) {
+              endpoints.value = await app.GetEndpoints(ns)
+            }
+          } catch (e) {
+            endpoints.value = []
+          }
+        }
+        break
+      case 'network-policies': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          try {
+            const app = await import('../../wailsjs/go/main/App')
+            if (app.GetNetworkPolicies) {
+              networkpolicies.value = await app.GetNetworkPolicies(ns)
+            }
+          } catch (e) {
+            networkpolicies.value = []
+          }
+        }
+        break
+      case 'ingressclasses': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          try {
+            const app = await import('../../wailsjs/go/main/App')
+            if (app.GetIngressClasses) {
+              ingressclasses.value = await app.GetIngressClasses()
+            }
+          } catch (e) {
+            ingressclasses.value = []
+          }
+        }
+        break
+      case 'storageclasses': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          try {
+            const app = await import('../../wailsjs/go/main/App')
+            if (app.GetStorageClasses) {
+              storageclasses.value = await app.GetStorageClasses()
+            }
+          } catch (e) {
+            storageclasses.value = []
+          }
+        }
+        break
+      case 'portforwarding': 
+        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+          await refreshPortForwards()
         }
         break
     }
@@ -514,7 +672,10 @@ export function useK8s() {
     filteredPods, filteredDeployments, filteredStatefulSets, filteredReplicaSets,
     filteredDaemonSets, filteredJobs, filteredCronJobs,
     filteredServices, filteredIngresses, filteredConfigMaps,
-    filteredSecrets, filteredPVCs,
+    filteredSecrets, filteredResourceQuotas, filteredPVCs,
+    filteredLimitRanges, filteredHPA, filteredPDB,
+    filteredPriorityClasses, filteredRuntimeClasses, filteredLeases,
+    filteredEndpoints, filteredNetworkPolicies, filteredIngressClasses, filteredStorageClasses,
 
     // Helpers
     statusClass, pct,

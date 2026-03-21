@@ -305,3 +305,99 @@ export interface TerminalOutput {
   stderr: string
   exitCode: number
 }
+
+export interface ResourceQuotaInfo {
+  name: string
+  namespace: string
+  age: string
+  cpuLimit: string
+  cpuUsed: string
+  memLimit: string
+  memUsed: string
+}
+
+export interface LimitRangeInfo {
+  name: string
+  namespace: string
+  age: string
+  items: number
+}
+
+export interface HPAInfo {
+  name: string
+  namespace: string
+  reference: string
+  minReplicas: number
+  maxReplicas: number
+  currentReplicas: number
+  desiredReplicas: number
+  age: string
+}
+
+export interface PDBInfo {
+  name: string
+  namespace: string
+  minAvailable: string
+  maxUnavailable: string
+  disruptionsAllowed: number
+  currentHealthy: number
+  desiredHealthy: number
+  age: string
+}
+
+export interface PriorityClassInfo {
+  name: string
+  value: number
+  age: string
+}
+
+export interface RuntimeClassInfo {
+  name: string
+  handler: string
+  age: string
+}
+
+export interface LeaseInfo {
+  name: string
+  namespace: string
+  holder: string
+  age: string
+}
+
+export interface EndpointListInfo {
+  name: string
+  namespace: string
+  addresses: number
+  ports: number
+  age: string
+}
+
+export interface NetworkPolicyInfo {
+  name: string
+  namespace: string
+  podSelector: string
+  age: string
+}
+
+export interface IngressClassInfo {
+  name: string
+  controller: string
+  age: string
+}
+
+export interface PortForwardingInfo {
+  id: string
+  namespace: string
+  pod: string
+  localPort: number
+  podPort: number
+  status: string
+}
+
+export interface StorageClassInfo {
+  name: string
+  provisioner: string
+  reclaimPolicy: string
+  default: boolean
+  age: string
+}
