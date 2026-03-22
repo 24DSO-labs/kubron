@@ -34,15 +34,17 @@ type ClusterConnection struct {
 }
 
 type Manager struct {
-	mu          sync.RWMutex
-	connections map[string]*ClusterConnection
-	activeCtx   string
-	rawConfig   *api.Config
+	mu               sync.RWMutex
+	connections      map[string]*ClusterConnection
+	activeCtx        string
+	rawConfig        *api.Config
+	terminalSessions *TerminalSessionManager
 }
 
 func NewManager() *Manager {
 	return &Manager{
-		connections: make(map[string]*ClusterConnection),
+		connections:      make(map[string]*ClusterConnection),
+		terminalSessions: NewTerminalSessionManager(),
 	}
 }
 

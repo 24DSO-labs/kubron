@@ -130,7 +130,7 @@
     <!-- Panels -->
     <PodDetailPanel v-if="selectedPod" :pod="selectedPod" :logs="podLogs" v-model:logContainer="logContainer"
   v-model:logLines="logLines" v-model:execCmd="execCmd" :execOutput="execOutput" :statusClass="statusClass"
-  v-model:pfLocalPort="pfLocalPort" v-model:pfPodPort="pfPodPort" :portForwards="portForwards"
+  v-model:pfLocalPort="pfLocalPort" v-model:pfPodPort="pfPodPort" :portForwards="(portForwards || [])"
   :cluster-name="activeClusterId"
   @close="selectedPod = null" @loadLogs="loadLogs" @runExec="runExec" @delete="deletePod" @startPF="startPortForward"
   @stopPF="stopPortForward" @openTerminal="terminalOpen = true" />
