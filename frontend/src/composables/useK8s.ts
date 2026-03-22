@@ -548,14 +548,37 @@ function stopAutoRefresh() {
 // --- Pod Detail ---
 async function openPodDetail(pod: PodInfo) {
   try {
-    selectedPod.value = await GetPodDetail(pod.namespace, pod.name) as any
-    selectedConfigMap.value = null; yamlContent.value = ''
-    podLogs.value = ''; execOutput.value = ''; execCmd.value = ''
+    // Сначала закрываем другие панели и очищаем selectedPod
+    selectedConfigMap.value = null
+    yamlContent.value = ''
+    podLogs.value = ''
+    execOutput.value = ''
+    execCmd.value = ''
     yamlEditing.value = false
-    if (selectedPod.value?.containers?.length) {
-      logContainer.value = selectedPod.value.containers[0].name
+    selectedPod.value = null
+    
+    // Дождитесь размонтирования старого компонента
+    await nextTick()
+    
+    // Затем загружаем данные pod'а
+    const podDetail = await GetPodDetail(pod.namespace, pod.name) as any
+    if (podDetail) {
+      // Убедимся, что containers всегда массив
+      if (!podDetail.containers) {
+        podDetail.containers = []
+      }
+      if (podDetail.containers && podDetail.containers.length > 0) {
+        logContainer.value = podDetail.containers[0].name
+      }
+      
+      // Снова ждем перед установкой нового pod'а
+      await nextTick()
+      selectedPod.value = podDetail
     }
-  } catch (e: any) { error.value = 'Ошибка: ' + (e.message || e) }
+  } catch (e: any) { 
+    error.value = 'Ошибка при открытии pod: ' + (e.message || e)
+    selectedPod.value = null
+  }
 }
 
 async function loadLogs() {
@@ -688,8 +711,11 @@ async function stopPortForward(id: string) {
 
 async function refreshPortForwards() {
   try {
-    portForwards.value = await ListPortForwards()
-  } catch (e: any) { portForwards.value = [] }
+    const data = await ListPortForwards()
+    portForwards.value = Array.isArray(data) ? data : []
+  } catch (e: any) { 
+    portForwards.value = []
+  }
 }
 
 // --- Service Detail ---
