@@ -30,7 +30,7 @@
       </div>
     </div>
 
-    <div class="detail-section">
+    <div v-if="pod.containers && pod.containers.length > 0" class="detail-section">
       <h4>Containers</h4>
       <div v-for="c in pod.containers" :key="c.name" class="container-item">
         <span class="container-name">{{ c.name }}</span>
@@ -39,7 +39,7 @@
       </div>
     </div>
 
-    <div class="detail-section">
+    <div v-if="pod.containers && pod.containers.length > 0" class="detail-section">
       <div class="logs-header">
         <h4>Logs</h4>
         <select :value="logContainer" @change="onLogContainerChange" class="log-select">

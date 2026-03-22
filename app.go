@@ -447,10 +447,22 @@ func (a *App) DetectShell(namespace, pod, container string) (string, error) {
 	return a.k8sMgr.DetectShell(namespace, pod, container)
 }
 
-func (a *App) ExecTerminal(namespace, pod, container, shell, command string) (*k8s.TerminalOutput, error) {
-	return a.k8sMgr.ExecTerminal(namespace, pod, container, shell, command)
+func (a *App) StartTerminalSession(sessionID, namespace, pod, container, shell string, cols, rows uint16) error {
+	return a.k8sMgr.StartTerminalSession(sessionID, namespace, pod, container, shell, cols, rows)
 }
 
-func (a *App) TabComplete(namespace, pod, container, shell, partial string) ([]string, error) {
-	return a.k8sMgr.TabComplete(namespace, pod, container, shell, partial)
+func (a *App) WriteTerminal(sessionID string, data []byte) error {
+	return a.k8sMgr.WriteTerminal(sessionID, data)
+}
+
+func (a *App) ReadTerminal(sessionID string) ([]byte, error) {
+	return a.k8sMgr.ReadTerminalBytes(sessionID)
+}
+
+func (a *App) ResizeTerminal(sessionID string, cols, rows uint16) error {
+	return a.k8sMgr.ResizeTerminal(sessionID, cols, rows)
+}
+
+func (a *App) CloseTerminal(sessionID string) error {
+	return a.k8sMgr.CloseTerminal(sessionID)
 }
