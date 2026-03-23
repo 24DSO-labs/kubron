@@ -122,8 +122,22 @@ export function usePodMetrics(clusterName: string, namespace: string) {
     try {
       const { GetPodMetrics } = await import('../../wailsjs/go/main/App')
       const data = await GetPodMetrics(namespace)
+
+      // Backend currently returns only CPU as string (TotalCPU) and uses field names
+      // that may not match PodMetricSnapshot exactly. Normalize here to avoid 0/undefined in UI.
       if (Array.isArray(data)) {
-        metrics.value = data as unknown as PodMetricSnapshot[]
+        metrics.value = (data as any[]).map((item: any) => ({
+          name: item.name ?? item.Name ?? '',
+          namespace: item.namespace ?? item.Namespace ?? '',
+          cpuUsage: parseFloat(item.cpuUsage ?? item.totalCPU ?? item.TotalCPU ?? '0') || 0,
+          // Backend doesn't provide these yet; keep 0 so UI can still render charts (range queries)
+          cpuPercent: parseFloat(item.cpuPercent ?? item.CPUPercent ?? '0') || 0,
+          memoryUsage: parseFloat(item.memoryUsage ?? item.MemoryUsage ?? '0') || 0,
+          memoryPercent: parseFloat(item.memoryPercent ?? item.MemoryPercent ?? '0') || 0,
+          memoryTotal: parseFloat(item.memoryTotal ?? item.MemoryTotal ?? '0') || 0,
+        })) as unknown as PodMetricSnapshot[]
+      } else {
+        metrics.value = []
       }
     } catch (e: any) {
       console.error('Failed to fetch pod metrics:', e)
