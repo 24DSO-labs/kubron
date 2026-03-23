@@ -23,11 +23,15 @@ type PromQueryResult struct {
 }
 
 type PodMetrics struct {
-	Name       string             `json:"name"`
-	Namespace  string             `json:"namespace"`
-	Containers []ContainerMetrics `json:"containers"`
-	TotalCPU   string             `json:"totalCpu"`
-	TotalMem   string             `json:"totalMem"`
+	Name          string             `json:"name"`
+	Namespace     string             `json:"namespace"`
+	Containers    []ContainerMetrics `json:"containers"`
+	TotalCPU      string             `json:"totalCpu"`
+	TotalMem      string             `json:"totalMem"`
+	CPUCores      float64            `json:"cpuCores"`
+	MemoryBytes   float64            `json:"memoryBytes"`
+	CPUPercent    float64            `json:"cpuPercent"`
+	MemoryPercent float64            `json:"memoryPercent"`
 }
 
 type ContainerMetrics struct {
