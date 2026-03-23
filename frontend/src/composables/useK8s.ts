@@ -15,7 +15,7 @@ import {
   StartPortForward, StopPortForward, ListPortForwards,
 } from '../../wailsjs/go/main/App'
 
-// For lazy-loaded functions
+// For lazy-loaded functions (kept for optional runtime feature detection)
 const dynamicImportApp = async () => {
   return await import('../../wailsjs/go/main/App')
 }
@@ -129,43 +129,43 @@ function pct(a: number, b: number): string {
 
 // --- Filters ---
 function filterBySearch<T extends { name: string; namespace?: string }>(items: T[] | null | undefined): T[] {
-  const arr = Array.isArray(items) ? items : [];
+  const arr = Array.isArray(items) ? items : []
   const s = search.value.toLowerCase()
-  if (!s) return arr;
+  if (!s) return arr
   return arr.filter(x =>
     x.name.toLowerCase().includes(s) ||
     (x.namespace && x.namespace.toLowerCase().includes(s))
-  );
+  )
 }
 
-const filteredPods = computed(() => filterBySearch(pods.value))
-const filteredDeployments = computed(() => filterBySearch(deployments.value))
-const filteredStatefulSets = computed(() => filterBySearch(statefulsets.value))
-const filteredReplicaSets = computed(() => filterBySearch(replicasets.value))
-const filteredDaemonSets = computed(() => filterBySearch(daemonsets.value))
-const filteredJobs = computed(() => filterBySearch(jobs.value))
-const filteredCronJobs = computed(() => filterBySearch(cronjobs.value))
-const filteredServices = computed(() => filterBySearch(services.value))
-const filteredIngresses = computed(() => filterBySearch(ingresses.value))
-const filteredConfigMaps = computed(() => filterBySearch(configmaps.value))
-const filteredSecrets = computed(() => filterBySearch(secrets.value))
-const filteredResourceQuotas = computed(() => filterBySearch(resourcequotas.value))
-const filteredPVCs = computed(() => filterBySearch(pvcs.value))
-const filteredLimitRanges = computed(() => filterBySearch(limitranges.value))
-const filteredHPA = computed(() => filterBySearch(hpa.value))
-const filteredPDB = computed(() => filterBySearch(pdb.value))
-const filteredPriorityClasses = computed(() => filterBySearch(priorityclasses.value))
-const filteredRuntimeClasses = computed(() => filterBySearch(runtimeclasses.value))
-const filteredLeases = computed(() => filterBySearch(leases.value))
-const filteredEndpoints = computed(() => filterBySearch(endpoints.value))
-const filteredNetworkPolicies = computed(() => filterBySearch(networkpolicies.value))
-const filteredIngressClasses = computed(() => filterBySearch(ingressclasses.value))
-const filteredStorageClasses = computed(() => filterBySearch(storageclasses.value))
-const filteredServiceAccounts = computed(() => filterBySearch(serviceaccounts.value))
-const filteredRoles = computed(() => filterBySearch(roles.value))
-const filteredRoleBindings = computed(() => filterBySearch(rolebindings.value))
-const filteredClusterRoles = computed(() => filterBySearch(clusterroles.value))
-const filteredClusterRoleBindings = computed(() => filterBySearch(clusterrolebindings.value))
+const filteredPods = computed(() => filterBySearch(pods.value || []))
+const filteredDeployments = computed(() => filterBySearch(deployments.value || []))
+const filteredStatefulSets = computed(() => filterBySearch(statefulsets.value || []))
+const filteredReplicaSets = computed(() => filterBySearch(replicasets.value || []))
+const filteredDaemonSets = computed(() => filterBySearch(daemonsets.value || []))
+const filteredJobs = computed(() => filterBySearch(jobs.value || []))
+const filteredCronJobs = computed(() => filterBySearch(cronjobs.value || []))
+const filteredServices = computed(() => filterBySearch(services.value || []))
+const filteredIngresses = computed(() => filterBySearch(ingresses.value || []))
+const filteredConfigMaps = computed(() => filterBySearch(configmaps.value || []))
+const filteredSecrets = computed(() => filterBySearch(secrets.value || []))
+const filteredResourceQuotas = computed(() => filterBySearch(resourcequotas.value || []))
+const filteredPVCs = computed(() => filterBySearch(pvcs.value || []))
+const filteredLimitRanges = computed(() => filterBySearch(limitranges.value || []))
+const filteredHPA = computed(() => filterBySearch(hpa.value || []))
+const filteredPDB = computed(() => filterBySearch(pdb.value || []))
+const filteredPriorityClasses = computed(() => filterBySearch(priorityclasses.value || []))
+const filteredRuntimeClasses = computed(() => filterBySearch(runtimeclasses.value || []))
+const filteredLeases = computed(() => filterBySearch(leases.value || []))
+const filteredEndpoints = computed(() => filterBySearch(endpoints.value || []))
+const filteredNetworkPolicies = computed(() => filterBySearch(networkpolicies.value || []))
+const filteredIngressClasses = computed(() => filterBySearch(ingressclasses.value || []))
+const filteredStorageClasses = computed(() => filterBySearch(storageclasses.value || []))
+const filteredServiceAccounts = computed(() => filterBySearch(serviceaccounts.value || []))
+const filteredRoles = computed(() => filterBySearch(roles.value || []))
+const filteredRoleBindings = computed(() => filterBySearch(rolebindings.value || []))
+const filteredClusterRoles = computed(() => filterBySearch(clusterroles.value || []))
+const filteredClusterRoleBindings = computed(() => filterBySearch(clusterrolebindings.value || []))
 
 // --- Connection ---
 async function loadContexts() {
@@ -184,7 +184,10 @@ async function connect(name: string) {
     await refreshData()
     startAutoRefresh()
   } catch (e: any) { error.value = 'Ошибка подключения: ' + (e.message || e) }
-  finally { connecting.value = false }
+  finally { 
+    await nextTick()
+    connecting.value = false 
+  }
 }
 
 function disconnect() {
@@ -199,16 +202,15 @@ function disconnect() {
   selectedPod.value = null; selectedConfigMap.value = null
   yamlContent.value = ''; podMetrics.value = []; nodeMetrics.value = []
   portForwards.value = []
+  nextTick()
 }
 
 async function loadNamespaces() {
   try {
     namespaces.value = await GetNamespaces()
-    // Инициализируем selectedNamespace первым доступным namespace'ом
-    if (namespaces.value && namespaces.value.length > 0) {
-      if (!selectedNamespace.value || selectedNamespace.value === '') {
-        selectedNamespace.value = namespaces.value[0].name
-      }
+    // Set default to 'all' (empty string for all namespaces) if no previous selection
+    if (!selectedNamespace.value || selectedNamespace.value === '') {
+      selectedNamespace.value = ''  // '' means all namespaces
     }
   }
   catch (e: any) { error.value = 'Namespaces error: ' + (e.message || e) }
@@ -219,7 +221,7 @@ function switchView(view: string) {
   search.value = ''
   selectedPod.value = null; selectedConfigMap.value = null
   yamlContent.value = ''; execOutput.value = ''; yamlEditing.value = false
-  // Отменяем предыдущий запрос
+  // Cancel previous request
   if (refreshAbortSignal) {
     refreshAbortSignal.abort()
     refreshAbortSignal = null
@@ -233,7 +235,7 @@ function switchView(view: string) {
 }
 
 function onNamespaceChange() {
-  // Сразу обновляем при изменении namespace, без debounce
+  // Refresh immediately on namespace change, no debounce
   if (refreshTimeout) {
     clearTimeout(refreshTimeout)
     refreshTimeout = null
@@ -243,7 +245,7 @@ function onNamespaceChange() {
 
 // --- Data Loading ---
 async function refreshData() {
-  // Если уже обновляется, отменяем предыдущий
+  // If already refreshing, abort the previous one
   if (isRefreshing) {
     if (refreshAbortSignal) {
       refreshAbortSignal.abort()
@@ -253,201 +255,215 @@ async function refreshData() {
   loading.value = true
   const viewId = currentView.value
   currentRefreshView = viewId
-  // Создаем новый AbortController для этого запроса
+  // Create a new AbortController for this request
   refreshAbortSignal = new AbortController()
-  
+
   // Always refresh port forwards (separately to avoid blocking other data)
   refreshPortForwards().catch(() => {})
-  
+
   try {
     const ns = selectedNamespace.value
     switch (viewId) {
-      case 'overview': 
+      case 'overview':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           overview.value = await GetClusterOverview()
         }
         break
-      case 'pods':   
+      case 'pods':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           pods.value = await GetPods(ns)
           loadPodMetrics()
         }
         break
-      case 'deployments': 
+      case 'deployments':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           deployments.value = await GetDeployments(ns)
         }
         break
-      case 'statefulsets': 
+      case 'statefulsets':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           statefulsets.value = await GetStatefulSets(ns)
         }
         break
-      case 'replicasets': 
+      case 'replicasets':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           replicasets.value = await GetReplicaSets(ns)
         }
         break
-      case 'daemonsets': 
+      case 'daemonsets':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           daemonsets.value = await GetDaemonSets(ns)
         }
         break
-      case 'jobs': 
+      case 'jobs':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           jobs.value = await GetJobs(ns)
         }
         break
-      case 'cronjobs': 
+      case 'cronjobs':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           cronjobs.value = await GetCronJobs(ns)
         }
         break
-      case 'services': 
+      case 'services':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           services.value = await GetServices(ns)
         }
         break
-      case 'ingresses': 
+      case 'ingresses':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           ingresses.value = await GetIngresses(ns)
         }
         break
-      case 'nodes':  
+      case 'nodes':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           nodes.value = await GetNodes()
           loadNodeMetrics()
         }
         break
-      case 'events': 
+      case 'events':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           events.value = await GetEvents(ns)
         }
         break
-      case 'configmaps': 
+      case 'configmaps':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           configmaps.value = await GetConfigMaps(ns)
         }
         break
-      case 'secrets': 
+      case 'secrets':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           secrets.value = await GetSecrets(ns)
         }
         break
-      case 'pv': 
+      case 'pv':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           pvs.value = await GetPersistentVolumes()
         }
         break
-      case 'pvc': 
+      case 'pvc':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           pvcs.value = await GetPersistentVolumeClaims(ns)
         }
         break
-      case 'resourcequotas': 
+      case 'resourcequotas':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          // GetResourceQuotas будет добавлен после генерации bindings
+          // TBD when backend binding is added
           resourcequotas.value = []
         }
         break
-      case 'limitranges': 
+      case 'limitranges':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          // GetLimitRanges будет добавлен после генерации bindings
+          // TBD when backend binding is added
           limitranges.value = []
         }
         break
-      case 'hpa': 
+      case 'hpa':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          // GetHPA будет добавлен после генерации bindings
+          // TBD when backend binding is added
           hpa.value = []
         }
         break
-      case 'pdb': 
+      case 'pdb':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          // GetPodDisruptionBudgets будет добавлен после генерации bindings
+          // TBD when backend binding is added
           pdb.value = []
         }
         break
-      case 'priorityclasses': 
+      case 'priorityclasses':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           try {
-            const app = await import('../../wailsjs/go/main/App')
-            if (app.GetPriorityClasses) {
-              priorityclasses.value = await app.GetPriorityClasses()
+            const app = await dynamicImportApp()
+            if ((app as any).GetPriorityClasses) {
+              priorityclasses.value = await (app as any).GetPriorityClasses()
+            } else {
+              priorityclasses.value = []
             }
-          } catch (e) {
+          } catch {
             priorityclasses.value = []
           }
         }
         break
-      case 'runtimeclasses': 
+      case 'runtimeclasses':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           try {
-            const app = await import('../../wailsjs/go/main/App')
-            if (app.GetRuntimeClasses) {
-              runtimeclasses.value = await app.GetRuntimeClasses()
+            const app = await dynamicImportApp()
+            if ((app as any).GetRuntimeClasses) {
+              runtimeclasses.value = await (app as any).GetRuntimeClasses()
+            } else {
+              runtimeclasses.value = []
             }
-          } catch (e) {
+          } catch {
             runtimeclasses.value = []
           }
         }
         break
-      case 'leases': 
+      case 'leases':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           try {
-            const app = await import('../../wailsjs/go/main/App')
-            if (app.GetLeases) {
-              leases.value = await app.GetLeases(ns)
+            const app = await dynamicImportApp()
+            if ((app as any).GetLeases) {
+              leases.value = await (app as any).GetLeases(ns)
+            } else {
+              leases.value = []
             }
-          } catch (e) {
+          } catch {
             leases.value = []
           }
         }
         break
-      case 'endpoints': 
+      case 'endpoints':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           try {
-            const app = await import('../../wailsjs/go/main/App')
-            if (app.GetEndpoints) {
-              endpoints.value = await app.GetEndpoints(ns)
+            const app = await dynamicImportApp()
+            if ((app as any).GetEndpoints) {
+              endpoints.value = await (app as any).GetEndpoints(ns)
+            } else {
+              endpoints.value = []
             }
-          } catch (e) {
+          } catch {
             endpoints.value = []
           }
         }
         break
-      case 'network-policies': 
+      case 'network-policies':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           try {
-            const app = await import('../../wailsjs/go/main/App')
-            if (app.GetNetworkPolicies) {
-              networkpolicies.value = await app.GetNetworkPolicies(ns)
+            const app = await dynamicImportApp()
+            if ((app as any).GetNetworkPolicies) {
+              networkpolicies.value = await (app as any).GetNetworkPolicies(ns)
+            } else {
+              networkpolicies.value = []
             }
-          } catch (e) {
+          } catch {
             networkpolicies.value = []
           }
         }
         break
-      case 'ingressclasses': 
+      case 'ingressclasses':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           try {
-            const app = await import('../../wailsjs/go/main/App')
-            if (app.GetIngressClasses) {
-              ingressclasses.value = await app.GetIngressClasses()
+            const app = await dynamicImportApp()
+            if ((app as any).GetIngressClasses) {
+              ingressclasses.value = await (app as any).GetIngressClasses()
+            } else {
+              ingressclasses.value = []
             }
-          } catch (e) {
+          } catch {
             ingressclasses.value = []
           }
         }
         break
-      case 'storageclasses': 
+      case 'storageclasses':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           try {
-            const app = await import('../../wailsjs/go/main/App')
-            if (app.GetStorageClasses) {
-              storageclasses.value = await app.GetStorageClasses()
+            const app = await dynamicImportApp()
+            if ((app as any).GetStorageClasses) {
+              storageclasses.value = await (app as any).GetStorageClasses()
+            } else {
+              storageclasses.value = []
             }
-          } catch (e) {
+          } catch {
             storageclasses.value = []
           }
         }
@@ -455,12 +471,14 @@ async function refreshData() {
       case 'serviceaccounts':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           try {
-            const app = await import('../../wailsjs/go/main/App')
-            if (app.GetServiceAccounts) {
-              const data = await app.GetServiceAccounts(ns)
-              serviceaccounts.value = data || []
+            const app = await dynamicImportApp()
+            if ((app as any).GetServiceAccounts) {
+              const data = await (app as any).GetServiceAccounts(ns)
+              serviceaccounts.value = Array.isArray(data) ? data : []
+            } else {
+              serviceaccounts.value = []
             }
-          } catch (e) {
+          } catch {
             serviceaccounts.value = []
           }
         }
@@ -468,12 +486,14 @@ async function refreshData() {
       case 'roles':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           try {
-            const app = await import('../../wailsjs/go/main/App')
-            if (app.GetRoles) {
-              const data = await app.GetRoles(ns)
-              roles.value = data || []
+            const app = await dynamicImportApp()
+            if ((app as any).GetRoles) {
+              const data = await (app as any).GetRoles(ns)
+              roles.value = Array.isArray(data) ? data : []
+            } else {
+              roles.value = []
             }
-          } catch (e) {
+          } catch {
             roles.value = []
           }
         }
@@ -481,12 +501,14 @@ async function refreshData() {
       case 'rolebindings':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           try {
-            const app = await import('../../wailsjs/go/main/App')
-            if (app.GetRoleBindings) {
-              const data = await app.GetRoleBindings(ns)
-              rolebindings.value = data || []
+            const app = await dynamicImportApp()
+            if ((app as any).GetRoleBindings) {
+              const data = await (app as any).GetRoleBindings(ns)
+              rolebindings.value = Array.isArray(data) ? data : []
+            } else {
+              rolebindings.value = []
             }
-          } catch (e) {
+          } catch {
             rolebindings.value = []
           }
         }
@@ -494,12 +516,14 @@ async function refreshData() {
       case 'clusterroles':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           try {
-            const app = await import('../../wailsjs/go/main/App')
-            if (app.GetClusterRoles) {
-              const data = await app.GetClusterRoles()
-              clusterroles.value = data || []
+            const app = await dynamicImportApp()
+            if ((app as any).GetClusterRoles) {
+              const data = await (app as any).GetClusterRoles()
+              clusterroles.value = Array.isArray(data) ? data : []
+            } else {
+              clusterroles.value = []
             }
-          } catch (e) {
+          } catch {
             clusterroles.value = []
           }
         }
@@ -507,28 +531,29 @@ async function refreshData() {
       case 'clusterrolebindings':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           try {
-            const app = await import('../../wailsjs/go/main/App')
-            if (app.GetClusterRoleBindings) {
-              const data = await app.GetClusterRoleBindings()
-              clusterrolebindings.value = data || []
+            const app = await dynamicImportApp()
+            if ((app as any).GetClusterRoleBindings) {
+              const data = await (app as any).GetClusterRoleBindings()
+              clusterrolebindings.value = Array.isArray(data) ? data : []
+            } else {
+              clusterrolebindings.value = []
             }
-          } catch (e) {
+          } catch {
             clusterrolebindings.value = []
           }
         }
         break
-      case 'portforwarding': 
+      case 'portforwarding':
         if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
           await refreshPortForwards()
         }
         break
     }
-  } catch (e: any) { 
-    if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
+  } catch (e: any) {
+    if (currentRefreshView === viewId && refreshAbortSignal && !refreshAbortSignal.signal.aborted) {
       error.value = 'Ошибка: ' + (e.message || e)
     }
-  }
-  finally { 
+  } finally {
     if (currentRefreshView === viewId) {
       loading.value = false
       isRefreshing = false
@@ -548,7 +573,7 @@ function stopAutoRefresh() {
 // --- Pod Detail ---
 async function openPodDetail(pod: PodInfo) {
   try {
-    // Сначала закрываем другие панели и очищаем selectedPod
+    // Close other panels and reset selectedPod first
     selectedConfigMap.value = null
     yamlContent.value = ''
     podLogs.value = ''
@@ -556,26 +581,26 @@ async function openPodDetail(pod: PodInfo) {
     execCmd.value = ''
     yamlEditing.value = false
     selectedPod.value = null
-    
-    // Дождитесь размонтирования старого компонента
+
+    // Wait for previous component to unmount
     await nextTick()
-    
-    // Затем загружаем данные pod'а
+
+    // Load pod detail
     const podDetail = await GetPodDetail(pod.namespace, pod.name) as any
     if (podDetail) {
-      // Убедимся, что containers всегда массив
+      // Ensure containers is always an array
       if (!podDetail.containers) {
         podDetail.containers = []
       }
       if (podDetail.containers && podDetail.containers.length > 0) {
         logContainer.value = podDetail.containers[0].name
       }
-      
-      // Снова ждем перед установкой нового pod'а
+
+      // Wait again before setting new pod to reduce patch churn
       await nextTick()
       selectedPod.value = podDetail
     }
-  } catch (e: any) { 
+  } catch (e: any) {
     error.value = 'Ошибка при открытии pod: ' + (e.message || e)
     selectedPod.value = null
   }
@@ -713,7 +738,7 @@ async function refreshPortForwards() {
   try {
     const data = await ListPortForwards()
     portForwards.value = Array.isArray(data) ? data : []
-  } catch (e: any) { 
+  } catch (e: any) {
     portForwards.value = []
   }
 }
@@ -730,13 +755,12 @@ async function openServiceDetail(svc: ServiceInfo) {
 
 async function forwardServicePort(namespace: string, service: string, port: number) {
   try {
-    // Пробуем StartServicePortForward, если доступен
-    const app = await import('../../wailsjs/go/main/App')
-    if (app.StartServicePortForward) {
-      await app.StartServicePortForward(namespace, service, port, port)
-    } else {
-      // Fallback
-      await app.StartPortForward(namespace, service, port, port)
+    const app = await dynamicImportApp()
+    if ((app as any).StartServicePortForward) {
+      await (app as any).StartServicePortForward(namespace, service, port, port)
+    } else if ((app as any).StartPortForward) {
+      // Fallback (if StartServicePortForward is not available)
+      await (app as any).StartPortForward(namespace, service, port, port)
     }
     if (selectedService.value) {
       selectedService.value = await GetServiceDetail(namespace, service) as any
