@@ -39,6 +39,18 @@ const props = defineProps<{
   podMetrics: PodMetricsInfo[]
 }>()
 
+function getPodCPU(name: string): string {
+  if (!props.podMetrics) return '—'
+  const m = props.podMetrics.find(p => p.name === name)
+  return m?.totalCpu || '—'
+}
+
+function getPodMem(name: string): string {
+  if (!props.podMetrics) return '—'
+  const m = props.podMetrics.find(p => p.name === name)
+  return m?.totalMem || '—'
+}
+
 const emit = defineEmits<{
   (e: 'refresh'): void
   (e: 'search', val: string): void
@@ -48,14 +60,4 @@ const emit = defineEmits<{
 
 function onRefresh() { emit('refresh') }
 function onSearch(val: string) { emit('search', val) }
-
-function getPodCPU(name: string): string {
-  const m = props.podMetrics.find(p => p.name === name)
-  return m?.totalCpu || '—'
-}
-
-function getPodMem(name: string): string {
-  const m = props.podMetrics.find(p => p.name === name)
-  return m?.totalMem || '—'
-}
 </script>
