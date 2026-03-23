@@ -1,5 +1,7 @@
 package k8s
 
+import "fmt"
+
 func promQueryNodeCPU() string {
 	return "sum by (instance) (rate(node_cpu_seconds_total{mode!=" +
 		string('"') + "idle" + string('"') + "}[5m])) * 100"
@@ -27,6 +29,28 @@ func promQueryPodCPUByNs(namespace string) string {
 	return "sum by (pod, namespace, container) (rate(container_cpu_usage_seconds_total{container!=" +
 		string('"') + string('"') + ",namespace=" +
 		string('"') + namespace + string('"') + "}[5m])) * 1000"
+}
+
+func promQueryPodMemByNs(namespace string) string {
+	return fmt.Sprintf(
+		`sum by (pod, namespace) (container_memory_working_set_bytes{namespace="%s", container!="", container!="POD"})`,
+		namespace,
+	)
+}
+
+// Для вычисления процентов CPU нужны лимиты/requests
+func promQueryPodCPULimitByNs(namespace string) string {
+	return fmt.Sprintf(
+		`sum by (pod, namespace) (kube_pod_container_resource_limits{namespace="%s", resource="cpu"})`,
+		namespace,
+	)
+}
+
+func promQueryPodMemLimitByNs(namespace string) string {
+	return fmt.Sprintf(
+		`sum by (pod, namespace) (kube_pod_container_resource_limits{namespace="%s", resource="memory"})`,
+		namespace,
+	)
 }
 
 func promQueryNodeCPUForMetrics() string {
