@@ -21,7 +21,7 @@ const dynamicImportApp = async () => {
 }
 
 import type {
-  ContextInfo, NamespaceInfo, PodInfo, PodDetailInfo,
+  ContextInfo, NamespaceInfo, PodInfo,
   DeploymentInfo, StatefulSetInfo, ReplicaSetInfo, DaemonSetInfo,
   JobInfo, CronJobInfo, ServiceInfo, IngressInfo,
   NodeInfo, EventInfo, ConfigMapInfo, SecretInfo, ResourceQuotaInfo,
@@ -79,7 +79,7 @@ const error = ref('')
 const connecting = ref(false)
 const loading = ref(false)
 
-const selectedPod = ref<PodDetailInfo | null>(null)
+const selectedPod = ref<PodInfo | null>(null)
 const podLogs = ref('')
 const logContainer = ref('')
 const logLines = ref(100)
@@ -575,6 +575,7 @@ async function openPodDetail(pod: PodInfo) {
   try {
     // Close other panels and reset selectedPod first
     selectedConfigMap.value = null
+    selectedService.value = null
     yamlContent.value = ''
     podLogs.value = ''
     execOutput.value = ''
@@ -585,21 +586,15 @@ async function openPodDetail(pod: PodInfo) {
     // Wait for previous component to unmount
     await nextTick()
 
-    // Load pod detail
-    const podDetail = await GetPodDetail(pod.namespace, pod.name) as any
-    if (podDetail) {
-      // Ensure containers is always an array
-      if (!podDetail.containers) {
-        podDetail.containers = []
-      }
-      if (podDetail.containers && podDetail.containers.length > 0) {
-        logContainer.value = podDetail.containers[0].name
-      }
-
-      // Wait again before setting new pod to reduce patch churn
-      await nextTick()
-      selectedPod.value = podDetail
+    // Use the pod directly as detail
+    const podDetail = { ...pod }
+    if (podDetail.containers && podDetail.containers.length > 0) {
+      logContainer.value = podDetail.containers[0].name
     }
+
+    // Wait again before setting new pod to reduce patch churn
+    await nextTick()
+    selectedPod.value = podDetail
   } catch (e: any) {
     error.value = 'Ошибка при открытии pod: ' + (e.message || e)
     selectedPod.value = null
