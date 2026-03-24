@@ -46,6 +46,10 @@ export interface PodInfo {
   age: string
   node: string
   ip: string
+  labels: Record<string, string>
+  containers: ContainerInfo[]
+  qos: string
+  created: string
 }
 
 export interface ContainerInfo {
@@ -54,6 +58,7 @@ export interface ContainerInfo {
   ready: boolean
   restartCount: number
   state: string
+  isInit: boolean
 }
 
 export interface PodDetailInfo {
