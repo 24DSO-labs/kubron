@@ -174,11 +174,11 @@ body {
 
 /* Status */
 .status-badge { padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
-.status-running { background: rgba(166,227,161,0.15); color: #a6e3a1; }
-.status-completed { background: rgba(137,180,250,0.15); color: #89b4fa; }
-.status-pending { background: rgba(249,226,175,0.15); color: #f9e2af; }
-.status-error { background: rgba(243,139,168,0.15); color: #f38ba8; }
-.status-unknown { background: rgba(88,91,112,0.3); color: #a6adc8; }
+.status-running {  color: #a6e3a1; }
+.status-completed {  color: #89b4fa; }
+.status-pending {  color: #f9e2af; }
+.status-error {color: #f38ba8; }
+.status-unknown { color: #a6adc8; }
 .text-running { color: #a6e3a1; }
 .text-completed { color: #89b4fa; }
 .text-pending { color: #f9e2af; }

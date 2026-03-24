@@ -37,6 +37,62 @@ export interface NamespaceInfo {
   age: string
 }
 
+export interface ConditionInfo {
+  type: string
+  status: string
+  lastTransitionTime: string
+  reason: string
+  message: string
+}
+
+export interface TolerationInfo {
+  key: string
+  operator: string
+  value: string
+  effect: string
+  tolerationSeconds?: number
+}
+
+export interface VolumeInfo {
+  name: string
+  type: string
+  details: Record<string, string>
+}
+
+export interface PreferredDuringSchedulingIgnoredDuringExecution {
+  weight: number
+  podAffinityTerm: {
+    labelSelector?: {
+      matchExpressions?: Array<{
+        key: string
+        operator: string
+        values?: string[]
+      }>
+      matchLabels?: Record<string, string>
+    }
+    namespaces?: string[]
+    topologyKey: string
+  }
+}
+
+export interface RequiredDuringSchedulingIgnoredDuringExecution {
+  labelSelector?: {
+    matchExpressions?: Array<{
+      key: string
+      operator: string
+      values?: string[]
+    }>
+    matchLabels?: Record<string, string>
+  }
+  namespaces?: string[]
+  topologyKey: string
+}
+
+export interface PodAntiAffinity {
+  preferredDuringSchedulingIgnoredDuringExecution?: PreferredDuringSchedulingIgnoredDuringExecution[]
+  requiredDuringSchedulingIgnoredDuringExecution?: RequiredDuringSchedulingIgnoredDuringExecution[]
+}
+
 export interface PodInfo {
   name: string
   namespace: string
@@ -47,7 +103,15 @@ export interface PodInfo {
   node: string
   ip: string
   labels: Record<string, string>
+  annotations?: Record<string, string>
+  controlledBy: string
+  serviceAccount: string
+  nodeSelector?: Record<string, string>
+  conditions: ConditionInfo[]
+  tolerations: TolerationInfo[]
+  podAntiAffinity?: PodAntiAffinity
   containers: ContainerInfo[]
+  volumes: VolumeInfo[]
   qos: string
   created: string
 }
@@ -65,11 +129,23 @@ export interface PodDetailInfo {
   name: string
   namespace: string
   status: string
+  ready: string
+  restarts: number
+  age: string
   node: string
   ip: string
   labels: Record<string, string>
-  age: string
+  annotations?: Record<string, string>
+  controlledBy: string
+  serviceAccount: string
+  nodeSelector?: Record<string, string>
+  conditions: ConditionInfo[]
+  tolerations: TolerationInfo[]
+  podAntiAffinity?: PodAntiAffinity
   containers: ContainerInfo[]
+  volumes: VolumeInfo[]
+  qos: string
+  created: string
 }
 
 export interface DeploymentInfo {
