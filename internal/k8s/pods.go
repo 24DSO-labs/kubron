@@ -20,6 +20,8 @@ type PodInfo struct {
 	IP         string            `json:"ip"`
 	Labels     map[string]string `json:"labels"`
 	Containers []ContainerInfo   `json:"containers"`
+	QOS        string            `json:"qos"`
+	Created    string            `json:"created"`
 }
 
 type ContainerInfo struct {
@@ -28,6 +30,7 @@ type ContainerInfo struct {
 	Ready        bool   `json:"ready"`
 	RestartCount int32  `json:"restartCount"`
 	State        string `json:"state"`
+	IsInit       bool   `json:"isInit"`
 }
 
 func (m *Manager) GetPods(namespace string) ([]PodInfo, error) {
@@ -57,6 +60,28 @@ func convertPod(pod corev1.Pod) PodInfo {
 	var readyCount int
 	var containers []ContainerInfo
 
+	// Process init containers
+	for _, ics := range pod.Status.InitContainerStatuses {
+		state := "unknown"
+		if ics.State.Running != nil {
+			state = "running"
+		} else if ics.State.Waiting != nil {
+			state = ics.State.Waiting.Reason
+		} else if ics.State.Terminated != nil {
+			state = ics.State.Terminated.Reason
+		}
+
+		containers = append(containers, ContainerInfo{
+			Name:         ics.Name,
+			Image:        ics.Image,
+			Ready:        ics.Ready,
+			RestartCount: ics.RestartCount,
+			State:        state,
+			IsInit:       true,
+		})
+	}
+
+	// Process regular containers
 	for _, cs := range pod.Status.ContainerStatuses {
 		totalRestarts += cs.RestartCount
 		if cs.Ready {
@@ -78,8 +103,12 @@ func convertPod(pod corev1.Pod) PodInfo {
 			Ready:        cs.Ready,
 			RestartCount: cs.RestartCount,
 			State:        state,
+			IsInit:       false,
 		})
 	}
+
+	qos := string(pod.Status.QOSClass)
+	created := pod.CreationTimestamp.Format(time.RFC3339)
 
 	status := string(pod.Status.Phase)
 	// Более точный статус
@@ -105,5 +134,7 @@ func convertPod(pod corev1.Pod) PodInfo {
 		IP:         pod.Status.PodIP,
 		Labels:     pod.Labels,
 		Containers: containers,
+		QOS:        qos,
+		Created:    created,
 	}
 }
