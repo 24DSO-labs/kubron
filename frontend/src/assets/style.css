@@ -116,6 +116,7 @@ body {
   display: block; font-size: 10px; color: #585b70;
   text-transform: uppercase; letter-spacing: 1px;
   margin-bottom: 4px;
+  
 }
 .ns-select {
   width: 100%; padding: 6px 8px;
@@ -167,8 +168,8 @@ body {
 .table tbody tr:hover { background: #313244; }
 .clickable-row { cursor: pointer; }
 .clickable-row:hover { background: #45475a !important; }
-.resource-name { font-weight: 500; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ns-label { color: #a6adc8; font-size: 12px; }
+.resource-name { font-weight: 500; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.ns-label { color: #a6adc8; font-size: 12px; text-align: left; }
 .mono { font-family: 'Consolas', monospace; font-size: 12px; }
 
 /* Status */
@@ -178,6 +179,11 @@ body {
 .status-pending { background: rgba(249,226,175,0.15); color: #f9e2af; }
 .status-error { background: rgba(243,139,168,0.15); color: #f38ba8; }
 .status-unknown { background: rgba(88,91,112,0.3); color: #a6adc8; }
+.text-running { color: #a6e3a1; }
+.text-completed { color: #89b4fa; }
+.text-pending { color: #f9e2af; }
+.text-error { color: #f38ba8; }
+.text-unknown { color: #a6adc8; }
 .text-green { color: #a6e3a1; }
 .text-yellow { color: #f9e2af; }
 .warn { color: #f9e2af; }
@@ -434,7 +440,9 @@ body {
 .bar-red { background: #f38ba8; }
 .metric-value { font-size: 12px; font-weight: 600; min-width: 35px; text-align: right; }
 .metric-raw { font-size: 11px; color: #a6adc8; min-width: 60px; text-align: right; }
-.metric-cell { font-size: 12px; color: #a6adc8; }
+.metric-cell { font-size: 12px; color: #a6adc8; text-align: right; }
+
+.left-align { text-align: left; }
 
 /* Terminal */
 .terminal-panel {
@@ -770,3 +778,31 @@ svg {
 
 /* Master/Worker Overview Cards */
 .bar-purple { background: #b6a3f4; }
+
+/* Status Dot */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-running { background: #a6e3a1; }
+.dot-pending { background: #f9e2af; }
+.dot-error { background: #f38ba8; }
+.dot-unknown { background: #585b70; }
+.dot-completed { background: #89b4fa; }
+
+/* Container Dots */
+.container-square {
+  width: 10px;
+  height: 10px;
+  display: inline-block;
+  margin-right: 2px;
+  border-radius: 50%;
+}
+
+.square-green { background: #a6e3a1; }
+.square-yellow { background: #f9e2af; }
+.square-red { background: #f38ba8; }
+.square-gray { background: #585b70; }
