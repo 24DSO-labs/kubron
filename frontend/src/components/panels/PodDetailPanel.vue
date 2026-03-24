@@ -1,7 +1,7 @@
 <template>
   <div class="detail-panel">
     <div class="detail-header">
-      <h3>📦 {{ pod.name }}</h3>
+      <h3>{{ pod.name }}</h3>
       <button class="btn-close" @click="emit('close')">✕</button>
     </div>
     <div class="detail-meta">
