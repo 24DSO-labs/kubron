@@ -67,7 +67,6 @@
       <div class="meta-row"><span class="meta-label">Conditions:</span> {{ formatConditions(pod.conditions) }}</div>
       <div class="meta-row"><span class="meta-label">Node Selector:</span> {{ formatMap(pod.nodeSelector) }}</div>
 
-      <!-- Tolerations -->
       <div class="meta-row cursor-pointer" @click="tolerationsExpanded = !tolerationsExpanded">
         <span class="meta-label">
           Tolerations <span class="expand-icon" :class="{ expanded: tolerationsExpanded }">›</span>
@@ -76,13 +75,7 @@
           <span v-if="!tolerationsExpanded">{{ pod.tolerations.length }}</span>
           <table v-else class="tolerations-table">
             <thead>
-              <tr>
-                <th>Key</th>
-                <th>Operator</th>
-                <th>Value</th>
-                <th>Effect</th>
-                <th>Seconds</th>
-              </tr>
+              <tr><th>Key</th><th>Operator</th><th>Value</th><th>Effect</th><th>Seconds</th></tr>
             </thead>
             <tbody>
               <tr v-for="t in pod.tolerations" :key="JSON.stringify(t)">
@@ -97,7 +90,6 @@
         </div>
       </div>
 
-      <!-- Pod AntiAffinities -->
       <div class="meta-row cursor-pointer" @click="affinityExpanded = !affinityExpanded">
         <span class="meta-label">
           Pod Anti Affinities
@@ -109,7 +101,6 @@
       </div>
       <div v-if="affinityExpanded" class="affinity-editor-wrapper">
         <div class="affinity-editor">
-          <!-- Gutter -->
           <div class="editor-gutter">
             <div v-for="line in visibleLines" :key="'g' + line.flatIdx" class="gutter-line">
               <span class="line-num">{{ line.lineNum }}</span>
@@ -119,26 +110,20 @@
             </div>
           </div>
           <div class="gutter-border"></div>
-          <!-- Code area with indent guides -->
-          <!-- Code area with indent guides -->
           <div class="editor-code">
             <div v-for="line in visibleLines" :key="'c' + line.flatIdx" class="code-line">
-              <!-- Indent area with overlay guides -->
               <span class="indent-area" v-if="line.indent > 0">
                 <span v-for="level in line.indent" :key="level" class="indent-slot">
                   <span v-if="line.activeGuides.includes(level - 1)" class="indent-guide-line"></span>
                   <span class="indent-space">&nbsp;&nbsp;</span>
                 </span>
               </span>
-              <!-- Content (without leading spaces) -->
               <span class="code-content" v-html="line.contentHtml"></span>
             </div>
-
           </div>
         </div>
       </div>
 
-  <!-- Pod Volumes -->
       <div class="meta-row cursor-pointer" @click="volumesExpanded = !volumesExpanded">
         <span class="meta-label">
           Pod Volumes
@@ -151,31 +136,14 @@
 
       <div v-if="volumesExpanded" class="volumes-wrapper">
         <div v-if="!volumeGroups.length" class="volumes-empty">None</div>
-
-        <div
-          v-for="group in volumeGroups"
-          :key="group.type"
-          class="vol-group"
-        >
-          <!-- Group header -->
-          <div
-            class="vol-group-header cursor-pointer"
-            @click="toggleVolumeGroup(group.type)"
-          >
+        <div v-for="group in volumeGroups" :key="group.type" class="vol-group">
+          <div class="vol-group-header cursor-pointer" @click="toggleVolumeGroup(group.type)">
             <span class="vol-group-name">{{ group.type }}</span>
-            <span
-              class="expand-icon"
-              :class="{ expanded: !collapsedVolumeGroups.has(group.type) }"
-            >›</span>
-            <span
-              v-if="collapsedVolumeGroups.has(group.type)"
-              class="vol-group-count"
-            >
+            <span class="expand-icon" :class="{ expanded: !collapsedVolumeGroups.has(group.type) }">›</span>
+            <span v-if="collapsedVolumeGroups.has(group.type)" class="vol-group-count">
               {{ group.items.length }} {{ group.items.length === 1 ? 'volume' : 'volumes' }}
             </span>
           </div>
-
-          <!-- Group table -->
           <div v-if="!collapsedVolumeGroups.has(group.type)" class="vol-group-body">
             <table class="vol-table">
               <thead>
@@ -203,11 +171,232 @@
 
     <!-- ═══════════ CONTAINERS ═══════════ -->
     <div v-if="activeTab === 'containers' && pod.containers && pod.containers.length > 0" class="detail-section">
-      <h4>Containers</h4>
-      <div v-for="c in pod.containers" :key="c.name" class="container-item">
-        <span class="container-name">{{ c.name }}</span>
-        <span class="status-badge" :class="statusClass(c.state)">{{ c.state }}</span>
-        <span class="container-image">{{ c.image }}</span>
+      <div v-for="c in pod.containers" :key="c.name" class="ct-block">
+        <!-- Container Header -->
+        <div class="ct-header cursor-pointer" @click="toggleContainer(c.name)">
+          <div class="ct-header-left">
+            <span class="ct-chevron" :class="{ expanded: !collapsedContainers.has(c.name) }">›</span>
+            <span class="ct-name">{{ c.name }}</span>
+            <span v-if="c.isInit" class="ct-badge-init">init</span>
+          </div>
+          <span class="ct-header-image">{{ c.image }}</span>
+        </div>
+
+        <!-- Container Body -->
+        <div v-if="!collapsedContainers.has(c.name)" class="ct-body">
+          <!-- Status -->
+          <div class="ct-row">
+            <span class="ct-label">Status</span>
+            <span class="ct-val">
+              <span :class="containerStatusColor(c)">{{ c.state }}{{ c.ready ? ', ready' : '' }}</span>
+            </span>
+          </div>
+
+          <!-- Image -->
+          <div class="ct-row ct-row-alt">
+            <span class="ct-label">Image</span>
+            <span class="ct-val">{{ c.image }}</span>
+          </div>
+
+          <!-- ImagePullPolicy -->
+          <div class="ct-row">
+            <span class="ct-label">ImagePullPolicy</span>
+            <span class="ct-val">{{ c.imagePullPolicy || '—' }}</span>
+          </div>
+
+          <!-- Ports -->
+          <div class="ct-row ct-row-alt ct-row-click" @click.stop="toggleContainerSection(c.name, 'ports')">
+            <span class="ct-label">
+              Ports
+              <span class="ct-sec-toggle">{{ isContainerSectionCollapsed(c.name, 'ports') ? '›' : '×' }}</span>
+            </span>
+            <span class="ct-val" v-if="isContainerSectionCollapsed(c.name, 'ports')">
+              {{ (c.ports?.length || 0) }} {{ (c.ports?.length || 0) === 1 ? 'Port' : 'Ports' }}
+            </span>
+            <span class="ct-val" v-else-if="!c.ports || !c.ports.length">None</span>
+          </div>
+          <template v-if="!isContainerSectionCollapsed(c.name, 'ports') && c.ports && c.ports.length">
+            <div v-for="p in c.ports" :key="portKey(p)" class="ct-row ct-sub-row ct-row-alt">
+              <span class="ct-label"></span>
+              <span class="ct-val ct-port-cell">
+                <span class="ct-port-link">{{ p.containerPort }}/{{ p.protocol || 'TCP' }}</span>
+                <button class="ct-btn-forward" @click.stop="onPortForward(c.name, p.containerPort)">Forward…</button>
+              </span>
+            </div>
+          </template>
+
+          <!-- Environment -->
+          <div class="ct-row ct-row-click" @click.stop="toggleContainerSection(c.name, 'env')">
+            <span class="ct-label">
+              Environment
+              <span class="ct-sec-toggle">{{ isContainerSectionCollapsed(c.name, 'env') ? '›' : '×' }}</span>
+            </span>
+            <span class="ct-val" v-if="isContainerSectionCollapsed(c.name, 'env')">
+              {{ (c.env?.length || 0) }} {{ (c.env?.length || 0) === 1 ? 'Var' : 'Vars' }}
+            </span>
+            <span class="ct-val" v-else-if="!c.env || !c.env.length">None</span>
+          </div>
+          <template v-if="!isContainerSectionCollapsed(c.name, 'env') && c.env && c.env.length">
+            <div v-for="(e, ei) in c.env" :key="e.name" :class="['ct-row', 'ct-sub-row', { 'ct-row-alt': ei % 2 === 0 }]">
+              <span class="ct-label"></span>
+              <span class="ct-val ct-env-cell">
+                <span class="ct-env-name">{{ e.name }}</span>
+                <span class="ct-env-sep">:</span>
+                <span class="ct-env-value">{{ e.value || '' }}</span>
+              </span>
+            </div>
+          </template>
+
+          <!-- Mounts -->
+          <div class="ct-row ct-row-alt ct-row-click" @click.stop="toggleContainerSection(c.name, 'mounts')">
+            <span class="ct-label">
+              Mounts
+              <span class="ct-sec-toggle">{{ isContainerSectionCollapsed(c.name, 'mounts') ? '›' : '×' }}</span>
+            </span>
+            <span class="ct-val" v-if="isContainerSectionCollapsed(c.name, 'mounts')">
+              {{ (c.volumeMounts?.length || 0) }} {{ (c.volumeMounts?.length || 0) === 1 ? 'Mount' : 'Mounts' }}
+            </span>
+            <span class="ct-val" v-else-if="!c.volumeMounts || !c.volumeMounts.length">None</span>
+          </div>
+          
+          <template v-if="!isContainerSectionCollapsed(c.name, 'mounts') && c.volumeMounts && c.volumeMounts.length">
+            <template v-for="(m, mi) in c.volumeMounts" :key="m.name + ':' + m.mountPath">
+              <div :class="['ct-row', 'ct-sub-row', { 'ct-row-alt': mi % 2 === 0 }]">
+                <span class="ct-label"></span>
+                <span class="ct-val ct-mount-path">{{ m.mountPath }}</span>
+              </div>
+              <div :class="['ct-row', 'ct-sub-row', { 'ct-row-alt': mi % 2 === 0 }]">
+                <span class="ct-label"></span>
+                <span class="ct-val ct-mount-from">
+                  from {{ m.name }} ({{ m.readOnly ? 'ro' : 'rw' }})
+                  <span v-if="m.subPath" class="ct-mount-sub">subPath={{ m.subPath }}</span>
+                </span>
+              </div>
+            </template>
+          </template>
+
+          <!-- Command -->
+          <div class="ct-row">
+            <span class="ct-label">Command</span>
+            <span class="ct-val">{{ formatCommand(c.command) }}</span>
+          </div>
+
+          <!-- Args -->
+          <div class="ct-row ct-row-alt" v-if="c.args && c.args.length">
+            <span class="ct-label">Args</span>
+            <span class="ct-val">{{ formatCommand(c.args) }}</span>
+          </div>
+
+          <!-- WorkingDir -->
+          <div class="ct-row" v-if="c.workingDir">
+            <span class="ct-label">WorkingDir</span>
+            <span class="ct-val">{{ c.workingDir }}</span>
+          </div>
+
+          <!-- Requests -->
+          <div :class="['ct-row', { 'ct-row-alt': !c.workingDir }]">
+            <span class="ct-label">Requests</span>
+            <span class="ct-val">
+              CPU: {{ c.resources?.requestsCpu || '—' }}, Memory: {{ c.resources?.requestsMemory || '—' }}
+            </span>
+          </div>
+
+          <!-- Limits -->
+          <div class="ct-row ct-row-alt">
+            <span class="ct-label">Limits</span>
+            <span class="ct-val">
+              CPU: {{ c.resources?.limitsCpu || '—' }}, Memory: {{ c.resources?.limitsMemory || '—' }}
+            </span>
+          </div>
+
+          <!-- Probes -->
+          <template v-if="c.probes">
+            <div class="ct-row ct-row-click" @click.stop="toggleContainerSection(c.name, 'probes')">
+              <span class="ct-label">
+                Probes
+                <span class="ct-sec-toggle">{{ isContainerSectionCollapsed(c.name, 'probes') ? '›' : '×' }}</span>
+              </span>
+              <span class="ct-val" v-if="isContainerSectionCollapsed(c.name, 'probes')">Configured</span>
+            </div>
+            <template v-if="!isContainerSectionCollapsed(c.name, 'probes')">
+              <div class="ct-row ct-sub-row">
+                <span class="ct-label"></span>
+                <span class="ct-val ct-env-cell">
+                  <span class="ct-env-name">Liveness</span>
+                  <span class="ct-env-sep">:</span>
+                  <span class="ct-env-value">{{ c.probes.liveness || '—' }}</span>
+                </span>
+              </div>
+              <div class="ct-row ct-sub-row ct-row-alt">
+                <span class="ct-label"></span>
+                <span class="ct-val ct-env-cell">
+                  <span class="ct-env-name">Readiness</span>
+                  <span class="ct-env-sep">:</span>
+                  <span class="ct-env-value">{{ c.probes.readiness || '—' }}</span>
+                </span>
+              </div>
+              <div class="ct-row ct-sub-row">
+                <span class="ct-label"></span>
+                <span class="ct-val ct-env-cell">
+                  <span class="ct-env-name">Startup</span>
+                  <span class="ct-env-sep">:</span>
+                  <span class="ct-env-value">{{ c.probes.startup || '—' }}</span>
+                </span>
+              </div>
+            </template>
+          </template>
+
+          <!-- Security Context -->
+          <template v-if="c.securityContext">
+            <div class="ct-row ct-row-alt ct-row-click" @click.stop="toggleContainerSection(c.name, 'security')">
+              <span class="ct-label">
+                Security Context
+                <span class="ct-sec-toggle">{{ isContainerSectionCollapsed(c.name, 'security') ? '›' : '×' }}</span>
+              </span>
+              <span class="ct-val" v-if="isContainerSectionCollapsed(c.name, 'security')">Configured</span>
+            </div>
+            <template v-if="!isContainerSectionCollapsed(c.name, 'security')">
+              <div class="ct-row ct-sub-row">
+                <span class="ct-label"></span>
+                <span class="ct-val ct-env-cell">
+                  <span class="ct-env-name">RunAsUser</span>
+                  <span class="ct-env-sep">:</span>
+                  <span class="ct-env-value">{{ fmtMaybe(c.securityContext.runAsUser) }}</span>
+                </span>
+              </div>
+              <div class="ct-row ct-sub-row ct-row-alt">
+                <span class="ct-label"></span>
+                <span class="ct-val ct-env-cell">
+                  <span class="ct-env-name">RunAsNonRoot</span>
+                  <span class="ct-env-sep">:</span>
+                  <span class="ct-env-value">{{ fmtMaybe(c.securityContext.runAsNonRoot) }}</span>
+                </span>
+              </div>
+              <div class="ct-row ct-sub-row">
+                <span class="ct-label"></span>
+                <span class="ct-val ct-env-cell">
+                  <span class="ct-env-name">ReadOnlyFilesystem</span>
+                  <span class="ct-env-sep">:</span>
+                  <span class="ct-env-value">{{ fmtMaybe(c.securityContext.readOnlyFilesystem) }}</span>
+                </span>
+              </div>
+              <div class="ct-row ct-sub-row ct-row-alt">
+                <span class="ct-label"></span>
+                <span class="ct-val ct-env-cell">
+                  <span class="ct-env-name">AllowPrivilegeEscalation</span>
+                  <span class="ct-env-sep">:</span>
+                  <span class="ct-env-value">{{ fmtMaybe(c.securityContext.allowPrivilegeEscalation) }}</span>
+                </span>
+              </div>
+            </template>
+          </template>
+
+          <!-- TerminationMessagePath -->
+          <div class="ct-row">
+            <span class="ct-label">TerminationMessagePath</span>
+            <span class="ct-val">{{ c.terminationMessagePath || '—' }}</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -275,8 +464,6 @@
   </div>
 </template>
 <script lang="ts" setup>
-
-
 import { ref, computed } from 'vue'
 import type {
   PortForwardSession,
@@ -285,15 +472,6 @@ import type {
   VolumeInfo,
 } from '../../types'
 import PodMetricsPanel from '../metrics/PodMetricsPanel.vue'
-
-const affinityRuleCount = computed(() => {
-  const a = props.pod.podAntiAffinity as PodAntiAffinity | undefined
-  if (!a) return 0
-  let count = 0
-  if (a.preferredDuringSchedulingIgnoredDuringExecution?.length) count++
-  if (a.requiredDuringSchedulingIgnoredDuringExecution?.length) count++
-  return count
-})
 
 const props = defineProps<{
   pod: any
@@ -324,6 +502,8 @@ const emit = defineEmits<{
   (e: 'openTerminal'): void
 }>()
 
+// ═══════ Tabs ═══════
+
 const activeTab = ref('properties')
 const tabs = [
   { id: 'properties', label: 'Properties' },
@@ -336,10 +516,88 @@ const tabs = [
   { id: 'actions', label: 'Actions' },
 ]
 
+// ═══════ Properties expand state ═══════
+
 const labelsExpanded = ref(false)
 const annotationsExpanded = ref(false)
 const tolerationsExpanded = ref(false)
 const affinityExpanded = ref(true)
+const volumesExpanded = ref(false)
+
+// ═══════ Affinity ═══════
+
+const affinityRuleCount = computed(() => {
+  const a = props.pod.podAntiAffinity as PodAntiAffinity | undefined
+  if (!a) return 0
+  let count = 0
+  if (a.preferredDuringSchedulingIgnoredDuringExecution?.length) count++
+  if (a.requiredDuringSchedulingIgnoredDuringExecution?.length) count++
+  return count
+})
+
+// ═══════ Containers UI state ═══════
+
+const collapsedContainers = ref<Set<string>>(new Set())
+
+type ContainerSection = 'ports' | 'env' | 'mounts' | 'probes' | 'security'
+const collapsedContainerSections = ref<Map<string, Set<ContainerSection>>>(new Map())
+
+function toggleContainer(name: string) {
+  const s = new Set(collapsedContainers.value)
+  if (s.has(name)) s.delete(name)
+  else s.add(name)
+  collapsedContainers.value = s
+}
+
+function getSectionSet(containerName: string): Set<ContainerSection> {
+  const current = collapsedContainerSections.value.get(containerName)
+  if (current) return current
+  const init = new Set<ContainerSection>(['ports', 'env', 'mounts', 'probes', 'security'])
+  collapsedContainerSections.value.set(containerName, init)
+  return init
+}
+
+function isContainerSectionCollapsed(containerName: string, section: ContainerSection): boolean {
+  return getSectionSet(containerName).has(section)
+}
+
+function toggleContainerSection(containerName: string, section: ContainerSection) {
+  const map = new Map(collapsedContainerSections.value)
+  const set = new Set(getSectionSet(containerName))
+  if (set.has(section)) set.delete(section)
+  else set.add(section)
+  map.set(containerName, set)
+  collapsedContainerSections.value = map
+}
+
+function containerStatusColor(c: any): string {
+  if (c.state === 'running' && c.ready) return 'ct-status-ok'
+  if (c.state === 'running') return 'ct-status-warn'
+  if (['CrashLoopBackOff', 'Error', 'OOMKilled'].includes(c.state)) return 'ct-status-err'
+  return 'ct-status-neutral'
+}
+
+function portKey(p: any): string {
+  return (p.name || '') + '-' + p.containerPort + '-' + p.protocol
+}
+
+function onPortForward(_containerName: string, containerPort: number) {
+  emit('update:pfPodPort', containerPort)
+  emit('update:pfLocalPort', containerPort)
+  activeTab.value = 'portforward'
+}
+
+// ═══════ Helpers ═══════
+
+function formatCommand(cmd: string[] | undefined): string {
+  if (!cmd || !cmd.length) return '—'
+  return cmd.join(' ')
+}
+
+function fmtMaybe(v: unknown): string {
+  if (v === null || v === undefined) return '—'
+  return String(v)
+}
 
 function formatMap(o: Record<string, string> | undefined): string {
   if (!o || !Object.keys(o).length) return 'None'
@@ -351,15 +609,11 @@ function formatConditions(c: ConditionInfo[]): string {
   return c.map((x) => x.type).join(' ')
 }
 
-
 function esc(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-// ═══════ YAML tree ═══════
+// ═══════ YAML tree (affinity editor) ═══════
 
 interface YamlNode {
   raw: string
@@ -401,30 +655,19 @@ function highlightContent(raw: string): string {
 
 function buildTree(lines: string[]): YamlNode[] {
   const nodes: YamlNode[] = lines.map((l) => ({
-    raw: l,
-    indent: getIndent(l),
-    children: [],
+    raw: l, indent: getIndent(l), children: [],
   }))
   const roots: YamlNode[] = []
   const stack: YamlNode[] = []
 
   for (const node of nodes) {
-    while (stack.length && stack[stack.length - 1].indent >= node.indent) {
-      stack.pop()
-    }
-    if (!stack.length) {
-      roots.push(node)
-    } else {
-      stack[stack.length - 1].children.push(node)
-    }
-    if (node.raw.trimEnd().endsWith(':')) {
-      stack.push(node)
-    }
+    while (stack.length && stack[stack.length - 1].indent >= node.indent) stack.pop()
+    if (!stack.length) roots.push(node)
+    else stack[stack.length - 1].children.push(node)
+    if (node.raw.trimEnd().endsWith(':')) stack.push(node)
   }
   return roots
 }
-
-// ═══════ Folding ═══════
 
 const collapsedSet = ref<Set<number>>(new Set())
 
@@ -434,8 +677,6 @@ function toggleFold(flatIdx: number) {
   else s.add(flatIdx)
   collapsedSet.value = s
 }
-
-// ═══════ Flat lines ═══════
 
 interface FlatLine {
   contentHtml: string
@@ -447,11 +688,7 @@ interface FlatLine {
   activeGuides: number[]
 }
 
-function flattenNodes(
-  nodes: YamlNode[],
-  counter: { idx: number },
-  collapsed: Set<number>,
-): FlatLine[] {
+function flattenNodes(nodes: YamlNode[], counter: { idx: number }, collapsed: Set<number>): FlatLine[] {
   const out: FlatLine[] = []
   for (const node of nodes) {
     const idx = counter.idx++
@@ -459,16 +696,10 @@ function flattenNodes(
     const isColl = collapsed.has(idx)
     out.push({
       contentHtml: highlightContent(node.raw),
-      lineNum: idx + 1,
-      foldable,
-      collapsed: isColl,
-      flatIdx: idx,
-      indent: node.indent,
-      activeGuides: [],
+      lineNum: idx + 1, foldable, collapsed: isColl,
+      flatIdx: idx, indent: node.indent, activeGuides: [],
     })
-    if (!isColl && foldable) {
-      out.push(...flattenNodes(node.children, counter, collapsed))
-    }
+    if (!isColl && foldable) out.push(...flattenNodes(node.children, counter, collapsed))
   }
   return out
 }
@@ -479,20 +710,13 @@ function computeActiveGuides(lines: FlatLine[]): void {
     const cur = lines[i].indent
     for (let level = 0; level < cur; level++) {
       for (let j = i + 1; j < lines.length; j++) {
-        if (lines[j].indent <= level) {
-          break
-        }
-        if (lines[j].indent > level) {
-          guides.push(level)
-          break
-        }
+        if (lines[j].indent <= level) break
+        if (lines[j].indent > level) { guides.push(level); break }
       }
     }
     lines[i].activeGuides = guides
   }
 }
-
-// ═══════ Build YAML ═══════
 
 function buildYaml(a: PodAntiAffinity | undefined): string[] {
   if (!a) return []
@@ -508,9 +732,7 @@ function buildYaml(a: PodAntiAffinity | undefined): string[] {
       out.push(sp(3) + 'labelSelector:')
       out.push(sp(4) + 'matchLabels:')
       const ml = t.podAffinityTerm.labelSelector?.matchLabels || {}
-      for (const [k, v] of Object.entries(ml)) {
-        out.push(sp(5) + k + ': ' + v)
-      }
+      for (const [k, v] of Object.entries(ml)) out.push(sp(5) + k + ': ' + v)
       out.push(sp(3) + 'topologyKey: ' + t.podAffinityTerm.topologyKey)
     })
   }
@@ -522,17 +744,12 @@ function buildYaml(a: PodAntiAffinity | undefined): string[] {
       out.push(sp(1) + '- labelSelector:')
       out.push(sp(2) + 'matchLabels:')
       const ml = t.labelSelector?.matchLabels || {}
-      for (const [k, v] of Object.entries(ml)) {
-        out.push(sp(3) + k + ': ' + v)
-      }
+      for (const [k, v] of Object.entries(ml)) out.push(sp(3) + k + ': ' + v)
       out.push(sp(2) + 'topologyKey: ' + t.topologyKey)
     })
   }
-
   return out
 }
-
-// ═══════ Computed ═══════
 
 const yamlTree = computed(() => {
   const raw = buildYaml(props.pod.podAntiAffinity)
@@ -542,26 +759,16 @@ const yamlTree = computed(() => {
 
 const visibleLines = computed<FlatLine[]>(() => {
   if (!yamlTree.value.length) {
-    return [
-      {
-        contentHtml: '<span class="hl-val">None</span>',
-        lineNum: 1,
-        foldable: false,
-        collapsed: false,
-        flatIdx: 0,
-        indent: 0,
-        activeGuides: [],
-      },
-    ]
+    return [{
+      contentHtml: '<span class="hl-val">None</span>',
+      lineNum: 1, foldable: false, collapsed: false,
+      flatIdx: 0, indent: 0, activeGuides: [],
+    }]
   }
   const flat = flattenNodes(yamlTree.value, { idx: 0 }, collapsedSet.value)
   computeActiveGuides(flat)
   return flat
 })
-
-// ═══════ Volumes grouped by type ═══════
-
-const volumesExpanded = ref(false)
 
 // ═══════ Volumes grouped by type ═══════
 
@@ -595,22 +802,14 @@ const volumeGroups = computed<VolumeGroup[]>(() => {
   for (const [type, items] of map) {
     const colSet = new Set<string>()
     for (const item of items) {
-      for (const key of Object.keys(item.details)) {
-        colSet.add(key)
-      }
+      for (const key of Object.keys(item.details)) colSet.add(key)
     }
-    groups.push({
-      type: formatTypeName(type),
-      items,
-      columns: Array.from(colSet),
-    })
+    groups.push({ type: formatTypeName(type), items, columns: Array.from(colSet) })
   }
-
   return groups
 })
 
 function formatTypeName(type: string): string {
-  // "EmptyDir" → "Empty Dir", "ConfigMap" → "Config Map"
   return type.replace(/([a-z])([A-Z])/g, '$1 $2')
 }
 
@@ -632,8 +831,9 @@ function onPodPortChange(e: Event) {
   emit('update:pfPodPort', Number((e.target as HTMLInputElement).value))
 }
 </script>
-
 <style scoped>
+/* ═══════ Tabs ═══════ */
+
 .tabs {
   overflow-x: auto;
 }
@@ -652,6 +852,8 @@ function onPodPortChange(e: Event) {
   color: white;
 }
 
+/* ═══════ Properties meta rows ═══════ */
+
 .meta-row {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -667,6 +869,12 @@ function onPodPortChange(e: Event) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.meta-content {
+  margin: 0;
+  padding: 0;
+  text-align: left;
 }
 
 pre {
@@ -692,12 +900,6 @@ pre {
   font-size: 0.875rem;
   margin: 0;
   padding: 0;
-}
-
-.meta-content {
-  margin: 0;
-  padding: 0;
-  text-align: left;
 }
 
 .label-pair {
@@ -749,8 +951,6 @@ pre {
   max-height: 340px;
   overflow: auto;
 }
-
-/* Gutter */
 
 .editor-gutter {
   flex-shrink: 0;
@@ -818,8 +1018,6 @@ pre {
   z-index: 2;
 }
 
-/* Code area */
-
 .editor-code {
   flex: 1;
   padding: 10px 0;
@@ -835,28 +1033,22 @@ pre {
   white-space: nowrap;
 }
 
-/* Indent area */
-
 .indent-area {
   display: inline-flex;
   flex-shrink: 0;
 }
 
-/* Each indent level slot: same width as 2 spaces in the monospace font */
 .indent-slot {
   position: relative;
   display: inline-block;
-  /* 2ch = width of two characters in monospace font */
   width: 2ch;
   height: 22px;
 }
 
-/* The two nbsp spaces that create the actual visual indent */
 .indent-space {
   visibility: hidden;
 }
 
-/* Vertical guide line drawn inside the slot */
 .indent-guide-line {
   position: absolute;
   left: 0;
@@ -867,13 +1059,10 @@ pre {
   pointer-events: none;
 }
 
-/* Content */
 .code-content {
   white-space: nowrap;
   padding-right: 12px;
 }
-
-/* Syntax highlighting */
 
 .code-line :deep(.hl-key) {
   color: #00d4aa;
@@ -891,8 +1080,6 @@ pre {
 .code-line :deep(.hl-dash) {
   color: #6b6d8a;
 }
-
-/* Scrollbar */
 
 .affinity-editor::-webkit-scrollbar {
   width: 8px;
@@ -923,16 +1110,16 @@ pre {
   margin-bottom: 12px;
   grid-column: 1 / -1;
 }
+
 .volumes-empty {
   color: #6b6d8a;
   padding: 4px 0 4px 150px;
 }
 
-/* Volume group */
-
 .vol-group {
   margin-bottom: 4px;
 }
+
 .vol-group-header {
   display: flex;
   align-items: center;
@@ -941,28 +1128,30 @@ pre {
   user-select: none;
   border-bottom: 1px solid #2a2b40;
 }
+
 .vol-group-name {
   font-weight: 500;
   color: #c0c2d8;
   font-size: 0.85rem;
 }
+
 .vol-group-count {
   color: #6b6d8a;
   font-size: 0.85rem;
   margin-left: 4px;
 }
 
-/* Volume table */
-
 .vol-group-body {
   margin: 0;
 }
+
 .vol-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.85rem;
   table-layout: auto;
 }
+
 .vol-table th {
   text-align: left;
   padding: 6px 12px;
@@ -972,6 +1161,7 @@ pre {
   border-bottom: 1px solid #2a2b40;
   white-space: nowrap;
 }
+
 .vol-table td {
   text-align: left;
   padding: 6px 12px;
@@ -982,7 +1172,270 @@ pre {
   text-overflow: ellipsis;
   max-width: 250px;
 }
+
 .vol-table tr:last-child td {
   border-bottom: none;
+}
+
+/* ═══════════════════════════════════════════
+   CONTAINERS TAB
+   ═══════════════════════════════════════════ */
+
+.ct-block {
+  border: 1px solid #2a2b40;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  background: #1a1b2e;
+}
+
+/* ─── Header ─── */
+
+.ct-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #1e1f35;
+  border-bottom: 1px solid #2a2b40;
+  user-select: none;
+  gap: 12px;
+}
+
+.ct-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ct-chevron {
+  display: inline-block;
+  font-size: 14px;
+  color: #6b6d8a;
+  transition: transform 0.15s ease;
+  transform: rotate(0deg);
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+
+.ct-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.ct-name {
+  font-weight: 600;
+  color: #e0e2f0;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ct-badge-init {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: #3b3d5c;
+  color: #a0a2c0;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.ct-header-image {
+  color: #6b6d8a;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 400px;
+  text-align: right;
+}
+
+/* ─── Body ─── */
+
+.ct-body {
+  font-size: 0.875rem;
+}
+
+/* ─── Rows ─── */
+
+.ct-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  align-items: baseline;
+  padding: 6px 14px;
+  min-height: 32px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.ct-row-alt {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.ct-row-click {
+  cursor: pointer;
+}
+
+.ct-row-click:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ct-sub-row {
+  padding-left: 14px;
+}
+
+.ct-label {
+  color: #9ca0b8;
+  font-weight: 600;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ct-val {
+  color: #d4d4d4;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* ─── Section toggle (× / ›) ─── */
+
+.ct-sec-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 13px;
+  color: #6b6d8a;
+  border-radius: 3px;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+
+.ct-sec-toggle:hover {
+  color: #a0a2c0;
+}
+
+.ct-summary {
+  color: #6b6d8a;
+}
+
+.ct-empty {
+  color: #4a4b6a;
+  font-style: italic;
+}
+
+/* ─── Status colors ─── */
+
+.ct-status-ok {
+  color: #34d399;
+}
+
+.ct-status-warn {
+  color: #fbbf24;
+}
+
+.ct-status-err {
+  color: #f87171;
+}
+
+.ct-status-neutral {
+  color: #9ca0b8;
+}
+
+/* ─── Ports ─── */
+
+.ct-port-cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ct-port-link {
+  color: #60a5fa;
+  font-weight: 500;
+  cursor: default;
+}
+
+.ct-btn-forward {
+  padding: 2px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #fff;
+  background: #2563eb;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.ct-btn-forward:hover {
+  background: #1d4ed8;
+}
+
+/* ─── Environment ─── */
+
+.ct-env-cell {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ct-env-name {
+  color: #c0c2d8;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ct-env-sep {
+  color: #4a4b6a;
+  flex-shrink: 0;
+}
+
+.ct-env-value {
+  color: #9ca0b8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* ─── Mounts ─── */
+
+.ct-mount-path {
+  color: #d4d4d4;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.82rem;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 2px 8px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+/* продолжение стилей */
+
+.ct-mount-from {
+  color: #9ca0b8;
+  font-size: 0.82rem;
+  padding-left: 8px;
+}
+
+.ct-mount-sub {
+  color: #6b6d8a;
+  margin-left: 6px;
 }
 </style>

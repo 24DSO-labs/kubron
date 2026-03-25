@@ -31,6 +31,66 @@ type TolerationInfo struct {
 	TolerationSeconds *int64 `json:"tolerationSeconds"`
 }
 
+type ContainerPort struct {
+	Name          string `json:"name"`
+	ContainerPort int32  `json:"containerPort"`
+	Protocol      string `json:"protocol"`
+	HostPort      int32  `json:"hostPort"`
+	HostIP        string `json:"hostIP"`
+}
+
+type EnvVarInfo struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+type VolumeMountInfo struct {
+	Name      string `json:"name"`
+	MountPath string `json:"mountPath"`
+	SubPath   string `json:"subPath"`
+	ReadOnly  bool   `json:"readOnly"`
+}
+
+type ContainerResourcesInfo struct {
+	RequestsCPU    string `json:"requestsCpu"`
+	RequestsMemory string `json:"requestsMemory"`
+	LimitsCPU      string `json:"limitsCpu"`
+	LimitsMemory   string `json:"limitsMemory"`
+}
+
+type ContainerSecurityCtxInfo struct {
+	RunAsUser      *int64 `json:"runAsUser"`
+	RunAsNonRoot   *bool  `json:"runAsNonRoot"`
+	ReadOnlyFS     *bool  `json:"readOnlyFilesystem"`
+	AllowPrivilege *bool  `json:"allowPrivilegeEscalation"`
+}
+
+type ProbesInfo struct {
+	Liveness  string `json:"liveness"`
+	Readiness string `json:"readiness"`
+	Startup   string `json:"startup"`
+}
+
+type ContainerInfo struct {
+	Name               string                    `json:"name"`
+	Image              string                    `json:"image"`
+	Ready              bool                      `json:"ready"`
+	RestartCount       int32                     `json:"restartCount"`
+	State              string                    `json:"state"`
+	IsInit             bool                      `json:"isInit"`
+	Ports              []ContainerPort           `json:"ports"`
+	Env                []EnvVarInfo              `json:"env"`
+	VolumeMounts       []VolumeMountInfo         `json:"volumeMounts"`
+	Resources          *ContainerResourcesInfo   `json:"resources"`
+	SecurityCtx        *ContainerSecurityCtxInfo `json:"securityContext"`
+	Probes             *ProbesInfo               `json:"probes"`
+	Args               []string                  `json:"args"`
+	Command            []string                  `json:"command"`
+	WorkingDir         string                    `json:"workingDir"`
+	ImagePullPolicy    string                    `json:"imagePullPolicy"`
+	TerminationMsgPath string                    `json:"terminationMessagePath"`
+}
+
 type PodInfo struct {
 	Name            string                  `json:"name"`
 	Namespace       string                  `json:"namespace"`
@@ -52,15 +112,6 @@ type PodInfo struct {
 	Volumes         []VolumeInfo            `json:"volumes"`
 	QOS             string                  `json:"qos"`
 	Created         string                  `json:"created"`
-}
-
-type ContainerInfo struct {
-	Name         string `json:"name"`
-	Image        string `json:"image"`
-	Ready        bool   `json:"ready"`
-	RestartCount int32  `json:"restartCount"`
-	State        string `json:"state"`
-	IsInit       bool   `json:"isInit"`
 }
 
 func (m *Manager) GetPods(namespace string) ([]PodInfo, error) {
@@ -92,6 +143,16 @@ func convertPod(pod corev1.Pod) PodInfo {
 	var conditions []ConditionInfo
 	var tolerations []TolerationInfo
 
+	// Create map of container specs for quick lookup
+	containerSpecMap := make(map[string]corev1.Container)
+	for _, c := range pod.Spec.Containers {
+		containerSpecMap[c.Name] = c
+	}
+	initContainerSpecMap := make(map[string]corev1.Container)
+	for _, c := range pod.Spec.InitContainers {
+		initContainerSpecMap[c.Name] = c
+	}
+
 	// Process init containers
 	for _, ics := range pod.Status.InitContainerStatuses {
 		state := "unknown"
@@ -103,13 +164,26 @@ func convertPod(pod corev1.Pod) PodInfo {
 			state = ics.State.Terminated.Reason
 		}
 
+		spec := initContainerSpecMap[ics.Name]
+
 		containers = append(containers, ContainerInfo{
-			Name:         ics.Name,
-			Image:        ics.Image,
-			Ready:        ics.Ready,
-			RestartCount: ics.RestartCount,
-			State:        state,
-			IsInit:       true,
+			Name:               ics.Name,
+			Image:              ics.Image,
+			Ready:              ics.Ready,
+			RestartCount:       ics.RestartCount,
+			State:              state,
+			IsInit:             true,
+			Ports:              extractPorts(spec),
+			Env:                extractEnv(spec),
+			VolumeMounts:       extractVolumeMounts(spec),
+			Resources:          extractResources(spec),
+			SecurityCtx:        extractSecurityCtx(spec),
+			Probes:             extractProbes(spec),
+			Args:               spec.Args,
+			Command:            spec.Command,
+			WorkingDir:         spec.WorkingDir,
+			ImagePullPolicy:    string(spec.ImagePullPolicy),
+			TerminationMsgPath: spec.TerminationMessagePath,
 		})
 	}
 
@@ -129,13 +203,26 @@ func convertPod(pod corev1.Pod) PodInfo {
 			state = cs.State.Terminated.Reason
 		}
 
+		spec := containerSpecMap[cs.Name]
+
 		containers = append(containers, ContainerInfo{
-			Name:         cs.Name,
-			Image:        cs.Image,
-			Ready:        cs.Ready,
-			RestartCount: cs.RestartCount,
-			State:        state,
-			IsInit:       false,
+			Name:               cs.Name,
+			Image:              cs.Image,
+			Ready:              cs.Ready,
+			RestartCount:       cs.RestartCount,
+			State:              state,
+			IsInit:             false,
+			Ports:              extractPorts(spec),
+			Env:                extractEnv(spec),
+			VolumeMounts:       extractVolumeMounts(spec),
+			Resources:          extractResources(spec),
+			SecurityCtx:        extractSecurityCtx(spec),
+			Probes:             extractProbes(spec),
+			Args:               spec.Args,
+			Command:            spec.Command,
+			WorkingDir:         spec.WorkingDir,
+			ImagePullPolicy:    string(spec.ImagePullPolicy),
+			TerminationMsgPath: spec.TerminationMessagePath,
 		})
 	}
 
@@ -293,4 +380,125 @@ func convertPod(pod corev1.Pod) PodInfo {
 		QOS:             qos,
 		Created:         created,
 	}
+}
+
+func extractPorts(c corev1.Container) []ContainerPort {
+	var ports []ContainerPort
+	for _, p := range c.Ports {
+		ports = append(ports, ContainerPort{
+			Name:          p.Name,
+			ContainerPort: p.ContainerPort,
+			Protocol:      string(p.Protocol),
+			HostPort:      p.HostPort,
+			HostIP:        p.HostIP,
+		})
+	}
+	return ports
+}
+
+func extractEnv(c corev1.Container) []EnvVarInfo {
+	var env []EnvVarInfo
+	for _, e := range c.Env {
+		value := e.Value
+		if e.ValueFrom != nil {
+			if e.ValueFrom.SecretKeyRef != nil {
+				value = fmt.Sprintf("secret(%s/%s)", e.ValueFrom.SecretKeyRef.Name, e.ValueFrom.SecretKeyRef.Key)
+			} else if e.ValueFrom.ConfigMapKeyRef != nil {
+				value = fmt.Sprintf("configmap(%s/%s)", e.ValueFrom.ConfigMapKeyRef.Name, e.ValueFrom.ConfigMapKeyRef.Key)
+			} else if e.ValueFrom.FieldRef != nil {
+				value = fmt.Sprintf("field(%s)", e.ValueFrom.FieldRef.FieldPath)
+			} else if e.ValueFrom.ResourceFieldRef != nil {
+				value = fmt.Sprintf("resource(%s)", e.ValueFrom.ResourceFieldRef.Resource)
+			}
+		}
+		env = append(env, EnvVarInfo{
+			Name:  e.Name,
+			Value: value,
+		})
+	}
+	return env
+}
+
+func extractVolumeMounts(c corev1.Container) []VolumeMountInfo {
+	var mounts []VolumeMountInfo
+	for _, m := range c.VolumeMounts {
+		mounts = append(mounts, VolumeMountInfo{
+			Name:      m.Name,
+			MountPath: m.MountPath,
+			SubPath:   m.SubPath,
+			ReadOnly:  m.ReadOnly,
+		})
+	}
+	return mounts
+}
+
+func extractResources(c corev1.Container) *ContainerResourcesInfo {
+	if (c.Resources.Requests == nil || len(c.Resources.Requests) == 0) &&
+		(c.Resources.Limits == nil || len(c.Resources.Limits) == 0) {
+		return nil
+	}
+
+	res := &ContainerResourcesInfo{}
+	if c.Resources.Requests != nil {
+		if q, ok := c.Resources.Requests[corev1.ResourceCPU]; ok {
+			res.RequestsCPU = q.String()
+		}
+		if q, ok := c.Resources.Requests[corev1.ResourceMemory]; ok {
+			res.RequestsMemory = q.String()
+		}
+	}
+	if c.Resources.Limits != nil {
+		if q, ok := c.Resources.Limits[corev1.ResourceCPU]; ok {
+			res.LimitsCPU = q.String()
+		}
+		if q, ok := c.Resources.Limits[corev1.ResourceMemory]; ok {
+			res.LimitsMemory = q.String()
+		}
+	}
+	return res
+}
+
+func extractSecurityCtx(c corev1.Container) *ContainerSecurityCtxInfo {
+	if c.SecurityContext == nil {
+		return nil
+	}
+
+	sec := &ContainerSecurityCtxInfo{
+		RunAsUser:      c.SecurityContext.RunAsUser,
+		RunAsNonRoot:   c.SecurityContext.RunAsNonRoot,
+		ReadOnlyFS:     c.SecurityContext.ReadOnlyRootFilesystem,
+		AllowPrivilege: c.SecurityContext.AllowPrivilegeEscalation,
+	}
+	return sec
+}
+
+func extractProbes(c corev1.Container) *ProbesInfo {
+	if c.LivenessProbe == nil && c.ReadinessProbe == nil && c.StartupProbe == nil {
+		return nil
+	}
+
+	probes := &ProbesInfo{}
+
+	if c.LivenessProbe != nil {
+		probes.Liveness = formatProbe(c.LivenessProbe)
+	}
+	if c.ReadinessProbe != nil {
+		probes.Readiness = formatProbe(c.ReadinessProbe)
+	}
+	if c.StartupProbe != nil {
+		probes.Startup = formatProbe(c.StartupProbe)
+	}
+
+	return probes
+}
+
+func formatProbe(probe *corev1.Probe) string {
+	if probe.HTTPGet != nil {
+		return fmt.Sprintf("HTTP GET %s:%d%s", probe.HTTPGet.Scheme, probe.HTTPGet.Port.IntVal, probe.HTTPGet.Path)
+	} else if probe.TCPSocket != nil {
+		return fmt.Sprintf("TCP ::%d", probe.TCPSocket.Port.IntVal)
+	} else if probe.Exec != nil {
+		return fmt.Sprintf("Exec: %v", probe.Exec.Command)
+	}
+	return "Unknown"
 }
