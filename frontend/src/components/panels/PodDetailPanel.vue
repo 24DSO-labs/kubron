@@ -654,9 +654,11 @@ function onPodPortChange(e: Event) {
 
 .meta-row {
   display: grid;
-  grid-template-columns: 150px 1fr;
+  grid-template-columns: auto 1fr;
   align-items: baseline;
   margin-bottom: 8px;
+  gap: 12px;
+  text-align: left;
 }
 
 .meta-label {
@@ -731,7 +733,7 @@ pre {
 
 .affinity-editor-wrapper {
   margin-top: 4px;
-  margin-left: 150px;
+  margin-left: 0px;
   margin-bottom: 12px;
   text-align: left;
 }

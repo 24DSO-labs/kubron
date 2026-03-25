@@ -81,7 +81,7 @@
             :statusClass="statusClass" @refresh="refreshData" @search="(v) => search = v" />
           <StorageClassesView v-if="currentView === 'storageclasses' && !loading" :items="filteredStorageClasses" :search="search"
             @refresh="refreshData" @search="(v) => search = v" />
-          <NamespacesView v-if="currentView === 'namespaces' && !loading" />
+          <NamespacesView v-if="currentView === 'namespaces' && !loading" :items="namespaces" :search="search" :statusClass="statusClass" @refresh="refreshData" @search="(v) => search = v" @select="openNamespaceDetail" />
 
           <NodesView v-if="currentView === 'nodes' && !loading"
   :items="nodes"
@@ -139,6 +139,7 @@
       @close="selectedService = null" @forward="forwardServicePort" @stopForward="stopPortForward" />
     <ConfigMapPanel v-if="selectedConfigMap" :cm="selectedConfigMap" @close="selectedConfigMap = null" />
     <RevisionsPanel v-if="revisions.length > 0" :revisions="revisions" @close="revisions = []" @rollback="onRollback" />
+<NamespaceDetailPanel v-if="selectedNamespaceDetail" :resource="selectedNamespaceDetail" @close="selectedNamespaceDetail = null" />
 
     <YamlPanel v-if="yamlContent" :content="yamlContent" :editing="yamlEditing"
       @close="yamlContent = ''; yamlEditing = false" @startEdit="yamlEditing = true" @apply="applyYAML"
@@ -173,6 +174,7 @@ import ConfigMapPanel from './components/panels/ConfigMapPanel.vue'
 import YamlPanel from './components/panels/YamlPanel.vue'
 import RevisionsPanel from './components/panels/RevisionsPanel.vue'
 import TerminalPanel from './components/panels/TerminalPanel.vue'
+import NamespaceDetailPanel from './components/panels/NamespaceDetailPanel.vue'
 import OverviewView from './components/views/OverviewView.vue'
 import PodsView from './components/views/PodsView.vue'
 import DeploymentsView from './components/views/DeploymentsView.vue'
@@ -255,6 +257,12 @@ const filteredRoleBindings = computed(() => k8s.filteredRoleBindings.value || []
 const filteredClusterRoles = computed(() => k8s.filteredClusterRoles.value || [])
 const filteredClusterRoleBindings = computed(() => k8s.filteredClusterRoleBindings.value || [])
 
+const selectedNamespaceDetail = ref<any | null>(null)
+
+function openNamespaceDetail(namespace: any) {
+  selectedNamespaceDetail.value = namespace
+}
+
   const k8sDisconnect = k8s.disconnect
 
   // Destructure clusters
@@ -288,6 +296,7 @@ async function onSelectCluster(id: string) {
     error.value = ''
     await connectToCluster(id)
     await loadNamespaces()
+    selectedNamespace.value = '' // Reset namespace to 'all' when switching clusters
     currentView.value = 'overview'
     await refreshData()
   } catch (e: any) {
