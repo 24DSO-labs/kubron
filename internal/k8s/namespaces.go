@@ -8,9 +8,12 @@ import (
 )
 
 type NamespaceInfo struct {
-	Name   string `json:"name"`
-	Status string `json:"status"`
-	Age    string `json:"age"`
+	Name              string            `json:"name"`
+	Status            string            `json:"status"`
+	Age               string            `json:"age"`
+	CreationTimestamp string            `json:"creationTimestamp"`
+	Labels            map[string]string `json:"labels"`
+	Annotations       map[string]string `json:"annotations"`
 }
 
 func (m *Manager) GetNamespaces() ([]NamespaceInfo, error) {
@@ -30,9 +33,12 @@ func (m *Manager) GetNamespaces() ([]NamespaceInfo, error) {
 	var namespaces []NamespaceInfo
 	for _, ns := range nsList.Items {
 		namespaces = append(namespaces, NamespaceInfo{
-			Name:   ns.Name,
-			Status: string(ns.Status.Phase),
-			Age:    formatAge(ns.CreationTimestamp.Time),
+			Name:              ns.Name,
+			Status:            string(ns.Status.Phase),
+			Age:               formatAge(ns.CreationTimestamp.Time),
+			CreationTimestamp: ns.CreationTimestamp.Format(time.RFC3339),
+			Labels:            ns.Labels,
+			Annotations:       ns.Annotations,
 		})
 	}
 

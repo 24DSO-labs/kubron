@@ -226,6 +226,7 @@
     <div class="ns-selector">
       <label class="ns-label-text">Namespace</label>
       <select
+        :key="selectedNamespace"
         :value="selectedNamespace"
         @change="emit('nsChange', ($event.target as HTMLSelectElement).value)"
         class="ns-select"
