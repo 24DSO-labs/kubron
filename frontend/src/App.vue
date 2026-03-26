@@ -133,7 +133,8 @@
   v-model:pfLocalPort="pfLocalPort" v-model:pfPodPort="pfPodPort" :portForwards="(portForwards || [])"
   :cluster-name="activeClusterId"
   @close="selectedPod = null" @loadLogs="loadLogs" @runExec="runExec" @delete="deletePod" @startPF="startPortForward"
-  @stopPF="stopPortForward" @openTerminal="terminalOpen = true" />
+  @stopPF="stopPortForward" @openTerminal="terminalOpen = true" @attach="onPodAttach"
+  @terminal="onPodTerminal" @evict="onPodEvict" @logs="onPodLogs" @edit="onPodEdit" />
 
     <ServiceDetailPanel v-if="selectedService" :svc="selectedService" :portForwards="portForwards"
       @close="selectedService = null" @forward="forwardServicePort" @stopForward="stopPortForward" />
@@ -141,13 +142,18 @@
     <RevisionsPanel v-if="revisions.length > 0" :revisions="revisions" @close="revisions = []" @rollback="onRollback" />
 <NamespaceDetailPanel v-if="selectedNamespaceDetail" :resource="selectedNamespaceDetail" @close="selectedNamespaceDetail = null" />
 
-    <YamlPanel v-if="yamlContent" :content="yamlContent" :editing="yamlEditing"
-      @close="yamlContent = ''; yamlEditing = false" @startEdit="yamlEditing = true" @apply="applyYAML"
-      @cancelEdit="yamlEditing = false" @update:content="(v) => yamlContent = v" />
-
     <TerminalPanel v-if="terminalOpen && selectedPod" :namespace="selectedPod.namespace" :pod="selectedPod.name"
       :containers="selectedPod.containers?.map((c: any) => c.name) || []" :initialContainer="logContainer"
-      @close="terminalOpen = false" />
+      :mode="terminalMode" @close="terminalOpen = false" />
+
+    <LogsPanel v-if="logsOpen && selectedPod" :namespace="selectedPod.namespace" :pod="selectedPod.name"
+      :containers="selectedPod.containers?.map((c: any) => c.name) || []" :initialContainer="logContainer"
+      @close="logsOpen = false" />
+
+    <TabbedYamlEditorPanel v-if="yamlEditorOpen" :content="yamlContent" :resourceType="yamlEditorMeta.resourceType"
+      :resourceName="yamlEditorMeta.resourceName" :namespace="yamlEditorMeta.namespace"
+      @update:content="(v: string) => yamlContent = v" @apply="applyYAML" @cancel="yamlEditorOpen = false"
+      @close="yamlEditorOpen = false" />
 
     <!-- Add Cluster Dialog -->
     <AddClusterDialog v-if="showAddCluster" @close="showAddCluster = false" @addFile="onAddClusterFile"
@@ -164,6 +170,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useK8s } from './composables/useK8s'
 import { useClusters } from './composables/useClusters'
+import { AttachPod, EvictPod } from '../wailsjs/go/main/App'
 
 import ClusterBar from './components/ClusterBar.vue'
 import AddClusterDialog from './components/AddClusterDialog.vue'
@@ -171,9 +178,10 @@ import Sidebar from './components/Sidebar.vue'
 import PodDetailPanel from './components/panels/PodDetailPanel.vue'
 import ServiceDetailPanel from './components/panels/ServiceDetailPanel.vue'
 import ConfigMapPanel from './components/panels/ConfigMapPanel.vue'
-import YamlPanel from './components/panels/YamlPanel.vue'
+import TabbedYamlEditorPanel from './components/panels/TabbedYamlEditorPanel.vue'
 import RevisionsPanel from './components/panels/RevisionsPanel.vue'
 import TerminalPanel from './components/panels/TerminalPanel.vue'
+import LogsPanel from './components/panels/LogsPanel.vue'
 import NamespaceDetailPanel from './components/panels/NamespaceDetailPanel.vue'
 import OverviewView from './components/views/OverviewView.vue'
 import PodsView from './components/views/PodsView.vue'
@@ -225,7 +233,7 @@ const {
   filteredSecrets, filteredResourceQuotas, filteredPVCs, pvs, nodes, events,
   selectedPod, podLogs, logContainer, logLines,
   execCmd, execOutput, selectedConfigMap,
-  yamlContent, yamlEditing, revisions, portForwards,
+  yamlContent, revisions, portForwards,
   pfLocalPort, pfPodPort,
   selectedService,
   podMetrics, nodeMetrics,
@@ -282,6 +290,10 @@ function openNamespaceDetail(namespace: any) {
 
   const connecting = ref(false)
   const terminalOpen = ref(false)
+  const terminalMode = ref<'shell' | 'attach'>('shell')
+  const logsOpen = ref(false)
+  const yamlEditorOpen = ref(false)
+  const yamlEditorMeta = { resourceType: '', resourceName: '', namespace: '' }
 
   const activeClusterMeta = computed(() => {
     return clusters.value.find(c => c.id === activeClusterId.value) || null
@@ -344,6 +356,49 @@ async function onShowRevisions(ns: string, name: string) {
 
 async function onRollback(rev: number) {
   await rollbackDeployment(revisionDepNs.ns, revisionDepNs.name, rev)
+}
+
+// ═══════ Pod Detail Panel handlers ═══════
+
+function onPodAttach(container: string) {
+  if (!selectedPod.value) return
+  logContainer.value = container
+  terminalMode.value = 'attach'
+  terminalOpen.value = true
+}
+
+function onPodTerminal(container: string) {
+  if (!selectedPod.value) return
+  logContainer.value = container
+  terminalMode.value = 'shell'
+  terminalOpen.value = true
+}
+
+async function onPodEvict() {
+  if (!selectedPod.value) return
+  try {
+    await EvictPod(selectedPod.value.namespace, selectedPod.value.name)
+    error.value = 'Под успешно выселен'
+    selectedPod.value = null
+    await refreshData()
+  } catch (e: any) {
+    error.value = 'Ошибка Evict: ' + (e.message || e)
+  }
+}
+
+function onPodLogs(container: string) {
+  if (!selectedPod.value) return
+  logContainer.value = container
+  logsOpen.value = true
+}
+
+function onPodEdit() {
+  if (!selectedPod.value) return
+  yamlEditorMeta.resourceType = 'Pod'
+  yamlEditorMeta.resourceName = selectedPod.value.name
+  yamlEditorMeta.namespace = selectedPod.value.namespace
+  showYAML('pod', selectedPod.value.namespace, selectedPod.value.name)
+  yamlEditorOpen.value = true
 }
 
 onMounted(async () => {
