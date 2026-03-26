@@ -1,5 +1,6 @@
 <template>
-  <div @click="hideContextMenu">
+  <div>
+    <div v-if="showContextMenu" class="menu-overlay" @click="hideContextMenu"></div>
     <ContentHeader icon="" title="Pods" :count="items.length" :search="search" showSearch @refresh="onRefresh" @search="onSearch" />
     <table v-if="items.length > 0" class="table">
       <thead>
@@ -19,8 +20,7 @@
           <td>{{ pod.age }}</td>
           <td>{{ pod.node }}</td>
           <td>{{ pod.qos }}</td>
-          <td>
-            <button class="btn-icon" @click.stop="$emit('yaml', pod.namespace, pod.name)">📋</button>
+          <td @click.stop>
             <button class="btn-icon" @click.stop="openContextMenu(pod, $event)">⋮</button>
           </td>
         </tr>
@@ -28,15 +28,48 @@
     </table>
     <div v-else class="empty">Нет подов</div>
     <div v-if="showContextMenu" :style="menuStyle" class="cluster-context-menu" @click.stop>
-      <div class="ctx-menu-item" @click="handleShowDetails">Show Details</div>
-      <div class="ctx-menu-item" @click="handleAttachPod">Attach Pod</div>
-      <div class="ctx-menu-item" @click="handleShell">Shell</div>
-      <div class="ctx-menu-item" @click="handleEvict">Evict</div>
-      <div class="ctx-menu-item" @click="handleCopyLink">Copy Link to Clipboard</div>
-      <div class="ctx-menu-item ctx-menu-sub" @click="handleShare">Share ></div>
-      <div class="ctx-menu-item" @click="handleLogs">Logs</div>
-      <div class="ctx-menu-item" @click="handleEdit">Edit</div>
-      <div class="ctx-menu-item ctx-menu-danger" @click="handleDelete">Delete</div>
+      <div class="ctx-menu-item" @click="handleShowDetails">
+        <span class="ctx-menu-arrow"></span>Show Details
+      </div>
+      <div class="ctx-menu-item-group" @mouseenter="showAttachMenu = true" @mouseleave="showAttachMenu = false">
+        <div class="ctx-menu-item ctx-menu-with-arrow">
+          <span class="ctx-menu-arrow">‹</span> Attach Pod
+        </div>
+        <div v-if="showAttachMenu && selectedPod?.containers.length" class="ctx-menu-sub">
+          <div v-for="c in selectedPod.containers" :key="c.name" class="ctx-menu-sub-item" @click="handleAttachContainer(c.name)">
+            {{ c.name }}
+          </div>
+        </div>
+      </div>
+      <div class="ctx-menu-item-group" @mouseenter="showTerminalMenu = true" @mouseleave="showTerminalMenu = false">
+        <div class="ctx-menu-item ctx-menu-with-arrow">
+          <span class="ctx-menu-arrow">‹</span> Shell
+        </div>
+        <div v-if="showTerminalMenu && selectedPod?.containers.length" class="ctx-menu-sub">
+          <div v-for="c in selectedPod.containers" :key="c.name" class="ctx-menu-sub-item" @click="handleTerminalContainer(c.name)">
+            {{ c.name }}
+          </div>
+        </div>
+      </div>
+      <div class="ctx-menu-item" @click="handleEvict">
+        <span class="ctx-menu-arrow"></span>Evict
+      </div>
+      <div class="ctx-menu-item-group" @mouseenter="showLogsMenu = true" @mouseleave="showLogsMenu = false">
+        <div class="ctx-menu-item ctx-menu-with-arrow">
+          <span class="ctx-menu-arrow">‹</span> Logs
+        </div>
+        <div v-if="showLogsMenu && selectedPod?.containers.length" class="ctx-menu-sub">
+          <div v-for="c in selectedPod.containers" :key="c.name" class="ctx-menu-sub-item" @click="handleLogsContainer(c.name)">
+            {{ c.name }}
+          </div>
+        </div>
+      </div>
+      <div class="ctx-menu-item" @click="handleEdit">
+        <span class="ctx-menu-arrow"></span>Edit
+      </div>
+      <div class="ctx-menu-item ctx-menu-danger" @click="handleDelete">
+        <span class="ctx-menu-arrow"></span>Delete
+      </div>
     </div>
   </div>
 </template>
@@ -57,12 +90,9 @@ const emit = defineEmits<{
   (e: 'refresh'): void
   (e: 'search', val: string): void
   (e: 'select', pod: PodInfo): void
-  (e: 'yaml', ns: string, name: string): void
   (e: 'attachPod', pod: PodInfo): void
   (e: 'shell', pod: PodInfo): void
   (e: 'evict', pod: PodInfo): void
-  (e: 'copyLink', pod: PodInfo): void
-  (e: 'share', pod: PodInfo): void
   (e: 'logs', pod: PodInfo): void
   (e: 'edit', pod: PodInfo): void
   (e: 'delete', pod: PodInfo): void
@@ -71,6 +101,9 @@ const emit = defineEmits<{
 const showContextMenu = ref(false)
 const menuStyle = ref<Record<string, string>>({})
 const selectedPod = ref<PodInfo | null>(null)
+const showAttachMenu = ref(false)
+const showTerminalMenu = ref(false)
+const showLogsMenu = ref(false)
 
 function openContextMenu(pod: PodInfo, event: MouseEvent) {
   selectedPod.value = pod
@@ -135,16 +168,6 @@ function handleEvict() {
   hideContextMenu()
 }
 
-function handleCopyLink() {
-  if (selectedPod.value) emit('copyLink', selectedPod.value)
-  hideContextMenu()
-}
-
-function handleShare() {
-  if (selectedPod.value) emit('share', selectedPod.value)
-  hideContextMenu()
-}
-
 function handleLogs() {
   if (selectedPod.value) emit('logs', selectedPod.value)
   hideContextMenu()
@@ -157,6 +180,39 @@ function handleEdit() {
 
 function handleDelete() {
   if (selectedPod.value) emit('delete', selectedPod.value)
+  hideContextMenu()
+}
+
+function toggleAttachMenu() {
+  showAttachMenu.value = !showAttachMenu.value
+}
+
+function handleAttachContainer(containerName: string) {
+  if (selectedPod.value) {
+    emit('attachPod', selectedPod.value)
+  }
+  hideContextMenu()
+}
+
+function toggleTerminalMenu() {
+  showTerminalMenu.value = !showTerminalMenu.value
+}
+
+function handleTerminalContainer(containerName: string) {
+  if (selectedPod.value) {
+    emit('shell', selectedPod.value)
+  }
+  hideContextMenu()
+}
+
+function toggleLogsMenu() {
+  showLogsMenu.value = !showLogsMenu.value
+}
+
+function handleLogsContainer(containerName: string) {
+  if (selectedPod.value) {
+    emit('logs', selectedPod.value)
+  }
   hideContextMenu()
 }
 
@@ -207,3 +263,105 @@ function onRefresh() { emit('refresh') }
 
 function onSearch(val: string) { emit('search', val) }
 </script>
+
+<style scoped>
+.menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 999;
+  cursor: default;
+}
+
+.cluster-context-menu {
+  background: #1e1f35;
+  border: 1px solid #3b3d5c;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  min-width: 160px;
+}
+
+.ctx-menu-item {
+  padding: 6px 12px;
+  color: #d4d4d4;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background 0.15s;
+  padding-left: 34px;
+  text-align: left;
+  position: relative;
+  margin: -9px;
+}
+
+.ctx-menu-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.ctx-menu-item:first-child {
+  border-radius: 3px 3px 0 0;
+}
+
+.ctx-menu-item:last-child {
+  border-radius: 0 0 3px 3px;
+}
+
+.ctx-menu-arrow {
+  position: absolute;
+  left: 19px;
+  color: #868d8a;
+  font-size: 0.9rem;
+}
+
+.ctx-menu-item-group {
+  position: relative;
+  display: block;
+}
+
+.ctx-menu-sub {
+  position: absolute;
+  top: 0;
+  right: 100%;
+  margin-right: 8px;
+  background: #1e1f35;
+  border: 1px solid #3b3d5c;
+  border-radius: 4px;
+  min-width: 160px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1001;
+  white-space: nowrap;
+}
+
+.ctx-menu-sub-item {
+  padding: 8px 12px;
+  color: #d4d4d4;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.ctx-menu-sub-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.ctx-menu-sub-item:first-child {
+  border-radius: 3px 3px 0 0;
+}
+
+.ctx-menu-sub-item:last-child {
+  border-radius: 0 0 3px 3px;
+}
+
+.ctx-menu-danger {
+  color: #ef4444;
+}
+
+.ctx-menu-danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+</style>
