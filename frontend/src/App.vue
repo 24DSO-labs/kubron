@@ -45,7 +45,8 @@
             :cluster-name="activeClusterId" @refresh="refreshData" @navigate="switchView" />
           <PodsView v-if="currentView === 'pods' && !loading" :items="filteredPods" :search="search"
             :statusClass="statusClass" :podMetrics="podMetrics" @refresh="refreshData" @search="(v) => search = v"
-            @select="openPodDetail" @yaml="(ns, n) => showYAML('pod', ns, n)" />
+            @select="openPodDetail" @attachPod="onPodAttachFromMenu" @shell="onPodShellFromMenu"
+            @evict="onPodEvictFromMenu" @logs="onPodLogsFromMenu" @edit="onPodEditFromMenu" @delete="onPodDeleteFromMenu" />
           <DeploymentsView v-if="currentView === 'deployments' && !loading" :items="filteredDeployments"
             :search="search" @refresh="refreshData" @search="(v) => search = v" @scale="doScale"
             @yaml="(ns, n) => showYAML('deployment', ns, n)" @restart="restartDeployment"
@@ -142,13 +143,13 @@
     <RevisionsPanel v-if="revisions.length > 0" :revisions="revisions" @close="revisions = []" @rollback="onRollback" />
 <NamespaceDetailPanel v-if="selectedNamespaceDetail" :resource="selectedNamespaceDetail" @close="selectedNamespaceDetail = null" />
 
-    <TerminalPanel v-if="terminalOpen && selectedPod" :namespace="selectedPod.namespace" :pod="selectedPod.name"
-      :containers="selectedPod.containers?.map((c: any) => c.name) || []" :initialContainer="logContainer"
-      :mode="terminalMode" @close="terminalOpen = false" />
+    <TerminalPanel v-if="terminalOpen && (selectedPod || terminalPod)" :namespace="(selectedPod || terminalPod).namespace" :pod="(selectedPod || terminalPod).name"
+      :containers="(selectedPod || terminalPod).containers?.map((c: any) => c.name) || []" :initialContainer="logContainer"
+      :mode="terminalMode" @close="terminalOpen = false; terminalPod = null" />
 
-    <LogsPanel v-if="logsOpen && selectedPod" :namespace="selectedPod.namespace" :pod="selectedPod.name"
-      :containers="selectedPod.containers?.map((c: any) => c.name) || []" :initialContainer="logContainer"
-      @close="logsOpen = false" />
+    <LogsPanel v-if="logsOpen && (selectedPod || logsPod)" :namespace="(selectedPod || logsPod).namespace" :pod="(selectedPod || logsPod).name"
+      :containers="(selectedPod || logsPod).containers?.map((c: any) => c.name) || []" :initialContainer="logContainer"
+      @close="logsOpen = false; logsPod = null" />
 
     <TabbedYamlEditorPanel v-if="yamlEditorOpen" :content="yamlContent" :resourceType="yamlEditorMeta.resourceType"
       :resourceName="yamlEditorMeta.resourceName" :namespace="yamlEditorMeta.namespace"
@@ -291,7 +292,9 @@ function openNamespaceDetail(namespace: any) {
   const connecting = ref(false)
   const terminalOpen = ref(false)
   const terminalMode = ref<'shell' | 'attach'>('shell')
+  const terminalPod = ref<any | null>(null)
   const logsOpen = ref(false)
+  const logsPod = ref<any | null>(null)
   const yamlEditorOpen = ref(false)
   const yamlEditorMeta = { resourceType: '', resourceName: '', namespace: '' }
 
@@ -399,6 +402,65 @@ function onPodEdit() {
   yamlEditorMeta.namespace = selectedPod.value.namespace
   showYAML('pod', selectedPod.value.namespace, selectedPod.value.name)
   yamlEditorOpen.value = true
+}
+
+// ═══════ Pod Menu handlers (from PodsView context menu) ═══════
+
+function onShowDetails(pod: any) {
+  selectedPod.value = pod
+}
+
+function onPodAttachFromMenu(pod: any) {
+  logContainer.value = pod.containers?.[0]?.name || ''
+  terminalMode.value = 'attach'
+  terminalPod.value = pod
+  terminalOpen.value = true
+}
+
+function onPodShellFromMenu(pod: any) {
+  logContainer.value = pod.containers?.[0]?.name || ''
+  terminalMode.value = 'shell'
+  terminalPod.value = pod
+  terminalOpen.value = true
+}
+
+async function onPodEvictFromMenu(pod: any) {
+  try {
+    await EvictPod(pod.namespace, pod.name)
+    error.value = 'Под успешно выселен'
+    await refreshData()
+  } catch (e: any) {
+    error.value = 'Ошибка Evict: ' + (e.message || e)
+  }
+}
+
+function onPodLogsFromMenu(pod: any) {
+  logContainer.value = pod.containers?.[0]?.name || ''
+  logsPod.value = pod
+  logsOpen.value = true
+}
+
+function onPodEditFromMenu(pod: any) {
+  yamlEditorMeta.resourceType = 'Pod'
+  yamlEditorMeta.resourceName = pod.name
+  yamlEditorMeta.namespace = pod.namespace
+  showYAML('pod', pod.namespace, pod.name)
+  yamlEditorOpen.value = true
+}
+
+async function onPodDeleteFromMenu(pod: any) {
+  try {
+    // Temporarily set selectedPod to call deletePod(), but immediately clear it
+    selectedPod.value = pod
+    const deletePromise = deletePod()
+    selectedPod.value = null
+    await deletePromise
+    await refreshData()
+    error.value = 'Под успешно удален'
+  } catch (e: any) {
+    selectedPod.value = null
+    error.value = 'Ошибка удаления: ' + (e.message || e)
+  }
 }
 
 onMounted(async () => {
