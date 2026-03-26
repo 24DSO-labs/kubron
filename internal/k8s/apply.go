@@ -2,7 +2,6 @@ package k8s
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
+	"sigs.k8s.io/yaml"
 )
 
 func (m *Manager) ApplyYAML(namespace, kind, name, jsonData string) error {
@@ -60,8 +60,8 @@ func (m *Manager) applyDynamic(conn *ClusterConnection, ctx context.Context, nam
 	}
 
 	var obj unstructured.Unstructured
-	if err := json.Unmarshal([]byte(jsonData), &obj.Object); err != nil {
-		return fmt.Errorf("ошибка парсинга JSON: %w", err)
+	if err := yaml.Unmarshal([]byte(jsonData), &obj.Object); err != nil {
+		return fmt.Errorf("ошибка парсинга YAML: %w", err)
 	}
 
 	gvr := schema.GroupVersionResource{

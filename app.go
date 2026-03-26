@@ -136,6 +136,14 @@ func (a *App) DeletePod(namespace, name string) error {
 	return a.k8sMgr.DeletePod(namespace, name)
 }
 
+func (a *App) AttachPod(namespace, name, container string) error {
+	return a.k8sMgr.AttachPod(namespace, name, container)
+}
+
+func (a *App) EvictPod(namespace, name string) error {
+	return a.k8sMgr.EvictPod(namespace, name)
+}
+
 // === Deployments ===
 
 func (a *App) GetDeployments(namespace string) ([]k8s.DeploymentInfo, error) {
@@ -369,8 +377,8 @@ func (a *App) GetClusterRoleBindings() (interface{}, error) {
 
 // === YAML ===
 
-func (a *App) GetResourceYAML(namespace, kind, name string) (string, error) {
-	return a.k8sMgr.GetResourceYAML(namespace, kind, name)
+func (a *App) GetResourceYAML(namespace, kind, name string, clean bool) (string, error) {
+	return a.k8sMgr.GetResourceYAML(namespace, kind, name, clean)
 }
 
 func (a *App) ApplyYAML(namespace, kind, name, jsonData string) error {

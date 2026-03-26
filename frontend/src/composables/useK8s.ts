@@ -682,7 +682,7 @@ async function showYAML(kind: string, namespace: string, name: string) {
     yamlEditKind.value = kind
     yamlEditNs.value = namespace
     yamlEditName.value = name
-    yamlContent.value = await GetResourceYAML(namespace, kind, name)
+    yamlContent.value = await GetResourceYAML(namespace, kind, name, true)
   } catch (e: any) { yamlContent.value = 'Ошибка: ' + (e.message || e) }
 }
 

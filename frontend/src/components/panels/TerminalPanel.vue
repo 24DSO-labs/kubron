@@ -38,12 +38,14 @@ const props = defineProps<{
   pod: string
   containers: string[]
   initialContainer: string
+  mode?: 'shell' | 'attach'
 }>()
 
 defineEmits<{ (e: 'close'): void }>()
 
 const container = ref(props.initialContainer)
 const shell = ref('/bin/sh')
+const mode = ref(props.mode || 'shell')
 const terminalRef = ref<HTMLElement>()
 const connecting = ref(false)
 
@@ -122,48 +124,52 @@ async function initTerminal() {
   connecting.value = true
   status.value = 'connecting'
 
-  try {
     try {
-      shell.value = await DetectShell(props.namespace, props.pod, container.value)
-    } catch {
-      shell.value = '/bin/sh'
-    }
+      if (mode.value === 'attach') {
+        shell.value = 'attach'
+      } else {
+        try {
+          shell.value = await DetectShell(props.namespace, props.pod, container.value)
+        } catch {
+          shell.value = '/bin/sh'
+        }
+      }
 
-    terminal = new Terminal({
-      fontFamily: 'Monaco, Menlo, "Courier New", monospace',
-      fontSize: 13,
-      lineHeight: 1.2,
-      theme: {
-        background: '#1e1e1e',
-        foreground: '#d4d4d4',
-        cursor: '#00ff00',
-        selectionBackground: 'rgba(100, 100, 100, 0.5)',
-      },
-      cursorBlink: true,
-      disableStdin: false,
-      convertEol: false,
-      screenReaderMode: false,
-      cols: DEFAULT_COLS,
-      rows: DEFAULT_ROWS,
-      allowProposedApi: true,
-    })
+      terminal = new Terminal({
+        fontFamily: 'Monaco, Menlo, "Courier New", monospace',
+        fontSize: 13,
+        lineHeight: 1.2,
+        theme: {
+          background: '#1e1e1e',
+          foreground: '#d4d4d4',
+          cursor: '#00ff00',
+          selectionBackground: 'rgba(100, 100, 100, 0.5)',
+        },
+        cursorBlink: true,
+        disableStdin: false,
+        convertEol: false,
+        screenReaderMode: false,
+        cols: DEFAULT_COLS,
+        rows: DEFAULT_ROWS,
+        allowProposedApi: true,
+      })
 
-    fitAddon = new FitAddon()
-    terminal.loadAddon(fitAddon)
-    terminal.open(terminalRef.value)
+      fitAddon = new FitAddon()
+      terminal.loadAddon(fitAddon)
+      terminal.open(terminalRef.value)
 
-    await nextTick()
-    forceXtermFocus()
-    safeFit()
+      await nextTick()
+      forceXtermFocus()
+      safeFit()
 
-    sessionID = `term_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-    const cols = terminal.cols
-    const rows = terminal.rows
+      sessionID = `term_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+      const cols = terminal.cols
+      const rows = terminal.rows
 
-    await StartTerminalSession(
-      sessionID, props.namespace, props.pod,
-      container.value, shell.value, cols, rows
-    )
+      await StartTerminalSession(
+        sessionID, props.namespace, props.pod,
+        container.value, shell.value, cols, rows
+      )
 
     status.value = 'connected'
 

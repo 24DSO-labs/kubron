@@ -814,3 +814,8 @@ svg {
 .square-yellow { background: #f9e2af; }
 .square-red { background: #f38ba8; }
 .square-gray { background: #585b70; }
+
+/* Monaco Editor text alignment */
+.monaco-editor .view-line {
+  text-align: left !important;
+}
