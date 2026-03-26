@@ -176,6 +176,97 @@ func (m *Manager) StartTerminalSession(sessionID, namespace, pod, container, she
 	return nil
 }
 
+// ─── StartAttachSession ────────────────────────────────────
+// Подключается к текущему процессу контейнера (attach), а не запускает новый shell
+
+func (m *Manager) StartAttachSession(sessionID, namespace, pod, container string, cols, rows uint16) error {
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return err
+	}
+
+	req := conn.Client.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(pod).
+		Namespace(namespace).
+		SubResource("attach").
+		VersionedParams(&corev1.PodAttachOptions{
+			Container: container,
+			Stdin:     true,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       true,
+		}, scheme.ParameterCodec)
+
+	executor, err := remotecommand.NewSPDYExecutor(conn.Config, "POST", req.URL())
+	if err != nil {
+		return fmt.Errorf("create attach executor: %w", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	stdinR, stdinW := io.Pipe()
+	stdoutR, stdoutW := io.Pipe()
+
+	sizeChan := make(chan remotecommand.TerminalSize, 1)
+	done := make(chan struct{})
+
+	sizeChan <- remotecommand.TerminalSize{
+		Width:  cols,
+		Height: rows,
+	}
+
+	sq := &sizeQueue{
+		sizeChan: sizeChan,
+		done:     done,
+	}
+
+	session := &TerminalSession{
+		ID:        sessionID,
+		Namespace: namespace,
+		Pod:       pod,
+		Container: container,
+		Shell:     "attach",
+		stdinW:    stdinW,
+		stdoutR:   stdoutR,
+		sizeChan:  sizeChan,
+		done:      done,
+		ctx:       ctx,
+		cancel:    cancel,
+		closed:    false,
+	}
+
+	if m.terminalSessions == nil {
+		m.terminalSessions = NewTerminalSessionManager()
+	}
+	m.terminalSessions.Add(session)
+
+	go func() {
+		executor.StreamWithContext(ctx, remotecommand.StreamOptions{
+			Stdin:             stdinR,
+			Stdout:            stdoutW,
+			Stderr:            stdoutW,
+			Tty:               true,
+			TerminalSizeQueue: sq,
+		})
+
+		stdoutW.Close()
+		stdinR.Close()
+
+		if m.terminalSessions != nil {
+			m.terminalSessions.Remove(sessionID)
+		}
+
+		select {
+		case <-done:
+		default:
+			close(done)
+		}
+	}()
+
+	return nil
+}
+
 // ─── WriteTerminal ─────────────────────────────────────────
 
 func (m *Manager) WriteTerminal(sessionID string, data []byte) error {

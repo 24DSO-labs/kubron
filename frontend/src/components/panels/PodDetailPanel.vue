@@ -2,7 +2,70 @@
   <div class="detail-panel">
     <div class="detail-header">
       <h3>{{ pod.name }}</h3>
-      <button class="btn-close" @click="emit('close')">✕</button>
+      <div class="detail-actions-bar">
+        <!-- Attach -->
+        <div class="action-group">
+          <button class="btn-action" title="Attach to container" @click="showAttachMenu = !showAttachMenu">
+            📎
+          </button>
+          <div v-if="showAttachMenu && pod.containers.length > 0" class="action-dropdown">
+            <div v-for="c in pod.containers" :key="c.name" class="dropdown-item" @click="handleAttach(c.name)">
+              {{ c.name }}
+            </div>
+          </div>
+          <div v-else-if="showAttachMenu" class="action-dropdown empty">
+            No containers
+          </div>
+        </div>
+
+        <!-- Terminal -->
+        <div class="action-group">
+          <button class="btn-action" title="Open terminal" @click="showTerminalMenu = !showTerminalMenu">
+            🖥
+          </button>
+          <div v-if="showTerminalMenu && pod.containers.length > 0" class="action-dropdown">
+            <div v-for="c in pod.containers" :key="c.name" class="dropdown-item" @click="handleTerminal(c.name)">
+              {{ c.name }}
+            </div>
+          </div>
+          <div v-else-if="showTerminalMenu" class="action-dropdown empty">
+            No containers
+          </div>
+        </div>
+
+        <!-- Evict -->
+        <button class="btn-action" title="Evict pod" @click="emit('evict')">
+          👢
+        </button>
+
+        <!-- Logs -->
+        <div class="action-group">
+          <button class="btn-action" title="View logs" @click="showLogsMenu = !showLogsMenu">
+            📋
+          </button>
+          <div v-if="showLogsMenu && pod.containers.length > 0" class="action-dropdown">
+            <div v-for="c in pod.containers" :key="c.name" class="dropdown-item" @click="handleLogs(c.name)">
+              {{ c.name }}
+            </div>
+          </div>
+          <div v-else-if="showLogsMenu" class="action-dropdown empty">
+            No containers
+          </div>
+        </div>
+
+        <!-- Edit YAML -->
+        <button class="btn-action" title="Edit YAML" @click="emit('edit')">
+          ✏️
+        </button>
+
+        <!-- Delete -->
+        <button class="btn-action btn-danger" title="Delete pod" @click="emit('delete')">
+          🗑
+        </button>
+
+        <!-- Close -->
+        <button class="btn-close" @click="emit('close')">✕</button>
+      </div>
     </div>
 
     <div class="tabs flex space-x-4 border-b border-gray-700 mb-4">
@@ -237,7 +300,7 @@
             <span class="ct-val" v-else-if="!c.env || !c.env.length">None</span>
           </div>
           <template v-if="!isContainerSectionCollapsed(c.name, 'env') && c.env && c.env.length">
-            <div v-for="(e, ei) in c.env" :key="e.name" :class="['ct-row', 'ct-sub-row', { 'ct-row-alt': ei % 2 === 0 }]">
+            <div v-for="(e, ei) in c.env" :key="e.name" :class="['ct-row', 'ct-sub-row', { 'ct-row-alt': (ei as number) % 2 === 0 }]">
               <span class="ct-label"></span>
               <span class="ct-val ct-env-cell">
                 <span class="ct-env-name">{{ e.name }}</span>
@@ -261,11 +324,11 @@
           
           <template v-if="!isContainerSectionCollapsed(c.name, 'mounts') && c.volumeMounts && c.volumeMounts.length">
             <template v-for="(m, mi) in c.volumeMounts" :key="m.name + ':' + m.mountPath">
-              <div :class="['ct-row', 'ct-sub-row', { 'ct-row-alt': mi % 2 === 0 }]">
+              <div :class="['ct-row', 'ct-sub-row', { 'ct-row-alt': (mi as number) % 2 === 0 }]">
                 <span class="ct-label"></span>
                 <span class="ct-val ct-mount-path">{{ m.mountPath }}</span>
               </div>
-              <div :class="['ct-row', 'ct-sub-row', { 'ct-row-alt': mi % 2 === 0 }]">
+              <div :class="['ct-row', 'ct-sub-row', { 'ct-row-alt': (mi as number) % 2 === 0 }]">
                 <span class="ct-label"></span>
                 <span class="ct-val ct-mount-from">
                   from {{ m.name }} ({{ m.readOnly ? 'ro' : 'rw' }})
@@ -500,7 +563,33 @@ const emit = defineEmits<{
   (e: 'startPF'): void
   (e: 'stopPF', id: string): void
   (e: 'openTerminal'): void
+  (e: 'attach', container: string): void
+  (e: 'terminal', container: string): void
+  (e: 'evict'): void
+  (e: 'logs', container: string): void
+  (e: 'edit'): void
 }>()
+
+// ═══════ Action menu state ═══════
+
+const showAttachMenu = ref(false)
+const showTerminalMenu = ref(false)
+const showLogsMenu = ref(false)
+
+function handleAttach(container: string) {
+  showAttachMenu.value = false
+  emit('attach', container)
+}
+
+function handleTerminal(container: string) {
+  showTerminalMenu.value = false
+  emit('terminal', container)
+}
+
+function handleLogs(container: string) {
+  showLogsMenu.value = false
+  emit('logs', container)
+}
 
 // ═══════ Tabs ═══════
 
@@ -832,6 +921,116 @@ function onPodPortChange(e: Event) {
 }
 </script>
 <style scoped>
+/* ═══════ Detail Header Actions ═══════ */
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #2a2b40;
+  background: #1a1b2e;
+  gap: 12px;
+}
+
+.detail-header h3 {
+  margin: 0;
+  flex: 1;
+  color: white;
+  font-size: 1.1rem;
+}
+
+.detail-actions-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.action-group {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn-action {
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid #3b3d5c;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.btn-action:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #5a5c7a;
+}
+
+.btn-action.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+}
+
+.action-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  background: #1e1f35;
+  border: 1px solid #3b3d5c;
+  border-radius: 4px;
+  min-width: 150px;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.action-dropdown.empty {
+  padding: 8px 12px;
+  color: #6b6d8a;
+  font-size: 0.875rem;
+}
+
+.dropdown-item {
+  padding: 8px 12px;
+  color: #d4d4d4;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background 0.15s;
+}
+
+.dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.dropdown-item:first-child {
+  border-radius: 3px 3px 0 0;
+}
+
+.dropdown-item:last-child {
+  border-radius: 0 0 3px 3px;
+}
+
+.btn-close {
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid #3b3d5c;
+  border-radius: 4px;
+  color: #d4d4d4;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.15s;
+}
+
+.btn-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #5a5c7a;
+  color: white;
+}
+
 /* ═══════ Tabs ═══════ */
 
 .tabs {
