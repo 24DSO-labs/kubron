@@ -47,12 +47,15 @@ func NewPortForwardManager(k8sMgr *Manager) *PortForwardManager {
 }
 
 func (pfm *PortForwardManager) StartPortForward(namespace, pod string, localPort, podPort int) (*PortForwardSession, error) {
+	fmt.Printf("[PORT_FORWARD] StartPortForward called: namespace=%s, pod=%s, localPort=%d, podPort=%d\n", namespace, pod, localPort, podPort)
+
 	conn, err := pfm.k8sMgr.GetActiveConnection()
 	if err != nil {
 		return nil, err
 	}
 
 	id := fmt.Sprintf("%s-%s-%d-%d", namespace, pod, localPort, podPort)
+	fmt.Printf("[PORT_FORWARD] Generated ID: %s\n", id)
 
 	pfm.mu.Lock()
 	if existing, ok := pfm.sessions[id]; ok {
