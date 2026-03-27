@@ -90,6 +90,28 @@
       @logs="onPodDetailLogs"
     />
 
+    <!-- Deployment Detail Panel -->
+    <DeploymentDetailPanel
+      v-if="selectedDeployment"
+      :deployment="selectedDeployment"
+      @close="selectedDeployment = null"
+    />
+
+    <!-- Scale Deployment Dialog -->
+    <ScaleDeploymentDialog
+      v-if="showScaleDialog && deploymentToScale"
+      :deployment="deploymentToScale"
+      @close="showScaleDialog = false"
+      @scale="onScaleDeployment"
+    />
+
+    <!-- Tabbed Deployment Logs Panel -->
+    <TabbedDeploymentLogsPanel
+      v-if="tabbedDeploymentLogsOpen"
+      ref="tabbedDeploymentLogsRef"
+      @close="tabbedDeploymentLogsOpen = false"
+    />
+
     <!-- Service Detail Panel -->
     <ServiceDetailPanel
       v-if="selectedService"
@@ -181,6 +203,10 @@ import NotificationToast from './components/NotificationToast.vue'
 // Ленивая загрузка панелей
 import { defineAsyncComponent } from 'vue'
 const PodDetailPanel = defineAsyncComponent(() => import('./components/panels/PodDetailPanel.vue'))
+const DeploymentDetailPanel = defineAsyncComponent(() => import('./components/panels/DeploymentDetailPanel.vue'))
+const ScaleDeploymentDialog = defineAsyncComponent(() => import('./components/panels/ScaleDeploymentDialog.vue'))
+const DeploymentLogsPanel = defineAsyncComponent(() => import('./components/panels/DeploymentLogsPanel.vue'))
+const TabbedDeploymentLogsPanel = defineAsyncComponent(() => import('./components/panels/TabbedDeploymentLogsPanel.vue'))
 const ServiceDetailPanel = defineAsyncComponent(() => import('./components/panels/ServiceDetailPanel.vue'))
 const ConfigMapPanel = defineAsyncComponent(() => import('./components/panels/ConfigMapPanel.vue'))
 const TabbedYamlEditorPanel = defineAsyncComponent(() => import('./components/panels/TabbedYamlEditorPanel.vue'))
@@ -211,8 +237,8 @@ const {
   openConfigMapDetail, showYAML, applyYAML,
   startPortForward, stopPortForward, refreshPortForwards,
   openServiceDetail, forwardServicePort,
-  loadNamespaces, deletePodByName,
-  filteredPods, filteredDeployments, filteredStatefulSets,
+  loadNamespaces, deletePodByName, deleteDeploymentByName,
+  getPods, filteredPods, filteredDeployments, filteredStatefulSets,
   filteredDaemonSets, filteredJobs, filteredCronJobs,
   filteredServices, filteredIngresses, filteredConfigMaps,
   filteredSecrets, filteredResourceQuotas, filteredPVCs,
@@ -271,7 +297,7 @@ const podActions = usePodActions({
 
 const tabbedActionsPanel = ref<any>(null)
 
-import { watch } from 'vue'
+import { watch, nextTick } from 'vue'
 
 watch(tabbedActionsPanel, (newVal) => {
   if (newVal) {
@@ -282,7 +308,16 @@ watch(tabbedActionsPanel, (newVal) => {
 // ─── Local State ───
 
 const selectedNamespaceDetail = ref<any | null>(null)
+const selectedDeployment = ref<any | null>(null)
+const showScaleDialog = ref(false)
+const deploymentToScale = ref<any | null>(null)
 const revisionDepNs = ref({ ns: '', name: '' })
+const deploymentYamlEditorOpen = ref(false)
+const deploymentYamlEditMeta = ref({ namespace: '', name: '' })
+const deploymentLogsOpen = ref(false)
+const deploymentForLogs = ref<any | null>(null)
+const tabbedDeploymentLogsOpen = ref(false)
+const tabbedDeploymentLogsRef = ref<any>(null)
 
 // ─── Data map for dynamic component ───
 
@@ -440,10 +475,42 @@ const activeViewEvents = computed(() => {
   }
 
   if (view === 'deployments') {
-    events.scale = doScale
+    events.select = (dep: any) => { selectedDeployment.value = dep }
+    events.scale = (dep: any) => {
+      deploymentToScale.value = dep
+      showScaleDialog.value = true
+    }
     events.yaml = (ns: string, n: string) => showYAML('deployment', ns, n)
-    events.restart = restartDeployment
-    events.revisions = onShowRevisions
+    events.restart = (ns: string, n: string) => {
+      if (confirm(`Restart deployment ${n}?`)) {
+        restartDeployment(ns, n)
+      }
+    }
+    events.logs = (ns: string, n: string) => {
+      tabbedDeploymentLogsOpen.value = true
+      nextTick(() => {
+        if (tabbedDeploymentLogsRef.value) {
+          tabbedDeploymentLogsRef.value.setPendingDeployment({ namespace: ns, name: n })
+        }
+      })
+    }
+    events.edit = (ns: string, n: string) => {
+      podActions.yamlEditorOpen.value = true
+      podActions.yamlEditorMeta.value = { resourceType: 'deployment', resourceName: n, namespace: ns }
+      showYAML('deployment', ns, n)
+    }
+    events.delete = (ns: string, n: string) => {
+      if (confirm(`Delete deployment ${n}?`)) {
+        deleteDeploymentByName(ns, n)
+          .then(() => {
+            notifications.notifySuccess(`Deployment ${n} deleted`)
+            refreshData()
+          })
+          .catch((e: any) => {
+            notifications.notifyError(`Delete error: ${e.message || e}`)
+          })
+      }
+    }
   }
 
   if (view === 'services') {
@@ -517,6 +584,20 @@ function onPodDetailLogs(data: any) {
   if (data.pod) {
     selectedPod.value = data.pod
     podActions.openLogs(data.pod, data.container)
+  }
+}
+
+async function onScaleDeployment(replicas: number) {
+  if (!deploymentToScale.value) return
+  try {
+    const ns = deploymentToScale.value.namespace
+    const name = deploymentToScale.value.name
+    const result = await k8s.scaleDeployment(ns, name, replicas)
+    notifications.notifySuccess(`Deployment ${name} scaled to ${replicas} replicas`)
+    showScaleDialog.value = false
+    await refreshData()
+  } catch (e: any) {
+    notifications.notifyError(`Scale error: ${e.message || e}`)
   }
 }
 
