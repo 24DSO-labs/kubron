@@ -718,24 +718,31 @@ async function loadNodeMetrics() {
 }
 
 // --- Port Forward ---
-async function startPortForward() {
-  if (!selectedPod.value) return
-  try {
-    await StartPortForward(
-      selectedPod.value.namespace,
-      selectedPod.value.name,
-      pfLocalPort.value,
-      pfPodPort.value
-    )
-    await refreshPortForwards()
-  } catch (e: any) { error.value = 'Port forward error: ' + (e.message || e) }
-}
+async function startPortForward(namespace?: string, podName?: string, localPort?: number, podPort?: number) {
+  // Support both old and new calling conventions
+  const ns = namespace || selectedPod.value?.namespace
+  const pod = podName || selectedPod.value?.name
+  const lp = localPort !== undefined ? localPort : pfLocalPort.value
+  const pp = podPort !== undefined ? podPort : pfPodPort.value
 
-async function stopPortForward(id: string) {
+  if (!ns || !pod) return
+
+  console.log('useK8s.startPortForward called with:', { ns, pod, lp, pp })
+
   try {
-    await StopPortForward(id)
+    console.log('Calling StartPortForward backend with params:', ns, pod, lp, pp)
+    const result = await StartPortForward(ns, pod, lp, pp)
+    console.log('StartPortForward completed, result:', result)
+    error.value = ''
+    
+    // Give the backend a moment to register the forward, then refresh
+    await new Promise(resolve => setTimeout(resolve, 500))
     await refreshPortForwards()
-  } catch (e: any) { error.value = 'Stop PF error: ' + (e.message || e) }
+  } catch (e: any) { 
+    console.error('Port forward error:', e)
+    error.value = 'Port forward error: ' + (e.message || e) 
+    throw e
+  }
 }
 
 async function refreshPortForwards() {
@@ -821,4 +828,12 @@ export function useK8s() {
     startPortForward, stopPortForward, refreshPortForwards,
     openServiceDetail, forwardServicePort,
   }
+}
+
+// Add missing stopPortForward function
+async function stopPortForward(id: string) {
+  try {
+    await StopPortForward(id)
+    await refreshPortForwards()
+  } catch (e: any) { error.value = 'Stop PF error: ' + (e.message || e) }
 }
