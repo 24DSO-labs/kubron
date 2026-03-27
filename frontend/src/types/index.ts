@@ -85,7 +85,7 @@ export interface RequiredDuringSchedulingIgnoredDuringExecution {
     matchLabels?: Record<string, string>
   }
   namespaces?: string[]
-  topologyKey: string
+  topologyKey?: string
 }
 
 export interface PodAntiAffinity {
@@ -155,8 +155,50 @@ export interface DeploymentInfo {
   readyReplicas: number
   updatedReplicas: number
   age: string
+  created?: string
   strategy: string
   images: string[]
+  conditions?: ConditionInfo[]
+  status?: string
+  labels?: Record<string, string>
+  annotations?: Record<string, string>
+  selector?: string
+  nodeSelector?: string
+  podAntiAffinity?: PodAntiAffinityInfo
+  revisions?: RevisionInfo[]
+}
+
+export interface RevisionInfo {
+  revision: string
+  name: string
+  replicas: number
+  ready: number
+  age: string
+  images: string
+}
+
+export interface PodAntiAffinityInfo {
+  preferredDuringSchedulingIgnoredDuringExecution?: PreferredAffinityTermInfo[]
+  requiredDuringSchedulingIgnoredDuringExecution?: RequiredAffinityTermInfo[]
+}
+
+export interface PreferredAffinityTermInfo {
+  weight?: number
+  podAffinityTerm?: PodAffinityTermInfo
+}
+
+export interface RequiredAffinityTermInfo {
+  podAffinityTerm?: PodAffinityTermInfo
+}
+
+export interface PodAffinityTermInfo {
+  labelSelector?: LabelSelectorInfo
+  topologyKey?: string
+  namespaces?: string[]
+}
+
+export interface LabelSelectorInfo {
+  matchLabels?: Record<string, string>
 }
 
 export interface StatefulSetInfo {

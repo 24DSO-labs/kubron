@@ -95,6 +95,12 @@
       v-if="selectedDeployment"
       :deployment="selectedDeployment"
       @close="selectedDeployment = null"
+      @pod-selected="openPodDetailFromDeployment"
+      @scale="onDeploymentScale"
+      @restart="onDeploymentRestart"
+      @logs="onDeploymentLogs"
+      @edit="onDeploymentEdit"
+      @delete="onDeploymentDelete"
     />
 
     <!-- Scale Deployment Dialog -->
@@ -194,6 +200,7 @@ import { usePodActions } from './composables/usePodActions'
 import { useClusterConnection } from './composables/useClusterConnection'
 import { useNotifications } from './composables/useNotifications'
 import { viewRegistry } from './composables/useViewRegistry'
+import type { PodInfo } from './types'
 
 import ClusterBar from './components/ClusterBar.vue'
 import AddClusterDialog from './components/AddClusterDialog.vue'
@@ -554,6 +561,12 @@ function openNamespaceDetail(namespace: any) {
   selectedNamespaceDetail.value = namespace
 }
 
+function openPodDetailFromDeployment(pod: PodInfo) {
+  console.log('Pod selected from deployment:', pod)
+  selectedDeployment.value = null
+  openPodDetail(pod)
+}
+
 async function onShowRevisions(ns: string, name: string) {
   revisionDepNs.value = { ns, name }
   await loadRevisions(ns, name)
@@ -598,6 +611,46 @@ async function onScaleDeployment(replicas: number) {
     await refreshData()
   } catch (e: any) {
     notifications.notifyError(`Scale error: ${e.message || e}`)
+  }
+}
+
+function onDeploymentScale(dep: any) {
+  deploymentToScale.value = dep
+  showScaleDialog.value = true
+}
+
+function onDeploymentRestart(ns: string, name: string) {
+  if (confirm(`Restart deployment ${name}?`)) {
+    restartDeployment(ns, name)
+  }
+}
+
+function onDeploymentLogs(ns: string, name: string) {
+  tabbedDeploymentLogsOpen.value = true
+  nextTick(() => {
+    if (tabbedDeploymentLogsRef.value) {
+      tabbedDeploymentLogsRef.value.setPendingDeployment({ namespace: ns, name: name })
+    }
+  })
+}
+
+async function onDeploymentEdit(ns: string, name: string) {
+  podActions.yamlEditorMeta.value = { resourceType: 'deployment', resourceName: name, namespace: ns }
+  await showYAML('deployment', ns, name)
+  podActions.yamlEditorOpen.value = true
+}
+
+function onDeploymentDelete(ns: string, name: string) {
+  if (confirm(`Delete deployment ${name}?`)) {
+    deleteDeploymentByName(ns, name)
+      .then(() => {
+        notifications.notifySuccess(`Deployment ${name} deleted`)
+        selectedDeployment.value = null
+        refreshData()
+      })
+      .catch((e: any) => {
+        notifications.notifyError(`Delete error: ${e.message || e}`)
+      })
   }
 }
 

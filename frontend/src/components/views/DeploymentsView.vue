@@ -3,16 +3,17 @@
     <div v-if="showContextMenu" class="menu-overlay" @click="hideContextMenu"></div>
     <ContentHeader icon="" title="Deployments" :count="items.length" :search="search" showSearch @refresh="onRefresh" @search="onSearch" />
     <table v-if="items.length>0" class="table">
-      <thead><tr><th>Name</th><th>Namespace</th><th>Ready</th><th>Up-to-date</th><th>Strategy</th><th>Images</th><th>Age</th><th></th></tr></thead>
+      <thead><tr><th>Name</th><th>Namespace</th><th>Pods</th><th>Replicas</th><th>Age</th><th>Status</th><th></th></tr></thead>
       <tbody>
         <tr v-for="dep in items" :key="dep.namespace+dep.name" @click="handleShowDetails(dep)" class="clickable-row">
           <td class="resource-name">{{dep.name}}</td>
           <td class="ns-label">{{dep.namespace}}</td>
           <td><span :class="dep.readyReplicas===dep.replicas?'text-green':'text-yellow'">{{dep.readyReplicas}}/{{dep.replicas}}</span></td>
           <td>{{dep.updatedReplicas}}</td>
-          <td>{{dep.strategy}}</td>
-          <td class="images-cell"><div v-for="img in dep.images" :key="img" class="image-tag">{{img}}</div></td>
           <td>{{dep.age}}</td>
+          <td>
+            <span :class="getStatusClass(dep)" :title="getStatusTooltip(dep)">{{ getStatusText(dep) }}</span>
+          </td>
           <td @click.stop>
             <button class="btn-icon" @click.stop="openContextMenu(dep, $event)">⋮</button>
           </td>
@@ -152,7 +153,84 @@ function handleDelete() {
 
 function onRefresh() { emit('refresh') }
 function onSearch(val: string) { emit('search', val) }
+
+function getStatusText(dep: DeploymentInfo): string {
+  if (!dep.conditions || dep.conditions.length === 0) {
+    return 'Pending'
+  }
+  
+  const availableCondition = dep.conditions.find(c => c.type === 'Available')
+  const progressingCondition = dep.conditions.find(c => c.type === 'Progressing')
+  
+  if (availableCondition?.status === 'True' && progressingCondition?.status === 'True') {
+    return 'Ready'
+  }
+  
+  if (progressingCondition?.status === 'False') {
+    if (progressingCondition?.reason) {
+      return progressingCondition.reason
+    }
+    return 'Failed'
+  }
+  
+  if (progressingCondition?.reason) {
+    return progressingCondition.reason
+  }
+  
+  return 'Pending'
+}
+
+function getStatusClass(dep: DeploymentInfo): string {
+  if (!dep.conditions || dep.conditions.length === 0) {
+    return 'status-pending'
+  }
+  
+  const availableCondition = dep.conditions.find(c => c.type === 'Available')
+  const progressingCondition = dep.conditions.find(c => c.type === 'Progressing')
+  
+  if (availableCondition?.status === 'True' && progressingCondition?.status === 'True') {
+    return 'status-ready'
+  }
+  
+  if (progressingCondition?.status === 'False') {
+    return 'status-error'
+  }
+  
+  return 'status-pending'
+}
+
+function getStatusTooltip(dep: DeploymentInfo): string {
+  if (!dep.conditions || dep.conditions.length === 0) {
+    return 'No conditions'
+  }
+  
+  const conditions = dep.conditions
+    .map(c => `${c.type}: ${c.status}${c.reason ? ' (' + c.reason + ')' : ''}`)
+    .join(' | ')
+  
+  return conditions
+}
 </script>
+
+<style scoped>
+.status-ready {
+  color: #4ade80;
+  font-weight: bold;
+  font-size: 1em;
+}
+
+.status-pending {
+  color: #facc15;
+  font-weight: bold;
+  font-size: 1em;
+}
+
+.status-error {
+  color: #ef4444;
+  font-weight: bold;
+  font-size: 1em;
+}
+</style>
 
 <style scoped>
 .menu-overlay {
