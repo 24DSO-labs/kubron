@@ -124,7 +124,7 @@ const chartData = computed(() => {
   const timestamps = Array.from(allTimestamps).sort((a, b) => a - b)
 
   const labels = timestamps.map(ts => {
-    const d = new Date(ts)
+    const d = new Date(ts * 1000)
     if (selectedRange.value <= 86400) {
       return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
@@ -192,7 +192,7 @@ const chartOptions = computed(() => ({
         callback: (value: number | string) => {
           const num = typeof value === 'string' ? parseFloat(value) : value
           if (props.formatValue) return props.formatValue(num)
-          return num
+          return num.toFixed(2)
         },
       },
     },

@@ -77,6 +77,15 @@
 
     <!-- ═══════════ PROPERTIES ═══════════ -->
     <div v-if="activeTab === 'properties'" class="detail-section text-gray-300">
+      <!-- Pod Metrics -->
+      <div v-if="clusterName" class="metrics-section">
+        <PodMetricsViewer
+          :cluster-name="clusterName"
+          :namespace="pod.namespace"
+          :pod-name="pod.name"
+        />
+      </div>
+
       <div class="meta-row">
         <span class="meta-label">Created:</span>
         {{ pod.age }} ago ({{ pod.created }})
@@ -187,6 +196,7 @@
         </div>
       </div>
 
+      
       <div class="meta-row cursor-pointer" @click="volumesExpanded = !volumesExpanded">
         <span class="meta-label">
           Pod Volumes
@@ -227,10 +237,6 @@
       </div>
     </div>
 
-    <!-- ═══════════ METRICS ═══════════ -->
-    <div v-if="activeTab === 'metrics' && clusterName" class="detail-section">
-      <PodMetricsPanel :cluster-name="clusterName" :namespace="pod.namespace" :pod-name="pod.name" />
-    </div>
 
     <!-- ═══════════ CONTAINERS ═══════════ -->
     <div v-if="activeTab === 'containers' && pod.containers && pod.containers.length > 0" class="detail-section">
@@ -247,6 +253,16 @@
 
         <!-- Container Body -->
         <div v-if="!collapsedContainers.has(c.name)" class="ct-body">
+        <!-- Container Metrics -->
+          <div v-if="clusterName && !c.isInit" class="ct-metrics-section">
+            <ContainerMetricsViewer
+              :cluster-name="clusterName"
+              :namespace="pod.namespace"
+              :pod-name="pod.name"
+              :container-name="c.name"
+            />
+          </div>
+
           <!-- Status -->
           <div class="ct-row">
             <span class="ct-label">Status</span>
@@ -472,7 +488,8 @@ import type {
   ConditionInfo,
   VolumeInfo,
 } from '../../types'
-import PodMetricsPanel from '../metrics/PodMetricsPanel.vue'
+import PodMetricsViewer from '../metrics/PodMetricsViewer.vue'
+import ContainerMetricsViewer from '../metrics/ContainerMetricsViewer.vue'
 
 const props = defineProps<{
   pod: any
@@ -519,7 +536,6 @@ function handleLogs(container: string) {
 const activeTab = ref('properties')
 const tabs = [
   { id: 'properties', label: 'Properties' },
-  { id: 'metrics', label: 'Metrics' },
   { id: 'containers', label: 'Containers' },
 ]
 
@@ -1531,5 +1547,38 @@ pre {
 .ct-mount-sub {
   color: #6b6d8a;
   margin-left: 6px;
+}
+
+/* ═══════ Pod Metrics Section ═══════ */
+
+.metrics-section {
+  grid-column: 1 / -1;
+  margin-bottom: 12px;
+  width: 100%;
+}
+
+.metrics-section :deep(.pod-metrics-viewer) {
+  width: 100%;
+}
+
+.metrics-section :deep(.metrics-chart-container) {
+  width: 100%;
+}
+
+/* ═══════ Container Metrics Section ═══════ */
+
+.ct-metrics-section {
+  grid-column: 1 / -1;
+  margin-bottom: 12px;
+  width: 100%;
+  padding: 0 14px;
+}
+
+.ct-metrics-section :deep(.container-metrics-viewer) {
+  width: 100%;
+}
+
+.ct-metrics-section :deep(.metrics-chart-container) {
+  width: 100%;
 }
 </style>
