@@ -621,6 +621,15 @@ async function deletePod() {
   } catch (e: any) { error.value = 'Delete error: ' + (e.message || e) }
 }
 
+async function deletePodByName(ns: string, name: string) {
+  try {
+    await DeletePod(ns, name)
+  } catch (e: any) {
+    error.value = 'Ошибка удаления пода: ' + (e.message || e)
+    throw e
+  }
+}
+
 async function runExec() {
   if (!selectedPod.value || !execCmd.value) return
   try {
@@ -804,7 +813,8 @@ export function useK8s() {
     // Actions
     loadContexts, connect, disconnect, loadNamespaces,
     switchView, onNamespaceChange, refreshData,
-    openPodDetail, loadLogs, deletePod, runExec,
+    openPodDetail, loadLogs, deletePod, deletePodByName,
+     runExec,
     doScale, restartDeployment, loadRevisions, rollbackDeployment,
     openConfigMapDetail, showYAML, applyYAML,
     loadPodMetrics, loadNodeMetrics,
