@@ -154,7 +154,7 @@ const chartOptions = computed(() => ({
           const idx = items[0].dataIndex
           const ts = dataPoints.value[idx]?.[0]
           if (!ts) return ''
-          return new Date(ts).toLocaleString()
+          return new Date(ts * 1000).toLocaleString()
         },
         label: (context: any) => {
           const val = context.parsed.y
@@ -193,7 +193,7 @@ const chartOptions = computed(() => ({
 }))
 
 function formatTimestamp(ts: number): string {
-  const d = new Date(ts)
+  const d = new Date(ts * 1000)
   if (selectedRange.value <= 86400) {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
