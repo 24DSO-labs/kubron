@@ -649,6 +649,15 @@ async function doScale(dep: DeploymentInfo, delta: number) {
   catch (e: any) { error.value = 'Scale error: ' + (e.message || e) }
 }
 
+async function scaleDeployment(namespace: string, name: string, replicas: number) {
+  try {
+    await ScaleDeployment(namespace, name, replicas)
+  } catch (e: any) {
+    error.value = 'Scale error: ' + (e.message || e)
+    throw e
+  }
+}
+
 // --- Restart / Rollback ---
 async function restartDeployment(namespace: string, name: string) {
   if (!confirm('Restart deployment ' + name + '?')) return
@@ -780,6 +789,21 @@ async function forwardServicePort(namespace: string, service: string, port: numb
   } catch (e: any) { error.value = 'Port forward error: ' + (e.message || e) }
 }
 
+// --- Delete Deployment ---
+async function deleteDeploymentByName(ns: string, name: string) {
+  try {
+    const app = await dynamicImportApp()
+    if ((app as any).DeleteDeployment) {
+      await (app as any).DeleteDeployment(ns, name)
+    } else {
+      throw new Error('DeleteDeployment not available')
+    }
+  } catch (e: any) {
+    error.value = 'Ошибка удаления deployment: ' + (e.message || e)
+    throw e
+  }
+}
+
 // --- Export ---
 export function useK8s() {
   // Watch for navigation changes
@@ -822,11 +846,12 @@ export function useK8s() {
     switchView, onNamespaceChange, refreshData,
     openPodDetail, loadLogs, deletePod, deletePodByName,
      runExec,
-    doScale, restartDeployment, loadRevisions, rollbackDeployment,
+    doScale, scaleDeployment, restartDeployment, loadRevisions, rollbackDeployment, deleteDeploymentByName,
     openConfigMapDetail, showYAML, applyYAML,
     loadPodMetrics, loadNodeMetrics,
     startPortForward, stopPortForward, refreshPortForwards,
     openServiceDetail, forwardServicePort,
+    getPods: GetPods,
   }
 }
 

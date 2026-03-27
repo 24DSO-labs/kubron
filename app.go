@@ -166,6 +166,10 @@ func (a *App) RollbackDeployment(namespace, name string, revision int64) error {
 	return a.k8sMgr.RollbackDeployment(namespace, name, revision)
 }
 
+func (a *App) DeleteDeployment(namespace, name string) error {
+	return a.k8sMgr.DeleteDeployment(namespace, name)
+}
+
 // === StatefulSets ===
 
 func (a *App) GetStatefulSets(namespace string) ([]k8s.StatefulSetInfo, error) {
