@@ -497,7 +497,7 @@ async function onRollback(rev: number) {
 }
 
 function onPodDetailAttach(data: any) {
-  console.log('onPodDetailAttach:', data)
+  
   if (data.pod) {
     selectedPod.value = data.pod
     podActions.openAttachWithContainer(data.container, data.pod)
@@ -505,7 +505,7 @@ function onPodDetailAttach(data: any) {
 }
 
 function onPodDetailTerminal(data: any) {
-  console.log('onPodDetailTerminal:', data)
+  
   if (data.pod) {
     selectedPod.value = data.pod
     podActions.openShellWithContainer(data.container, data.pod)
@@ -513,7 +513,7 @@ function onPodDetailTerminal(data: any) {
 }
 
 function onPodDetailLogs(data: any) {
-  console.log('onPodDetailLogs:', data)
+  
   if (data.pod) {
     selectedPod.value = data.pod
     podActions.openLogs(data.pod, data.container)

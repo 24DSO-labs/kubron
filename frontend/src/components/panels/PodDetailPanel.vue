@@ -498,19 +498,19 @@ const showLogsMenu = ref(false)
 
 function handleAttach(container: string) {
   showAttachMenu.value = false
-  console.log('Emit attach:', { container, pod: props.pod?.name })
+  
   emit('attach', { container, pod: props.pod })
 }
 
 function handleTerminal(container: string) {
   showTerminalMenu.value = false
-  console.log('Emit terminal:', { container, pod: props.pod?.name })
+  
   emit('terminal', { container, pod: props.pod })
 }
 
 function handleLogs(container: string) {
   showLogsMenu.value = false
-  console.log('Emit logs:', { container, pod: props.pod?.name })
+  
   emit('logs', { container, pod: props.pod })
 }
 

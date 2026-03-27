@@ -74,7 +74,6 @@ export function usePodActions(deps: {
       return
     }
     
-    console.log('Opening attach:', { pod: targetPod.name, container })
     const tabId = `attach_${targetPod.namespace}_${targetPod.name}_${container}_${Date.now()}`
     const tab: ActionTab = {
       id: tabId,
@@ -87,23 +86,21 @@ export function usePodActions(deps: {
       title: `Attach: ${targetPod.name}/${container}`,
     }
     
-    console.log('Created tab:', tab)
+    
     openTabs.value.push(tab)
     activeTabId.value = tabId
     tabbedActionsOpen.value = true
-    console.log('tabbedActionsOpen set to true, openTabs:', openTabs.value)
+    
   }
 
   function openShellWithContainer(container: string, pod?: any) {
-    console.log('openShellWithContainer called with:', { container, pod })
+    
     const targetPod = pod || selectedPod.value
     if (!targetPod) {
-      console.warn('No pod selected for shell, selectedPod:', selectedPod.value)
+      
       return
     }
     
-    console.log('Opening shell with targetPod:', targetPod)
-    console.log('targetPod.name:', targetPod.name, 'targetPod.pod:', targetPod.pod)
     const tabId = `shell_${targetPod.namespace}_${targetPod.name}_${container}_${Date.now()}`
     const tab: ActionTab = {
       id: tabId,
@@ -116,11 +113,10 @@ export function usePodActions(deps: {
       title: `Terminal: ${targetPod.name}/${container}`,
     }
     
-    console.log('Created tab:', tab)
     openTabs.value.push(tab)
     activeTabId.value = tabId
     tabbedActionsOpen.value = true
-    console.log('tabbedActionsOpen set to true, openTabs:', openTabs.value)
+    
   }
 
   async function evictPod(pod?: any) {
