@@ -194,12 +194,8 @@ const loadNodeMetrics = async () => {
   error.value = ''
   try {
     const metrics = await getNodeMetricsByRole(selectedNodeRole.value as 'master' | 'worker')
-    console.log('Loaded metrics:', metrics)
-    console.log('CPU Usage:', metrics?.cpu?.usage)
-    console.log('Memory Usage:', metrics?.memory?.usage)
-    console.log('Pods Usage:', metrics?.pods?.usage)
     nodeMetrics.value = metrics as unknown as NodeMetricsByRole
-    console.log('nodeMetrics.value after setting:', nodeMetrics.value)
+    
   } catch (err: any) {
     error.value = err.message || 'Failed to load metrics'
     console.error('Error loading metrics:', err)
