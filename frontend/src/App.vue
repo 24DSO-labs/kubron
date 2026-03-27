@@ -83,11 +83,11 @@
       @startPF="startPortForward"
       @stopPF="stopPortForward"
       @openTerminal="podActions.terminalOpen.value = true"
-      @attach="podActions.openAttachWithContainer"
-      @terminal="podActions.openShellWithContainer"
       @evict="podActions.evictPod()"
-      @logs="(container: string) => podActions.openLogs(undefined, container)"
       @edit="podActions.editPod()"
+      @attach="onPodDetailAttach"
+      @terminal="onPodDetailTerminal"
+      @logs="onPodDetailLogs"
     />
 
     <!-- Service Detail Panel -->
@@ -122,25 +122,12 @@
       @close="selectedNamespaceDetail = null"
     />
 
-    <!-- Terminal Panel -->
-    <TerminalPanel
-      v-if="podActions.terminalOpen.value && terminalTargetPod"
-      :namespace="terminalTargetPod.namespace"
-      :pod="terminalTargetPod.name"
-      :containers="terminalTargetPod.containers?.map((c: any) => c.name) || []"
-      :initialContainer="logContainer"
-      :mode="podActions.terminalMode.value"
-      @close="podActions.closeTerminal()"
-    />
-
-    <!-- Logs Panel -->
-    <LogsPanel
-      v-if="podActions.logsOpen.value && logsTargetPod"
-      :namespace="logsTargetPod.namespace"
-      :pod="logsTargetPod.name"
-      :containers="logsTargetPod.containers?.map((c: any) => c.name) || []"
-      :initialContainer="logContainer"
-      @close="podActions.closeLogs()"
+    <!-- Tabbed Actions Panel (Terminal/Logs/Attach) -->
+    <TabbedActionsPanel
+      v-if="podActions.tabbedActionsOpen.value"
+      :pod-actions="podActions"
+      @close="podActions.closeTabbedActions()"
+      @evict="podActions.evictPod()"
     />
 
     <!-- YAML Editor Panel -->
@@ -197,6 +184,7 @@ const PodDetailPanel = defineAsyncComponent(() => import('./components/panels/Po
 const ServiceDetailPanel = defineAsyncComponent(() => import('./components/panels/ServiceDetailPanel.vue'))
 const ConfigMapPanel = defineAsyncComponent(() => import('./components/panels/ConfigMapPanel.vue'))
 const TabbedYamlEditorPanel = defineAsyncComponent(() => import('./components/panels/TabbedYamlEditorPanel.vue'))
+const TabbedActionsPanel = defineAsyncComponent(() => import('./components/panels/TabbedPodActionsPanel.vue'))
 const RevisionsPanel = defineAsyncComponent(() => import('./components/panels/RevisionsPanel.vue'))
 const TerminalPanel = defineAsyncComponent(() => import('./components/panels/TerminalPanel.vue'))
 const LogsPanel = defineAsyncComponent(() => import('./components/panels/LogsPanel.vue'))
@@ -281,20 +269,20 @@ const podActions = usePodActions({
   showYAML,
 })
 
+const tabbedActionsPanel = ref<any>(null)
+
+import { watch } from 'vue'
+
+watch(tabbedActionsPanel, (newVal) => {
+  if (newVal) {
+    podActions.setTabbedActionsPanelRef(newVal)
+  }
+})
+
 // ─── Local State ───
 
 const selectedNamespaceDetail = ref<any | null>(null)
 const revisionDepNs = ref({ ns: '', name: '' })
-
-// ─── Computed: resolve target pods for terminal/logs ───
-
-const terminalTargetPod = computed(() =>
-  podActions.terminalPod.value || selectedPod.value
-)
-
-const logsTargetPod = computed(() =>
-  podActions.logsPod.value || selectedPod.value
-)
 
 // ─── Data map for dynamic component ───
 
@@ -412,12 +400,43 @@ const activeViewEvents = computed(() => {
 
   if (view === 'pods') {
     events.select = openPodDetail
-    events.attachPod = podActions.openAttach
-    events.shell = podActions.openShell
+    events.attachPod = (pod: any, container?: string) => {
+      if (container) {
+        podActions.openAttachWithContainer(container, pod)
+      } else {
+        podActions.openAttach(pod)
+      }
+    }
+    events.shell = (pod: any, container?: string) => {
+      if (container) {
+        podActions.openShellWithContainer(container, pod)
+      } else {
+        podActions.openShell(pod)
+      }
+    }
     events.evict = podActions.evictPod
-    events.logs = (pod: any) => podActions.openLogs(pod)
+    events.logs = (pod: any, container?: string) => {
+      if (container) {
+        podActions.openLogs(pod, container)
+      } else {
+        podActions.openLogs(pod)
+      }
+    }
     events.edit = podActions.editPod
     events.delete = podActions.removePod
+    // События из PodDetailPanel для TabbedPodActionsPanel
+    events.attach = (data: any) => {
+      if (data.pod) {
+        selectedPod.value = data.pod
+        podActions.openAttachWithContainer(data.container, data.pod)
+      }
+    }
+    events.terminal = (data: any) => {
+      if (data.pod) {
+        selectedPod.value = data.pod
+        podActions.openShellWithContainer(data.container, data.pod)
+      }
+    }
   }
 
   if (view === 'deployments') {
@@ -477,9 +496,31 @@ async function onRollback(rev: number) {
   await rollbackDeployment(revisionDepNs.value.ns, revisionDepNs.value.name, rev)
 }
 
-// ─── Watch error → notifications ───
+function onPodDetailAttach(data: any) {
+  console.log('onPodDetailAttach:', data)
+  if (data.pod) {
+    selectedPod.value = data.pod
+    podActions.openAttachWithContainer(data.container, data.pod)
+  }
+}
 
-import { watch } from 'vue'
+function onPodDetailTerminal(data: any) {
+  console.log('onPodDetailTerminal:', data)
+  if (data.pod) {
+    selectedPod.value = data.pod
+    podActions.openShellWithContainer(data.container, data.pod)
+  }
+}
+
+function onPodDetailLogs(data: any) {
+  console.log('onPodDetailLogs:', data)
+  if (data.pod) {
+    selectedPod.value = data.pod
+    podActions.openLogs(data.pod, data.container)
+  }
+}
+
+// ─── Watch error → notifications ───
 
 watch(error, (val) => {
   if (val) {
