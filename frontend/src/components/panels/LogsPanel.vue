@@ -183,6 +183,7 @@ function onLinesChange(e: Event) {
   white-space: pre-wrap;
   word-wrap: break-word;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  text-align: left;
 }
 
 .logs-loading,

@@ -283,7 +283,6 @@
               <span class="ct-label"></span>
               <span class="ct-val ct-port-cell">
                 <span class="ct-port-link">{{ p.containerPort }}/{{ p.protocol || 'TCP' }}</span>
-                <button class="ct-btn-forward" @click.stop="onPortForward(c.name, p.containerPort)">Forward…</button>
               </span>
             </div>
           </template>
@@ -463,67 +462,6 @@
       </div>
     </div>
 
-    <!-- ═══════════ LOGS ═══════════ -->
-    <div v-if="activeTab === 'logs' && pod.containers && pod.containers.length > 0" class="detail-section">
-      <div class="logs-header">
-        <h4>Logs</h4>
-        <select :value="logContainer" @change="onLogContainerChange" class="log-select">
-          <option v-for="c in pod.containers" :key="c.name" :value="c.name">{{ c.name }}</option>
-        </select>
-        <select :value="logLines" @change="onLogLinesChange" class="log-select">
-          <option :value="50">50</option>
-          <option :value="100">100</option>
-          <option :value="500">500</option>
-          <option :value="1000">1000</option>
-        </select>
-        <button @click="emit('loadLogs')" class="btn btn-sm">🔄</button>
-      </div>
-      <pre class="log-output">{{ logs || 'Нажмите 🔄 для загрузки' }}</pre>
-    </div>
-
-    <!-- ═══════════ EXEC ═══════════ -->
-    <div v-if="activeTab === 'exec'" class="detail-section">
-      <div class="exec-header">
-        <h4>🖥 Exec</h4>
-      </div>
-      <div class="exec-input-row">
-        <input :value="execCmd" @input="onExecCmdChange" @keyup.enter="emit('runExec')" placeholder="ls -la /tmp"
-          class="exec-input" />
-        <button @click="emit('runExec')" class="btn btn-sm">▶ Run</button>
-      </div>
-      <pre v-if="execOutput" class="exec-output">{{ execOutput }}</pre>
-    </div>
-
-    <!-- ═══════════ TERMINAL ═══════════ -->
-    <div v-if="activeTab === 'terminal'" class="detail-section">
-      <button class="btn btn-terminal" @click="emit('openTerminal')">🖥 Open Terminal</button>
-    </div>
-
-    <!-- ═══════════ PORT FORWARD ═══════════ -->
-    <div v-if="activeTab === 'portforward'" class="detail-section pf-section">
-      <h4>🌍 Port Forward</h4>
-      <div class="pf-form">
-        <label>Local:</label>
-        <input type="number" :value="pfLocalPort" @input="onLocalPortChange" class="pf-input" />
-        <label>Pod:</label>
-        <input type="number" :value="pfPodPort" @input="onPodPortChange" class="pf-input" />
-        <button @click="emit('startPF')" class="btn btn-sm">▶ Start</button>
-      </div>
-      <div v-if="portForwards.length > 0" class="pf-list">
-        <div v-for="s in portForwards" :key="s.id" class="pf-item">
-          <span class="pf-info">localhost:{{ s.localPort }} → {{ s.pod }}:{{ s.podPort }}</span>
-          <span class="status-badge" :class="s.status === 'active' ? 'status-running' : 'status-pending'">
-            {{ s.status }}
-          </span>
-          <button class="btn-icon" @click="emit('stopPF', s.id)">⏹</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ═══════════ ACTIONS ═══════════ -->
-    <div v-if="activeTab === 'actions'" class="detail-actions">
-      <button class="btn btn-danger" @click="emit('delete')">🗑 Удалить Pod</button>
-    </div>
   </div>
 </template>
 <script lang="ts" setup>
@@ -538,35 +476,17 @@ import PodMetricsPanel from '../metrics/PodMetricsPanel.vue'
 
 const props = defineProps<{
   pod: any
-  logs: string
-  logContainer: string
-  logLines: number
-  execCmd: string
-  execOutput: string
   statusClass: (s: string) => string
-  pfLocalPort: number
-  pfPodPort: number
-  portForwards: PortForwardSession[]
   clusterName?: string
 }>()
 
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'loadLogs'): void
-  (e: 'runExec'): void
   (e: 'delete'): void
-  (e: 'update:logContainer', v: string): void
-  (e: 'update:logLines', v: number): void
-  (e: 'update:execCmd', v: string): void
-  (e: 'update:pfLocalPort', v: number): void
-  (e: 'update:pfPodPort', v: number): void
-  (e: 'startPF'): void
-  (e: 'stopPF', id: string): void
-  (e: 'openTerminal'): void
-  (e: 'attach', container: string): void
-  (e: 'terminal', container: string): void
+  (e: 'attach', data: { container: string; pod: any }): void
+  (e: 'terminal', data: { container: string; pod: any }): void
   (e: 'evict'): void
-  (e: 'logs', container: string): void
+  (e: 'logs', data: { container: string; pod: any }): void
   (e: 'edit'): void
 }>()
 
@@ -578,17 +498,20 @@ const showLogsMenu = ref(false)
 
 function handleAttach(container: string) {
   showAttachMenu.value = false
-  emit('attach', container)
+  console.log('Emit attach:', { container, pod: props.pod?.name })
+  emit('attach', { container, pod: props.pod })
 }
 
 function handleTerminal(container: string) {
   showTerminalMenu.value = false
-  emit('terminal', container)
+  console.log('Emit terminal:', { container, pod: props.pod?.name })
+  emit('terminal', { container, pod: props.pod })
 }
 
 function handleLogs(container: string) {
   showLogsMenu.value = false
-  emit('logs', container)
+  console.log('Emit logs:', { container, pod: props.pod?.name })
+  emit('logs', { container, pod: props.pod })
 }
 
 // ═══════ Tabs ═══════
@@ -598,11 +521,6 @@ const tabs = [
   { id: 'properties', label: 'Properties' },
   { id: 'metrics', label: 'Metrics' },
   { id: 'containers', label: 'Containers' },
-  { id: 'logs', label: 'Logs' },
-  { id: 'exec', label: 'Exec' },
-  { id: 'terminal', label: 'Terminal' },
-  { id: 'portforward', label: 'Port Forward' },
-  { id: 'actions', label: 'Actions' },
 ]
 
 // ═══════ Properties expand state ═══════
@@ -668,12 +586,6 @@ function containerStatusColor(c: any): string {
 
 function portKey(p: any): string {
   return (p.name || '') + '-' + p.containerPort + '-' + p.protocol
-}
-
-function onPortForward(_containerName: string, containerPort: number) {
-  emit('update:pfPodPort', containerPort)
-  emit('update:pfLocalPort', containerPort)
-  activeTab.value = 'portforward'
 }
 
 // ═══════ Helpers ═══════
@@ -902,23 +814,6 @@ function formatTypeName(type: string): string {
   return type.replace(/([a-z])([A-Z])/g, '$1 $2')
 }
 
-// ═══════ Event handlers ═══════
-
-function onLogContainerChange(e: Event) {
-  emit('update:logContainer', (e.target as HTMLSelectElement).value)
-}
-function onLogLinesChange(e: Event) {
-  emit('update:logLines', Number((e.target as HTMLSelectElement).value))
-}
-function onExecCmdChange(e: Event) {
-  emit('update:execCmd', (e.target as HTMLInputElement).value)
-}
-function onLocalPortChange(e: Event) {
-  emit('update:pfLocalPort', Number((e.target as HTMLInputElement).value))
-}
-function onPodPortChange(e: Event) {
-  emit('update:pfPodPort', Number((e.target as HTMLInputElement).value))
-}
 </script>
 <style scoped>
 /* ═══════ Detail Header Actions ═══════ */

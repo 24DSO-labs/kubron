@@ -36,7 +36,7 @@
           <span class="ctx-menu-arrow">‹</span> Attach Pod
         </div>
         <div v-if="showAttachMenu && selectedPod?.containers.length" class="ctx-menu-sub">
-          <div v-for="c in selectedPod.containers" :key="c.name" class="ctx-menu-sub-item" @click="handleAttachContainer(c.name)">
+          <div v-for="c in selectedPod.containers" :key="c.name" class="ctx-menu-sub-item" @click.stop="handleAttachContainer(c.name)">
             {{ c.name }}
           </div>
         </div>
@@ -46,12 +46,12 @@
           <span class="ctx-menu-arrow">‹</span> Shell
         </div>
         <div v-if="showTerminalMenu && selectedPod?.containers.length" class="ctx-menu-sub">
-          <div v-for="c in selectedPod.containers" :key="c.name" class="ctx-menu-sub-item" @click="handleTerminalContainer(c.name)">
+          <div v-for="c in selectedPod.containers" :key="c.name" class="ctx-menu-sub-item" @click.stop="handleTerminalContainer(c.name)">
             {{ c.name }}
           </div>
         </div>
       </div>
-      <div class="ctx-menu-item" @click="handleEvict">
+      <div class="ctx-menu-item" @click.stop="handleEvict">
         <span class="ctx-menu-arrow"></span>Evict
       </div>
       <div class="ctx-menu-item-group" @mouseenter="showLogsMenu = true" @mouseleave="showLogsMenu = false">
@@ -59,7 +59,7 @@
           <span class="ctx-menu-arrow">‹</span> Logs
         </div>
         <div v-if="showLogsMenu && selectedPod?.containers.length" class="ctx-menu-sub">
-          <div v-for="c in selectedPod.containers" :key="c.name" class="ctx-menu-sub-item" @click="handleLogsContainer(c.name)">
+          <div v-for="c in selectedPod.containers" :key="c.name" class="ctx-menu-sub-item" @click.stop="handleLogsContainer(c.name)">
             {{ c.name }}
           </div>
         </div>
@@ -90,10 +90,10 @@ const emit = defineEmits<{
   (e: 'refresh'): void
   (e: 'search', val: string): void
   (e: 'select', pod: PodInfo): void
-  (e: 'attachPod', pod: PodInfo): void
-  (e: 'shell', pod: PodInfo): void
+  (e: 'attachPod', pod: PodInfo, container?: string): void
+  (e: 'shell', pod: PodInfo, container?: string): void
   (e: 'evict', pod: PodInfo): void
-  (e: 'logs', pod: PodInfo): void
+  (e: 'logs', pod: PodInfo, container?: string): void
   (e: 'edit', pod: PodInfo): void
   (e: 'delete', pod: PodInfo): void
 }>()
@@ -107,6 +107,11 @@ const showLogsMenu = ref(false)
 
 function openContextMenu(pod: PodInfo, event: MouseEvent) {
   selectedPod.value = pod
+  // Reset submenu flags
+  showAttachMenu.value = false
+  showTerminalMenu.value = false
+  showLogsMenu.value = false
+  
   const button = event.target as HTMLElement
   const rect = button.getBoundingClientRect()
   const menuWidth = 200
@@ -189,7 +194,7 @@ function toggleAttachMenu() {
 
 function handleAttachContainer(containerName: string) {
   if (selectedPod.value) {
-    emit('attachPod', selectedPod.value)
+    emit('attachPod', selectedPod.value, containerName)
   }
   hideContextMenu()
 }
@@ -200,7 +205,7 @@ function toggleTerminalMenu() {
 
 function handleTerminalContainer(containerName: string) {
   if (selectedPod.value) {
-    emit('shell', selectedPod.value)
+    emit('shell', selectedPod.value, containerName)
   }
   hideContextMenu()
 }
@@ -211,7 +216,7 @@ function toggleLogsMenu() {
 
 function handleLogsContainer(containerName: string) {
   if (selectedPod.value) {
-    emit('logs', selectedPod.value)
+    emit('logs', selectedPod.value, containerName)
   }
   hideContextMenu()
 }
