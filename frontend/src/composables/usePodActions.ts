@@ -3,6 +3,17 @@
 import { ref, type Ref } from 'vue'
 import { EvictPod } from '../../wailsjs/go/main/App'
 
+export interface ActionTab {
+  id: string
+  type: 'terminal' | 'logs'
+  mode?: 'shell' | 'attach'
+  namespace: string
+  pod: string
+  podObj?: any
+  container: string
+  title: string
+}
+
 export function usePodActions(deps: {
   selectedPod: Ref<any>
   logContainer: Ref<string>
@@ -16,6 +27,12 @@ export function usePodActions(deps: {
     refreshData, deletePodByName, showYAML,
   } = deps
 
+  // Tabbed Actions Panel
+  const tabbedActionsOpen = ref(false)
+  const tabbedActionsPanelRef = ref<any | null>(null)
+  const openTabs = ref<ActionTab[]>([])
+  const activeTabId = ref<string>('')
+  
   const terminalOpen = ref(false)
   const terminalMode = ref<'shell' | 'attach'>('shell')
   const terminalPod = ref<any | null>(null)
@@ -50,18 +67,60 @@ export function usePodActions(deps: {
     terminalOpen.value = true
   }
 
-  function openAttachWithContainer(container: string) {
-    if (!selectedPod.value) return
-    logContainer.value = container
-    terminalMode.value = 'attach'
-    terminalOpen.value = true
+  function openAttachWithContainer(container: string, pod?: any) {
+    const targetPod = pod || selectedPod.value
+    if (!targetPod) {
+      console.warn('No pod selected for attach')
+      return
+    }
+    
+    console.log('Opening attach:', { pod: targetPod.name, container })
+    const tabId = `attach_${targetPod.namespace}_${targetPod.name}_${container}_${Date.now()}`
+    const tab: ActionTab = {
+      id: tabId,
+      type: 'terminal',
+      mode: 'attach',
+      namespace: targetPod.namespace,
+      pod: targetPod.name,
+      podObj: targetPod,
+      container,
+      title: `Attach: ${targetPod.name}/${container}`,
+    }
+    
+    console.log('Created tab:', tab)
+    openTabs.value.push(tab)
+    activeTabId.value = tabId
+    tabbedActionsOpen.value = true
+    console.log('tabbedActionsOpen set to true, openTabs:', openTabs.value)
   }
 
-  function openShellWithContainer(container: string) {
-    if (!selectedPod.value) return
-    logContainer.value = container
-    terminalMode.value = 'shell'
-    terminalOpen.value = true
+  function openShellWithContainer(container: string, pod?: any) {
+    console.log('openShellWithContainer called with:', { container, pod })
+    const targetPod = pod || selectedPod.value
+    if (!targetPod) {
+      console.warn('No pod selected for shell, selectedPod:', selectedPod.value)
+      return
+    }
+    
+    console.log('Opening shell with targetPod:', targetPod)
+    console.log('targetPod.name:', targetPod.name, 'targetPod.pod:', targetPod.pod)
+    const tabId = `shell_${targetPod.namespace}_${targetPod.name}_${container}_${Date.now()}`
+    const tab: ActionTab = {
+      id: tabId,
+      type: 'terminal',
+      mode: 'shell',
+      namespace: targetPod.namespace,
+      pod: targetPod.name,
+      podObj: targetPod,
+      container,
+      title: `Terminal: ${targetPod.name}/${container}`,
+    }
+    
+    console.log('Created tab:', tab)
+    openTabs.value.push(tab)
+    activeTabId.value = tabId
+    tabbedActionsOpen.value = true
+    console.log('tabbedActionsOpen set to true, openTabs:', openTabs.value)
   }
 
   async function evictPod(pod?: any) {
@@ -80,9 +139,32 @@ export function usePodActions(deps: {
   function openLogs(pod?: any, container?: string) {
     const target = resolvePod(pod)
     if (!target) return
-    logContainer.value = container || target.containers?.[0]?.name || ''
-    logsPod.value = pod ? target : null
-    logsOpen.value = true
+    
+    const containerName = container || target.containers?.[0]?.name || ''
+    const tabId = `logs_${target.namespace}_${target.name}_${containerName}_${Date.now()}`
+    const tab: ActionTab = {
+      id: tabId,
+      type: 'logs',
+      namespace: target.namespace,
+      pod: target.name,
+      podObj: target,
+      container: containerName,
+      title: `Logs: ${target.name}/${containerName}`,
+    }
+    
+    openTabs.value.push(tab)
+    activeTabId.value = tabId
+    tabbedActionsOpen.value = true
+  }
+
+  function closeTab(tabId: string) {
+    openTabs.value = openTabs.value.filter(t => t.id !== tabId)
+    if (activeTabId.value === tabId && openTabs.value.length > 0) {
+      activeTabId.value = openTabs.value[openTabs.value.length - 1].id
+    }
+    if (openTabs.value.length === 0) {
+      tabbedActionsOpen.value = false
+    }
   }
 
   function editPod(pod?: any) {
@@ -119,12 +201,24 @@ export function usePodActions(deps: {
     logsPod.value = null
   }
 
+  function setTabbedActionsPanelRef(ref: any) {
+    tabbedActionsPanelRef.value = ref
+  }
+
+  function closeTabbedActions() {
+    tabbedActionsOpen.value = false
+  }
+
   return {
     terminalOpen,
     terminalMode,
     terminalPod,
     logsOpen,
     logsPod,
+    tabbedActionsOpen,
+    tabbedActionsPanelRef,
+    openTabs,
+    activeTabId,
     yamlEditorOpen,
     yamlEditorMeta,
     openAttach,
@@ -137,5 +231,8 @@ export function usePodActions(deps: {
     removePod,
     closeTerminal,
     closeLogs,
+    closeTab,
+    setTabbedActionsPanelRef,
+    closeTabbedActions,
   }
 }
