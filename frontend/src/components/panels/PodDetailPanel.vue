@@ -79,11 +79,7 @@
     <div v-if="activeTab === 'properties'" class="detail-section text-gray-300">
       <!-- Pod Metrics -->
       <div v-if="clusterName" class="metrics-section">
-        <PodMetricsViewer
-          :cluster-name="clusterName"
-          :namespace="pod.namespace"
-          :pod-name="pod.name"
-        />
+        <PodMetricsViewer :cluster-name="clusterName" :namespace="pod.namespace" :pod-name="pod.name" />
       </div>
 
       <div class="meta-row">
@@ -147,7 +143,13 @@
           <span v-if="!tolerationsExpanded">{{ pod.tolerations.length }}</span>
           <table v-else class="tolerations-table">
             <thead>
-              <tr><th>Key</th><th>Operator</th><th>Value</th><th>Effect</th><th>Seconds</th></tr>
+              <tr>
+                <th>Key</th>
+                <th>Operator</th>
+                <th>Value</th>
+                <th>Effect</th>
+                <th>Seconds</th>
+              </tr>
             </thead>
             <tbody>
               <tr v-for="t in pod.tolerations" :key="JSON.stringify(t)">
@@ -196,7 +198,7 @@
         </div>
       </div>
 
-      
+
       <div class="meta-row cursor-pointer" @click="volumesExpanded = !volumesExpanded">
         <span class="meta-label">
           Pod Volumes
@@ -253,14 +255,10 @@
 
         <!-- Container Body -->
         <div v-if="!collapsedContainers.has(c.name)" class="ct-body">
-        <!-- Container Metrics -->
+          <!-- Container Metrics -->
           <div v-if="clusterName && !c.isInit" class="ct-metrics-section">
-            <ContainerMetricsViewer
-              :cluster-name="clusterName"
-              :namespace="pod.namespace"
-              :pod-name="pod.name"
-              :container-name="c.name"
-            />
+            <ContainerMetricsViewer :cluster-name="clusterName" :namespace="pod.namespace" :pod-name="pod.name"
+              :container-name="c.name" />
           </div>
 
           <!-- Status -->
@@ -289,19 +287,15 @@
               Ports
               <span class="ct-sec-toggle">{{ isContainerSectionCollapsed(c.name, 'ports') ? '›' : '×' }}</span>
             </span>
-            <span class="ct-val" v-if="isContainerSectionCollapsed(c.name, 'ports')">
-              {{ (c.ports?.length || 0) }} {{ (c.ports?.length || 0) === 1 ? 'Port' : 'Ports' }}
-            </span>
-            <span class="ct-val" v-else-if="!c.ports || !c.ports.length">None</span>
           </div>
-          <template v-if="!isContainerSectionCollapsed(c.name, 'ports') && c.ports && c.ports.length">
-            <div v-for="p in c.ports" :key="portKey(p)" class="ct-row ct-sub-row ct-row-alt">
-              <span class="ct-label"></span>
-              <span class="ct-val ct-port-cell">
-                <span class="ct-port-link">{{ p.containerPort }}/{{ p.protocol || 'TCP' }}</span>
-              </span>
-            </div>
-          </template>
+          <div v-if="!isContainerSectionCollapsed(c.name, 'ports')" class="ct-row ct-sub-row ct-row-alt">
+            <span class="ct-label"></span>
+            <span class="ct-val">
+              <PodPortsSection :namespace="pod.namespace" :pod-name="pod.name" :ports="c.ports"
+                :port-forwards="portForwards" :on-start-port-forward="onStartPortForward"
+                :on-stop-port-forward="onStopPortForward" />
+            </span>
+          </div>
 
           <!-- Environment -->
           <div class="ct-row ct-row-click" @click.stop="toggleContainerSection(c.name, 'env')">
@@ -315,7 +309,8 @@
             <span class="ct-val" v-else-if="!c.env || !c.env.length">None</span>
           </div>
           <template v-if="!isContainerSectionCollapsed(c.name, 'env') && c.env && c.env.length">
-            <div v-for="(e, ei) in c.env" :key="e.name" :class="['ct-row', 'ct-sub-row', { 'ct-row-alt': (ei as number) % 2 === 0 }]">
+            <div v-for="(e, ei) in c.env" :key="e.name"
+              :class="['ct-row', 'ct-sub-row', { 'ct-row-alt': (ei as number) % 2 === 0 }]">
               <span class="ct-label"></span>
               <span class="ct-val ct-env-cell">
                 <span class="ct-env-name">{{ e.name }}</span>
@@ -336,7 +331,7 @@
             </span>
             <span class="ct-val" v-else-if="!c.volumeMounts || !c.volumeMounts.length">None</span>
           </div>
-          
+
           <template v-if="!isContainerSectionCollapsed(c.name, 'mounts') && c.volumeMounts && c.volumeMounts.length">
             <template v-for="(m, mi) in c.volumeMounts" :key="m.name + ':' + m.mountPath">
               <div :class="['ct-row', 'ct-sub-row', { 'ct-row-alt': (mi as number) % 2 === 0 }]">
@@ -490,11 +485,15 @@ import type {
 } from '../../types'
 import PodMetricsViewer from '../metrics/PodMetricsViewer.vue'
 import ContainerMetricsViewer from '../metrics/ContainerMetricsViewer.vue'
+import PodPortsSection from './PodPortsSection.vue'
 
 const props = defineProps<{
   pod: any
   statusClass: (s: string) => string
   clusterName?: string
+  portForwards?: any[]
+  onStartPortForward?: (ns: string, podName: string, localPort: number, podPort: number) => Promise<void>
+  onStopPortForward?: (id: string) => Promise<void>
 }>()
 
 const emit = defineEmits<{
@@ -515,19 +514,19 @@ const showLogsMenu = ref(false)
 
 function handleAttach(container: string) {
   showAttachMenu.value = false
-  
+
   emit('attach', { container, pod: props.pod })
 }
 
 function handleTerminal(container: string) {
   showTerminalMenu.value = false
-  
+
   emit('terminal', { container, pod: props.pod })
 }
 
 function handleLogs(container: string) {
   showLogsMenu.value = false
-  
+
   emit('logs', { container, pod: props.pod })
 }
 
@@ -546,6 +545,13 @@ const annotationsExpanded = ref(false)
 const tolerationsExpanded = ref(false)
 const affinityExpanded = ref(true)
 const volumesExpanded = ref(false)
+
+// Port forwarding
+const pfModalOpen = ref(false)
+const pfLocalPort = ref(8080)
+const pfSelectedPort = ref<{ containerPort: number; protocol: string } | null>(null)
+const pfLoading = ref(false)
+const pfCurrentContainer = ref('')
 
 // ═══════ Affinity ═══════
 
