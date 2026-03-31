@@ -114,7 +114,7 @@ onMounted(() => {
 });
 
 watch([() => props.resourceName, () => props.resourceType, () => props.namespace, () => props.content], () => {
-  if (props.resourceName && props.resourceType && props.namespace) {
+  if (props.resourceName && props.resourceType && props.namespace !== undefined) {
     // Check if this resource is already open
     const existingTab = tabs.value.find(
       (t) =>
