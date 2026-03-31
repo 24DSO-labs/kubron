@@ -270,7 +270,7 @@ import type { DeploymentInfo, PodAntiAffinityInfo, ConditionInfo, PodInfo } from
 // Import from useK8s composable instead
 import { useK8s } from '../../composables/useK8s'
 import DeploymentMetricsViewer from '../metrics/DeploymentMetricsViewer.vue'
-const { rollbackDeployment: rollbackDeploymentAPI, pods, podMetrics } = useK8s()
+const { rollbackDeployment: rollbackDeploymentAPI, pods, podMetrics, loadRevisions, revisions } = useK8s()
 
 const props = defineProps<{
   deployment: DeploymentInfo | null
@@ -292,6 +292,7 @@ const tabs = [
   { id: 'revisions', label: 'Revisions' },
   { id: 'pods', label: 'Pods' },
 ]
+const revisionsLoaded = ref(false)
 
 const labelsExpanded = ref(false)
 const annotationsExpanded = ref(false)
@@ -502,7 +503,20 @@ async function loadDeploymentPods() {
 
 watch(() => props.deployment, () => {
   loadDeploymentPods()
+  revisionsLoaded.value = false
 }, { immediate: true })
+
+watch(() => activeTab.value, async () => {
+  // Load revisions when switching to revisions tab
+  if (activeTab.value === 'revisions' && !revisionsLoaded.value && props.deployment) {
+    try {
+      await loadRevisions(props.deployment.namespace, props.deployment.name)
+      revisionsLoaded.value = true
+    } catch (err) {
+      console.error('Failed to load revisions:', err)
+    }
+  }
+})
 
 watch(() => pods.value, () => {
   loadDeploymentPods()
@@ -732,9 +746,10 @@ const yamlTree = computed(() => {
 })
 
 const sortedRevisions = computed(() => {
-  if (!props.deployment?.revisions || !props.deployment.revisions.length) return []
+  // Use revisions from composable instead of props.deployment.revisions
+  if (!revisions.value || !revisions.value.length) return []
   // Sort by revision number descending (highest/newest first)
-  return [...props.deployment.revisions].sort((a, b) => {
+  return [...revisions.value].sort((a, b) => {
     const revA = parseInt(String(a.revision || 0), 10)
     const revB = parseInt(String(b.revision || 0), 10)
     return revB - revA
