@@ -25,7 +25,10 @@
         <span class="ctx-menu-arrow"></span>Show Details
       </div>
       <div class="ctx-menu-item" @click="handleYAML">
-        <span class="ctx-menu-arrow"></span>View YAML
+        <span class="ctx-menu-arrow"></span>Edit
+      </div>
+      <div class="ctx-menu-item ctx-menu-danger" @click="handleDelete">
+        <span class="ctx-menu-arrow"></span>Delete
       </div>
     </div>
   </div>
@@ -38,12 +41,13 @@ import { ref } from 'vue'
 
 defineProps<{ items: ClusterRoleBinding[]; search: string }>()
 
-const emit = defineEmits<{
-  (e: 'refresh'): void
-  (e: 'search', val: string): void
-  (e: 'select', crb: ClusterRoleBinding): void
-  (e: 'yaml', ns: string, name: string): void
-}>()
+const emit = defineEmits({
+  refresh: null,
+  search: null,
+  select: null,
+  yaml: null,
+  delete: null
+})
 
 const showContextMenu = ref(false)
 const menuStyle = ref<Record<string, string>>({})
@@ -77,6 +81,7 @@ function openContextMenu(crb: ClusterRoleBinding, event: MouseEvent) {
 function hideContextMenu() { showContextMenu.value = false }
 function handleShowDetails() { if (selectedCRB.value) emit('select', selectedCRB.value); hideContextMenu() }
 function handleYAML() { if (selectedCRB.value) emit('yaml', '', selectedCRB.value.metadata?.name || ''); hideContextMenu() }
+function handleDelete() { if (selectedCRB.value) emit('delete', '', selectedCRB.value.metadata?.name || ''); hideContextMenu() }
 function onRefresh() { emit('refresh') }
 function onSearch(val: string) { emit('search', val) }
 </script>

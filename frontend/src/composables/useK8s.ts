@@ -92,6 +92,8 @@ const yamlEditing = ref(false)
 const yamlEditKind = ref('')
 const yamlEditNs = ref('')
 const yamlEditName = ref('')
+const selectedServiceAccount = ref<any | null>(null)
+
 const selectedService = ref<ServiceDetail | null>(null)
 
 // Port forward form
@@ -166,6 +168,23 @@ const filteredRoles = computed(() => filterBySearch(roles.value || []))
 const filteredRoleBindings = computed(() => filterBySearch(rolebindings.value || []))
 const filteredClusterRoles = computed(() => filterBySearch(clusterroles.value || []))
 const filteredClusterRoleBindings = computed(() => filterBySearch(clusterrolebindings.value || []))
+
+async function openServiceAccountDetail(sa: any) {
+  try {
+    const app = await dynamicImportApp()
+    if ((app as any).GetServiceAccountDetail) {
+      selectedServiceAccount.value = await (app as any).GetServiceAccountDetail(sa.metadata.namespace, sa.metadata.name)
+    } else {
+      selectedServiceAccount.value = sa  // Fallback to list item if detail not available
+    }
+    selectedPod.value = null
+    selectedConfigMap.value = null
+    yamlContent.value = ''
+  } catch (e: any) {
+    error.value = 'Ошибка: ' + (e.message || e)
+  }
+}
+
 
 // --- Connection ---
 async function loadContexts() {
@@ -804,6 +823,81 @@ async function deleteDeploymentByName(ns: string, name: string) {
   }
 }
 
+// --- Delete ServiceAccount ---
+async function deleteServiceAccount(ns: string, name: string) {
+  try {
+    const app = await dynamicImportApp()
+    if ((app as any).DeleteServiceAccount) {
+      await (app as any).DeleteServiceAccount(ns, name)
+    } else {
+      throw new Error('DeleteServiceAccount not available')
+    }
+  } catch (e: any) {
+    error.value = 'Ошибка удаления ServiceAccount: ' + (e.message || e)
+    throw e
+  }
+}
+
+// --- Delete Role ---
+async function deleteRole(ns: string, name: string) {
+  try {
+    const app = await dynamicImportApp()
+    if ((app as any).DeleteRole) {
+      await (app as any).DeleteRole(ns, name)
+    } else {
+      throw new Error('DeleteRole not available')
+    }
+  } catch (e: any) {
+    error.value = 'Ошибка удаления Role: ' + (e.message || e)
+    throw e
+  }
+}
+
+// --- Delete RoleBinding ---
+async function deleteRoleBinding(ns: string, name: string) {
+  try {
+    const app = await dynamicImportApp()
+    if ((app as any).DeleteRoleBinding) {
+      await (app as any).DeleteRoleBinding(ns, name)
+    } else {
+      throw new Error('DeleteRoleBinding not available')
+    }
+  } catch (e: any) {
+    error.value = 'Ошибка удаления RoleBinding: ' + (e.message || e)
+    throw e
+  }
+}
+
+ // --- Delete ClusterRole ---
+async function deleteClusterRole(name: string) {
+  try {
+    const app = await dynamicImportApp()
+    if ((app as any).DeleteClusterRole) {
+      await (app as any).DeleteClusterRole(name)
+    } else {
+      throw new Error('DeleteClusterRole not available')
+    }
+  } catch (e: any) {
+    error.value = 'Ошибка удаления ClusterRole: ' + (e.message || e)
+    throw e
+  }
+}
+
+// --- Delete ClusterRoleBinding ---
+async function deleteClusterRoleBinding(name: string) {
+  try {
+    const app = await dynamicImportApp()
+    if ((app as any).DeleteClusterRoleBinding) {
+      await (app as any).DeleteClusterRoleBinding(name)
+    } else {
+      throw new Error('DeleteClusterRoleBinding not available')
+    }
+  } catch (e: any) {
+    error.value = 'Ошибка удаления ClusterRoleBinding: ' + (e.message || e)
+    throw e
+  }
+}
+
 // --- Export ---
 export function useK8s() {
   // Watch for navigation changes
@@ -846,10 +940,11 @@ export function useK8s() {
     switchView, onNamespaceChange, refreshData,
     openPodDetail, loadLogs, deletePod, deletePodByName,
      runExec,
-    doScale, scaleDeployment, restartDeployment, loadRevisions, rollbackDeployment, deleteDeploymentByName,
+    doScale, scaleDeployment, restartDeployment, loadRevisions, rollbackDeployment, deleteDeploymentByName, deleteServiceAccount, deleteRole, deleteRoleBinding, deleteClusterRole, deleteClusterRoleBinding,
     openConfigMapDetail, showYAML, applyYAML,
     loadPodMetrics, loadNodeMetrics,
     startPortForward, stopPortForward, refreshPortForwards,
+    openServiceAccountDetail,
     openServiceDetail, forwardServicePort,
     getPods: GetPods,
   }

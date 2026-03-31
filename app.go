@@ -379,6 +379,30 @@ func (a *App) GetClusterRoleBindings() (interface{}, error) {
 	return list.Items, nil
 }
 
+func (a *App) GetServiceAccountDetail(namespace, name string) (interface{}, error) {
+	return a.k8sMgr.GetServiceAccountDetail(namespace, name)
+}
+
+func (a *App) DeleteServiceAccount(namespace, name string) error {
+	return a.k8sMgr.DeleteServiceAccount(namespace, name)
+}
+
+func (a *App) DeleteRole(namespace, name string) error {
+	return a.k8sMgr.DeleteRole(namespace, name)
+}
+
+func (a *App) DeleteRoleBinding(namespace, name string) error {
+	return a.k8sMgr.DeleteRoleBinding(namespace, name)
+}
+
+func (a *App) DeleteClusterRole(name string) error {
+	return a.k8sMgr.DeleteClusterRole(name)
+}
+
+func (a *App) DeleteClusterRoleBinding(name string) error {
+	return a.k8sMgr.DeleteClusterRoleBinding(name)
+}
+
 // === YAML ===
 
 func (a *App) GetResourceYAML(namespace, kind, name string, clean bool) (string, error) {

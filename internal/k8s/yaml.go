@@ -67,12 +67,17 @@ func removeFields(obj interface{}) interface{} {
 func getKindName(kind string) string {
 	// Преобразуем в правильный формат
 	kindMap := map[string]string{
-		"pod":        "Pod",
-		"deployment": "Deployment",
-		"service":    "Service",
-		"configmap":  "ConfigMap",
-		"secret":     "Secret",
-		"node":       "Node",
+		"pod":                "Pod",
+		"deployment":         "Deployment",
+		"service":            "Service",
+		"configmap":          "ConfigMap",
+		"secret":             "Secret",
+		"node":               "Node",
+		"serviceaccount":     "ServiceAccount",
+		"role":               "Role",
+		"clusterrole":        "ClusterRole",
+		"rolebinding":        "RoleBinding",
+		"clusterrolebinding": "ClusterRoleBinding",
 	}
 	if k, ok := kindMap[kind]; ok {
 		return k
@@ -239,22 +244,64 @@ func (m *Manager) GetResourceYAML(namespace, kind, name string, clean bool) (str
 		data, err = conn.Client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 	case "node":
 		data, err = conn.Client.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
+	case "serviceaccount":
+		data, err = conn.Client.CoreV1().ServiceAccounts(namespace).Get(ctx, name, metav1.GetOptions{})
+	case "role":
+		data, err = conn.Client.RbacV1().Roles(namespace).Get(ctx, name, metav1.GetOptions{})
+	case "rolebinding":
+		data, err = conn.Client.RbacV1().RoleBindings(namespace).Get(ctx, name, metav1.GetOptions{})
+	case "clusterrolebinding":
+		data, err = conn.Client.RbacV1().ClusterRoleBindings().Get(ctx, name, metav1.GetOptions{})
+	case "clusterrole":
+		dynClient, dynErr := dynamic.NewForConfig(conn.Config)
+		if dynErr != nil {
+			err = dynErr
+			break
+		}
+		gvr := schema.GroupVersionResource{
+			Group:    "rbac.authorization.k8s.io",
+			Version:  "v1",
+			Resource: "clusterroles",
+		}
+		unstructured, dynErr := dynClient.Resource(gvr).Get(ctx, name, metav1.GetOptions{})
+		if dynErr != nil {
+			err = dynErr
+			break
+		}
+		data = unstructured.UnstructuredContent()
 	default:
 		// Для неизвестных ресурсов используем dynamic client
 		return m.getDynamicYAML(conn, ctx, namespace, kind, name, clean)
 	}
 
+	fmt.Println("GetResourceYAML: kind=", kind, " name=", name, " namespace=", namespace, " data=", data, " err=", err)
+
 	if err != nil {
 		return "", fmt.Errorf("не удалось получить %s/%s: %w", kind, name, err)
 	}
 
+	if data == nil {
+		return "", fmt.Errorf("данные для %s/%s пусты", kind, name)
+	}
+
 	cleaned := cleanupYAMLObject(data)
-	cleanedMap := cleaned.(map[string]interface{})
+	if cleaned == nil {
+		return "", fmt.Errorf("не удалось очистить данные %s/%s", kind, name)
+	}
+
+	cleanedMap, ok := cleaned.(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("неверный тип данных для %s/%s", kind, name)
+	}
+
+	fmt.Println("cleanedMap: ", cleanedMap)
 
 	// Очищаем от служебных полей если нужно
 	if clean {
 		cleanedMap = cleanYAMLForEditing(cleanedMap)
 	}
+
+	fmt.Println("cleanedMap after clean: ", cleanedMap)
 
 	// Переупорядочиваем metadata если она есть
 	if metadata, ok := cleanedMap["metadata"].(map[string]interface{}); ok {
@@ -263,7 +310,15 @@ func (m *Manager) GetResourceYAML(namespace, kind, name string, clean bool) (str
 
 	// Добавляем apiVersion и kind вручную
 	ordered := make(map[string]interface{})
-	ordered["apiVersion"] = "v1"
+
+	// Правильная apiVersion для разных типов ресурсов
+	switch kind {
+	case "role", "clusterrole", "rolebinding", "clusterrolebinding":
+		ordered["apiVersion"] = "rbac.authorization.k8s.io/v1"
+	default:
+		ordered["apiVersion"] = "v1"
+	}
+
 	ordered["kind"] = getKindName(kind)
 
 	// Копируем остальные поля
@@ -274,10 +329,14 @@ func (m *Manager) GetResourceYAML(namespace, kind, name string, clean bool) (str
 	// Переупорядочиваем поля верхнего уровня
 	ordered = reorderTopLevel(ordered)
 
+	fmt.Println("ordered: ", ordered)
+
 	yamlBytes, err := yaml.Marshal(ordered)
 	if err != nil {
 		return "", fmt.Errorf("ошибка сериализации: %w", err)
 	}
+
+	fmt.Println("yamlBytes: ", string(yamlBytes))
 
 	return string(yamlBytes), nil
 }
@@ -320,7 +379,15 @@ func (m *Manager) getDynamicYAML(conn *ClusterConnection, ctx context.Context, n
 
 	// Добавляем apiVersion и kind вручную
 	ordered := make(map[string]interface{})
-	ordered["apiVersion"] = "v1"
+
+	// Правильная apiVersion для разных типов ресурсов
+	switch kind {
+	case "role", "clusterrole", "rolebinding", "clusterrolebinding":
+		ordered["apiVersion"] = "rbac.authorization.k8s.io/v1"
+	default:
+		ordered["apiVersion"] = "v1"
+	}
+
 	ordered["kind"] = getKindName(kind)
 
 	// Копируем остальные поля
