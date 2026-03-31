@@ -1,27 +1,32 @@
 <template>
-  <div @click="hideContextMenu">
-    <ContentHeader icon="" title="Namespaces" :count="filteredItems.length" :search="search" showSearch @refresh="onRefresh" @search="onSearch" />
-    <table v-if="filteredItems.length > 0" class="table">
+  <div>
+    <div v-if="showContextMenu" class="menu-overlay" @click="hideContextMenu"></div>
+    <ContentHeader icon="" title="Namespaces" :count="items.length" :search="search" showSearch @refresh="onRefresh" @search="onSearch" />
+    <table v-if="items.length > 0" class="table">
       <thead>
         <tr>
           <th>Name</th><th>Status</th><th>Age</th><th></th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="namespace in filteredItems" :key="namespace.name" @click="$emit('select', namespace)" class="clickable-row">
-          <td class="resource-name">{{ namespace.name }}</td>
-          <td><span :class="textClass(namespace.status)">{{ namespace.status }}</span></td>
-          <td>{{ namespace.age }}</td>
-          <td>
-            <button class="btn-icon" @click.stop="openContextMenu(namespace, $event)">⋮</button>
+        <tr v-for="ns in items" :key="ns.name" @click="$emit('select', ns)" class="clickable-row">
+          <td class="resource-name">{{ ns.name }}</td>
+          <td><span class="status-badge" :class="statusClass(ns.status)">{{ ns.status }}</span></td>
+          <td>{{ ns.age }}</td>
+          <td @click.stop>
+            <button class="btn-icon" @click.stop="openContextMenu(ns, $event)">⋮</button>
           </td>
         </tr>
       </tbody>
     </table>
-    <div v-else class="empty">Нет namespaces</div>
+    <div v-else class="empty">Нет Namespaces</div>
     <div v-if="showContextMenu" :style="menuStyle" class="cluster-context-menu" @click.stop>
-      <div class="ctx-menu-item" @click="handleShowDetails">Show Details</div>
-      <div class="ctx-menu-item ctx-menu-danger" @click="handleDelete">Delete</div>
+      <div class="ctx-menu-item" @click="handleShowDetails">
+        <span class="ctx-menu-arrow"></span>Show Details
+      </div>
+      <div class="ctx-menu-item" @click="handleYAML">
+        <span class="ctx-menu-arrow"></span>View YAML
+      </div>
     </div>
   </div>
 </template>
@@ -29,52 +34,33 @@
 <script lang="ts" setup>
 import type { NamespaceInfo } from '../../types'
 import ContentHeader from '../ContentHeader.vue'
-import { ref, computed, onMounted } from 'vue'
-import { useK8s } from '../../composables/useK8s'
+import { ref } from 'vue'
 
-const props = defineProps<{
-  items?: NamespaceInfo[]
-  search?: string
-  statusClass: (s: string) => string
-}>()
+defineProps<{ items: NamespaceInfo[]; search: string }>()
 
 const emit = defineEmits<{
   (e: 'refresh'): void
   (e: 'search', val: string): void
-  (e: 'select', namespace: NamespaceInfo): void
-  (e: 'delete', namespace: NamespaceInfo): void
+  (e: 'select', ns: NamespaceInfo): void
+  (e: 'yaml', ns: string, name: string): void
 }>()
-
-const k8s = useK8s()
-const localSearch = ref('')
-
-const items = computed(() => props.items || k8s.namespaces.value || [])
-const search = computed(() => props.search || localSearch.value)
-
-const filteredItems = computed(() => {
-  const s = search.value.toLowerCase()
-  if (!s) return items.value
-  return items.value.filter(ns => ns.name.toLowerCase().includes(s))
-})
 
 const showContextMenu = ref(false)
 const menuStyle = ref<Record<string, string>>({})
 const selectedNamespace = ref<NamespaceInfo | null>(null)
 
-onMounted(async () => {
-  if (!props.items) {
-    await k8s.loadNamespaces()
-  }
-})
+function statusClass(status: string): string {
+  return status === 'Active' ? 'status-active' : 'status-terminating'
+}
 
-function openContextMenu(namespace: NamespaceInfo, event: MouseEvent) {
-  selectedNamespace.value = namespace
+function openContextMenu(ns: NamespaceInfo, event: MouseEvent) {
+  selectedNamespace.value = ns
+
   const button = event.target as HTMLElement
   const rect = button.getBoundingClientRect()
   const menuWidth = 200
-  const menuHeight = 100
+  const menuHeight = 120
 
-  // Horizontal: prefer left (align right to button)
   let left
   const availableLeft = rect.left
   if (availableLeft >= menuWidth) {
@@ -86,7 +72,6 @@ function openContextMenu(namespace: NamespaceInfo, event: MouseEvent) {
     }
   }
 
-  // Vertical: prefer bottom
   let top
   const availableBottom = window.innerHeight - rect.bottom
   if (availableBottom >= menuHeight) {
@@ -115,19 +100,83 @@ function handleShowDetails() {
   hideContextMenu()
 }
 
-function handleDelete() {
-  if (selectedNamespace.value) emit('delete', selectedNamespace.value)
+function handleYAML() {
+  if (selectedNamespace.value) {
+    emit('yaml', selectedNamespace.value.name, selectedNamespace.value.name)
+  }
   hideContextMenu()
 }
 
-function textClass(s: string): string {
-  return `text-${s.toLowerCase()}`
-}
-
 function onRefresh() { emit('refresh') }
-
-function onSearch(val: string) {
-  localSearch.value = val
-  emit('search', val)
-}
+function onSearch(val: string) { emit('search', val) }
 </script>
+
+<style scoped>
+.status-badge {
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.status-active {
+  background: rgba(74, 222, 128, 0.2);
+  color: #4ade80;
+}
+
+.status-terminating {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 999;
+  cursor: default;
+}
+
+.cluster-context-menu {
+  background: #1e1f35;
+  border: 1px solid #3b3d5c;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  min-width: 160px;
+}
+
+.ctx-menu-item {
+  padding: 6px 12px;
+  color: #d4d4d4;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background 0.15s;
+  padding-left: 34px;
+  text-align: left;
+  position: relative;
+  margin: -9px;
+}
+
+.ctx-menu-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.ctx-menu-item:first-child {
+  border-radius: 3px 3px 0 0;
+}
+
+.ctx-menu-item:last-child {
+  border-radius: 0 0 3px 3px;
+}
+
+.ctx-menu-arrow {
+  position: absolute;
+  left: 19px;
+  color: #868d8a;
+  font-size: 0.9rem;
+}
+</style>
