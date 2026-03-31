@@ -165,37 +165,6 @@ func (m *Manager) GetDeployments(namespace string) ([]DeploymentInfo, error) {
 			}
 		}
 
-		// Get revisions (ReplicaSets)
-		var revisions []RevisionInfo
-		selector := metav1.FormatLabelSelector(dep.Spec.Selector)
-		rsList, err := conn.Client.AppsV1().ReplicaSets(namespace).List(ctx, metav1.ListOptions{
-			LabelSelector: selector,
-		})
-		if err == nil {
-			for _, rs := range rsList.Items {
-				revision := rs.Annotations["deployment.kubernetes.io/revision"]
-
-				var rsImages []string
-				for _, c := range rs.Spec.Template.Spec.Containers {
-					rsImages = append(rsImages, c.Image)
-				}
-
-				var rsReplicas int32 = 0
-				if rs.Spec.Replicas != nil {
-					rsReplicas = *rs.Spec.Replicas
-				}
-
-				revisions = append(revisions, RevisionInfo{
-					Revision: revision,
-					Name:     rs.Name,
-					Replicas: rsReplicas,
-					Ready:    rs.Status.ReadyReplicas,
-					Age:      formatAge(rs.CreationTimestamp.Time),
-					Images:   joinImages(rsImages),
-				})
-			}
-		}
-
 		deployments = append(deployments, DeploymentInfo{
 			Name:            dep.Name,
 			Namespace:       dep.Namespace,
@@ -212,7 +181,7 @@ func (m *Manager) GetDeployments(namespace string) ([]DeploymentInfo, error) {
 			Images:          images,
 			Conditions:      conditions,
 			PodAntiAffinity: podAntiAffinity,
-			Revisions:       revisions,
+			Revisions:       nil,
 		})
 	}
 
