@@ -274,8 +274,6 @@ func (m *Manager) GetResourceYAML(namespace, kind, name string, clean bool) (str
 		return m.getDynamicYAML(conn, ctx, namespace, kind, name, clean)
 	}
 
-	fmt.Println("GetResourceYAML: kind=", kind, " name=", name, " namespace=", namespace, " data=", data, " err=", err)
-
 	if err != nil {
 		return "", fmt.Errorf("не удалось получить %s/%s: %w", kind, name, err)
 	}
@@ -294,14 +292,10 @@ func (m *Manager) GetResourceYAML(namespace, kind, name string, clean bool) (str
 		return "", fmt.Errorf("неверный тип данных для %s/%s", kind, name)
 	}
 
-	fmt.Println("cleanedMap: ", cleanedMap)
-
 	// Очищаем от служебных полей если нужно
 	if clean {
 		cleanedMap = cleanYAMLForEditing(cleanedMap)
 	}
-
-	fmt.Println("cleanedMap after clean: ", cleanedMap)
 
 	// Переупорядочиваем metadata если она есть
 	if metadata, ok := cleanedMap["metadata"].(map[string]interface{}); ok {
@@ -329,14 +323,10 @@ func (m *Manager) GetResourceYAML(namespace, kind, name string, clean bool) (str
 	// Переупорядочиваем поля верхнего уровня
 	ordered = reorderTopLevel(ordered)
 
-	fmt.Println("ordered: ", ordered)
-
 	yamlBytes, err := yaml.Marshal(ordered)
 	if err != nil {
 		return "", fmt.Errorf("ошибка сериализации: %w", err)
 	}
-
-	fmt.Println("yamlBytes: ", string(yamlBytes))
 
 	return string(yamlBytes), nil
 }
