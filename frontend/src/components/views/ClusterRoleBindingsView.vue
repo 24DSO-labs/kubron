@@ -1,38 +1,31 @@
 <template>
-  <div class="flex flex-col h-full">
-    <div class="px-4 py-3 border-b border-gray-700 flex justify-between items-center">
-      <div>
-        <h2 class="text-xl font-semibold">⭐🔗 Cluster Role Bindings</h2>
-        <p class="text-sm text-gray-400">{{ items.length }} items</p>
+  <div>
+    <div v-if="showContextMenu" class="menu-overlay" @click="hideContextMenu"></div>
+    <ContentHeader icon="" title="ClusterRoleBindings" :count="items.length" :search="search" showSearch @refresh="onRefresh" @search="onSearch" />
+    <table v-if="items.length > 0" class="table">
+      <thead>
+        <tr>
+          <th>Name</th><th>Role</th><th>Age</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="(crb, idx) in items" :key="idx" @click="$emit('select', crb)" class="clickable-row">
+          <td class="resource-name">{{ crb.metadata?.name }}</td>
+          <td>{{ crb.roleRef?.name }}</td>
+          <td>{{ formatAge(crb.metadata?.creationTimestamp) }}</td>
+          <td @click.stop>
+            <button class="btn-icon" @click.stop="openContextMenu(crb, $event)">⋮</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div v-else class="empty">Нет ClusterRoleBindings</div>
+    <div v-if="showContextMenu" :style="menuStyle" class="cluster-context-menu" @click.stop>
+      <div class="ctx-menu-item" @click="handleShowDetails">
+        <span class="ctx-menu-arrow"></span>Show Details
       </div>
-      <input
-        :value="search"
-        @input="onSearch(($event.target as HTMLInputElement).value)"
-        type="text"
-        placeholder="Поиск..."
-        class="px-3 py-1 bg-gray-700 border border-gray-600 rounded text-sm"
-      />
-    </div>
-    <div class="flex-1 overflow-auto p-4">
-      <div v-if="items.length === 0" class="text-gray-400 p-4">
-        Нет Cluster Role Bindings
-      </div>
-      <div v-else class="space-y-2">
-        <div
-          v-for="crb in items"
-          :key="crb.metadata?.name"
-          class="bg-gray-800 rounded p-3 cursor-pointer hover:bg-gray-700 transition"
-        >
-          <div class="flex justify-between items-start">
-            <div class="flex-1">
-              <div class="font-semibold text-white">{{ crb.metadata?.name }}</div>
-              <div class="text-xs text-gray-500 mt-1">Cluster Role: {{ crb.roleRef?.name }} | Subjects: {{ crb.subjects?.length || 0 }}</div>
-            </div>
-            <div class="text-right text-sm text-gray-500">
-              {{ getAge(crb.metadata?.creationTimestamp) }}
-            </div>
-          </div>
-        </div>
+      <div class="ctx-menu-item" @click="handleYAML">
+        <span class="ctx-menu-arrow"></span>View YAML
       </div>
     </div>
   </div>
@@ -40,27 +33,60 @@
 
 <script lang="ts" setup>
 import type { ClusterRoleBinding } from '../../types'
+import ContentHeader from '../ContentHeader.vue'
+import { ref } from 'vue'
 
-defineProps<{
-  items: ClusterRoleBinding[]
-  search: string
-}>()
+defineProps<{ items: ClusterRoleBinding[]; search: string }>()
 
 const emit = defineEmits<{
   (e: 'refresh'): void
   (e: 'search', val: string): void
+  (e: 'select', crb: ClusterRoleBinding): void
+  (e: 'yaml', ns: string, name: string): void
 }>()
 
-function onSearch(val: string) { emit('search', val) }
+const showContextMenu = ref(false)
+const menuStyle = ref<Record<string, string>>({})
+const selectedCRB = ref<ClusterRoleBinding | null>(null)
 
-function getAge(creationTimestamp: string | undefined): string {
-  if (!creationTimestamp) return '-'
-  const date = new Date(creationTimestamp)
+function formatAge(timestamp?: string): string {
+  if (!timestamp) return '—'
+  const date = new Date(timestamp)
   const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-  if (days > 0) return `${days}d`
-  return `${hours}h`
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+  if (seconds < 60) return `${seconds}s`
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`
+  return `${Math.floor(seconds / 86400)}d`
 }
+
+function openContextMenu(crb: ClusterRoleBinding, event: MouseEvent) {
+  selectedCRB.value = crb
+  const button = event.target as HTMLElement
+  const rect = button.getBoundingClientRect()
+  const menuWidth = 200
+  const menuHeight = 120
+  let left = rect.left >= menuWidth ? rect.left - menuWidth + window.scrollX : rect.right + window.scrollX
+  if (left + menuWidth > window.innerWidth + window.scrollX) left = window.innerWidth - menuWidth + window.scrollX
+  let top = window.innerHeight - rect.bottom >= menuHeight ? rect.bottom + window.scrollY : rect.top - menuHeight + window.scrollY
+  if (top < window.scrollY) top = window.scrollY
+  menuStyle.value = { position: 'absolute', top: `${top}px`, left: `${left}px` }
+  showContextMenu.value = true
+}
+
+function hideContextMenu() { showContextMenu.value = false }
+function handleShowDetails() { if (selectedCRB.value) emit('select', selectedCRB.value); hideContextMenu() }
+function handleYAML() { if (selectedCRB.value) emit('yaml', '', selectedCRB.value.metadata?.name || ''); hideContextMenu() }
+function onRefresh() { emit('refresh') }
+function onSearch(val: string) { emit('search', val) }
 </script>
+
+<style scoped>
+.menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 999; cursor: default; }
+.cluster-context-menu { background: #1e1f35; border: 1px solid #3b3d5c; border-radius: 4px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); z-index: 1000; min-width: 160px; }
+.ctx-menu-item { padding: 6px 12px; color: #d4d4d4; cursor: pointer; font-size: 0.875rem; transition: background 0.15s; padding-left: 34px; text-align: left; position: relative; margin: -9px; }
+.ctx-menu-item:hover { background: rgba(255, 255, 255, 0.1); color: white; }
+.ctx-menu-item:first-child { border-radius: 3px 3px 0 0; }
+.ctx-menu-item:last-child { border-radius: 0 0 3px 3px; }
+.ctx-menu-arrow { position: absolute; left: 19px; color: #868d8a; font-size: 0.9rem; }
+</style>
