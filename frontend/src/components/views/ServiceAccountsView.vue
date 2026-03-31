@@ -26,7 +26,10 @@
         <span class="ctx-menu-arrow"></span>Show Details
       </div>
       <div class="ctx-menu-item" @click="handleYAML">
-        <span class="ctx-menu-arrow"></span>View YAML
+        <span class="ctx-menu-arrow"></span>Edit
+      </div>
+      <div class="ctx-menu-item ctx-menu-danger" @click="handleDelete">
+        <span class="ctx-menu-arrow"></span>Delete
       </div>
     </div>
   </div>
@@ -44,6 +47,7 @@ const emit = defineEmits<{
   (e: 'search', val: string): void
   (e: 'select', sa: ServiceAccount): void
   (e: 'yaml', ns: string, name: string): void
+  (e: 'delete', ns: string, name: string): void
 }>()
 
 const showContextMenu = ref(false)
@@ -78,6 +82,7 @@ function openContextMenu(sa: ServiceAccount, event: MouseEvent) {
 function hideContextMenu() { showContextMenu.value = false }
 function handleShowDetails() { if (selectedSA.value) emit('select', selectedSA.value); hideContextMenu() }
 function handleYAML() { if (selectedSA.value) emit('yaml', selectedSA.value.metadata?.namespace || '', selectedSA.value.metadata?.name || ''); hideContextMenu() }
+function handleDelete() { if (selectedSA.value) emit('delete', selectedSA.value.metadata?.namespace || '', selectedSA.value.metadata?.name || ''); hideContextMenu() }
 function onRefresh() { emit('refresh') }
 function onSearch(val: string) { emit('search', val) }
 </script>
@@ -90,4 +95,6 @@ function onSearch(val: string) { emit('search', val) }
 .ctx-menu-item:first-child { border-radius: 3px 3px 0 0; }
 .ctx-menu-item:last-child { border-radius: 0 0 3px 3px; }
 .ctx-menu-arrow { position: absolute; left: 19px; color: #868d8a; font-size: 0.9rem; }
+.ctx-menu-danger { color: #ef4444; }
+.ctx-menu-danger:hover { background: rgba(239, 68, 68, 0.2); }
 </style>

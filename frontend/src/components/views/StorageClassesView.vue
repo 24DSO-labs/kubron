@@ -27,7 +27,7 @@
         <span class="ctx-menu-arrow"></span>Show Details
       </div>
       <div class="ctx-menu-item" @click="handleYAML">
-        <span class="ctx-menu-arrow"></span>View YAML
+        <span class="ctx-menu-arrow"></span>Edit
       </div>
     </div>
   </div>

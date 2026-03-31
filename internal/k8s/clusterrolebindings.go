@@ -21,3 +21,18 @@ func (m *Manager) GetClusterRoleBindings() (interface{}, error) {
 	}
 	return list.Items, nil
 }
+
+func (m *Manager) DeleteClusterRoleBinding(name string) error {
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	err = conn.Client.RbacV1().ClusterRoleBindings().Delete(ctx, name, metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}

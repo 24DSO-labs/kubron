@@ -24,8 +24,11 @@
       <div class="ctx-menu-item" @click="handleShowDetails">
         <span class="ctx-menu-arrow"></span>Show Details
       </div>
-      <div class="ctx-menu-item" @click="handleYAML">
-        <span class="ctx-menu-arrow"></span>View YAML
+      <div class="ctx-menu-item" @click="handleEdit">
+        <span class="ctx-menu-arrow"></span>Edit
+      </div>
+      <div class="ctx-menu-item ctx-menu-danger" @click="handleDelete">
+        <span class="ctx-menu-arrow"></span>Delete
       </div>
     </div>
   </div>
@@ -42,6 +45,8 @@ const emit = defineEmits<{
   (e: 'refresh'): void
   (e: 'search', val: string): void
   (e: 'select', role: Role): void
+  (e: 'edit', ns: string, name: string): void
+  (e: 'delete', ns: string, name: string): void
   (e: 'yaml', ns: string, name: string): void
 }>()
 
@@ -107,6 +112,20 @@ function handleShowDetails() {
   hideContextMenu()
 }
 
+function handleEdit() {
+  if (selectedRole.value) {
+    emit('edit', selectedRole.value.metadata?.namespace || '', selectedRole.value.metadata?.name || '')
+  }
+  hideContextMenu()
+}
+
+function handleDelete() {
+  if (selectedRole.value) {
+    emit('delete', selectedRole.value.metadata?.namespace || '', selectedRole.value.metadata?.name || '')
+  }
+  hideContextMenu()
+}
+
 function handleYAML() {
   if (selectedRole.value) {
     emit('yaml', selectedRole.value.metadata?.namespace || '', selectedRole.value.metadata?.name || '')
@@ -168,5 +187,13 @@ function onSearch(val: string) { emit('search', val) }
   left: 19px;
   color: #868d8a;
   font-size: 0.9rem;
+}
+
+.ctx-menu-danger {
+  color: #ef4444;
+}
+
+.ctx-menu-danger:hover {
+  background: rgba(239, 68, 68, 0.2);
 }
 </style>
