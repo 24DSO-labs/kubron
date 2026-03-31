@@ -150,6 +150,54 @@
       @close="selectedNamespaceDetail = null"
     />
 
+    <!-- ServiceAccount Detail Panel -->
+    <ServiceAccountDetailPanel
+      v-if="selectedServiceAccount"
+      :service-account="selectedServiceAccount"
+      @close="selectedServiceAccount = null"
+      @edit="(ns: string, name: string) => onServiceAccountEdit(ns, name)"
+      @delete="(ns: string, name: string) => onServiceAccountDelete(ns, name)"
+      @namespace-click="(ns: string | undefined) => onServiceAccountNamespaceClick(ns)"
+    />
+
+    <!-- Role Detail Panel -->
+    <RoleDetailPanel
+      v-if="selectedRole"
+      :role="selectedRole"
+      @close="selectedRole = null"
+      @edit="(ns: string, name: string) => onRoleEdit(ns, name)"
+      @delete="(ns: string, name: string) => onRoleDelete(ns, name)"
+      @namespace-click="(ns: string | undefined) => onRoleNamespaceClick(ns)"
+    />
+
+    <!-- RoleBinding Detail Panel -->
+    <RoleBindingDetailPanel
+      v-if="selectedRoleBinding"
+      :role-binding="selectedRoleBinding"
+      @close="selectedRoleBinding = null"
+      @edit="(ns: string, name: string) => onRoleBindingEdit(ns, name)"
+      @delete="(ns: string, name: string) => onRoleBindingDelete(ns, name)"
+      @namespace-click="(ns: string | undefined) => onRoleBindingNamespaceClick(ns)"
+    />
+
+    <!-- ClusterRole Detail Panel -->
+    <ClusterRoleDetailPanel
+      v-if="selectedClusterRole"
+      :cluster-role="selectedClusterRole"
+      @close="selectedClusterRole = null"
+      @edit="(ns: string, name: string) => onClusterRoleEdit(ns, name)"
+      @delete="(ns: string, name: string) => onClusterRoleDelete(ns, name)"
+    />
+
+    <!-- ClusterRoleBinding Detail Panel -->
+    <ClusterRoleBindingDetailPanel
+      v-if="selectedClusterRoleBinding"
+      :clusterRoleBinding="selectedClusterRoleBinding"
+      @close="selectedClusterRoleBinding = null"
+      @edit="(ns: string, name: string) => onClusterRoleBindingEdit(ns, name)"
+      @delete="(ns: string, name: string) => onClusterRoleBindingDelete(ns, name)"
+    />
+
     <!-- Tabbed Actions Panel (Terminal/Logs/Attach) -->
     <TabbedActionsPanel
       v-if="podActions.tabbedActionsOpen.value"
@@ -215,6 +263,11 @@ const ScaleDeploymentDialog = defineAsyncComponent(() => import('./components/pa
 const DeploymentLogsPanel = defineAsyncComponent(() => import('./components/panels/DeploymentLogsPanel.vue'))
 const TabbedDeploymentLogsPanel = defineAsyncComponent(() => import('./components/panels/TabbedDeploymentLogsPanel.vue'))
 const ServiceDetailPanel = defineAsyncComponent(() => import('./components/panels/ServiceDetailPanel.vue'))
+const ServiceAccountDetailPanel = defineAsyncComponent(() => import('./components/panels/ServiceAccountDetailPanel.vue'))
+const RoleDetailPanel = defineAsyncComponent(() => import('./components/panels/RoleDetailPanel.vue'))
+const RoleBindingDetailPanel = defineAsyncComponent(() => import('./components/panels/RoleBindingDetailPanel.vue'))
+const ClusterRoleDetailPanel = defineAsyncComponent(() => import('./components/panels/ClusterRoleDetailPanel.vue'))
+const ClusterRoleBindingDetailPanel = defineAsyncComponent(() => import('./components/panels/ClusterRoleBindingDetailPanel.vue'))
 const ConfigMapPanel = defineAsyncComponent(() => import('./components/panels/ConfigMapPanel.vue'))
 const TabbedYamlEditorPanel = defineAsyncComponent(() => import('./components/panels/TabbedYamlEditorPanel.vue'))
 const TabbedActionsPanel = defineAsyncComponent(() => import('./components/panels/TabbedPodActionsPanel.vue'))
@@ -316,6 +369,11 @@ watch(tabbedActionsPanel, (newVal) => {
 
 const selectedNamespaceDetail = ref<any | null>(null)
 const selectedDeployment = ref<any | null>(null)
+const selectedServiceAccount = ref<any | null>(null)
+const selectedRole = ref<any | null>(null)
+const selectedRoleBinding = ref<any | null>(null)
+const selectedClusterRole = ref<any | null>(null)
+const selectedClusterRoleBinding = ref<any | null>(null)
 const showScaleDialog = ref(false)
 const deploymentToScale = ref<any | null>(null)
 const revisionDepNs = ref({ ns: '', name: '' })
@@ -542,6 +600,76 @@ const activeViewEvents = computed(() => {
     events.select = openNamespaceDetail
   }
 
+  if (view === 'serviceaccounts') {
+    events.select = openServiceAccountDetail
+    events.yaml = async (ns: string, n: string) => {
+      try {
+        podActions.yamlEditorMeta.value = { resourceType: 'serviceaccount', resourceName: n, namespace: ns }
+        await showYAML('serviceaccount', ns, n)
+        podActions.yamlEditorOpen.value = true
+      } catch (e: any) {
+        notifications.notifyError(`Error loading YAML: ${e.message || e}`)
+      }
+    }
+    events.delete = (ns: string, n: string) => {
+      if (confirm(`Delete ServiceAccount ${n}?`)) {
+        k8s.deleteServiceAccount(ns, n)
+          .then(() => {
+            notifications.notifySuccess(`ServiceAccount ${n} deleted`)
+            refreshData()
+          })
+          .catch((e: any) => {
+            notifications.notifyError(`Delete error: ${e.message || e}`)
+          })
+      }
+    }
+  }
+
+  if (view === 'roles') {
+    events.select = (role: any) => { selectedRole.value = role }
+    events.edit = (ns: string, n: string) => onRoleEdit(ns, n)
+    events.yaml = (ns: string, n: string) => {
+      podActions.yamlEditorMeta.value = { resourceType: 'role', resourceName: n, namespace: ns }
+      showYAML('role', ns, n)
+        .then(() => {
+          podActions.yamlEditorOpen.value = true
+        })
+        .catch((e: any) => {
+          notifications.notifyError(`Error loading YAML: ${e.message || e}`)
+        })
+    }
+    events.delete = (ns: string, n: string) => {
+      if (confirm(`Delete Role ${n}?`)) {
+        k8s.deleteRole(ns, n)
+          .then(() => {
+            notifications.notifySuccess(`Role ${n} deleted`)
+            refreshData()
+          })
+          .catch((e: any) => {
+            notifications.notifyError(`Delete error: ${e.message || e}`)
+          })
+      }
+    }
+  }
+
+  if (view === 'rolebindings') {
+    events.select = (rb: any) => { selectedRoleBinding.value = rb }
+    events.edit = (ns: string, n: string) => onRoleBindingEdit(ns, n)
+    events.delete = (ns: string, n: string) => onRoleBindingDelete(ns, n)
+  }
+
+  if (view === 'clusterroles') {
+    events.select = (cr: any) => { selectedClusterRole.value = cr }
+    events.edit = (ns: string, n: string) => onClusterRoleEdit(ns, n)
+    events.delete = (ns: string, n: string) => onClusterRoleDelete(ns, n)
+  }
+
+  if (view === 'clusterrolebindings') {
+    events.select = (crb: any) => { selectedClusterRoleBinding.value = crb }
+    events.yaml = (ns: string, n: string) => onClusterRoleBindingEdit('', n)
+    events.delete = (ns: string, n: string) => onClusterRoleBindingDelete('', n)
+  }
+
   if (view === 'portforwarding') {
     events.refresh = refreshPortForwards
     events.stop = stopPortForward
@@ -559,6 +687,10 @@ function onNsChange(ns: string) {
 
 function openNamespaceDetail(namespace: any) {
   selectedNamespaceDetail.value = namespace
+}
+
+function openServiceAccountDetail(sa: any) {
+  selectedServiceAccount.value = sa
 }
 
 function openPodDetailFromDeployment(pod: PodInfo) {
@@ -654,6 +786,147 @@ function onDeploymentDelete(ns: string, name: string) {
   }
 }
 
+async function onServiceAccountEdit(ns: string, name: string) {
+  try {
+    podActions.yamlEditorMeta.value = { resourceType: 'serviceaccount', resourceName: name, namespace: ns }
+    await showYAML('serviceaccount', ns, name)
+    podActions.yamlEditorOpen.value = true
+  } catch (e: any) {
+    notifications.notifyError(`Error loading YAML: ${e.message || e}`)
+  }
+}
+
+function onServiceAccountDelete(ns: string, name: string) {
+  if (confirm(`Delete ServiceAccount ${name}?`)) {
+    k8s.deleteServiceAccount(ns, name)
+      .then(() => {
+        notifications.notifySuccess(`ServiceAccount ${name} deleted`)
+        selectedServiceAccount.value = null
+        refreshData()
+      })
+      .catch((e: any) => {
+        notifications.notifyError(`Delete error: ${e.message || e}`)
+      })
+  }
+}
+
+function onServiceAccountNamespaceClick(ns: string | undefined) {
+  if (ns) {
+    selectedNamespace.value = ns
+    onNamespaceChange()
+  }
+}
+
+async function onRoleEdit(ns: string, name: string) {
+  try {
+    podActions.yamlEditorMeta.value = { resourceType: 'role', resourceName: name, namespace: ns }
+    await showYAML('role', ns, name)
+    podActions.yamlEditorOpen.value = true
+  } catch (e: any) {
+    notifications.notifyError(`Error loading YAML: ${e.message || e}`)
+  }
+}
+
+function onRoleDelete(ns: string, name: string) {
+  if (confirm(`Delete Role ${name}?`)) {
+    k8s.deleteRole(ns, name)
+      .then(() => {
+        notifications.notifySuccess(`Role ${name} deleted`)
+        selectedRole.value = null
+        refreshData()
+      })
+      .catch((e: any) => {
+        notifications.notifyError(`Delete error: ${e.message || e}`)
+      })
+  }
+}
+
+function onRoleNamespaceClick(ns: string | undefined) {
+  if (ns) {
+    selectedNamespace.value = ns
+    onNamespaceChange()
+  }
+}
+
+async function onRoleBindingEdit(ns: string, name: string) {
+  try {
+    podActions.yamlEditorMeta.value = { resourceType: 'rolebinding', resourceName: name, namespace: ns }
+    await showYAML('rolebinding', ns, name)
+    podActions.yamlEditorOpen.value = true
+  } catch (e: any) {
+    notifications.notifyError(`Error loading YAML: ${e.message || e}`)
+  }
+}
+
+function onRoleBindingDelete(ns: string, name: string) {
+  if (confirm(`Delete RoleBinding ${name}?`)) {
+    k8s.deleteRoleBinding(ns, name)
+      .then(() => {
+        notifications.notifySuccess(`RoleBinding ${name} deleted`)
+        selectedRoleBinding.value = null
+        refreshData()
+      })
+      .catch((e: any) => {
+        notifications.notifyError(`Delete error: ${e.message || e}`)
+      })
+  }
+}
+
+function onRoleBindingNamespaceClick(ns: string | undefined) {
+  if (ns) {
+    selectedNamespace.value = ns
+    onNamespaceChange()
+  }
+}
+
+async function onClusterRoleEdit(ns: string, name: string) {
+  try {
+    podActions.yamlEditorMeta.value = { resourceType: 'clusterrole', resourceName: name, namespace: '' }
+    await showYAML('clusterrole', '', name)
+    podActions.yamlEditorOpen.value = true
+  } catch (e: any) {
+    notifications.notifyError(`Error loading YAML: ${e.message || e}`)
+  }
+}
+
+function onClusterRoleDelete(ns: string, name: string) {
+  if (confirm(`Delete ClusterRole ${name}?`)) {
+    k8s.deleteClusterRole(name)
+      .then(() => {
+        notifications.notifySuccess(`ClusterRole ${name} deleted`)
+        selectedClusterRole.value = null
+        refreshData()
+      })
+      .catch((e: any) => {
+        notifications.notifyError(`Delete error: ${e.message || e}`)
+      })
+  }
+}
+
+async function onClusterRoleBindingEdit(ns: string, name: string) {
+  try {
+    podActions.yamlEditorMeta.value = { resourceType: 'clusterrolebinding', resourceName: name, namespace: '' }
+    await showYAML('clusterrolebinding', '', name)
+    podActions.yamlEditorOpen.value = true
+  } catch (e: any) {
+    notifications.notifyError(`Error loading YAML: ${e.message || e}`)
+  }
+}
+
+function onClusterRoleBindingDelete(ns: string, name: string) {
+  if (confirm(`Delete ClusterRoleBinding ${name}?`)) {
+    k8s.deleteClusterRoleBinding(name)
+      .then(() => {
+        notifications.notifySuccess(`ClusterRoleBinding ${name} deleted`)
+        selectedClusterRoleBinding.value = null
+        refreshData()
+      })
+      .catch((e: any) => {
+        notifications.notifyError(`Delete error: ${e.message || e}`)
+      })
+  }
+}
+
 // ─── Watch error → notifications ───
 
 watch(error, (val) => {
@@ -674,3 +947,4 @@ onMounted(() => clusterConn.initialize())
 </script>
 
 <style src="./assets/style.css"></style>
+

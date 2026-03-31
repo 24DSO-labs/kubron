@@ -96,7 +96,7 @@ onMounted(() => {
     `url('${codiconFont}')`
   );
 
-  if (props.resourceName && props.resourceType && props.namespace) {
+  if (props.resourceName && props.resourceType && props.namespace !== undefined) {
     addTab({
       resourceType: props.resourceType,
       resourceName: props.resourceName,

@@ -23,8 +23,11 @@
       <div class="ctx-menu-item" @click="handleShowDetails">
         <span class="ctx-menu-arrow"></span>Show Details
       </div>
-      <div class="ctx-menu-item" @click="handleYAML">
-        <span class="ctx-menu-arrow"></span>View YAML
+      <div class="ctx-menu-item" @click="handleEdit">
+        <span class="ctx-menu-arrow"></span>Edit
+      </div>
+      <div class="ctx-menu-item" @click="handleDelete">
+        <span class="ctx-menu-arrow"></span>Delete
       </div>
     </div>
   </div>
@@ -41,7 +44,8 @@ const emit = defineEmits<{
   (e: 'refresh'): void
   (e: 'search', val: string): void
   (e: 'select', cr: ClusterRole): void
-  (e: 'yaml', ns: string, name: string): void
+  (e: 'edit', ns: string, name: string): void
+  (e: 'delete', ns: string, name: string): void
 }>()
 
 const showContextMenu = ref(false)
@@ -75,7 +79,8 @@ function openContextMenu(cr: ClusterRole, event: MouseEvent) {
 
 function hideContextMenu() { showContextMenu.value = false }
 function handleShowDetails() { if (selectedCR.value) emit('select', selectedCR.value); hideContextMenu() }
-function handleYAML() { if (selectedCR.value) emit('yaml', '', selectedCR.value.metadata?.name || ''); hideContextMenu() }
+function handleEdit() { if (selectedCR.value) emit('edit', '', selectedCR.value.metadata?.name || ''); hideContextMenu() }
+function handleDelete() { if (selectedCR.value) emit('delete', '', selectedCR.value.metadata?.name || ''); hideContextMenu() }
 function onRefresh() { emit('refresh') }
 function onSearch(val: string) { emit('search', val) }
 </script>
