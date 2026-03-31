@@ -666,7 +666,7 @@ const activeViewEvents = computed(() => {
 
   if (view === 'clusterrolebindings') {
     events.select = (crb: any) => { selectedClusterRoleBinding.value = crb }
-    events.yaml = (ns: string, n: string) => onClusterRoleBindingEdit('', n)
+    events.edit = (ns: string, n: string) => onClusterRoleBindingEdit(ns, n)
     events.delete = (ns: string, n: string) => onClusterRoleBindingDelete('', n)
   }
 
@@ -947,4 +947,3 @@ onMounted(() => clusterConn.initialize())
 </script>
 
 <style src="./assets/style.css"></style>
-
