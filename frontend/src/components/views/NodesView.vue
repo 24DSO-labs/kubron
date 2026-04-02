@@ -1,97 +1,61 @@
 <template>
-  <div>
-    <ContentHeader icon="🖥" title="Nodes" :count="items.length" @refresh="onRefresh" />
-
-    <!-- Existing metrics grid -->
-    <div v-if="metrics.length > 0" class="metrics-grid">
-      <div v-for="m in metrics" :key="m.name" class="metric-card">
-        <div class="metric-name">{{ m.name }}</div>
-        <div class="metric-bars">
-          <div class="metric-row">
-            <span class="metric-label">CPU</span>
-            <div class="metric-bar">
-              <div class="metric-fill" :class="barColor(m.cpuPct)" :style="{ width: m.cpuPct + '%' }"></div>
-            </div>
-            <span class="metric-value">{{ m.cpuPct }}%</span>
-            <span class="metric-raw">{{ m.cpuUsage }}</span>
-          </div>
-          <div class="metric-row">
-            <span class="metric-label">MEM</span>
-            <div class="metric-bar">
-              <div class="metric-fill" :class="barColor(m.memPct)" :style="{ width: m.memPct + '%' }"></div>
-            </div>
-            <span class="metric-value">{{ m.memPct }}%</span>
-            <span class="metric-raw">{{ m.memUsage }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Prometheus charts for selected node -->
-    <div v-if="selectedNodeName && clusterName" class="node-metrics-detail">
-      <div class="node-metrics-header">
-        <h3 class="node-metrics-title">📈 {{ selectedNodeName }} — Metrics History</h3>
-        <button class="btn-close-metrics" @click="selectedNodeName = ''">✕</button>
-      </div>
-      <NodeMetricsPanel
-        :cluster-name="clusterName"
-        :node-name="selectedNodeName"
-      />
-    </div>
-
-    <table v-if="items.length > 0" class="table">
-      <thead>
-        <tr>
-          <th>Name</th><th>Status</th><th>Roles</th><th>Version</th>
-          <th>CPU</th><th>Memory</th><th>IP</th><th>OS</th><th>Age</th><th></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="node in items" :key="node.name"
-          :class="['clickable-row', { 'selected-row': selectedNodeName === node.name }]"
-          @click="selectedNodeName = selectedNodeName === node.name ? '' : node.name"
-        >
-          <td class="resource-name">{{ node.name }}</td>
-          <td><span class="status-badge" :class="statusClass(node.status)">{{ node.status }}</span></td>
-          <td>{{ node.roles }}</td>
-          <td>{{ node.version }}</td>
-          <td>{{ node.cpuCapacity }}</td>
-          <td>{{ node.memoryCapacity }}</td>
-          <td>{{ node.internalIP }}</td>
-          <td class="os-cell">{{ node.os }}</td>
-          <td>{{ node.age }}</td>
-          <td><button class="btn-icon" @click.stop="$emit('yaml', '', node.name)">📋</button></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  <K8sResourceListBase
+    :items="items"
+    :search="search"
+    resource-title="Nodes"
+    empty-message="Нет Nodes"
+    :columns="columns"
+    :context-menu-items="contextMenuItems"
+    @refresh="onRefresh"
+    @search="onSearch"
+    @select="onSelect"
+    @context-action="onContextAction"
+  />
 </template>
 
 <script lang="ts" setup>
+import type { NodeInfo } from '../../types'
+import K8sResourceListBase from './K8sResourceListBase.vue'
+import type { Column, ContextMenuItem } from './K8sResourceListBase.vue'
 import { ref } from 'vue'
-import type { NodeInfo, NodeMetricsInfo } from '../../types'
-import ContentHeader from '../ContentHeader.vue'
-import NodeMetricsPanel from '../metrics/NodeMetricsPanel.vue'
 
-defineProps<{
-  items: NodeInfo[]
-  metrics: NodeMetricsInfo[]
-  statusClass: (s: string) => string
-  clusterName?: string
-}>()
+defineProps<{ items: NodeInfo[]; search: string }>()
 
 const emit = defineEmits<{
   (e: 'refresh'): void
-  (e: 'yaml', ns: string, name: string): void
+  (e: 'search', val: string): void
+  (e: 'select', item: NodeInfo): void
 }>()
 
-const selectedNodeName = ref('')
+const selectedItem = ref<NodeInfo | null>(null)
+
+const columns: Column[] = [
+  { key: 'name', label: 'Name', className: 'resource-name' },
+  { key: 'status', label: 'Status' },
+  { key: 'roles', label: 'Roles' },
+  { key: 'cpuCapacity', label: 'CPU' },
+  { key: 'memoryCapacity', label: 'Memory' },
+  { key: 'age', label: 'Age' }
+]
+
+const contextMenuItems: ContextMenuItem[] = [
+  { label: 'Show Details', action: 'select' }
+]
 
 function onRefresh() { emit('refresh') }
+function onSearch(val: string) { emit('search', val) }
+function onSelect(item: NodeInfo) { emit('select', item) }
 
-function barColor(pct: number): string {
-  if (pct > 85) return 'bar-red'
-  if (pct > 60) return 'bar-yellow'
-  return 'bar-green'
+function onContextAction(action: string, item: NodeInfo) {
+  selectedItem.value = item
+  switch (action) {
+    case 'select':
+      emit('select', item)
+      break
+  }
 }
 </script>
+
+<style scoped>
+.resource-name { font-weight: 500; }
+</style>
