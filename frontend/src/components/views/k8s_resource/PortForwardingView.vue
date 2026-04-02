@@ -32,7 +32,7 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
 import type { PortForwardSession } from '../../../types'
-import ContentHeader from '../ContentHeader.vue'
+import ContentHeader from '../../ContentHeader.vue'
 
 const props = defineProps<{
   items: PortForwardSession[] | null
