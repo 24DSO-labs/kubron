@@ -123,6 +123,20 @@ const hasShellSubmenu = ref(false)
 const hasLogsSubmenu = ref(false)
 
 function getCellValue(item: any, key: string): string {
+  // Special handling for 'age' field
+  if (key === 'age') {
+    const createdAt = item.metadata?.creationTimestamp
+    if (!createdAt) return '—'
+    const created = new Date(createdAt).getTime()
+    const now = Date.now()
+    const seconds = Math.floor((now - created) / 1000)
+    
+    if (seconds < 60) return `${seconds}s`
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`
+    return `${Math.floor(seconds / 86400)}d`
+  }
+  
   const keys = key.split('.')
   let value: any = item
   for (const k of keys) {
@@ -202,7 +216,7 @@ function hideContextMenu() {
   showContextMenu.value = false
 }
 
-function handleContextAction(menuItem: ContextMenuItem) {
+function handleContextAction(menuItem: any) {
   if (selectedItem.value && menuItem.action) {
     emit('contextAction', menuItem.action, selectedItem.value)
   }
@@ -363,5 +377,9 @@ function onSearch(val: string) { emit('search', val) }
   padding: 20px;
   text-align: center;
   color: #868d8a;
+}
+
+td {
+  text-align: left;
 }
 </style>

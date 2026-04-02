@@ -32,7 +32,7 @@ const emit = defineEmits<{
 const selectedItem = ref<ClusterRole | null>(null)
 
 const columns: Column[] = [
-  { key: 'name', label: 'Name', className: 'resource-name' },
+  { key: 'metadata.name', label: 'Name', className: 'resource-name' },
   { key: 'age', label: 'Age' }
 ]
 
