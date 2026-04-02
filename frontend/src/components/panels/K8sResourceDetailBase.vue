@@ -20,7 +20,9 @@
       </div>
       <div v-if="resource.namespace" class="meta-row">
         <span class="meta-label">Namespace:</span>
-        {{ resource.namespace }}
+        <a class="meta-link" @click="emit('namespaceClick', resource.namespace)">
+          {{ resource.namespace }}
+        </a>
       </div>
       <div v-if="resource.age" class="meta-row">
         <span class="meta-label">Age:</span>
@@ -90,6 +92,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'action', actionId: string, data?: any): void
+  (e: 'namespaceClick', namespace: string): void
 }>()
 
 defineSlots<{
@@ -305,6 +308,28 @@ defineExpose({
 
 .detail-content::-webkit-scrollbar-thumb:hover {
   background: #45466a;
+}
+
+/* Meta Links */
+.meta-link {
+  color: #60a5fa !important;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: #60a5fa;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: all 0.15s ease;
+  display: inline;
+}
+
+.meta-link:hover {
+  color: #93c5fd !important;
+  text-decoration-color: #93c5fd;
+}
+
+.meta-link:active {
+  color: #3b82f6 !important;
+  text-decoration-color: #3b82f6;
 }
 
 /* Utility classes */

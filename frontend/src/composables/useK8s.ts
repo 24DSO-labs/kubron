@@ -1030,8 +1030,11 @@ async function getServiceAccount(namespace: string, name: string) {
 
 async function getReplicaSet(namespace: string, name: string) {
   try {
+    console.log('getReplicaSet called with:', { namespace, name })
     // Загружаем YAML для ReplicaSet
+    console.log('Calling GetResourceYAML with:', namespace, 'replicaset', name)
     const yaml = await GetResourceYAML(namespace, 'replicaset', name, true)
+    console.log('GetResourceYAML returned successfully')
     // Преобразуем в объект для деталь панели
     const rs: any = {
       name,
@@ -1040,6 +1043,7 @@ async function getReplicaSet(namespace: string, name: string) {
     }
     return formatResourceDetail(rs)
   } catch (e: any) {
+    console.error('getReplicaSet error:', e)
     error.value = 'Error loading ReplicaSet: ' + (e.message || e)
     throw e
   }
