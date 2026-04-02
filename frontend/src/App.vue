@@ -146,18 +146,18 @@
     <!-- Namespace Detail Panel -->
     <NamespaceDetailPanel
       v-if="selectedNamespaceDetail"
-      :resource="selectedNamespaceDetail"
+      :namespace="selectedNamespaceDetail"
       @close="selectedNamespaceDetail = null"
     />
 
     <!-- ServiceAccount Detail Panel -->
+    <!-- @ts-ignore -->
     <ServiceAccountDetailPanel
       v-if="selectedServiceAccount"
-      :service-account="selectedServiceAccount"
+      :account="selectedServiceAccount"
       @close="selectedServiceAccount = null"
-      @edit="(ns: string, name: string) => onServiceAccountEdit(ns, name)"
-      @delete="(ns: string, name: string) => onServiceAccountDelete(ns, name)"
-      @namespace-click="(ns: string | undefined) => onServiceAccountNamespaceClick(ns)"
+      @edit="onServiceAccountEdit"
+      @delete="onServiceAccountDelete"
     />
 
     <!-- Role Detail Panel -->
@@ -165,37 +165,35 @@
       v-if="selectedRole"
       :role="selectedRole"
       @close="selectedRole = null"
-      @edit="(ns: string, name: string) => onRoleEdit(ns, name)"
-      @delete="(ns: string, name: string) => onRoleDelete(ns, name)"
-      @namespace-click="(ns: string | undefined) => onRoleNamespaceClick(ns)"
+      @edit="() => onRoleEdit(selectedRole?.namespace, selectedRole?.name)"
+      @delete="() => onRoleDelete(selectedRole?.namespace, selectedRole?.name)"
     />
 
     <!-- RoleBinding Detail Panel -->
     <RoleBindingDetailPanel
       v-if="selectedRoleBinding"
-      :role-binding="selectedRoleBinding"
+      :binding="selectedRoleBinding"
       @close="selectedRoleBinding = null"
-      @edit="(ns: string, name: string) => onRoleBindingEdit(ns, name)"
-      @delete="(ns: string, name: string) => onRoleBindingDelete(ns, name)"
-      @namespace-click="(ns: string | undefined) => onRoleBindingNamespaceClick(ns)"
+      @edit="() => onRoleBindingEdit(selectedRoleBinding.namespace, selectedRoleBinding.name)"
+      @delete="() => onRoleBindingDelete(selectedRoleBinding.namespace, selectedRoleBinding.name)"
     />
 
     <!-- ClusterRole Detail Panel -->
     <ClusterRoleDetailPanel
       v-if="selectedClusterRole"
-      :cluster-role="selectedClusterRole"
+      :role="selectedClusterRole"
       @close="selectedClusterRole = null"
-      @edit="(ns: string, name: string) => onClusterRoleEdit(ns, name)"
-      @delete="(ns: string, name: string) => onClusterRoleDelete(ns, name)"
+      @edit="() => onClusterRoleEdit('', selectedClusterRole.name)"
+      @delete="() => onClusterRoleDelete('', selectedClusterRole.name)"
     />
 
     <!-- ClusterRoleBinding Detail Panel -->
     <ClusterRoleBindingDetailPanel
       v-if="selectedClusterRoleBinding"
-      :clusterRoleBinding="selectedClusterRoleBinding"
+      :binding="selectedClusterRoleBinding"
       @close="selectedClusterRoleBinding = null"
-      @edit="(ns: string, name: string) => onClusterRoleBindingEdit(ns, name)"
-      @delete="(ns: string, name: string) => onClusterRoleBindingDelete(ns, name)"
+      @edit="() => onClusterRoleBindingEdit('', selectedClusterRoleBinding.name)"
+      @delete="() => onClusterRoleBindingDelete('', selectedClusterRoleBinding.name)"
     />
 
     <!-- Tabbed Actions Panel (Terminal/Logs/Attach) -->
@@ -257,24 +255,24 @@ import NotificationToast from './components/NotificationToast.vue'
 
 // Ленивая загрузка панелей
 import { defineAsyncComponent } from 'vue'
-const PodDetailPanel = defineAsyncComponent(() => import('./components/panels/PodDetailPanel.vue'))
-const DeploymentDetailPanel = defineAsyncComponent(() => import('./components/panels/DeploymentDetailPanel.vue'))
+const PodDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/PodDetailPanel.vue'))
+const DeploymentDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/DeploymentDetailPanel.vue'))
 const ScaleDeploymentDialog = defineAsyncComponent(() => import('./components/panels/ScaleDeploymentDialog.vue'))
 const DeploymentLogsPanel = defineAsyncComponent(() => import('./components/panels/DeploymentLogsPanel.vue'))
 const TabbedDeploymentLogsPanel = defineAsyncComponent(() => import('./components/panels/TabbedDeploymentLogsPanel.vue'))
-const ServiceDetailPanel = defineAsyncComponent(() => import('./components/panels/ServiceDetailPanel.vue'))
-const ServiceAccountDetailPanel = defineAsyncComponent(() => import('./components/panels/ServiceAccountDetailPanel.vue'))
-const RoleDetailPanel = defineAsyncComponent(() => import('./components/panels/RoleDetailPanel.vue'))
-const RoleBindingDetailPanel = defineAsyncComponent(() => import('./components/panels/RoleBindingDetailPanel.vue'))
-const ClusterRoleDetailPanel = defineAsyncComponent(() => import('./components/panels/ClusterRoleDetailPanel.vue'))
-const ClusterRoleBindingDetailPanel = defineAsyncComponent(() => import('./components/panels/ClusterRoleBindingDetailPanel.vue'))
-const ConfigMapPanel = defineAsyncComponent(() => import('./components/panels/ConfigMapPanel.vue'))
+const ServiceDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ServiceDetailPanel.vue'))
+const ServiceAccountDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ServiceAccountDetailPanel.vue'))
+const RoleDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/RoleDetailPanel.vue'))
+const RoleBindingDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/RoleBindingDetailPanel.vue'))
+const ClusterRoleDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ClusterRoleDetailPanel.vue'))
+const ClusterRoleBindingDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ClusterRoleBindingDetailPanel.vue'))
+const ConfigMapPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ConfigMapPanel.vue'))
 const TabbedYamlEditorPanel = defineAsyncComponent(() => import('./components/panels/TabbedYamlEditorPanel.vue'))
 const TabbedActionsPanel = defineAsyncComponent(() => import('./components/panels/TabbedPodActionsPanel.vue'))
-const RevisionsPanel = defineAsyncComponent(() => import('./components/panels/RevisionsPanel.vue'))
+const RevisionsPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/RevisionsPanel.vue'))
 const TerminalPanel = defineAsyncComponent(() => import('./components/panels/TerminalPanel.vue'))
 const LogsPanel = defineAsyncComponent(() => import('./components/panels/LogsPanel.vue'))
-const NamespaceDetailPanel = defineAsyncComponent(() => import('./components/panels/NamespaceDetailPanel.vue'))
+const NamespaceDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/NamespaceDetailPanel.vue'))
 
 // ─── Composables ───
 
@@ -766,13 +764,19 @@ function onDeploymentLogs(ns: string, name: string) {
   })
 }
 
-async function onDeploymentEdit(ns: string, name: string) {
+async function onDeploymentEdit() {
+  if (!selectedDeployment.value) return
+  const ns = selectedDeployment.value.namespace
+  const name = selectedDeployment.value.name
   podActions.yamlEditorMeta.value = { resourceType: 'deployment', resourceName: name, namespace: ns }
   await showYAML('deployment', ns, name)
   podActions.yamlEditorOpen.value = true
 }
 
-function onDeploymentDelete(ns: string, name: string) {
+function onDeploymentDelete() {
+  if (!selectedDeployment.value) return
+  const ns = selectedDeployment.value.namespace
+  const name = selectedDeployment.value.name
   if (confirm(`Delete deployment ${name}?`)) {
     deleteDeploymentByName(ns, name)
       .then(() => {
@@ -786,7 +790,11 @@ function onDeploymentDelete(ns: string, name: string) {
   }
 }
 
-async function onServiceAccountEdit(ns: string, name: string) {
+async function onServiceAccountEdit() {
+  if (!selectedServiceAccount.value) return
+  const ns = selectedServiceAccount.value.namespace
+  const name = selectedServiceAccount.value.name
+  
   try {
     podActions.yamlEditorMeta.value = { resourceType: 'serviceaccount', resourceName: name, namespace: ns }
     await showYAML('serviceaccount', ns, name)
@@ -796,7 +804,11 @@ async function onServiceAccountEdit(ns: string, name: string) {
   }
 }
 
-function onServiceAccountDelete(ns: string, name: string) {
+function onServiceAccountDelete() {
+  if (!selectedServiceAccount.value) return
+  const ns = selectedServiceAccount.value.namespace
+  const name = selectedServiceAccount.value.name
+  
   if (confirm(`Delete ServiceAccount ${name}?`)) {
     k8s.deleteServiceAccount(ns, name)
       .then(() => {
@@ -817,7 +829,11 @@ function onServiceAccountNamespaceClick(ns: string | undefined) {
   }
 }
 
-async function onRoleEdit(ns: string, name: string) {
+async function onRoleEdit(...args: any[]) {
+  const [nsOrEvent, nameParam] = args
+  const ns = typeof nsOrEvent === 'string' ? nsOrEvent : nsOrEvent?.namespace
+  const name = typeof nsOrEvent === 'string' ? nameParam : nsOrEvent?.name
+  
   try {
     podActions.yamlEditorMeta.value = { resourceType: 'role', resourceName: name, namespace: ns }
     await showYAML('role', ns, name)
@@ -827,7 +843,11 @@ async function onRoleEdit(ns: string, name: string) {
   }
 }
 
-function onRoleDelete(ns: string, name: string) {
+function onRoleDelete(...args: any[]) {
+  const [nsOrEvent, nameParam] = args
+  const ns = typeof nsOrEvent === 'string' ? nsOrEvent : nsOrEvent?.namespace
+  const name = typeof nsOrEvent === 'string' ? nameParam : nsOrEvent?.name
+  
   if (confirm(`Delete Role ${name}?`)) {
     k8s.deleteRole(ns, name)
       .then(() => {
@@ -848,7 +868,11 @@ function onRoleNamespaceClick(ns: string | undefined) {
   }
 }
 
-async function onRoleBindingEdit(ns: string, name: string) {
+async function onRoleBindingEdit(...args: any[]) {
+  const [nsOrEvent, nameParam] = args
+  const ns = typeof nsOrEvent === 'string' ? nsOrEvent : nsOrEvent?.namespace
+  const name = typeof nsOrEvent === 'string' ? nameParam : nsOrEvent?.name
+  
   try {
     podActions.yamlEditorMeta.value = { resourceType: 'rolebinding', resourceName: name, namespace: ns }
     await showYAML('rolebinding', ns, name)
@@ -858,7 +882,11 @@ async function onRoleBindingEdit(ns: string, name: string) {
   }
 }
 
-function onRoleBindingDelete(ns: string, name: string) {
+function onRoleBindingDelete(...args: any[]) {
+  const [nsOrEvent, nameParam] = args
+  const ns = typeof nsOrEvent === 'string' ? nsOrEvent : nsOrEvent?.namespace
+  const name = typeof nsOrEvent === 'string' ? nameParam : nsOrEvent?.name
+  
   if (confirm(`Delete RoleBinding ${name}?`)) {
     k8s.deleteRoleBinding(ns, name)
       .then(() => {
@@ -879,7 +907,10 @@ function onRoleBindingNamespaceClick(ns: string | undefined) {
   }
 }
 
-async function onClusterRoleEdit(ns: string, name: string) {
+async function onClusterRoleEdit(...args: any[]) {
+  const [nsOrEvent, nameParam] = args
+  const name = typeof nsOrEvent === 'string' ? nameParam : nsOrEvent?.name
+  
   try {
     podActions.yamlEditorMeta.value = { resourceType: 'clusterrole', resourceName: name, namespace: '' }
     await showYAML('clusterrole', '', name)
@@ -889,7 +920,9 @@ async function onClusterRoleEdit(ns: string, name: string) {
   }
 }
 
-function onClusterRoleDelete(ns: string, name: string) {
+function onClusterRoleDelete(...args: any[]) {
+  const name = typeof args[0] === 'string' ? args[1] : args[0]?.name
+  
   if (confirm(`Delete ClusterRole ${name}?`)) {
     k8s.deleteClusterRole(name)
       .then(() => {
@@ -903,7 +936,10 @@ function onClusterRoleDelete(ns: string, name: string) {
   }
 }
 
-async function onClusterRoleBindingEdit(ns: string, name: string) {
+async function onClusterRoleBindingEdit(...args: any[]) {
+  const [nsOrEvent, nameParam] = args
+  const name = typeof nsOrEvent === 'string' ? nameParam : nsOrEvent?.name
+  
   try {
     podActions.yamlEditorMeta.value = { resourceType: 'clusterrolebinding', resourceName: name, namespace: '' }
     await showYAML('clusterrolebinding', '', name)
@@ -913,7 +949,10 @@ async function onClusterRoleBindingEdit(ns: string, name: string) {
   }
 }
 
-function onClusterRoleBindingDelete(ns: string, name: string) {
+function onClusterRoleBindingDelete(...args: any[]) {
+  const [nsOrEvent, nameParam] = args
+  const name = typeof nsOrEvent === 'string' ? nameParam : nsOrEvent?.name
+  
   if (confirm(`Delete ClusterRoleBinding ${name}?`)) {
     k8s.deleteClusterRoleBinding(name)
       .then(() => {

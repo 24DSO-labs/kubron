@@ -15,8 +15,8 @@
 
 <script lang="ts" setup>
 import type { StatefulSetInfo } from '../../../types'
-import K8sResourceListBase from './K8sResourceListBase.vue'
-import type { Column, ContextMenuItem } from './K8sResourceListBase.vue'
+import K8sResourceListBase from '../K8sResourceListBase.vue'
+import type { Column, ContextMenuItem } from '../K8sResourceListBase.vue'
 import { ref } from 'vue'
 
 defineProps<{ items: StatefulSetInfo[]; search: string }>()
