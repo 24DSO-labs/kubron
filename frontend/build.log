@@ -1,0 +1,345 @@
+
+> frontend@0.0.0 build
+> vue-tsc --noEmit && vite build
+
+[36mvite v3.2.11 [32mbuilding for production...[36m[39m
+transforming...
+transforming...
+[32m✓[39m 410 modules transformed.
+[32m✓[39m 412 modules transformed.
+[32m✓[39m 417 modules transformed.
+[32m✓[39m 437 modules transformed.
+rendering chunks...
+[32m✓[39m 1440 modules transformed.
+[33mwarnings when minifying css:
+▲ [WARNING] Expected identifier but found "." [css-syntax-error]
+
+    <stdin>:1224:1:
+      1224 │   .diff-review-line-number {
+           ╵   ^
+
+
+▲ [WARNING] Expected identifier but found "." [css-syntax-error]
+
+    <stdin>:1495:1:
+      1495 │   .monaco-action-bar > .actions-container > .action-item {
+           ╵   ^
+
+
+▲ [WARNING] CSS nesting syntax is not supported in the configured target environment ("chrome87", "edge88", "es2020", "firefox78", "safari13") [invalid-@nest]
+
+    <stdin>:1897:1:
+      1897 │   & > div {
+           ╵   ^
+
+
+▲ [WARNING] Expected identifier but found "." [css-syntax-error]
+
+    <stdin>:1901:1:
+      1901 │   .gutterItem {
+           ╵   ^
+
+
+▲ [WARNING] Expected identifier but found "." [css-syntax-error]
+
+    <stdin>:1972:1:
+      1972 │   .line-left, .line-right {
+           ╵   ^
+
+
+▲ [WARNING] Expected identifier but found "." [css-syntax-error]
+
+    <stdin>:2849:1:
+      2849 │   .warningMessage p {
+           ╵   ^
+
+
+▲ [WARNING] CSS nesting syntax is not supported in the configured target environment ("chrome87", "edge88", "es2020", "firefox78", "safari13") [invalid-@nest]
+
+    <stdin>:5330:1:
+      5330 │   &.syntax-highlighted {
+           ╵   ^
+
+
+▲ [WARNING] CSS nesting syntax is not supported in the configured target environment ("chrome87", "edge88", "es2020", "firefox78", "safari13") [invalid-@nest]
+
+    <stdin>:5333:1:
+      5333 │   &:not(.syntax-highlighted) {
+           ╵   ^
+
+
+▲ [WARNING] Expected identifier but found "." [css-syntax-error]
+
+    <stdin>:5348:1:
+      5348 │   .codicon {
+           ╵   ^
+
+
+▲ [WARNING] Expected identifier but found "." [css-syntax-error]
+
+    <stdin>:5354:1:
+      5354 │   .edits-fadeout-decoration {
+           ╵   ^
+
+
+▲ [WARNING] Expected identifier but found "." [css-syntax-error]
+
+    <stdin>:5442:1:
+      5442 │   .inline-edits-view-indicator {
+           ╵   ^
+
+
+▲ [WARNING] Expected identifier but found "." [css-syntax-error]
+
+    <stdin>:5635:1:
+      5635 │   .monaco-keybinding-key {
+           ╵   ^
+
+
+▲ [WARNING] Expected identifier but found "." [css-syntax-error]
+
+    <stdin>:5701:1:
+      5701 │   .scroll-editor-on-middle-click-dot {
+           ╵   ^
+
+
+▲ [WARNING] Expected identifier but found "." [css-syntax-error]
+
+    <stdin>:5917:1:
+      5917 │   .editorPlaceholder {
+           ╵   ^
+
+
+▲ [WARNING] Expected identifier but found "." [css-syntax-error]
+
+    <stdin>:6109:1:
+      6109 │   .action-item > .action-label {
+           ╵   ^
+
+
+▲ [WARNING] Expected identifier but found ">" [css-syntax-error]
+
+    <stdin>:7060:1:
+      7060 │   > div {
+           ╵   ^
+
+[39m
+rendering chunks...
+[90m[37m[2mdist/[22m[90m[39m[32massets/logo.cc180755.svg                                                   [39m [33m1983.24 KiB[39m
+[90m[37m[2mdist/[22m[90m[39m[32massets/nunito-v16-latin-regular.06f3af3f.woff2                             [39m [2m18.53 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[32massets/codicon.9d25513c.ttf                                                [39m [2m119.11 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[32massets/json.worker.5d7d343c.js                                             [39m [2m407.75 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[32massets/html.worker.8f71f3de.js                                             [39m [33m717.86 KiB[39m
+[90m[37m[2mdist/[22m[90m[39m[32massets/css.worker.9bdaf3fa.js                                              [39m [33m1040.91 KiB[39m
+[90m[37m[2mdist/[22m[90m[39m[32massets/ts.worker.8b562ef8.js                                               [39m [33m6897.52 KiB[39m
+[90m[37m[2mdist/[22m[90m[39m[32mindex.html                                                                 [39m [2m0.49 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/K8sResourceDetailBase.6a844602.js                                   [39m [2m2.14 KiB / gzip: 0.89 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/useMetrics.cc4d5118.js                                              [39m [2m3.43 KiB / gzip: 1.01 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/DeploymentDetailPanel.e0885cf8.js                                   [39m [2m1.71 KiB / gzip: 0.80 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/PodDetailPanel.cbe30764.js                                          [39m [2m39.86 KiB / gzip: 11.05 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/ScaleDeploymentDialog.ff143180.js                                   [39m [2m2.08 KiB / gzip: 0.99 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/DeploymentLogsPanel.1abcf1b6.js                                     [39m [2m5.91 KiB / gzip: 2.32 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/TabbedDeploymentLogsPanel.58f9014c.js                               [39m [2m8.04 KiB / gzip: 2.92 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/ServiceDetailPanel.d65d00a6.js                                      [39m [2m3.86 KiB / gzip: 1.50 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/ServiceAccountDetailPanel.68e24055.js                               [39m [2m1.18 KiB / gzip: 0.66 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/RoleDetailPanel.c500f44f.js                                         [39m [2m1.00 KiB / gzip: 0.60 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/RoleBindingDetailPanel.94d847a3.js                                  [39m [2m1.18 KiB / gzip: 0.66 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/ClusterRoleDetailPanel.363bcc1f.js                                  [39m [2m1.01 KiB / gzip: 0.61 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/ClusterRoleBindingDetailPanel.078d8944.js                           [39m [2m1.19 KiB / gzip: 0.67 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/ConfigMapPanel.4ccad177.js                                          [39m [2m1.24 KiB / gzip: 0.70 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/TabbedYamlEditorPanel.1375a89a.js                                   [39m [2m10.22 KiB / gzip: 3.85 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/TabbedPodActionsPanel.4a7bf183.js                                   [39m [2m9.99 KiB / gzip: 3.53 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/RevisionsPanel.a957d300.js                                          [39m [2m1.28 KiB / gzip: 0.62 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/LogsPanel.4151febb.js                                               [39m [2m1.69 KiB / gzip: 0.87 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/TerminalPanel.fcc7f4ee.js                                           [39m [2m3.93 KiB / gzip: 1.89 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/NamespaceDetailPanel.de8a98d6.js                                    [39m [2m1.14 KiB / gzip: 0.65 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/ClusterSettings.f87fa0fa.js                                         [39m [2m11.75 KiB / gzip: 3.22 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/MetricsStatusBadge.vue_vue_type_script_setup_true_lang.81fb38b6.js  [39m [2m1.24 KiB / gzip: 0.51 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/EventsView.202f652f.js                                              [39m [2m1.08 KiB / gzip: 0.61 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/ContentHeader.vue_vue_type_script_setup_true_lang.72cf0ea3.js       [39m [2m0.72 KiB / gzip: 0.46 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/K8sResourceListBase.825061cf.js                                     [39m [2m5.77 KiB / gzip: 2.11 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/NodesView.9e270722.js                                               [39m [2m1.03 KiB / gzip: 0.60 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/ClusterRoleBindingsView.45231f6a.js                                 [39m [2m1.24 KiB / gzip: 0.69 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/ClusterRolesView.e7501089.js                                        [39m [2m1.14 KiB / gzip: 0.65 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/ConfigMapsView.f296935d.js                                          [39m [2m1.19 KiB / gzip: 0.65 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/CronJobsView.647bb9ab.js                                            [39m [2m1.29 KiB / gzip: 0.67 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/DaemonSetsView.a662facb.js                                          [39m [2m1.24 KiB / gzip: 0.66 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/DeploymentsView.38e348c4.js                                         [39m [2m1.52 KiB / gzip: 0.74 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/OverviewView.2a301476.js                                            [39m [2m26.01 KiB / gzip: 7.02 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/EndpointsView.d8a5d71b.js                                           [39m [2m1.04 KiB / gzip: 0.59 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/EventsView.a1542127.js                                              [39m [2m1.18 KiB / gzip: 0.64 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/HPAView.804edf20.js                                                 [39m [2m1.13 KiB / gzip: 0.63 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/IngressClassesView.aaa31cd4.js                                      [39m [2m0.97 KiB / gzip: 0.57 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/IngressesView.3f31d041.js                                           [39m [2m1.24 KiB / gzip: 0.66 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/JobsView.7ea82e98.js                                                [39m [2m1.27 KiB / gzip: 0.67 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/LeasesView.9ef0a602.js                                              [39m [2m1.00 KiB / gzip: 0.58 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/LimitRangesView.401744f0.js                                         [39m [2m1.01 KiB / gzip: 0.58 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/NamespacesView.268d6942.js                                          [39m [2m0.95 KiB / gzip: 0.57 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/NetworkPoliciesView.ced40b45.js                                     [39m [2m1.21 KiB / gzip: 0.65 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/PDBView.0093f927.js                                                 [39m [2m1.13 KiB / gzip: 0.63 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/PVCView.ce76ad52.js                                                 [39m [2m1.13 KiB / gzip: 0.63 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/PVView.70b7a0a2.js                                                  [39m [2m1.10 KiB / gzip: 0.63 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/PodContainersCellComponent.15ba606f.js                              [39m [2m0.75 KiB / gzip: 0.48 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/PodsView.7834f549.js                                                [39m [2m2.24 KiB / gzip: 1.01 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/PortForwardingView.0a09ccfb.js                                      [39m [2m1.60 KiB / gzip: 0.83 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/PriorityClassesView.27c7e62d.js                                     [39m [2m0.97 KiB / gzip: 0.57 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/ReplicaSetsView.fb44357f.js                                         [39m [2m1.22 KiB / gzip: 0.65 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/ResourceQuotasView.a3b4afa9.js                                      [39m [2m1.13 KiB / gzip: 0.62 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/RoleBindingsView.bf9ead74.js                                        [39m [2m1.33 KiB / gzip: 0.72 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/RolesView.b60c1332.js                                               [39m [2m1.24 KiB / gzip: 0.68 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/RuntimeClassesView.dd4d8233.js                                      [39m [2m0.97 KiB / gzip: 0.57 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/SecretsView.e87cd558.js                                             [39m [2m1.21 KiB / gzip: 0.65 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/ServiceAccountsView.551eaab2.js                                     [39m [2m1.26 KiB / gzip: 0.69 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/ServicesView.1d468983.js                                            [39m [2m1.18 KiB / gzip: 0.65 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/StatefulSetsView.a2642f0c.js                                        [39m [2m1.23 KiB / gzip: 0.66 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/StorageClassesView.fd16e140.js                                      [39m [2m1.05 KiB / gzip: 0.60 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/cssMode.04e51073.js                                                 [39m [2m3.03 KiB / gzip: 1.15 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/htmlMode.e4d3a792.js                                                [39m [2m3.45 KiB / gzip: 1.26 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/apex.007b9ac3.js                                                    [39m [2m3.73 KiB / gzip: 1.69 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/jsonMode.7a1becf4.js                                                [39m [2m12.18 KiB / gzip: 4.47 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/azcli.002ff238.js                                                   [39m [2m0.69 KiB / gzip: 0.28 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/tsMode.26ad25aa.js                                                  [39m [2m21.48 KiB / gzip: 6.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/abap.5ac0ee07.js                                                    [39m [2m13.70 KiB / gzip: 5.15 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/bat.d6e99cf6.js                                                     [39m [2m1.67 KiB / gzip: 0.81 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/bicep.0a087b97.js                                                   [39m [2m2.34 KiB / gzip: 0.91 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/cameligo.62ca4071.js                                                [39m [2m2.00 KiB / gzip: 0.90 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/coffee.9fa17275.js                                                  [39m [2m3.37 KiB / gzip: 1.23 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/lspLanguageFeatures.1302bfe5.js                                     [39m [2m28.08 KiB / gzip: 7.58 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/clojure.09963781.js                                                 [39m [2m9.28 KiB / gzip: 3.49 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/csharp.802826cb.js                                                  [39m [2m4.28 KiB / gzip: 1.65 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/cpp.fd4184fb.js                                                     [39m [2m5.04 KiB / gzip: 2.01 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/csp.866b7d87.js                                                     [39m [2m1.25 KiB / gzip: 0.47 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/css.aea16aa2.js                                                     [39m [2m4.27 KiB / gzip: 1.31 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/dart.e855faa9.js                                                    [39m [2m4.02 KiB / gzip: 1.58 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/dockerfile.60485e6e.js                                              [39m [2m1.69 KiB / gzip: 0.62 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/cypher.da043644.js                                                  [39m [2m3.17 KiB / gzip: 1.36 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/ecl.d8bd8a70.js                                                     [39m [2m5.08 KiB / gzip: 2.14 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/flow9.db069134.js                                                   [39m [2m1.63 KiB / gzip: 0.79 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/elixir.1f69cc10.js                                                  [39m [2m9.88 KiB / gzip: 2.44 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/fsharp.98f2f392.js                                                  [39m [2m2.78 KiB / gzip: 1.25 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/go.754ce2e2.js                                                      [39m [2m2.46 KiB / gzip: 1.08 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/handlebars.6882b53a.js                                              [39m [2m6.14 KiB / gzip: 1.35 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/freemarker2.d595359a.js                                             [39m [2m15.23 KiB / gzip: 3.82 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/hcl.b486a5df.js                                                     [39m [2m3.37 KiB / gzip: 1.42 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/graphql.5941d6d1.js                                                 [39m [2m2.07 KiB / gzip: 0.96 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/html.bdb14c7e.js                                                    [39m [2m4.42 KiB / gzip: 1.14 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/ini.92856a94.js                                                     [39m [2m0.94 KiB / gzip: 0.48 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/java.7f7d5376.js                                                    [39m [2m3.01 KiB / gzip: 1.33 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/javascript.3828ed92.js                                              [39m [2m0.78 KiB / gzip: 0.43 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/typescript.83fa1699.js                                              [39m [2m4.79 KiB / gzip: 1.90 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/julia.6991dd64.js                                                   [39m [2m6.92 KiB / gzip: 2.54 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/less.9d9d103d.js                                                    [39m [2m3.67 KiB / gzip: 1.35 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/kotlin.a4d18670.js                                                  [39m [2m3.19 KiB / gzip: 1.40 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/lexon.f5f5b7eb.js                                                   [39m [2m2.25 KiB / gzip: 0.86 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/lua.b2018ee4.js                                                     [39m [2m1.94 KiB / gzip: 0.87 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/liquid.ee58eca3.js                                                  [39m [2m3.40 KiB / gzip: 1.39 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/m3.f37a754a.js                                                      [39m [2m2.62 KiB / gzip: 1.25 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/markdown.3f5a3070.js                                                [39m [2m3.56 KiB / gzip: 1.32 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/mdx.372f8b4f.js                                                     [39m [2m4.23 KiB / gzip: 1.18 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/mips.d2c21009.js                                                    [39m [2m2.38 KiB / gzip: 1.01 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/msdax.30adffbf.js                                                   [39m [2m4.66 KiB / gzip: 1.86 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/objective-c.1e586fad.js                                             [39m [2m2.21 KiB / gzip: 1.00 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/pascal.007ed63d.js                                                  [39m [2m2.79 KiB / gzip: 1.32 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/mysql.95ed4979.js                                                   [39m [2m10.88 KiB / gzip: 3.92 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/pascaligo.825d309c.js                                               [39m [2m1.82 KiB / gzip: 0.85 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/perl.59b61191.js                                                    [39m [2m7.93 KiB / gzip: 3.02 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/pla.4c73501a.js                                                     [39m [2m1.51 KiB / gzip: 0.59 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/php.fe1f9c02.js                                                     [39m [2m7.70 KiB / gzip: 1.99 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/pgsql.b0beda8e.js                                                   [39m [2m13.01 KiB / gzip: 4.36 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/powershell.dfee9fa3.js                                              [39m [2m3.06 KiB / gzip: 1.31 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/postiats.f0bf4a31.js                                                [39m [2m7.54 KiB / gzip: 2.35 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/protobuf.a4a1722e.js                                                [39m [2m8.70 KiB / gzip: 1.99 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/pug.04b99f22.js                                                     [39m [2m4.58 KiB / gzip: 1.58 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/python.7ddf9126.js                                                  [39m [2m3.63 KiB / gzip: 1.42 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/powerquery.9e34b9cd.js                                              [39m [2m16.41 KiB / gzip: 4.70 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/qsharp.3ce1df2a.js                                                  [39m [2m2.98 KiB / gzip: 1.34 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/r.9bb75eb2.js                                                       [39m [2m2.92 KiB / gzip: 1.21 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/razor.5447a5eb.js                                                   [39m [2m8.10 KiB / gzip: 2.01 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/redis.5121551c.js                                                   [39m [2m3.34 KiB / gzip: 1.40 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/redshift.6a99e31e.js                                                [39m [2m11.39 KiB / gzip: 4.20 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/restructuredtext.bdf8e8cd.js                                        [39m [2m3.66 KiB / gzip: 1.30 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/ruby.11a93d8f.js                                                    [39m [2m8.17 KiB / gzip: 2.48 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/rust.7ddf542b.js                                                    [39m [2m3.93 KiB / gzip: 1.75 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/sb.844ad72d.js                                                      [39m [2m1.65 KiB / gzip: 0.77 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/scala.781ea13c.js                                                   [39m [2m7.01 KiB / gzip: 2.01 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/scheme.ec8a93a3.js                                                  [39m [2m1.59 KiB / gzip: 0.76 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/scss.0cfdc3a1.js                                                    [39m [2m6.12 KiB / gzip: 1.67 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/shell.90dbabd2.js                                                   [39m [2m2.87 KiB / gzip: 1.13 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/sophia.6fab6639.js                                                  [39m [2m2.56 KiB / gzip: 1.14 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/solidity.e5bac1e8.js                                                [39m [2m18.03 KiB / gzip: 4.30 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/sparql.0eb6b512.js                                                  [39m [2m2.36 KiB / gzip: 1.10 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/sql.a8a25aee.js                                                     [39m [2m9.92 KiB / gzip: 3.70 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/st.bdfbd909.js                                                      [39m [2m7.09 KiB / gzip: 2.15 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/swift.b5f4dee3.js                                                   [39m [2m4.92 KiB / gzip: 2.01 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/tcl.0c586026.js                                                     [39m [2m3.35 KiB / gzip: 1.30 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/systemverilog.9110bbbf.js                                           [39m [2m7.29 KiB / gzip: 2.65 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/twig.33e0e0da.js                                                    [39m [2m5.70 KiB / gzip: 1.45 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/typespec.eddc2887.js                                                [39m [2m2.60 KiB / gzip: 1.02 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/vb.798018e8.js                                                      [39m [2m5.52 KiB / gzip: 1.97 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/xml.8cf53362.js                                                     [39m [2m1.88 KiB / gzip: 0.72 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/wgsl.c5fe16fb.js                                                    [39m [2m7.02 KiB / gzip: 2.64 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/DeploymentDetailPanel.3464d5cb.css                                  [39m [2m0.97 KiB / gzip: 0.44 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/RolesView.482410b1.css                                              [39m [2m0.09 KiB / gzip: 0.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/TabbedYamlEditorPanel.fd3d432e.css                                  [39m [2m4.35 KiB / gzip: 1.17 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/EndpointsView.37347ba1.css                                          [39m [2m0.09 KiB / gzip: 0.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/ServicesView.195c30d2.css                                           [39m [2m0.25 KiB / gzip: 0.19 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/K8sResourceDetailBase.dc77ea2d.css                                  [39m [2m2.28 KiB / gzip: 0.72 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/IngressesView.93462a10.css                                          [39m [2m0.09 KiB / gzip: 0.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/PriorityClassesView.8bb97dad.css                                    [39m [2m0.05 KiB / gzip: 0.07 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/ServiceAccountsView.5b54db15.css                                    [39m [2m0.09 KiB / gzip: 0.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/ClusterRolesView.fd4b3cb1.css                                       [39m [2m0.05 KiB / gzip: 0.07 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/ResourceQuotasView.055c25ef.css                                     [39m [2m0.09 KiB / gzip: 0.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/index.15c47196.css                                                  [39m [2m44.22 KiB / gzip: 8.95 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/PodsView.db25ea67.css                                               [39m [2m0.72 KiB / gzip: 0.29 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/LeasesView.c00efe7c.css                                             [39m [2m0.09 KiB / gzip: 0.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/ScaleDeploymentDialog.2e2c2617.css                                  [39m [2m3.20 KiB / gzip: 0.96 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/PodContainersCellComponent.895e867c.css                             [39m [2m0.56 KiB / gzip: 0.26 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/LimitRangesView.2ca79f67.css                                        [39m [2m0.09 KiB / gzip: 0.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/RoleBindingsView.60e902d4.css                                       [39m [2m0.09 KiB / gzip: 0.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/TabbedDeploymentLogsPanel.ff976be5.css                              [39m [2m3.68 KiB / gzip: 1.06 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/NamespacesView.84942be2.css                                         [39m [2m0.05 KiB / gzip: 0.07 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/DaemonSetsView.9f69d450.css                                         [39m [2m0.09 KiB / gzip: 0.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/SecretsView.5a0bb5e3.css                                            [39m [2m0.09 KiB / gzip: 0.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/CronJobsView.f6ed6c36.css                                           [39m [2m0.09 KiB / gzip: 0.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/EventsView.5fb97a90.css                                             [39m [2m0.09 KiB / gzip: 0.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/ServiceDetailPanel.6ea2fcbf.css                                     [39m [2m3.09 KiB / gzip: 0.91 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/HPAView.d084e564.css                                                [39m [2m0.09 KiB / gzip: 0.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/IngressClassesView.ee7d2ef9.css                                     [39m [2m0.05 KiB / gzip: 0.07 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/ConfigMapPanel.bc172934.css                                         [39m [2m1.31 KiB / gzip: 0.53 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/DeploymentLogsPanel.a9f1c21c.css                                    [39m [2m2.85 KiB / gzip: 0.91 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/ClusterRoleBindingsView.facc0071.css                                [39m [2m0.05 KiB / gzip: 0.07 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/PodDetailPanel.e1f7c201.css                                         [39m [2m15.13 KiB / gzip: 3.05 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/ClusterRoleBindingDetailPanel.81822d28.css                          [39m [2m0.77 KiB / gzip: 0.38 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/RoleDetailPanel.129c5745.css                                        [39m [2m0.76 KiB / gzip: 0.38 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/ConfigMapsView.b3203855.css                                         [39m [2m0.09 KiB / gzip: 0.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/ReplicaSetsView.4599d8c0.css                                        [39m [2m0.09 KiB / gzip: 0.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/JobsView.4fdb3c8d.css                                               [39m [2m0.09 KiB / gzip: 0.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/NodesView.57bd898c.css                                              [39m [2m0.05 KiB / gzip: 0.07 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/TerminalPanel.aab94926.css                                          [39m [2m1.82 KiB / gzip: 0.63 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/StorageClassesView.4bf9f8dc.css                                     [39m [2m0.05 KiB / gzip: 0.07 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/NamespaceDetailPanel.3ed4cf09.css                                   [39m [2m1.03 KiB / gzip: 0.45 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/PDBView.6a598914.css                                                [39m [2m0.09 KiB / gzip: 0.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/TabbedPodActionsPanel.9c29ccb4.css                                  [39m [2m5.42 KiB / gzip: 1.40 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/RoleBindingDetailPanel.7ffbed0a.css                                 [39m [2m0.77 KiB / gzip: 0.38 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/RuntimeClassesView.fcb1d40b.css                                     [39m [2m0.05 KiB / gzip: 0.07 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/EventsView.ce677c3e.css                                             [39m [2m0.09 KiB / gzip: 0.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/StatefulSetsView.206b815e.css                                       [39m [2m0.09 KiB / gzip: 0.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/K8sResourceListBase.0c97d86e.css                                    [39m [2m2.20 KiB / gzip: 0.63 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/DeploymentsView.9a15fe78.css                                        [39m [2m0.42 KiB / gzip: 0.20 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/NetworkPoliciesView.1d68747f.css                                    [39m [2m0.09 KiB / gzip: 0.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/PVCView.133ede4d.css                                                [39m [2m0.09 KiB / gzip: 0.09 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/PVView.ef934e8c.css                                                 [39m [2m0.05 KiB / gzip: 0.07 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/ClusterRoleDetailPanel.1c71b144.css                                 [39m [2m0.76 KiB / gzip: 0.38 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/xterm.e4fafbde.css                                                  [39m [2m4.25 KiB / gzip: 1.64 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/ServiceAccountDetailPanel.8d036296.css                              [39m [2m0.77 KiB / gzip: 0.38 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/LogsPanel.52988646.css                                              [39m [2m1.64 KiB / gzip: 0.62 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[35massets/monaco.07df12e9.css                                                 [39m [2m140.62 KiB / gzip: 22.86 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/index.64a4790a.js                                                   [39m [2m155.62 KiB / gzip: 46.14 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/MetricsChart.vue_vue_type_script_setup_true_lang.6aeced17.js        [39m [2m186.96 KiB / gzip: 65.43 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/xterm.c1163b51.js                                                   [39m [2m277.47 KiB / gzip: 68.75 KiB[22m
+[90m[37m[2mdist/[22m[90m[39m[36massets/monaco.fc5f0375.js                                                  [39m [33m3692.16 KiB / gzip: 956.50 KiB[39m
+[33m
+(!) Some chunks are larger than 500 KiB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/guide/en/#outputmanualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m

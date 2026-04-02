@@ -23,7 +23,7 @@
 </template>
 
 <script lang="ts" setup>
-import type { RevisionInfo } from '../../types'
+import type { RevisionInfo } from '../../../types'
 defineProps<{ revisions: RevisionInfo[] }>()
 defineEmits<{ (e: 'close'): void; (e: 'rollback', rev: number): void }>()
 </script>
