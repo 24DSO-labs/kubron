@@ -67,17 +67,40 @@ func removeFields(obj interface{}) interface{} {
 func getKindName(kind string) string {
 	// Преобразуем в правильный формат
 	kindMap := map[string]string{
-		"pod":                "Pod",
-		"deployment":         "Deployment",
-		"service":            "Service",
-		"configmap":          "ConfigMap",
-		"secret":             "Secret",
-		"node":               "Node",
-		"serviceaccount":     "ServiceAccount",
-		"role":               "Role",
-		"clusterrole":        "ClusterRole",
-		"rolebinding":        "RoleBinding",
-		"clusterrolebinding": "ClusterRoleBinding",
+		"pod":                     "Pod",
+		"deployment":              "Deployment",
+		"service":                 "Service",
+		"configmap":               "ConfigMap",
+		"secret":                  "Secret",
+		"node":                    "Node",
+		"serviceaccount":          "ServiceAccount",
+		"role":                    "Role",
+		"clusterrole":             "ClusterRole",
+		"rolebinding":             "RoleBinding",
+		"clusterrolebinding":      "ClusterRoleBinding",
+		"replicaset":              "ReplicaSet",
+		"statefulset":             "StatefulSet",
+		"daemonset":               "DaemonSet",
+		"job":                     "Job",
+		"cronjob":                 "CronJob",
+		"ingress":                 "Ingress",
+		"ingressclass":            "IngressClass",
+		"endpoint":                "Endpoint",
+		"networkpolicy":           "NetworkPolicy",
+		"persistentvolume":        "PersistentVolume",
+		"persistentvolumeclaim":   "PersistentVolumeClaim",
+		"storageclass":            "StorageClass",
+		"namespace":               "Namespace",
+		"event":                   "Event",
+		"resourcequota":           "ResourceQuota",
+		"limitrange":              "LimitRange",
+		"horizontalpodautoscaler": "HorizontalPodAutoscaler",
+		"hpa":                     "HorizontalPodAutoscaler",
+		"poddisruptionbudget":     "PodDisruptionBudget",
+		"pdb":                     "PodDisruptionBudget",
+		"priorityclass":           "PriorityClass",
+		"runtimeclass":            "RuntimeClass",
+		"lease":                   "Lease",
 	}
 	if k, ok := kindMap[kind]; ok {
 		return k
@@ -236,39 +259,48 @@ func (m *Manager) GetResourceYAML(namespace, kind, name string, clean bool) (str
 		data, err = conn.Client.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
 	case "deployment":
 		data, err = conn.Client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
+	case "statefulset":
+		data, err = conn.Client.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
+	case "daemonset":
+		data, err = conn.Client.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
+	case "replicaset":
+		data, err = conn.Client.AppsV1().ReplicaSets(namespace).Get(ctx, name, metav1.GetOptions{})
+	case "job":
+		data, err = conn.Client.BatchV1().Jobs(namespace).Get(ctx, name, metav1.GetOptions{})
+	case "cronjob":
+		data, err = conn.Client.BatchV1().CronJobs(namespace).Get(ctx, name, metav1.GetOptions{})
 	case "service":
 		data, err = conn.Client.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
+	case "ingress":
+		data, err = conn.Client.NetworkingV1().Ingresses(namespace).Get(ctx, name, metav1.GetOptions{})
+	case "ingressclass":
+		data, err = conn.Client.NetworkingV1().IngressClasses().Get(ctx, name, metav1.GetOptions{})
+	case "networkpolicy":
+		data, err = conn.Client.NetworkingV1().NetworkPolicies(namespace).Get(ctx, name, metav1.GetOptions{})
 	case "configmap":
 		data, err = conn.Client.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
 	case "secret":
 		data, err = conn.Client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+	case "persistentvolume":
+		data, err = conn.Client.CoreV1().PersistentVolumes().Get(ctx, name, metav1.GetOptions{})
+	case "persistentvolumeclaim":
+		data, err = conn.Client.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, name, metav1.GetOptions{})
+	case "storageclass":
+		data, err = conn.Client.StorageV1().StorageClasses().Get(ctx, name, metav1.GetOptions{})
 	case "node":
 		data, err = conn.Client.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
+	case "namespace":
+		data, err = conn.Client.CoreV1().Namespaces().Get(ctx, name, metav1.GetOptions{})
 	case "serviceaccount":
 		data, err = conn.Client.CoreV1().ServiceAccounts(namespace).Get(ctx, name, metav1.GetOptions{})
 	case "role":
 		data, err = conn.Client.RbacV1().Roles(namespace).Get(ctx, name, metav1.GetOptions{})
 	case "rolebinding":
 		data, err = conn.Client.RbacV1().RoleBindings(namespace).Get(ctx, name, metav1.GetOptions{})
+	case "clusterrole":
+		data, err = conn.Client.RbacV1().ClusterRoles().Get(ctx, name, metav1.GetOptions{})
 	case "clusterrolebinding":
 		data, err = conn.Client.RbacV1().ClusterRoleBindings().Get(ctx, name, metav1.GetOptions{})
-	case "clusterrole":
-		dynClient, dynErr := dynamic.NewForConfig(conn.Config)
-		if dynErr != nil {
-			err = dynErr
-			break
-		}
-		gvr := schema.GroupVersionResource{
-			Group:    "rbac.authorization.k8s.io",
-			Version:  "v1",
-			Resource: "clusterroles",
-		}
-		unstructured, dynErr := dynClient.Resource(gvr).Get(ctx, name, metav1.GetOptions{})
-		if dynErr != nil {
-			err = dynErr
-			break
-		}
-		data = unstructured.UnstructuredContent()
 	default:
 		// Для неизвестных ресурсов используем dynamic client
 		return m.getDynamicYAML(conn, ctx, namespace, kind, name, clean)
@@ -309,6 +341,8 @@ func (m *Manager) GetResourceYAML(namespace, kind, name string, clean bool) (str
 	switch kind {
 	case "role", "clusterrole", "rolebinding", "clusterrolebinding":
 		ordered["apiVersion"] = "rbac.authorization.k8s.io/v1"
+	case "deployment", "replicaset":
+		ordered["apiVersion"] = "apps/v1"
 	default:
 		ordered["apiVersion"] = "v1"
 	}
