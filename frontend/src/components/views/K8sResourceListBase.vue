@@ -26,21 +26,21 @@
       <div class="ctx-menu-item" @click="handleContextAction({ action: 'select' })">
         <span class="ctx-menu-arrow"></span>Show Details
       </div>
-      <div v-if="hasAttachSubmenu" class="ctx-menu-item-group" @mouseenter="showAttachMenu = true" @mouseleave="showAttachMenu = false">
+      <div v-if="hasAttachSubmenu" class="ctx-menu-item-group" @mouseenter="cancelAttachMenuTimeout(); showAttachMenu = true" @mouseleave="scheduleHideAttachMenu">
         <div class="ctx-menu-item ctx-menu-with-arrow">
           <span class="ctx-menu-arrow">‹</span> Attach Pod
         </div>
-        <div v-if="showAttachMenu && attachContainers.length" class="ctx-menu-sub">
+        <div v-if="showAttachMenu && attachContainers.length" class="ctx-menu-sub" @mouseenter="cancelAttachMenuTimeout" @mouseleave="scheduleHideAttachMenu">
           <div v-for="c in attachContainers" :key="c.name" class="ctx-menu-sub-item" @click.stop="handleContextAction({ action: `attachPod:${c.name}` })">
             {{ c.name }}
           </div>
         </div>
       </div>
-      <div v-if="hasShellSubmenu" class="ctx-menu-item-group" @mouseenter="showShellMenu = true" @mouseleave="showShellMenu = false">
+      <div v-if="hasShellSubmenu" class="ctx-menu-item-group" @mouseenter="cancelShellMenuTimeout(); showShellMenu = true" @mouseleave="scheduleHideShellMenu">
         <div class="ctx-menu-item ctx-menu-with-arrow">
           <span class="ctx-menu-arrow">‹</span> Shell
         </div>
-        <div v-if="showShellMenu && shellContainers.length" class="ctx-menu-sub">
+        <div v-if="showShellMenu && shellContainers.length" class="ctx-menu-sub" @mouseenter="cancelShellMenuTimeout" @mouseleave="scheduleHideShellMenu">
           <div v-for="c in shellContainers" :key="c.name" class="ctx-menu-sub-item" @click.stop="handleContextAction({ action: `shell:${c.name}` })">
             {{ c.name }}
           </div>
@@ -49,11 +49,11 @@
       <div class="ctx-menu-item" @click="handleContextAction({ action: 'evict' })">
         <span class="ctx-menu-arrow"></span>Evict
       </div>
-      <div v-if="hasLogsSubmenu" class="ctx-menu-item-group" @mouseenter="showLogsMenu = true" @mouseleave="showLogsMenu = false">
+      <div v-if="hasLogsSubmenu" class="ctx-menu-item-group" @mouseenter="cancelLogsMenuTimeout(); showLogsMenu = true" @mouseleave="scheduleHideLogsMenu">
         <div class="ctx-menu-item ctx-menu-with-arrow">
           <span class="ctx-menu-arrow">‹</span> Logs
         </div>
-        <div v-if="showLogsMenu && logsContainers.length" class="ctx-menu-sub">
+        <div v-if="showLogsMenu && logsContainers.length" class="ctx-menu-sub" @mouseenter="cancelLogsMenuTimeout" @mouseleave="scheduleHideLogsMenu">
           <div v-for="c in logsContainers" :key="c.name" class="ctx-menu-sub-item" @click.stop="handleContextAction({ action: `logs:${c.name}` })">
             {{ c.name }}
           </div>
@@ -71,7 +71,7 @@
 
 <script lang="ts" setup>
 import ContentHeader from '../ContentHeader.vue'
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 
 export interface Column {
   key: string
@@ -121,6 +121,52 @@ const logsContainers = ref<any[]>([])
 const hasAttachSubmenu = ref(false)
 const hasShellSubmenu = ref(false)
 const hasLogsSubmenu = ref(false)
+
+let attachMenuTimeout: ReturnType<typeof setTimeout> | null = null
+let shellMenuTimeout: ReturnType<typeof setTimeout> | null = null
+let logsMenuTimeout: ReturnType<typeof setTimeout> | null = null
+
+function scheduleHideAttachMenu() {
+  if (attachMenuTimeout) clearTimeout(attachMenuTimeout)
+  attachMenuTimeout = setTimeout(() => {
+    showAttachMenu.value = false
+  }, 150)
+}
+
+function scheduleHideShellMenu() {
+  if (shellMenuTimeout) clearTimeout(shellMenuTimeout)
+  shellMenuTimeout = setTimeout(() => {
+    showShellMenu.value = false
+  }, 150)
+}
+
+function scheduleHideLogsMenu() {
+  if (logsMenuTimeout) clearTimeout(logsMenuTimeout)
+  logsMenuTimeout = setTimeout(() => {
+    showLogsMenu.value = false
+  }, 150)
+}
+
+function cancelAttachMenuTimeout() {
+  if (attachMenuTimeout) clearTimeout(attachMenuTimeout)
+  attachMenuTimeout = null
+}
+
+function cancelShellMenuTimeout() {
+  if (shellMenuTimeout) clearTimeout(shellMenuTimeout)
+  shellMenuTimeout = null
+}
+
+function cancelLogsMenuTimeout() {
+  if (logsMenuTimeout) clearTimeout(logsMenuTimeout)
+  logsMenuTimeout = null
+}
+
+onUnmounted(() => {
+  cancelAttachMenuTimeout()
+  cancelShellMenuTimeout()
+  cancelLogsMenuTimeout()
+})
 
 function getCellValue(item: any, key: string): string {
   // Special handling for 'age' field
