@@ -23,22 +23,47 @@
     </table>
     <div v-else class="empty">{{ emptyMessage }}</div>
     <div v-if="showContextMenu" :style="menuStyle" class="cluster-context-menu" @click.stop>
-      <div v-for="(menuItem, index) in contextMenuItems" :key="index">
-        <!-- Single level menu items -->
-        <div v-if="!menuItem.submenu" class="ctx-menu-item" :class="{ 'ctx-menu-danger': menuItem.danger }" @click="handleContextAction(menuItem)">
-          <span class="ctx-menu-arrow"></span>{{ menuItem.label }}
+      <div class="ctx-menu-item" @click="handleContextAction({ action: 'select' })">
+        <span class="ctx-menu-arrow"></span>Show Details
+      </div>
+      <div v-if="hasAttachSubmenu" class="ctx-menu-item-group" @mouseenter="showAttachMenu = true" @mouseleave="showAttachMenu = false">
+        <div class="ctx-menu-item ctx-menu-with-arrow">
+          <span class="ctx-menu-arrow">‹</span> Attach Pod
         </div>
-        <!-- Multi-level menu items -->
-        <div v-else class="ctx-menu-item-group" @mouseenter="menuItem.show = true" @mouseleave="menuItem.show = false">
-          <div class="ctx-menu-item ctx-menu-with-arrow">
-            <span class="ctx-menu-arrow">‹</span> {{ menuItem.label }}
-          </div>
-          <div v-if="menuItem.show && menuItem.submenu" class="ctx-menu-sub">
-            <div v-for="subItem in menuItem.submenu" :key="subItem.key" class="ctx-menu-sub-item" @click.stop="handleContextAction(subItem)">
-              {{ subItem.label }}
-            </div>
+        <div v-if="showAttachMenu && attachContainers.length" class="ctx-menu-sub">
+          <div v-for="c in attachContainers" :key="c.name" class="ctx-menu-sub-item" @click.stop="handleContextAction({ action: `attachPod:${c.name}` })">
+            {{ c.name }}
           </div>
         </div>
+      </div>
+      <div v-if="hasShellSubmenu" class="ctx-menu-item-group" @mouseenter="showShellMenu = true" @mouseleave="showShellMenu = false">
+        <div class="ctx-menu-item ctx-menu-with-arrow">
+          <span class="ctx-menu-arrow">‹</span> Shell
+        </div>
+        <div v-if="showShellMenu && shellContainers.length" class="ctx-menu-sub">
+          <div v-for="c in shellContainers" :key="c.name" class="ctx-menu-sub-item" @click.stop="handleContextAction({ action: `shell:${c.name}` })">
+            {{ c.name }}
+          </div>
+        </div>
+      </div>
+      <div class="ctx-menu-item" @click="handleContextAction({ action: 'evict' })">
+        <span class="ctx-menu-arrow"></span>Evict
+      </div>
+      <div v-if="hasLogsSubmenu" class="ctx-menu-item-group" @mouseenter="showLogsMenu = true" @mouseleave="showLogsMenu = false">
+        <div class="ctx-menu-item ctx-menu-with-arrow">
+          <span class="ctx-menu-arrow">‹</span> Logs
+        </div>
+        <div v-if="showLogsMenu && logsContainers.length" class="ctx-menu-sub">
+          <div v-for="c in logsContainers" :key="c.name" class="ctx-menu-sub-item" @click.stop="handleContextAction({ action: `logs:${c.name}` })">
+            {{ c.name }}
+          </div>
+        </div>
+      </div>
+      <div class="ctx-menu-item" @click="handleContextAction({ action: 'edit' })">
+        <span class="ctx-menu-arrow"></span>Edit
+      </div>
+      <div class="ctx-menu-item ctx-menu-danger" @click="handleContextAction({ action: 'delete' })">
+        <span class="ctx-menu-arrow"></span>Delete
       </div>
     </div>
   </div>
@@ -85,6 +110,17 @@ const emit = defineEmits<{
 const showContextMenu = ref(false)
 const menuStyle = ref<Record<string, string>>({})
 const selectedItem = ref<any>(null)
+const localContextMenuItems = ref<ContextMenuItem[]>([])
+const showAttachMenu = ref(false)
+const showShellMenu = ref(false)
+const showLogsMenu = ref(false)
+
+const attachContainers = ref<any[]>([])
+const shellContainers = ref<any[]>([])
+const logsContainers = ref<any[]>([])
+const hasAttachSubmenu = ref(false)
+const hasShellSubmenu = ref(false)
+const hasLogsSubmenu = ref(false)
 
 function getCellValue(item: any, key: string): string {
   const keys = key.split('.')
@@ -104,10 +140,28 @@ function getItemKey(item: any): string {
 function openContextMenu(item: any, event: MouseEvent) {
   selectedItem.value = item
   
+  // Create a deep copy of context menu items to enable state management
+  localContextMenuItems.value = JSON.parse(JSON.stringify(props.contextMenuItems))
+  
   // Reset all submenu flags
-  props.contextMenuItems.forEach(menuItem => {
+  localContextMenuItems.value.forEach(menuItem => {
     menuItem.show = false
   })
+  
+  // Check if item has containers (for Pod-like objects)
+  const containers = (item as any).containers || []
+  const regularContainers = containers.filter((c: any) => !c.isInit)
+  
+  attachContainers.value = regularContainers
+  shellContainers.value = regularContainers
+  logsContainers.value = regularContainers
+  hasAttachSubmenu.value = regularContainers.length > 0
+  hasShellSubmenu.value = regularContainers.length > 0
+  hasLogsSubmenu.value = regularContainers.length > 0
+  
+  showAttachMenu.value = false
+  showShellMenu.value = false
+  showLogsMenu.value = false
 
   const button = event.target as HTMLElement
   const rect = button.getBoundingClientRect()
@@ -149,12 +203,8 @@ function hideContextMenu() {
 }
 
 function handleContextAction(menuItem: ContextMenuItem) {
-  if (selectedItem.value) {
-    if (menuItem.handler) {
-      menuItem.handler(selectedItem.value)
-    } else if (menuItem.action) {
-      emit('contextAction', menuItem.action, selectedItem.value)
-    }
+  if (selectedItem.value && menuItem.action) {
+    emit('contextAction', menuItem.action, selectedItem.value)
   }
   hideContextMenu()
 }
@@ -178,6 +228,11 @@ function onSearch(val: string) { emit('search', val) }
   cursor: default;
 }
 
+.ctx-menu-wrapper {
+  position: absolute;
+  z-index: 1000;
+}
+
 .cluster-context-menu {
   background: #1e1f35;
   border: 1px solid #3b3d5c;
@@ -185,6 +240,9 @@ function onSearch(val: string) { emit('search', val) }
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   z-index: 1000;
   min-width: 160px;
+  overflow: visible;
+  padding: 0;
+  position: relative;
 }
 
 .ctx-menu-item {
@@ -196,7 +254,6 @@ function onSearch(val: string) { emit('search', val) }
   padding-left: 34px;
   text-align: left;
   position: relative;
-  margin: -9px;
 }
 
 .ctx-menu-item:hover {
@@ -222,6 +279,13 @@ function onSearch(val: string) { emit('search', val) }
 .ctx-menu-item-group {
   position: relative;
   display: block;
+  margin: 0;
+  padding: 0;
+}
+
+.ctx-menu-item-group .ctx-menu-item {
+  padding: 6px 12px;
+  padding-left: 34px;
 }
 
 .ctx-menu-with-arrow {
@@ -232,7 +296,7 @@ function onSearch(val: string) { emit('search', val) }
   position: absolute;
   top: 0;
   right: 100%;
-  margin-right: 8px;
+  margin-right: 4px;
   background: #1e1f35;
   border: 1px solid #3b3d5c;
   border-radius: 4px;
