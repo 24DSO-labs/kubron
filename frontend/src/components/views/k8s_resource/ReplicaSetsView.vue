@@ -11,13 +11,24 @@
     @select="onSelect"
     @context-action="onContextAction"
   />
+
+  <!-- ReplicaSet Detail Panel -->
+  <ReplicaSetDetailPanel
+    v-if="selectedReplicaSet"
+    :resource="selectedReplicaSet"
+    @close="selectedReplicaSet = null"
+    @edit="() => {}"
+    @delete="() => {}"
+  />
 </template>
 
 <script lang="ts" setup>
 import type { ReplicaSetInfo } from '../../../types'
 import K8sResourceListBase from '../K8sResourceListBase.vue'
 import type { Column, ContextMenuItem } from '../K8sResourceListBase.vue'
-import { ref } from 'vue'
+import { defineAsyncComponent, ref } from 'vue'
+
+const ReplicaSetDetailPanel = defineAsyncComponent(() => import('../../panels/k8s_resource/ReplicaSetDetailPanel.vue'))
 
 defineProps<{ items: ReplicaSetInfo[]; search: string }>()
 
@@ -30,6 +41,7 @@ const emit = defineEmits<{
 }>()
 
 const selectedItem = ref<ReplicaSetInfo | null>(null)
+const selectedReplicaSet = ref<any | null>(null)
 
 const columns: Column[] = [
   { key: 'name', label: 'Name', className: 'resource-name' },
@@ -47,7 +59,10 @@ const contextMenuItems: ContextMenuItem[] = [
 
 function onRefresh() { emit('refresh') }
 function onSearch(val: string) { emit('search', val) }
-function onSelect(item: ReplicaSetInfo) { emit('select', item) }
+function onSelect(item: ReplicaSetInfo) {
+  selectedReplicaSet.value = item
+  emit('select', item)
+}
 
 function onContextAction(action: string, item: ReplicaSetInfo) {
   selectedItem.value = item

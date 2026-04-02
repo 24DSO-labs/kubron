@@ -88,6 +88,7 @@
       @attach="onPodDetailAttach"
       @terminal="onPodDetailTerminal"
       @logs="onPodDetailLogs"
+      @open-resource="onOpenResource"
     />
 
     <!-- Deployment Detail Panel -->
@@ -158,6 +159,15 @@
       @close="selectedServiceAccount = null"
       @edit="onServiceAccountEdit"
       @delete="onServiceAccountDelete"
+    />
+
+    <!-- ReplicaSet Detail Panel -->
+    <ReplicaSetDetailPanel
+      v-if="selectedReplicaSet"
+      :resource="selectedReplicaSet"
+      @close="selectedReplicaSet = null"
+      @edit="() => {}"
+      @delete="() => {}"
     />
 
     <!-- Role Detail Panel -->
@@ -239,7 +249,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useK8s } from './composables/useK8s'
 import { useClusters } from './composables/useClusters'
 import { usePodActions } from './composables/usePodActions'
@@ -270,6 +280,7 @@ const TabbedYamlEditorPanel = defineAsyncComponent(() => import('./components/pa
 const TabbedActionsPanel = defineAsyncComponent(() => import('./components/panels/TabbedPodActionsPanel.vue'))
 const RevisionsPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/RevisionsPanel.vue'))
 const NamespaceDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/NamespaceDetailPanel.vue'))
+const ReplicaSetDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ReplicaSetDetailPanel.vue'))
 
 // ─── Composables ───
 
@@ -365,6 +376,7 @@ watch(tabbedActionsPanel, (newVal) => {
 const selectedNamespaceDetail = ref<any | null>(null)
 const selectedDeployment = ref<any | null>(null)
 const selectedServiceAccount = ref<any | null>(null)
+const selectedReplicaSet = ref<any | null>(null)
 const selectedRole = ref<any | null>(null)
 const selectedRoleBinding = ref<any | null>(null)
 const selectedClusterRole = ref<any | null>(null)
@@ -724,6 +736,56 @@ function onPodDetailLogs(data: any) {
   if (data.pod) {
     selectedPod.value = data.pod
     podActions.openLogs(data.pod, data.container)
+  }
+}
+
+async function onOpenResource(data: { kind: string; name: string; namespace?: string }) {
+  let { kind, name, namespace } = data
+  
+  // Если name содержит "/" (например "ReplicaSet/my-name"), распарсить
+  if (name.includes('/')) {
+    const parts = name.split('/')
+    if (parts.length === 2) {
+      kind = parts[0]
+      name = parts[1]
+    }
+  }
+  
+  // Закрываем Pod Panel и открываем соответствующий ресурс
+  selectedPod.value = null
+  
+  try {
+    switch (kind) {
+      case 'Namespace':
+        const ns = await k8s.getNamespace(name)
+        selectedNamespaceDetail.value = ns
+        break
+        
+      case 'Node':
+        const node = await k8s.getNode(name)
+        // Открыть панель деталей ноды - пока просто переключимся на nodes view
+        switchView('nodes')
+        break
+        
+      case 'ServiceAccount':
+        if (namespace) {
+          const sa = await k8s.getServiceAccount(namespace, name)
+          selectedServiceAccount.value = sa
+        }
+        break
+        
+      case 'ReplicaSet':
+        if (namespace) {
+          const rs = await k8s.getReplicaSet(namespace, name)
+          selectedReplicaSet.value = rs
+        }
+        break
+        
+      default:
+        notifications.notifyError(`Unknown resource type: ${kind}`)
+    }
+  } catch (e: any) {
+    notifications.notifyError(`Failed to load ${kind}: ${e.message || e}`)
   }
 }
 
