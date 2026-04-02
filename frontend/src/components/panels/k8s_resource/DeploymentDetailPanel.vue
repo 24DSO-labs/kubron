@@ -1,7 +1,7 @@
 <template>
   <K8sResourceDetailBase
     :resource="deployment"
-    resource-icon="📦"
+    resource-icon=""
     @close="$emit('close')"
   >
     <template #actions>

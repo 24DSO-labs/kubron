@@ -238,8 +238,13 @@ async function loadNamespaces() {
 // --- Navigation ---
 function switchView(view: string) {
   search.value = ''
-  selectedPod.value = null; selectedConfigMap.value = null
-  yamlContent.value = ''; execOutput.value = ''; yamlEditing.value = false
+  selectedPod.value = null
+  selectedConfigMap.value = null
+  selectedService.value = null
+  selectedServiceAccount.value = null
+  yamlContent.value = ''
+  execOutput.value = ''
+  yamlEditing.value = false
   // Cancel previous request
   if (refreshAbortSignal) {
     refreshAbortSignal.abort()

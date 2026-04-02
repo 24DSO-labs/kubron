@@ -2,13 +2,15 @@
   <div class="detail-panel">
     <!-- Header with title and action menu -->
     <div class="detail-header">
-      <h3>{{ resourceIcon }} {{ resource.name }}</h3>
+      <h3>{{ resourceIcon }}</h3>
       <div class="detail-actions-bar">
         <!-- Custom action menu items (slot or prop-based) -->
         <slot name="actions" :resource="resource"></slot>
 
         <!-- Close button -->
-        <button class="btn-close" @click="emit('close')">✕</button>
+        <button class="btn-close" @click="emit('close')" title="Close">
+          <img :src="closeIcon" alt="Close" class="icon-close"/>
+        </button>
       </div>
     </div>
 
@@ -16,7 +18,12 @@
     <div v-if="showMetaInfo" class="detail-meta">
       <div class="meta-row">
         <span class="meta-label">Name:</span>
-        {{ resource.name }}
+        <div class="name-with-copy">
+          {{ resource.name }}
+          <button class="btn-copy" @click="copyToClipboard(resource.name)" title="Copy name">
+            <img :src="copyIcon" alt="Copy" class="icon-inline"/>
+          </button>
+        </div>
       </div>
       <div v-if="resource.namespace" class="meta-row">
         <span class="meta-label">Namespace:</span>
@@ -69,6 +76,8 @@
 
 <script lang="ts" setup>
 import { ref, computed } from 'vue'
+import copyIcon from '../../assets/icons/copy.svg'
+import closeIcon from '../../assets/icons/close.svg'
 
 export interface DetailTab {
   id: string
@@ -146,6 +155,15 @@ function formatAgeAbsolute(created: string): string {
     return new Intl.DateTimeFormat('ru-RU', options).format(date)
   } catch {
     return created
+  }
+}
+
+// Copy to clipboard
+async function copyToClipboard(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch (err) {
+    console.error('Failed to copy to clipboard:', err)
   }
 }
 
@@ -276,19 +294,33 @@ defineExpose({
 .btn-close {
   padding: 6px 10px;
   background: transparent;
-  border: 1px solid #3b3d5c;
+  border: none;
   border-radius: 4px;
-  color: #d4d4d4;
+  color: white;
   cursor: pointer;
   font-size: 1rem;
   transition: all 0.15s;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
 }
 
 .btn-close:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: #5a5c7a;
-  color: white;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.icon-close {
+  width: 28px;
+  height: 28px;
+  filter: invert(1);
+  opacity: 0.8;
+}
+
+.btn-close:hover .icon-close {
+  opacity: 1;
 }
 
 /* ═══════ Scrollbar ═══════ */
@@ -330,6 +362,46 @@ defineExpose({
 .meta-link:active {
   color: #3b82f6 !important;
   text-decoration-color: #3b82f6;
+}
+
+/* Name with copy button */
+.name-with-copy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-copy {
+  padding: 4px 6px;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  color: #d4d4d4;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.icon-inline {
+  width: 10px;
+  height: 10px;
+  stroke: currentColor;
+  filter: invert(1);
+  opacity: 0.8;
+}
+
+.btn-copy:hover .icon-inline {
+  opacity: 1;
+}
+
+.btn-copy:active {
+  background: rgba(59, 130, 246, 0.1);
 }
 
 /* Utility classes */
