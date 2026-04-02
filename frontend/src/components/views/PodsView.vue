@@ -17,6 +17,7 @@
 import type { PodInfo, PodMetricsInfo } from '../../types'
 import K8sResourceListBase from './K8sResourceListBase.vue'
 import type { Column, ContextMenuItem } from './K8sResourceListBase.vue'
+import PodContainersCellComponent from './PodContainersCellComponent.vue'
 import { ref, computed } from 'vue'
 
 const props = defineProps<{
@@ -45,7 +46,7 @@ const columns: Column[] = [
   { key: 'namespace', label: 'Namespace', className: 'ns-label' },
   { key: 'cpu', label: 'CPU', className: 'mono metric-cell' },
   { key: 'memory', label: 'Memory', className: 'mono metric-cell' },
-  { key: 'containers', label: 'Containers' },
+  { key: 'containers', label: 'Containers', component: PodContainersCellComponent },
   { key: 'status', label: 'Status' },
   { key: 'restarts', label: 'Restarts' },
   { key: 'age', label: 'Age' },
@@ -53,39 +54,40 @@ const columns: Column[] = [
   { key: 'qos', label: 'QoS' }
 ]
 
-const contextMenuItems = computed<ContextMenuItem[]>(() => [
-  { label: 'Show Details', action: 'select' },
-  {
-    label: 'Attach Pod',
-    submenu: selectedPod.value?.containers.map(c => ({
-      label: c.name,
-      key: `attach-${c.name}`,
-      action: 'attachPod',
-      handler: () => emit('attachPod', selectedPod.value!, c.name)
-    })) || []
-  },
-  {
-    label: 'Shell',
-    submenu: selectedPod.value?.containers.map(c => ({
-      label: c.name,
-      key: `shell-${c.name}`,
-      action: 'shell',
-      handler: () => emit('shell', selectedPod.value!, c.name)
-    })) || []
-  },
-  { label: 'Evict', action: 'evict' },
-  {
-    label: 'Logs',
-    submenu: selectedPod.value?.containers.map(c => ({
-      label: c.name,
-      key: `logs-${c.name}`,
-      action: 'logs',
-      handler: () => emit('logs', selectedPod.value!, c.name)
-    })) || []
-  },
-  { label: 'Edit', action: 'edit' },
-  { label: 'Delete', action: 'delete', danger: true }
-])
+const contextMenuItems = computed<ContextMenuItem[]>(() => {
+  const allContainers = selectedPod.value?.containers || []
+  const regularContainers = allContainers.filter(c => !c.isInit)
+  return [
+    { label: 'Show Details', action: 'select' },
+    {
+      label: 'Attach Pod',
+      submenu: regularContainers.map(c => ({
+        label: c.name,
+        key: `attach-${c.name}`,
+        action: `attachPod:${c.name}`
+      })) || []
+    },
+    {
+      label: 'Shell',
+      submenu: regularContainers.map(c => ({
+        label: c.name,
+        key: `shell-${c.name}`,
+        action: `shell:${c.name}`
+      })) || []
+    },
+    { label: 'Evict', action: 'evict' },
+    {
+      label: 'Logs',
+      submenu: regularContainers.map(c => ({
+        label: c.name,
+        key: `logs-${c.name}`,
+        action: `logs:${c.name}`
+      })) || []
+    },
+    { label: 'Edit', action: 'edit' },
+    { label: 'Delete', action: 'delete', danger: true }
+  ]
+})
 
 function onRefresh() { emit('refresh') }
 function onSearch(val: string) { emit('search', val) }
@@ -93,6 +95,24 @@ function onSelect(pod: PodInfo) { emit('select', pod) }
 
 function onContextAction(action: string, pod: PodInfo) {
   selectedPod.value = pod
+  
+  // Handle submenu actions with container names
+  if (action.startsWith('attachPod:')) {
+    const containerName = action.substring('attachPod:'.length)
+    emit('attachPod', pod, containerName)
+    return
+  }
+  if (action.startsWith('shell:')) {
+    const containerName = action.substring('shell:'.length)
+    emit('shell', pod, containerName)
+    return
+  }
+  if (action.startsWith('logs:')) {
+    const containerName = action.substring('logs:'.length)
+    emit('logs', pod, containerName)
+    return
+  }
+  
   switch (action) {
     case 'select':
       emit('select', pod)
