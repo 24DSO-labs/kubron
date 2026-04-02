@@ -101,34 +101,77 @@ func parsePrometheusResult(result *PromQueryResult) float64 {
 }
 
 func (m *Manager) GetPodMetrics(namespace string) ([]PodMetrics, error) {
-	result, err := m.QueryPrometheus(promQueryPodCPUByNs(namespace))
+	cpuResult, err := m.QueryPrometheus(promQueryPodCPUByNs(namespace))
 	if err != nil {
 		return nil, err
 	}
 
-	var podMetrics []PodMetrics
-	if result != nil && result.Data != nil {
+	podMetricsMap := make(map[string]*PodMetrics)
+
+	if cpuResult != nil && cpuResult.Data != nil {
 		var data map[string]interface{}
-		if err := json.Unmarshal(result.Data, &data); err == nil {
+		if err := json.Unmarshal(cpuResult.Data, &data); err == nil {
 			if results, ok := data["result"].([]interface{}); ok {
 				for _, r := range results {
 					if resultMap, ok := r.(map[string]interface{}); ok {
 						if metric, ok := resultMap["metric"].(map[string]interface{}); ok {
-							pod := PodMetrics{
-								Name:      getStringFromMap(metric, "pod"),
-								Namespace: getStringFromMap(metric, "namespace"),
-							}
-							if value, ok := resultMap["value"].([]interface{}); ok && len(value) > 1 {
-								if valStr, ok := value[1].(string); ok {
-									pod.TotalCPU = valStr
+							podName := getStringFromMap(metric, "pod")
+							podNS := getStringFromMap(metric, "namespace")
+							key := podNS + "/" + podName
+
+							if _, exists := podMetricsMap[key]; !exists {
+								podMetricsMap[key] = &PodMetrics{
+									Name:      podName,
+									Namespace: podNS,
 								}
 							}
-							podMetrics = append(podMetrics, pod)
+
+							if value, ok := resultMap["value"].([]interface{}); ok && len(value) > 1 {
+								if valStr, ok := value[1].(string); ok {
+									podMetricsMap[key].TotalCPU = valStr
+								}
+							}
 						}
 					}
 				}
 			}
 		}
+	}
+
+	memResult, err := m.QueryPrometheus(promQueryPodMemByNs(namespace))
+	if err == nil && memResult != nil && memResult.Data != nil {
+		var data map[string]interface{}
+		if err := json.Unmarshal(memResult.Data, &data); err == nil {
+			if results, ok := data["result"].([]interface{}); ok {
+				for _, r := range results {
+					if resultMap, ok := r.(map[string]interface{}); ok {
+						if metric, ok := resultMap["metric"].(map[string]interface{}); ok {
+							podName := getStringFromMap(metric, "pod")
+							podNS := getStringFromMap(metric, "namespace")
+							key := podNS + "/" + podName
+
+							if _, exists := podMetricsMap[key]; !exists {
+								podMetricsMap[key] = &PodMetrics{
+									Name:      podName,
+									Namespace: podNS,
+								}
+							}
+
+							if value, ok := resultMap["value"].([]interface{}); ok && len(value) > 1 {
+								if valStr, ok := value[1].(string); ok {
+									podMetricsMap[key].TotalMem = valStr
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	var podMetrics []PodMetrics
+	for _, pm := range podMetricsMap {
+		podMetrics = append(podMetrics, *pm)
 	}
 
 	return podMetrics, nil

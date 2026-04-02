@@ -24,7 +24,10 @@
       </div>
       <div v-if="resource.age" class="meta-row">
         <span class="meta-label">Age:</span>
-        {{ resource.age }}
+        <div class="age-display">
+          <div class="age-relative">{{ formatAgeRelative(resource.age) }}</div>
+          <div class="age-absolute">{{ formatAgeAbsolute(resource.created) }}</div>
+        </div>
       </div>
     </div>
 
@@ -97,6 +100,7 @@ defineSlots<{
 }>()
 
 const activeTab = ref('properties')
+const metricsCollapsed = ref(false)
 
 const tabs = computed<DetailTab[]>(() => {
   const baseTabs: DetailTab[] = [
@@ -104,6 +108,54 @@ const tabs = computed<DetailTab[]>(() => {
     { id: 'events', label: 'Events' }
   ]
   return [...baseTabs, ...props.customTabs]
+})
+
+// Format Age - relative format like "14d 11h 29m ago"
+function formatAgeRelative(age: string): string {
+  if (!age) return '—'
+  
+  // Parse age string like "14d", "11h", "29m" or combined
+  const parts = age.match(/(\d+)([dhms])/g) || []
+  if (parts.length === 0) return age
+  
+  return parts.join(' ') + ' ago'
+}
+
+// Format created timestamp to absolute format
+function formatAgeAbsolute(created: string): string {
+  if (!created) return '—'
+  
+  try {
+    const date = new Date(created)
+    if (isNaN(date.getTime())) return created
+    
+    // Format: "19 мар. 2026 г., 7:21:20 GMT+7"
+    const options: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      timeZone: 'Asia/Krasnoyarsk',
+      timeZoneName: 'short'
+    }
+    return new Intl.DateTimeFormat('ru-RU', options).format(date)
+  } catch {
+    return created
+  }
+}
+
+// Toggle metrics collapse/expand
+function toggleMetrics() {
+  metricsCollapsed.value = !metricsCollapsed.value
+}
+
+// Expose methods and state for child components
+defineExpose({
+  metricsCollapsed,
+  toggleMetrics,
+  activeTab
 })
 </script>
 
@@ -278,5 +330,74 @@ const tabs = computed<DetailTab[]>(() => {
 
 .text-gray-300 {
   color: #d4d4d4;
+}
+
+/* Age display */
+.age-display {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.age-relative {
+  font-weight: 500;
+  color: #d4d4d4;
+}
+
+.age-absolute {
+  font-size: 0.8rem;
+  color: #868d8a;
+}
+
+/* Collapsible metrics section */
+.metrics-section {
+  margin-top: 16px;
+  border: 1px solid #2a2b40;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.metrics-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid #2a2b40;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.metrics-header:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.metrics-header-title {
+  flex: 1;
+  font-weight: 500;
+  color: #d4d4d4;
+}
+
+.metrics-toggle {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s;
+  color: #868d8a;
+}
+
+.metrics-toggle.collapsed {
+  transform: rotate(-90deg);
+}
+
+.metrics-content {
+  padding: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.metrics-content.hidden {
+  display: none;
 }
 </style>

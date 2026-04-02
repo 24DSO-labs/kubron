@@ -583,7 +583,8 @@ async function refreshData() {
 // --- Auto Refresh ---
 function startAutoRefresh() {
   stopAutoRefresh()
-  autoRefreshTimer = setInterval(() => { refreshData() }, 15000)
+  // Auto-refresh disabled - handled by App.vue instead for better control
+  // autoRefreshTimer = setInterval(() => { refreshData() }, 15000)
 }
 function stopAutoRefresh() {
   if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null }
@@ -947,6 +948,7 @@ export function useK8s() {
     openServiceAccountDetail,
     openServiceDetail, forwardServicePort,
     getPods: GetPods,
+    getNamespace, getNode, getServiceAccount, getReplicaSet, deleteReplicaSet,
   }
 }
 
@@ -956,4 +958,103 @@ async function stopPortForward(id: string) {
     await StopPortForward(id)
     await refreshPortForwards()
   } catch (e: any) { error.value = 'Stop PF error: ' + (e.message || e) }
+}
+
+// --- Get Resource Details ---
+async function getNamespace(name: string) {
+  try {
+    const app = await dynamicImportApp()
+    if ((app as any).GetNamespaceDetail) {
+      const ns = await (app as any).GetNamespaceDetail(name)
+      return formatResourceDetail(ns)
+    }
+    // Fallback: get from list
+    const allNs = await GetNamespaces()
+    const found = allNs.find(n => n.name === name)
+    if (found) {
+      return formatResourceDetail(found)
+    }
+    throw new Error('Namespace not found')
+  } catch (e: any) {
+    error.value = 'Error loading Namespace: ' + (e.message || e)
+    throw e
+  }
+}
+
+async function getNode(name: string) {
+  try {
+    const app = await dynamicImportApp()
+    if ((app as any).GetNodeDetail) {
+      const node = await (app as any).GetNodeDetail(name)
+      return formatResourceDetail(node)
+    }
+    // Fallback: get from list
+    const allNodes = await GetNodes()
+    const found = allNodes.find(n => n.name === name)
+    if (found) {
+      return formatResourceDetail(found)
+    }
+    throw new Error('Node not found')
+  } catch (e: any) {
+    error.value = 'Error loading Node: ' + (e.message || e)
+    throw e
+  }
+}
+
+function formatResourceDetail(resource: any): any {
+  if (!resource) return {}
+  
+  // Преобразуем объект в нужный формат для DetailPanel
+  return {
+    name: resource.name || resource.metadata?.name || '',
+    namespace: resource.namespace || resource.metadata?.namespace || '',
+    age: resource.age || '',
+    created: resource.created || resource.createdTime || resource.metadata?.creationTimestamp || '',
+    ...resource
+  }
+}
+
+async function getServiceAccount(namespace: string, name: string) {
+  try {
+    const app = await dynamicImportApp()
+    if ((app as any).GetServiceAccountDetail) {
+      const sa = await (app as any).GetServiceAccountDetail(namespace, name)
+      return formatResourceDetail(sa)
+    }
+    throw new Error('GetServiceAccountDetail not available')
+  } catch (e: any) {
+    error.value = 'Error loading ServiceAccount: ' + (e.message || e)
+    throw e
+  }
+}
+
+async function getReplicaSet(namespace: string, name: string) {
+  try {
+    // Загружаем YAML для ReplicaSet
+    const yaml = await GetResourceYAML(namespace, 'replicaset', name, true)
+    // Преобразуем в объект для деталь панели
+    const rs: any = {
+      name,
+      namespace,
+      yaml
+    }
+    return formatResourceDetail(rs)
+  } catch (e: any) {
+    error.value = 'Error loading ReplicaSet: ' + (e.message || e)
+    throw e
+  }
+}
+
+async function deleteReplicaSet(namespace: string, name: string) {
+  try {
+    const app = await dynamicImportApp()
+    if ((app as any).DeleteReplicaSet) {
+      await (app as any).DeleteReplicaSet(namespace, name)
+    } else {
+      throw new Error('DeleteReplicaSet not available')
+    }
+  } catch (e: any) {
+    error.value = 'Ошибка удаления ReplicaSet: ' + (e.message || e)
+    throw e
+  }
 }
