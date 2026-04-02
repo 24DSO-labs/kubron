@@ -26,48 +26,11 @@
     </table>
     <div v-else class="empty">{{ emptyMessage }}</div>
     <div v-if="showContextMenu" :style="menuStyle" class="cluster-context-menu" @click.stop>
-      <div class="ctx-menu-item" @click="handleContextAction({ action: 'select' })">
-        <span class="ctx-menu-arrow"></span>Show Details
-      </div>
-      <div v-if="hasAttachSubmenu" class="ctx-menu-item-group" @mouseenter="cancelAttachMenuTimeout(); showAttachMenu = true" @mouseleave="scheduleHideAttachMenu">
-        <div class="ctx-menu-item ctx-menu-with-arrow">
-          <span class="ctx-menu-arrow">‹</span> Attach Pod
+      <template v-for="(item, index) in props.contextMenuItems" :key="index">
+        <div :class="['ctx-menu-item', { 'ctx-menu-danger': item.danger }]" @click="handleContextAction({ action: item.action })">
+          <span class="ctx-menu-arrow"></span>{{ item.label }}
         </div>
-        <div v-if="showAttachMenu && attachContainers.length" class="ctx-menu-sub" @mouseenter="cancelAttachMenuTimeout" @mouseleave="scheduleHideAttachMenu">
-          <div v-for="c in attachContainers" :key="c.name" class="ctx-menu-sub-item" @click.stop="handleContextAction({ action: `attachPod:${c.name}` })">
-            {{ c.name }}
-          </div>
-        </div>
-      </div>
-      <div v-if="hasShellSubmenu" class="ctx-menu-item-group" @mouseenter="cancelShellMenuTimeout(); showShellMenu = true" @mouseleave="scheduleHideShellMenu">
-        <div class="ctx-menu-item ctx-menu-with-arrow">
-          <span class="ctx-menu-arrow">‹</span> Shell
-        </div>
-        <div v-if="showShellMenu && shellContainers.length" class="ctx-menu-sub" @mouseenter="cancelShellMenuTimeout" @mouseleave="scheduleHideShellMenu">
-          <div v-for="c in shellContainers" :key="c.name" class="ctx-menu-sub-item" @click.stop="handleContextAction({ action: `shell:${c.name}` })">
-            {{ c.name }}
-          </div>
-        </div>
-      </div>
-      <div class="ctx-menu-item" @click="handleContextAction({ action: 'evict' })">
-        <span class="ctx-menu-arrow"></span>Evict
-      </div>
-      <div v-if="hasLogsSubmenu" class="ctx-menu-item-group" @mouseenter="cancelLogsMenuTimeout(); showLogsMenu = true" @mouseleave="scheduleHideLogsMenu">
-        <div class="ctx-menu-item ctx-menu-with-arrow">
-          <span class="ctx-menu-arrow">‹</span> Logs
-        </div>
-        <div v-if="showLogsMenu && logsContainers.length" class="ctx-menu-sub" @mouseenter="cancelLogsMenuTimeout" @mouseleave="scheduleHideLogsMenu">
-          <div v-for="c in logsContainers" :key="c.name" class="ctx-menu-sub-item" @click.stop="handleContextAction({ action: `logs:${c.name}` })">
-            {{ c.name }}
-          </div>
-        </div>
-      </div>
-      <div class="ctx-menu-item" @click="handleContextAction({ action: 'edit' })">
-        <span class="ctx-menu-arrow"></span>Edit
-      </div>
-      <div class="ctx-menu-item ctx-menu-danger" @click="handleContextAction({ action: 'delete' })">
-        <span class="ctx-menu-arrow"></span>Delete
-      </div>
+      </template>
     </div>
   </div>
 </template>
@@ -192,6 +155,8 @@ function getStatusColor(status: string): string {
   if (statusLower === 'evicted') return '#ef4444' // Red
   if (statusLower === 'terminating') return '#f97316' // Orange
   if (statusLower === 'unknown') return '#868d8a' // Gray
+  if (statusLower === 'progressdeadlineexceeded') return '#ec4899' // Pink
+  if (statusLower === 'replicafailure') return '#ef4444' // Red
   
   return '#868d8a' // Default gray
 }

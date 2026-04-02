@@ -51,16 +51,6 @@
       <button class="btn-action" title="Evict pod" @click="emit('evict')">
         <img :src="evictIcon" alt="Evict" class="btn-icon"/>
       </button>
-
-      <!-- Edit YAML -->
-      <button class="btn-action" title="Edit YAML" @click="emit('edit')">
-        <img :src="editIcon" alt="Edit" class="btn-icon"/>
-      </button>
-
-      <!-- Delete -->
-      <button class="btn-action btn-danger" title="Delete pod" @click="emit('delete')">
-        <img :src="deleteIcon" alt="Delete" class="btn-icon"/>
-      </button>
     </template>
 
     <!-- Properties tab content -->
@@ -512,9 +502,6 @@ import attachIcon from '../../../assets/icons/attach.svg'
 import terminalIcon from '../../../assets/icons/terminal.svg'
 import logsIcon from '../../../assets/icons/logs.svg'
 import evictIcon from '../../../assets/icons/evict.svg'
-import editIcon from '../../../assets/icons/edit.svg'
-import deleteIcon from '../../../assets/icons/delete.svg'
-import closeIcon from '../../../assets/icons/close.svg'
 
 interface DetailTab {
   id: string
