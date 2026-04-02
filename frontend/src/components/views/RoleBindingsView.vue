@@ -32,8 +32,10 @@ const emit = defineEmits<{
 const selectedItem = ref<RoleBinding | null>(null)
 
 const columns: Column[] = [
-  { key: 'name', label: 'Name', className: 'resource-name' },
-  { key: 'namespace', label: 'Namespace', className: 'ns-label' },
+  { key: 'metadata.name', label: 'Name', className: 'resource-name' },
+  { key: 'metadata.namespace', label: 'Namespace', className: 'ns-label' },
+  { key: 'roleRef.name', label: 'Role Ref' },
+  { key: 'subjects.length', label: 'Bindings' },
   { key: 'age', label: 'Age' }
 ]
 
