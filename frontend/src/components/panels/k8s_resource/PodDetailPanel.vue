@@ -4,6 +4,7 @@
     resource-icon="📦"
     :custom-tabs="customTabs"
     @close="emit('close')"
+    @namespace-click="openResource('Namespace', $event)"
   >
     <!-- Two-level action menu -->
     <template #actions>
@@ -59,14 +60,6 @@
     <!-- Properties tab content -->
     <template #properties>
       <div class="pod-properties">
-        <!-- Namespace -->
-        <div class="meta-row">
-          <span class="meta-label">Namespace:</span>
-          <a class="meta-link" @click="openResource('Namespace', pod.namespace)">
-            {{ pod.namespace }}
-          </a>
-        </div>
-
         <!-- Pod Metrics (Collapsible) -->
         <div v-if="clusterName" class="metrics-section">
           <div class="metrics-header" @click="metricsExpanded = !metricsExpanded">
@@ -111,14 +104,17 @@
         <!-- Status and other info -->
         <div class="meta-row">
           <span class="meta-label">Controlled By:</span>
-          <a v-if="pod.controlledBy" class="meta-link" @click="openResource('ReplicaSet', pod.controlledBy, pod.namespace)">
-            {{ pod.controlledBy }}
-          </a>
+          <span v-if="pod.controlledBy" class="controlled-by-wrapper">
+            <span class="controlled-by-type">{{ getControlledByType() }}</span>
+            <a class="meta-link" @click="openControlledByResource()">
+              {{ getControlledByName() }}
+            </a>
+          </span>
           <span v-else>—</span>
         </div>
         <div class="meta-row">
           <span class="meta-label">Status:</span>
-          <span class="status-badge" :class="statusClass(pod.status)">{{ pod.status }}</span>
+          <span :class="['status-text', statusClass(pod.status)]">{{ pod.status }}</span>
         </div>
         <div class="meta-row">
           <span class="meta-label">Node:</span>
@@ -554,11 +550,53 @@ function handleLogs(container: string) {
 }
 
 function openResource(kind: string, name: string, namespace?: string) {
-  emit('open-resource', {
+  console.log('PodDetailPanel.openResource called with:', { kind, name, namespace })
+  const data = {
     kind,
     name,
     namespace: namespace || props.pod.namespace
-  })
+  }
+  console.log('Emitting open-resource event with:', data)
+  emit('open-resource', data)
+}
+
+function getControlledByType(): string {
+  if (!props.pod.controlledBy) return ''
+  const val = props.pod.controlledBy
+  // Parse "ResourceType/name" format
+  if (val.includes('/')) {
+    const parts = val.split('/')
+    return parts[0]
+  }
+  return ''
+}
+
+function getControlledByName(): string {
+  if (!props.pod.controlledBy) return ''
+  const val = props.pod.controlledBy
+  // Parse "ResourceType/name" format
+  if (val.includes('/')) {
+    const parts = val.split('/')
+    return parts[parts.length - 1]
+  }
+  return val
+}
+
+function openControlledByResource() {
+  if (!props.pod.controlledBy) return
+  const val = props.pod.controlledBy
+  // Parse "ResourceType/name" format
+  let kind = 'ReplicaSet'
+  let name = val
+  if (val.includes('/')) {
+    const parts = val.split('/')
+    if (parts.length === 2) {
+      kind = parts[0]
+      name = parts[1]
+    }
+  }
+  console.log('openControlledByResource: parsed as', { kind, name })
+  openResource(kind, name, props.pod.namespace)
 }
 
 // ═══════ Custom tabs ═══════
@@ -573,11 +611,11 @@ const customTabs = computed<DetailTab[]>(() => {
 
 // ═══════ Properties expand state ═══════
 
-const metricsExpanded = ref(true)
+const metricsExpanded = ref(false)
 const labelsExpanded = ref(false)
 const annotationsExpanded = ref(false)
 const tolerationsExpanded = ref(false)
-const affinityExpanded = ref(true)
+const affinityExpanded = ref(false)
 const volumesExpanded = ref(false)
 
 // ═══════ Affinity ═══════
@@ -1362,7 +1400,7 @@ function formatTypeName(type: string): string {
 
 .ct-row {
   display: grid;
-  grid-template-columns: 140px 1fr;
+  grid-template-columns: 160px 1fr;
   align-items: baseline;
   padding: 6px 14px;
   min-height: 32px;
@@ -1647,22 +1685,66 @@ function formatTypeName(type: string): string {
   cursor: pointer;
 }
 
+/* ═══════ Status Text ═══════ */
+
+.status-text {
+  font-weight: 500;
+}
+
+.status-text.status-running {
+  color: #34d399;
+}
+
+.status-text.status-pending {
+  color: #fbbf24;
+}
+
+.status-text.status-error {
+  color: #f87171;
+}
+
+.status-text.status-completed {
+  color: #34d399;
+}
+
+.status-text.status-unknown {
+  color: #9ca0b8;
+}
+
+/* ═══════ Controlled By ═══════ */
+
+.controlled-by-wrapper {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.controlled-by-type {
+  color: #d4d4d4;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 /* ═══════ Meta Links ═══════ */
 
 .meta-link {
   color: #60a5fa;
   cursor: pointer;
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
+  text-decoration: underline;
+  text-decoration-color: #60a5fa;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
   transition: all 0.15s ease;
+  display: inline;
 }
 
 .meta-link:hover {
   color: #93c5fd;
-  border-bottom-color: #60a5fa;
+  text-decoration-color: #93c5fd;
 }
 
 .meta-link:active {
   color: #3b82f6;
+  text-decoration-color: #3b82f6;
 }
 </style>

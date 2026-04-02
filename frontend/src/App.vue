@@ -170,6 +170,16 @@
       @delete="() => {}"
     />
 
+    <!-- Node Detail View -->
+    <NodeDetailView
+      v-if="selectedNode"
+      :node="selectedNode"
+      :status-class="statusClass"
+      :cluster-name="activeClusterId"
+      @close="selectedNode = null"
+      @edit="() => {}"
+    />
+
     <!-- Role Detail Panel -->
     <RoleDetailPanel
       v-if="selectedRole"
@@ -281,6 +291,7 @@ const TabbedActionsPanel = defineAsyncComponent(() => import('./components/panel
 const RevisionsPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/RevisionsPanel.vue'))
 const NamespaceDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/NamespaceDetailPanel.vue'))
 const ReplicaSetDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ReplicaSetDetailPanel.vue'))
+const NodeDetailView = defineAsyncComponent(() => import('./components/views/NodeDetailView.vue'))
 
 // ─── Composables ───
 
@@ -381,6 +392,7 @@ const selectedRole = ref<any | null>(null)
 const selectedRoleBinding = ref<any | null>(null)
 const selectedClusterRole = ref<any | null>(null)
 const selectedClusterRoleBinding = ref<any | null>(null)
+const selectedNode = ref<any | null>(null)
 const showScaleDialog = ref(false)
 const deploymentToScale = ref<any | null>(null)
 const revisionDepNs = ref({ ns: '', name: '' })
@@ -677,6 +689,14 @@ const activeViewEvents = computed(() => {
     events.delete = (ns: string, n: string) => onClusterRoleBindingDelete('', n)
   }
 
+  if (view === 'replicasets') {
+    events.select = (rs: any) => {
+      console.log('App.vue replicasets.select event received:', rs)
+      selectedReplicaSet.value = rs
+      console.log('App.vue selectedReplicaSet.value set to:', selectedReplicaSet.value)
+    }
+  }
+
   if (view === 'portforwarding') {
     events.refresh = refreshPortForwards
     events.stop = stopPortForward
@@ -740,6 +760,7 @@ function onPodDetailLogs(data: any) {
 }
 
 async function onOpenResource(data: { kind: string; name: string; namespace?: string }) {
+  console.log('App.vue onOpenResource called with:', data)
   let { kind, name, namespace } = data
   
   // Если name содержит "/" (например "ReplicaSet/my-name"), распарсить
@@ -751,20 +772,24 @@ async function onOpenResource(data: { kind: string; name: string; namespace?: st
     }
   }
   
+  console.log('After parsing:', { kind, name, namespace })
+  
   // Закрываем Pod Panel и открываем соответствующий ресурс
   selectedPod.value = null
   
   try {
     switch (kind) {
       case 'Namespace':
+        console.log('App.vue: Loading Namespace:', name)
         const ns = await k8s.getNamespace(name)
+        console.log('App.vue: Namespace loaded:', ns)
         selectedNamespaceDetail.value = ns
+        console.log('App.vue: selectedNamespaceDetail.value updated:', selectedNamespaceDetail.value)
         break
         
       case 'Node':
         const node = await k8s.getNode(name)
-        // Открыть панель деталей ноды - пока просто переключимся на nodes view
-        switchView('nodes')
+        selectedNode.value = node
         break
         
       case 'ServiceAccount':
@@ -775,9 +800,19 @@ async function onOpenResource(data: { kind: string; name: string; namespace?: st
         break
         
       case 'ReplicaSet':
+        console.log('Loading ReplicaSet:', { namespace, name })
         if (namespace) {
-          const rs = await k8s.getReplicaSet(namespace, name)
-          selectedReplicaSet.value = rs
+          try {
+            const rs = await k8s.getReplicaSet(namespace, name)
+            console.log('ReplicaSet loaded:', rs)
+            selectedReplicaSet.value = rs
+            console.log('selectedReplicaSet.value updated to:', selectedReplicaSet.value)
+          } catch (e: any) {
+            console.error('Error loading ReplicaSet:', e)
+            throw e
+          }
+        } else {
+          console.warn('No namespace provided for ReplicaSet')
         }
         break
         
