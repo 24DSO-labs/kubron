@@ -40,14 +40,14 @@
 
       <!-- Основной интерфейс -->
       <template v-else-if="activeClusterId">
-        <Sidebar
-          :currentView="currentView"
-          :selectedNamespace="selectedNamespace"
-          :namespaces="namespaces"
-          :clusterName="activeClusterMeta?.displayName"
-          @navigate="switchView"
-          @nsChange="onNsChange"
-        />
+      <Sidebar
+        :currentView="currentView"
+        :selectedNamespace="selectedNamespace"
+        :namespaces="namespaces"
+        :clusterName="activeClusterMeta?.displayName"
+        @navigate="onNavigate"
+        @nsChange="onNsChange"
+      />
 
         <main class="content">
           <div v-if="loading" class="loading">⏳ Загрузка...</div>
@@ -706,6 +706,29 @@ const activeViewEvents = computed(() => {
 })
 
 // ─── Handlers ───
+
+function closeAllDetailPanels() {
+  selectedPod.value = null
+  selectedDeployment.value = null
+  selectedConfigMap.value = null
+  selectedService.value = null
+  selectedNamespaceDetail.value = null
+  selectedServiceAccount.value = null
+  selectedReplicaSet.value = null
+  selectedNode.value = null
+  selectedRole.value = null
+  selectedRoleBinding.value = null
+  selectedClusterRole.value = null
+  selectedClusterRoleBinding.value = null
+  showScaleDialog.value = false
+  tabbedDeploymentLogsOpen.value = false
+  revisions.value = []
+}
+
+function onNavigate(view: string) {
+  closeAllDetailPanels()
+  switchView(view)
+}
 
 function onNsChange(ns: string) {
   selectedNamespace.value = ns

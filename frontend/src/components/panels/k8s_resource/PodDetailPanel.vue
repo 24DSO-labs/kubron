@@ -1,7 +1,7 @@
 <template>
   <K8sResourceDetailBase
     :resource="pod"
-    resource-icon="📦"
+    resource-icon=""
     :custom-tabs="customTabs"
     @close="emit('close')"
     @namespace-click="openResource('Namespace', $event)"
@@ -11,7 +11,7 @@
       <!-- Attach -->
       <div class="action-group">
         <button class="btn-action" title="Attach to container" @click="showAttachMenu = !showAttachMenu">
-          📎
+          <img :src="attachIcon" alt="Attach" class="btn-icon"/>
         </button>
         <div v-if="showAttachMenu && pod.containers.length > 0" class="action-dropdown">
           <div v-for="c in pod.containers" :key="c.name" class="dropdown-item" @click="handleAttach(c.name)">
@@ -24,7 +24,7 @@
       <!-- Terminal -->
       <div class="action-group">
         <button class="btn-action" title="Open terminal" @click="showTerminalMenu = !showTerminalMenu">
-          🖥
+          <img :src="terminalIcon" alt="Terminal" class="btn-icon"/>
         </button>
         <div v-if="showTerminalMenu && pod.containers.length > 0" class="action-dropdown">
           <div v-for="c in pod.containers" :key="c.name" class="dropdown-item" @click="handleTerminal(c.name)">
@@ -37,7 +37,7 @@
       <!-- Logs -->
       <div class="action-group">
         <button class="btn-action" title="View logs" @click="showLogsMenu = !showLogsMenu">
-          📋
+          <img :src="logsIcon" alt="Logs" class="btn-icon"/>
         </button>
         <div v-if="showLogsMenu && pod.containers.length > 0" class="action-dropdown">
           <div v-for="c in pod.containers" :key="c.name" class="dropdown-item" @click="handleLogs(c.name)">
@@ -48,13 +48,19 @@
       </div>
 
       <!-- Evict -->
-      <button class="btn-action" title="Evict pod" @click="emit('evict')">👢</button>
+      <button class="btn-action" title="Evict pod" @click="emit('evict')">
+        <img :src="evictIcon" alt="Evict" class="btn-icon"/>
+      </button>
 
       <!-- Edit YAML -->
-      <button class="btn-action" title="Edit YAML" @click="emit('edit')">✏️</button>
+      <button class="btn-action" title="Edit YAML" @click="emit('edit')">
+        <img :src="editIcon" alt="Edit" class="btn-icon"/>
+      </button>
 
       <!-- Delete -->
-      <button class="btn-action btn-danger" title="Delete pod" @click="emit('delete')">🗑</button>
+      <button class="btn-action btn-danger" title="Delete pod" @click="emit('delete')">
+        <img :src="deleteIcon" alt="Delete" class="btn-icon"/>
+      </button>
     </template>
 
     <!-- Properties tab content -->
@@ -253,7 +259,7 @@
               <span class="ct-name">{{ c.name }}</span>
               <span v-if="c.isInit" class="ct-badge-init">init</span>
             </div>
-            <span class="ct-header-image">{{ c.image }}</span>
+            
           </div>
 
           <!-- Container Body -->
@@ -502,6 +508,13 @@ import K8sResourceDetailBase from '../K8sResourceDetailBase.vue'
 import PodMetricsViewer from '../../metrics/PodMetricsViewer.vue'
 import ContainerMetricsViewer from '../../metrics/ContainerMetricsViewer.vue'
 import PodPortsSection from '../PodPortsSection.vue'
+import attachIcon from '../../../assets/icons/attach.svg'
+import terminalIcon from '../../../assets/icons/terminal.svg'
+import logsIcon from '../../../assets/icons/logs.svg'
+import evictIcon from '../../../assets/icons/evict.svg'
+import editIcon from '../../../assets/icons/edit.svg'
+import deleteIcon from '../../../assets/icons/delete.svg'
+import closeIcon from '../../../assets/icons/close.svg'
 
 interface DetailTab {
   id: string
@@ -933,7 +946,7 @@ function formatTypeName(type: string): string {
 .btn-action {
   padding: 6px 10px;
   background: transparent;
-  border: 1px solid #3b3d5c;
+  border: none;
   border-radius: 4px;
   color: white;
   cursor: pointer;
@@ -943,8 +956,7 @@ function formatTypeName(type: string): string {
 }
 
 .btn-action:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: #5a5c7a;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .btn-action.btn-danger {
@@ -994,6 +1006,34 @@ function formatTypeName(type: string): string {
 
 .dropdown-item:last-child {
   border-radius: 0 0 3px 3px;
+}
+
+/* ═══════ Button Icons ═══════ */
+
+.btn-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.btn-action .btn-icon {
+  filter: invert(1);
+  opacity: 0.85;
+  transition: opacity 0.15s;
+}
+
+.btn-action:hover .btn-icon {
+  opacity: 1;
+}
+
+.btn-action.btn-danger .btn-icon {
+  filter: invert(1);
+  opacity: 0.9;
+}
+
+.btn-action.btn-danger:hover .btn-icon {
+  opacity: 1;
 }
 
 /* ═══════ Pod Properties ═══════ */
@@ -1439,6 +1479,7 @@ function formatTypeName(type: string): string {
   min-width: 0;
   overflow-wrap: anywhere;
   word-break: break-word;
+  text-align: left;
 }
 
 .ct-sec-toggle {
