@@ -258,7 +258,6 @@ import { defineAsyncComponent } from 'vue'
 const PodDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/PodDetailPanel.vue'))
 const DeploymentDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/DeploymentDetailPanel.vue'))
 const ScaleDeploymentDialog = defineAsyncComponent(() => import('./components/panels/ScaleDeploymentDialog.vue'))
-const DeploymentLogsPanel = defineAsyncComponent(() => import('./components/panels/DeploymentLogsPanel.vue'))
 const TabbedDeploymentLogsPanel = defineAsyncComponent(() => import('./components/panels/TabbedDeploymentLogsPanel.vue'))
 const ServiceDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ServiceDetailPanel.vue'))
 const ServiceAccountDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ServiceAccountDetailPanel.vue'))
@@ -270,8 +269,6 @@ const ConfigMapPanel = defineAsyncComponent(() => import('./components/panels/k8
 const TabbedYamlEditorPanel = defineAsyncComponent(() => import('./components/panels/TabbedYamlEditorPanel.vue'))
 const TabbedActionsPanel = defineAsyncComponent(() => import('./components/panels/TabbedPodActionsPanel.vue'))
 const RevisionsPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/RevisionsPanel.vue'))
-const TerminalPanel = defineAsyncComponent(() => import('./components/panels/TerminalPanel.vue'))
-const LogsPanel = defineAsyncComponent(() => import('./components/panels/LogsPanel.vue'))
 const NamespaceDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/NamespaceDetailPanel.vue'))
 
 // ─── Composables ───
