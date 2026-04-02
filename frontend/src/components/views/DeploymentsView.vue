@@ -1,52 +1,22 @@
 <template>
-  <div>
-    <div v-if="showContextMenu" class="menu-overlay" @click="hideContextMenu"></div>
-    <ContentHeader icon="" title="Deployments" :count="items.length" :search="search" showSearch @refresh="onRefresh" @search="onSearch" />
-    <table v-if="items.length>0" class="table">
-      <thead><tr><th>Name</th><th>Namespace</th><th>Pods</th><th>Replicas</th><th>Age</th><th>Status</th><th></th></tr></thead>
-      <tbody>
-        <tr v-for="dep in items" :key="dep.namespace+dep.name" @click="handleShowDetails(dep)" class="clickable-row">
-          <td class="resource-name">{{dep.name}}</td>
-          <td class="ns-label">{{dep.namespace}}</td>
-          <td><span :class="dep.readyReplicas===dep.replicas?'text-green':'text-yellow'">{{dep.readyReplicas}}/{{dep.replicas}}</span></td>
-          <td>{{dep.updatedReplicas}}</td>
-          <td>{{dep.age}}</td>
-          <td>
-            <span :class="getStatusClass(dep)" :title="getStatusTooltip(dep)">{{ getStatusText(dep) }}</span>
-          </td>
-          <td @click.stop>
-            <button class="btn-icon" @click.stop="openContextMenu(dep, $event)">⋮</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <div v-else class="empty">Нет Deployments</div>
-    <div v-if="showContextMenu" :style="menuStyle" class="cluster-context-menu" @click.stop>
-      <div class="ctx-menu-item" @click="handleShowDetails(selectedDeployment)">
-        <span class="ctx-menu-arrow"></span>Show Details
-      </div>
-      <div class="ctx-menu-item" @click="handleScale">
-        <span class="ctx-menu-arrow"></span>Scale
-      </div>
-      <div class="ctx-menu-item" @click="handleRestart">
-        <span class="ctx-menu-arrow"></span>Restart
-      </div>
-      <div class="ctx-menu-item" @click="handleLogs">
-        <span class="ctx-menu-arrow"></span>Logs
-      </div>
-      <div class="ctx-menu-item" @click="handleEdit">
-        <span class="ctx-menu-arrow"></span>Edit
-      </div>
-      <div class="ctx-menu-item ctx-menu-danger" @click="handleDelete">
-        <span class="ctx-menu-arrow"></span>Delete
-      </div>
-    </div>
-  </div>
+  <K8sResourceListBase
+    :items="items"
+    :search="search"
+    resource-title="Deployments"
+    empty-message="Нет Deployments"
+    :columns="columns"
+    :context-menu-items="contextMenuItems"
+    @refresh="onRefresh"
+    @search="onSearch"
+    @select="onSelect"
+    @context-action="onContextAction"
+  />
 </template>
 
 <script lang="ts" setup>
 import type { DeploymentInfo } from '../../types'
-import ContentHeader from '../ContentHeader.vue'
+import K8sResourceListBase from './K8sResourceListBase.vue'
+import type { Column, ContextMenuItem } from './K8sResourceListBase.vue'
 import { ref } from 'vue'
 
 defineProps<{ items: DeploymentInfo[]; search: string }>()
@@ -63,96 +33,53 @@ const emit = defineEmits<{
   (e: 'delete', ns: string, name: string): void
 }>()
 
-const showContextMenu = ref(false)
-const menuStyle = ref<Record<string, string>>({})
 const selectedDeployment = ref<DeploymentInfo | null>(null)
 
-function openContextMenu(dep: DeploymentInfo, event: MouseEvent) {
-  selectedDeployment.value = dep
+const columns: Column[] = [
+  { key: 'name', label: 'Name', className: 'resource-name' },
+  { key: 'namespace', label: 'Namespace', className: 'ns-label' },
+  { key: 'readyReplicas', label: 'Pods' },
+  { key: 'updatedReplicas', label: 'Replicas' },
+  { key: 'age', label: 'Age' },
+  { key: 'status', label: 'Status' }
+]
 
-  const button = event.target as HTMLElement
-  const rect = button.getBoundingClientRect()
-  const menuWidth = 200
-  const menuHeight = 250
-
-  // Horizontal: prefer left (align right to button)
-  let left
-  const availableLeft = rect.left
-  if (availableLeft >= menuWidth) {
-    left = rect.left - menuWidth + window.scrollX
-  } else {
-    left = rect.right + window.scrollX
-    if (left + menuWidth > window.innerWidth + window.scrollX) {
-      left = window.innerWidth - menuWidth + window.scrollX
-    }
-  }
-
-  // Vertical: prefer bottom
-  let top
-  const availableBottom = window.innerHeight - rect.bottom
-  if (availableBottom >= menuHeight) {
-    top = rect.bottom + window.scrollY
-  } else {
-    top = rect.top - menuHeight + window.scrollY
-    if (top < window.scrollY) {
-      top = window.scrollY
-    }
-  }
-
-  menuStyle.value = {
-    position: 'absolute',
-    top: `${top}px`,
-    left: `${left}px`
-  }
-  showContextMenu.value = true
-}
-
-function hideContextMenu() {
-  showContextMenu.value = false
-}
-
-function handleShowDetails(dep: DeploymentInfo | null) {
-  if (dep) emit('select', dep)
-  hideContextMenu()
-}
-
-function handleScale() {
-  if (selectedDeployment.value) {
-    emit('scale', selectedDeployment.value, 1)
-  }
-  hideContextMenu()
-}
-
-function handleRestart() {
-  if (selectedDeployment.value) {
-    emit('restart', selectedDeployment.value.namespace, selectedDeployment.value.name)
-  }
-  hideContextMenu()
-}
-
-function handleLogs() {
-  if (selectedDeployment.value) {
-    emit('logs', selectedDeployment.value.namespace, selectedDeployment.value.name)
-  }
-  hideContextMenu()
-}
-
-function handleEdit() {
-  if (selectedDeployment.value) {
-    emit('edit', selectedDeployment.value.namespace, selectedDeployment.value.name)
-  }
-  hideContextMenu()
-}
-
-function handleDelete() {
-  if (selectedDeployment.value) {
-    emit('delete', selectedDeployment.value.namespace, selectedDeployment.value.name)
-  }
-  hideContextMenu()
-}
+const contextMenuItems: ContextMenuItem[] = [
+  { label: 'Show Details', action: 'select' },
+  { label: 'Scale', action: 'scale' },
+  { label: 'Restart', action: 'restart' },
+  { label: 'Logs', action: 'logs' },
+  { label: 'Edit', action: 'edit' },
+  { label: 'Delete', action: 'delete', danger: true }
+]
 
 function onRefresh() { emit('refresh') }
 function onSearch(val: string) { emit('search', val) }
+function onSelect(dep: DeploymentInfo) { emit('select', dep) }
+
+function onContextAction(action: string, dep: DeploymentInfo) {
+  selectedDeployment.value = dep
+  switch (action) {
+    case 'select':
+      emit('select', dep)
+      break
+    case 'scale':
+      emit('scale', dep, 1)
+      break
+    case 'restart':
+      emit('restart', dep.namespace, dep.name)
+      break
+    case 'logs':
+      emit('logs', dep.namespace, dep.name)
+      break
+    case 'edit':
+      emit('edit', dep.namespace, dep.name)
+      break
+    case 'delete':
+      emit('delete', dep.namespace, dep.name)
+      break
+  }
+}
 
 function getStatusText(dep: DeploymentInfo): string {
   if (!dep.conditions || dep.conditions.length === 0) {
@@ -198,21 +125,17 @@ function getStatusClass(dep: DeploymentInfo): string {
   
   return 'status-pending'
 }
-
-function getStatusTooltip(dep: DeploymentInfo): string {
-  if (!dep.conditions || dep.conditions.length === 0) {
-    return 'No conditions'
-  }
-  
-  const conditions = dep.conditions
-    .map(c => `${c.type}: ${c.status}${c.reason ? ' (' + c.reason + ')' : ''}`)
-    .join(' | ')
-  
-  return conditions
-}
 </script>
 
 <style scoped>
+.resource-name {
+  font-weight: 500;
+}
+
+.ns-label {
+  color: #868d8a;
+}
+
 .status-ready {
   color: #4ade80;
   font-weight: bold;
@@ -229,67 +152,6 @@ function getStatusTooltip(dep: DeploymentInfo): string {
   color: #ef4444;
   font-weight: bold;
   font-size: 1em;
-}
-</style>
-
-<style scoped>
-.menu-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 999;
-  cursor: default;
-}
-
-.cluster-context-menu {
-  background: #1e1f35;
-  border: 1px solid #3b3d5c;
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
-  min-width: 160px;
-}
-
-.ctx-menu-item {
-  padding: 6px 12px;
-  color: #d4d4d4;
-  cursor: pointer;
-  font-size: 0.875rem;
-  transition: background 0.15s;
-  padding-left: 34px;
-  text-align: left;
-  position: relative;
-  margin: -9px;
-}
-
-.ctx-menu-item:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-}
-
-.ctx-menu-item:first-child {
-  border-radius: 3px 3px 0 0;
-}
-
-.ctx-menu-item:last-child {
-  border-radius: 0 0 3px 3px;
-}
-
-.ctx-menu-arrow {
-  position: absolute;
-  left: 19px;
-  color: #868d8a;
-  font-size: 0.9rem;
-}
-
-.ctx-menu-danger {
-  color: #ef4444;
-}
-
-.ctx-menu-danger:hover {
-  background: rgba(239, 68, 68, 0.2);
 }
 
 .clickable-row {
