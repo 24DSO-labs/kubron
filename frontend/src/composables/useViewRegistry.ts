@@ -10,68 +10,69 @@ export interface ViewConfig {
 
 // Ленивая загрузка для тяжёлых/редких компонентов
 const lazy = (path: string) => defineAsyncComponent(() => import(`../components/views/${path}.vue`))
+const lazyK8s = (path: string) => defineAsyncComponent(() => import(`../components/views/k8s_resource/${path}.vue`))
 
 export const viewRegistry: Record<string, ViewConfig> = {
   overview: {
     component: lazy('OverviewView'),
   },
   pods: {
-    component: lazy('PodsView'),
+    component: lazyK8s('PodsView'),
     dataKey: 'filteredPods',
     hasSearch: true,
   },
   deployments: {
-    component: lazy('DeploymentsView'),
+    component: lazyK8s('DeploymentsView'),
     dataKey: 'filteredDeployments',
     hasSearch: true,
   },
   statefulsets: {
-    component: lazy('StatefulSetsView'),
+    component: lazyK8s('StatefulSetsView'),
     dataKey: 'filteredStatefulSets',
     hasSearch: true,
   },
   daemonsets: {
-    component: lazy('DaemonSetsView'),
+    component: lazyK8s('DaemonSetsView'),
     dataKey: 'filteredDaemonSets',
     hasSearch: true,
   },
   jobs: {
-    component: lazy('JobsView'),
+    component: lazyK8s('JobsView'),
     dataKey: 'filteredJobs',
     hasSearch: true,
   },
   cronjobs: {
-    component: lazy('CronJobsView'),
+    component: lazyK8s('CronJobsView'),
     dataKey: 'filteredCronJobs',
     hasSearch: true,
   },
   replicasets: {
-    component: lazy('ReplicaSetsView'),
+    component: lazyK8s('ReplicaSetsView'),
     dataKey: 'filteredReplicaSets',
     hasSearch: true,
   },
   services: {
-    component: lazy('ServicesView'),
+    component: lazyK8s('ServicesView'),
     dataKey: 'filteredServices',
     hasSearch: true,
   },
   ingresses: {
-    component: lazy('IngressesView'),
+    component: lazyK8s('IngressesView'),
     dataKey: 'filteredIngresses',
     hasSearch: true,
   },
   endpoints: {
-    component: lazy('EndpointsView'),
+    component: lazyK8s('EndpointsView'),
     dataKey: 'filteredEndpoints',
     hasSearch: true,
   },
   ingressclasses: {
-    component: lazy('IngressClassesView'),
+    component: lazyK8s('IngressClassesView'),
     dataKey: 'filteredIngressClasses',
     hasSearch: true,
   },
   'network-policies': {
-    component: lazy('NetworkPoliciesView'),
+    component: lazyK8s('NetworkPoliciesView'),
     dataKey: 'filteredNetworkPolicies',
     hasSearch: true,
   },
@@ -80,21 +81,21 @@ export const viewRegistry: Record<string, ViewConfig> = {
     dataKey: 'portForwards',
   },
   pv: {
-    component: lazy('PVView'),
+    component: lazyK8s('PVView'),
     dataKey: 'pvs',
   },
   pvc: {
-    component: lazy('PVCView'),
+    component: lazyK8s('PVCView'),
     dataKey: 'filteredPVCs',
     hasSearch: true,
   },
   storageclasses: {
-    component: lazy('StorageClassesView'),
+    component: lazyK8s('StorageClassesView'),
     dataKey: 'filteredStorageClasses',
     hasSearch: true,
   },
   namespaces: {
-    component: lazy('NamespacesView'),
+    component: lazyK8s('NamespacesView'),
     dataKey: 'namespaces',
     hasSearch: true,
   },
@@ -107,72 +108,72 @@ export const viewRegistry: Record<string, ViewConfig> = {
     dataKey: 'events',
   },
   configmaps: {
-    component: lazy('ConfigMapsView'),
+    component: lazyK8s('ConfigMapsView'),
     dataKey: 'filteredConfigMaps',
     hasSearch: true,
   },
   secrets: {
-    component: lazy('SecretsView'),
+    component: lazyK8s('SecretsView'),
     dataKey: 'filteredSecrets',
     hasSearch: true,
   },
   resourcequotas: {
-    component: lazy('ResourceQuotasView'),
+    component: lazyK8s('ResourceQuotasView'),
     dataKey: 'filteredResourceQuotas',
     hasSearch: true,
   },
   limitranges: {
-    component: lazy('LimitRangesView'),
+    component: lazyK8s('LimitRangesView'),
     dataKey: 'filteredLimitRanges',
     hasSearch: true,
   },
   hpa: {
-    component: lazy('HPAView'),
+    component: lazyK8s('HPAView'),
     dataKey: 'filteredHPA',
     hasSearch: true,
   },
   pdb: {
-    component: lazy('PDBView'),
+    component: lazyK8s('PDBView'),
     dataKey: 'filteredPDB',
     hasSearch: true,
   },
   priorityclasses: {
-    component: lazy('PriorityClassesView'),
+    component: lazyK8s('PriorityClassesView'),
     dataKey: 'filteredPriorityClasses',
     hasSearch: true,
   },
   runtimeclasses: {
-    component: lazy('RuntimeClassesView'),
+    component: lazyK8s('RuntimeClassesView'),
     dataKey: 'filteredRuntimeClasses',
     hasSearch: true,
   },
   leases: {
-    component: lazy('LeasesView'),
+    component: lazyK8s('LeasesView'),
     dataKey: 'filteredLeases',
     hasSearch: true,
   },
   serviceaccounts: {
-    component: lazy('ServiceAccountsView'),
+    component: lazyK8s('ServiceAccountsView'),
     dataKey: 'filteredServiceAccounts',
     hasSearch: true,
   },
   roles: {
-    component: lazy('RolesView'),
+    component: lazyK8s('RolesView'),
     dataKey: 'filteredRoles',
     hasSearch: true,
   },
   rolebindings: {
-    component: lazy('RoleBindingsView'),
+    component: lazyK8s('RoleBindingsView'),
     dataKey: 'filteredRoleBindings',
     hasSearch: true,
   },
   clusterroles: {
-    component: lazy('ClusterRolesView'),
+    component: lazyK8s('ClusterRolesView'),
     dataKey: 'filteredClusterRoles',
     hasSearch: true,
   },
   clusterrolebindings: {
-    component: lazy('ClusterRoleBindingsView'),
+    component: lazyK8s('ClusterRoleBindingsView'),
     dataKey: 'filteredClusterRoleBindings',
     hasSearch: true,
   },
