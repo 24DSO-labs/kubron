@@ -13,6 +13,9 @@
         <tr v-for="item in items" :key="getItemKey(item)" @click="handleRowClick(item)" class="clickable-row">
           <td v-for="col in columns" :key="col.key" :class="col.className">
             <component v-if="col.component" :is="col.component" :item="item" :col="col" />
+            <span v-else-if="col.key === 'status'" :style="{ color: getStatusColor(getCellValue(item, col.key)) }">
+              {{ getCellValue(item, col.key) }}
+            </span>
             <span v-else>{{ getCellValue(item, col.key) }}</span>
           </td>
           <td @click.stop>
@@ -71,7 +74,7 @@
 
 <script lang="ts" setup>
 import ContentHeader from '../ContentHeader.vue'
-import { ref, onUnmounted } from 'vue'
+import { ref, onUnmounted, onMounted } from 'vue'
 
 export interface Column {
   key: string
@@ -169,26 +172,28 @@ onUnmounted(() => {
 })
 
 function getCellValue(item: any, key: string): string {
-  // Special handling for 'age' field
-  if (key === 'age') {
-    const createdAt = item.metadata?.creationTimestamp
-    if (!createdAt) return '—'
-    const created = new Date(createdAt).getTime()
-    const now = Date.now()
-    const seconds = Math.floor((now - created) / 1000)
-    
-    if (seconds < 60) return `${seconds}s`
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`
-    return `${Math.floor(seconds / 86400)}d`
-  }
-  
   const keys = key.split('.')
   let value: any = item
   for (const k of keys) {
     value = value?.[k]
   }
   return value ?? '—'
+}
+
+function getStatusColor(status: string): string {
+  const statusLower = status?.toLowerCase() || ''
+  
+  if (statusLower === 'running') return '#4ade80' // Green
+  if (statusLower === 'succeeded') return '#4ade80' // Green
+  if (statusLower === 'pending') return '#facc15' // Yellow
+  if (statusLower === 'failed') return '#ef4444' // Red
+  if (statusLower === 'crashed' || statusLower === 'crashloopbackoff') return '#dc2626' // Dark Red
+  if (statusLower === 'imagepullbackoff') return '#f97316' // Orange
+  if (statusLower === 'evicted') return '#ef4444' // Red
+  if (statusLower === 'terminating') return '#f97316' // Orange
+  if (statusLower === 'unknown') return '#868d8a' // Gray
+  
+  return '#868d8a' // Default gray
 }
 
 function getItemKey(item: any): string {

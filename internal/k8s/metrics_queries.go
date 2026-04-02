@@ -32,6 +32,9 @@ func promQueryPodCPUByNs(namespace string) string {
 }
 
 func promQueryPodMemByNs(namespace string) string {
+	if namespace == "" {
+		return `sum by (pod, namespace) (container_memory_working_set_bytes{container!="", container!="POD"})`
+	}
 	return fmt.Sprintf(
 		`sum by (pod, namespace) (container_memory_working_set_bytes{namespace="%s", container!="", container!="POD"})`,
 		namespace,

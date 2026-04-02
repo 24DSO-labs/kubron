@@ -1,6 +1,6 @@
 <template>
   <K8sResourceListBase
-    :items="items"
+    :items="itemsWithMetrics"
     :search="search"
     resource-title="Pods"
     empty-message="Нет подов"
@@ -40,6 +40,59 @@ const emit = defineEmits<{
 }>()
 
 const selectedPod = ref<PodInfo | null>(null)
+
+// Format CPU value to 3 decimal places
+function formatCpu(cpuStr: string | undefined): string {
+  if (!cpuStr) return '—'
+  try {
+    const cpu = parseFloat(cpuStr)
+    return isNaN(cpu) ? '—' : cpu.toFixed(3)
+  } catch {
+    return '—'
+  }
+}
+
+// Format Memory value from bytes to MiB
+function formatMemory(memStr: string | undefined): string {
+  if (!memStr) return '—'
+  try {
+    const bytes = parseFloat(memStr)
+    if (isNaN(bytes)) return '—'
+    const mib = bytes / 1024 / 1024
+    return mib.toFixed(1) + 'MiB'
+  } catch {
+    return '—'
+  }
+}
+
+// Get status color based on pod status
+function getStatusColor(status: string): string {
+  const statusLower = status?.toLowerCase() || ''
+  
+  if (statusLower === 'running') return '#4ade80' // Green
+  if (statusLower === 'succeeded') return '#4ade80' // Green
+  if (statusLower === 'pending') return '#facc15' // Yellow
+  if (statusLower === 'failed') return '#ef4444' // Red
+  if (statusLower === 'crashed' || statusLower === 'crashloopbackoff') return '#dc2626' // Dark Red
+  if (statusLower === 'imagepullbackoff') return '#f97316' // Orange
+  if (statusLower === 'evicted') return '#ef4444' // Red
+  if (statusLower === 'terminating') return '#f97316' // Orange
+  if (statusLower === 'unknown') return '#868d8a' // Gray
+  
+  return '#868d8a' // Default gray
+}
+
+// Merge metrics with pods
+const itemsWithMetrics = computed(() => {
+  return props.items.map(pod => {
+    const metric = props.podMetrics.find(m => m.name === pod.name && m.namespace === pod.namespace)
+    return {
+      ...pod,
+      cpu: formatCpu(metric?.totalCpu),
+      memory: formatMemory(metric?.totalMem)
+    }
+  })
+})
 
 const columns: Column[] = [
   { key: 'name', label: 'Name', className: 'resource-name' },

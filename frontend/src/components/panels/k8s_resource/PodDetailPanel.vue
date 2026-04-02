@@ -59,19 +59,23 @@
     <!-- Properties tab content -->
     <template #properties>
       <div class="pod-properties">
-        <!-- Pod Metrics -->
-        <div v-if="clusterName" class="metrics-section">
-          <PodMetricsViewer :cluster-name="clusterName" :namespace="pod.namespace" :pod-name="pod.name" />
-        </div>
-
-        <!-- Basic info -->
-        <div class="meta-row">
-          <span class="meta-label">Created:</span>
-          {{ pod.age }} ago ({{ pod.created }})
-        </div>
+        <!-- Namespace -->
         <div class="meta-row">
           <span class="meta-label">Namespace:</span>
-          {{ pod.namespace }}
+          <a class="meta-link" @click="openResource('Namespace', pod.namespace)">
+            {{ pod.namespace }}
+          </a>
+        </div>
+
+        <!-- Pod Metrics (Collapsible) -->
+        <div v-if="clusterName" class="metrics-section">
+          <div class="metrics-header" @click="metricsExpanded = !metricsExpanded">
+            <span class="metrics-header-title">Metrics</span>
+            <span class="metrics-toggle" :class="{ collapsed: !metricsExpanded }"></span>
+          </div>
+          <div v-if="metricsExpanded" class="metrics-content">
+            <PodMetricsViewer :cluster-name="clusterName" :namespace="pod.namespace" :pod-name="pod.name" />
+          </div>
         </div>
 
         <!-- Labels (expandable) -->
@@ -105,14 +109,32 @@
         </div>
 
         <!-- Status and other info -->
-        <div class="meta-row"><span class="meta-label">Controlled By:</span> {{ pod.controlledBy }}</div>
+        <div class="meta-row">
+          <span class="meta-label">Controlled By:</span>
+          <a v-if="pod.controlledBy" class="meta-link" @click="openResource('ReplicaSet', pod.controlledBy, pod.namespace)">
+            {{ pod.controlledBy }}
+          </a>
+          <span v-else>—</span>
+        </div>
         <div class="meta-row">
           <span class="meta-label">Status:</span>
           <span class="status-badge" :class="statusClass(pod.status)">{{ pod.status }}</span>
         </div>
-        <div class="meta-row"><span class="meta-label">Node:</span> {{ pod.node }}</div>
+        <div class="meta-row">
+          <span class="meta-label">Node:</span>
+          <a v-if="pod.node" class="meta-link" @click="openResource('Node', pod.node)">
+            {{ pod.node }}
+          </a>
+          <span v-else>—</span>
+        </div>
         <div class="meta-row"><span class="meta-label">Pod IP:</span> {{ pod.ip }}</div>
-        <div class="meta-row"><span class="meta-label">Service Account:</span> {{ pod.serviceAccount }}</div>
+        <div class="meta-row">
+          <span class="meta-label">Service Account:</span>
+          <a v-if="pod.serviceAccount" class="meta-link" @click="openResource('ServiceAccount', pod.serviceAccount, pod.namespace)">
+            {{ pod.serviceAccount }}
+          </a>
+          <span v-else>—</span>
+        </div>
         <div class="meta-row"><span class="meta-label">QoS Class:</span> {{ pod.qos }}</div>
         <div class="meta-row"><span class="meta-label">Conditions:</span> {{ formatConditions(pod.conditions) }}</div>
         <div class="meta-row"><span class="meta-label">Node Selector:</span> {{ formatMap(pod.nodeSelector) }}</div>
@@ -241,9 +263,15 @@
           <!-- Container Body -->
           <div v-if="!collapsedContainers.has(c.name)" class="ct-body">
             <!-- Container Metrics -->
-            <div v-if="clusterName && !c.isInit" class="ct-metrics-section">
-              <ContainerMetricsViewer :cluster-name="clusterName" :namespace="pod.namespace" :pod-name="pod.name"
-                :container-name="c.name" />
+            <div v-if="clusterName && !c.isInit" class="ct-metrics-wrapper">
+              <div class="ct-metrics-header" @click.stop="toggleContainerMetrics(c.name)">
+                <span class="ct-metrics-title">Metrics</span>
+                <span class="ct-metrics-toggle" :class="{ collapsed: collapsedContainerMetrics.has(c.name) }"></span>
+              </div>
+              <div v-if="!collapsedContainerMetrics.has(c.name)" class="ct-metrics-content">
+                <ContainerMetricsViewer :cluster-name="clusterName" :namespace="pod.namespace" :pod-name="pod.name"
+                  :container-name="c.name" />
+              </div>
             </div>
 
             <!-- Status -->
@@ -501,6 +529,7 @@ const emit = defineEmits<{
   (e: 'evict'): void
   (e: 'logs', data: { container: string; pod: any }): void
   (e: 'edit'): void
+  (e: 'open-resource', data: { kind: string; name: string; namespace?: string }): void
 }>()
 
 // ═══════ Action menu state ═══════
@@ -524,6 +553,14 @@ function handleLogs(container: string) {
   emit('logs', { container, pod: props.pod })
 }
 
+function openResource(kind: string, name: string, namespace?: string) {
+  emit('open-resource', {
+    kind,
+    name,
+    namespace: namespace || props.pod.namespace
+  })
+}
+
 // ═══════ Custom tabs ═══════
 
 const customTabs = computed<DetailTab[]>(() => {
@@ -536,6 +573,7 @@ const customTabs = computed<DetailTab[]>(() => {
 
 // ═══════ Properties expand state ═══════
 
+const metricsExpanded = ref(true)
 const labelsExpanded = ref(false)
 const annotationsExpanded = ref(false)
 const tolerationsExpanded = ref(false)
@@ -556,6 +594,7 @@ const affinityRuleCount = computed(() => {
 // ═══════ Containers UI state ═══════
 
 const collapsedContainers = ref<Set<string>>(new Set())
+const collapsedContainerMetrics = ref<Set<string>>(new Set())
 
 type ContainerSection = 'ports' | 'env' | 'mounts' | 'probes' | 'security'
 const collapsedContainerSections = ref<Map<string, Set<ContainerSection>>>(new Map())
@@ -565,6 +604,13 @@ function toggleContainer(name: string) {
   if (s.has(name)) s.delete(name)
   else s.add(name)
   collapsedContainers.value = s
+}
+
+function toggleContainerMetrics(containerName: string) {
+  const s = new Set(collapsedContainerMetrics.value)
+  if (s.has(containerName)) s.delete(containerName)
+  else s.add(containerName)
+  collapsedContainerMetrics.value = s
 }
 
 function getSectionSet(containerName: string): Set<ContainerSection> {
@@ -1448,7 +1494,140 @@ function formatTypeName(type: string): string {
 
 .metrics-section {
   width: 100%;
+  margin-bottom: 16px;
+  border: 1px solid #2a2b40;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #1a1b2e;
+}
+
+.metrics-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
+  border-bottom: 1px solid #2a2b40;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s ease;
+}
+
+.metrics-header:hover {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.1) 100%);
+}
+
+.metrics-header-title {
+  flex: 1;
+  font-weight: 600;
+  color: #d4d4d4;
+  font-size: 0.95rem;
+  letter-spacing: 0.3px;
+}
+
+.metrics-toggle {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  position: relative;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.metrics-toggle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 9px;
+  border-right: 2px solid #6b6d8a;
+  border-bottom: 2px solid #6b6d8a;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  transition: border-color 0.2s ease;
+}
+
+.metrics-header:hover .metrics-toggle::before {
+  border-color: #a0a2c0;
+}
+
+.metrics-toggle.collapsed {
+  transform: rotate(-90deg);
+}
+
+.metrics-content {
+  padding: 16px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.ct-metrics-wrapper {
+  width: 100%;
   margin-bottom: 12px;
+  border: 1px solid #2a2b40;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #1a1b2e;
+}
+
+.ct-metrics-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
+  border-bottom: 1px solid #2a2b40;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s ease;
+}
+
+.ct-metrics-header:hover {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.1) 100%);
+}
+
+.ct-metrics-title {
+  flex: 1;
+  font-weight: 600;
+  color: #d4d4d4;
+  font-size: 0.95rem;
+  letter-spacing: 0.3px;
+}
+
+.ct-metrics-toggle {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  position: relative;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ct-metrics-toggle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 9px;
+  border-right: 2px solid #6b6d8a;
+  border-bottom: 2px solid #6b6d8a;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  transition: border-color 0.2s ease;
+}
+
+.ct-metrics-header:hover .ct-metrics-toggle::before {
+  border-color: #a0a2c0;
+}
+
+.ct-metrics-toggle.collapsed {
+  transform: rotate(-90deg);
+}
+
+.ct-metrics-content {
+  padding: 16px;
+  max-height: 600px;
+  overflow-y: auto;
 }
 
 .ct-metrics-section {
@@ -1466,5 +1645,24 @@ function formatTypeName(type: string): string {
 
 .cursor-pointer {
   cursor: pointer;
+}
+
+/* ═══════ Meta Links ═══════ */
+
+.meta-link {
+  color: #60a5fa;
+  cursor: pointer;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.meta-link:hover {
+  color: #93c5fd;
+  border-bottom-color: #60a5fa;
+}
+
+.meta-link:active {
+  color: #3b82f6;
 }
 </style>
