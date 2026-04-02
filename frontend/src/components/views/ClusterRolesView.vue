@@ -1,41 +1,22 @@
 <template>
-  <div>
-    <div v-if="showContextMenu" class="menu-overlay" @click="hideContextMenu"></div>
-    <ContentHeader icon="" title="ClusterRoles" :count="items.length" :search="search" showSearch @refresh="onRefresh" @search="onSearch" />
-    <table v-if="items.length > 0" class="table">
-      <thead>
-        <tr>
-          <th>Name</th><th>Age</th><th></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="(cr, idx) in items" :key="idx" @click="$emit('select', cr)" class="clickable-row">
-          <td class="resource-name">{{ cr.metadata?.name }}</td>
-          <td>{{ formatAge(cr.metadata?.creationTimestamp) }}</td>
-          <td @click.stop>
-            <button class="btn-icon" @click.stop="openContextMenu(cr, $event)">⋮</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <div v-else class="empty">Нет ClusterRoles</div>
-    <div v-if="showContextMenu" :style="menuStyle" class="cluster-context-menu" @click.stop>
-      <div class="ctx-menu-item" @click="handleShowDetails">
-        <span class="ctx-menu-arrow"></span>Show Details
-      </div>
-      <div class="ctx-menu-item" @click="handleEdit">
-        <span class="ctx-menu-arrow"></span>Edit
-      </div>
-      <div class="ctx-menu-item ctx-menu-danger" @click="handleDelete">
-        <span class="ctx-menu-arrow"></span>Delete
-      </div>
-    </div>
-  </div>
+  <K8sResourceListBase
+    :items="items"
+    :search="search"
+    resource-title="ClusterRoles"
+    empty-message="Нет ClusterRoles"
+    :columns="columns"
+    :context-menu-items="contextMenuItems"
+    @refresh="onRefresh"
+    @search="onSearch"
+    @select="onSelect"
+    @context-action="onContextAction"
+  />
 </template>
 
 <script lang="ts" setup>
 import type { ClusterRole } from '../../types'
-import ContentHeader from '../ContentHeader.vue'
+import K8sResourceListBase from './K8sResourceListBase.vue'
+import type { Column, ContextMenuItem } from './K8sResourceListBase.vue'
 import { ref } from 'vue'
 
 defineProps<{ items: ClusterRole[]; search: string }>()
@@ -43,151 +24,47 @@ defineProps<{ items: ClusterRole[]; search: string }>()
 const emit = defineEmits<{
   (e: 'refresh'): void
   (e: 'search', val: string): void
-  (e: 'select', cr: ClusterRole): void
+  (e: 'select', item: ClusterRole): void
   (e: 'edit', ns: string, name: string): void
   (e: 'delete', ns: string, name: string): void
-  
 }>()
 
-const showContextMenu = ref(false)
-const menuStyle = ref<Record<string, string>>({})
-const selectedCR = ref<ClusterRole | null>(null)
+const selectedItem = ref<ClusterRole | null>(null)
 
-function formatAge(timestamp?: string): string {
-  if (!timestamp) return '—'
-  const date = new Date(timestamp)
-  const now = new Date()
-  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
-  if (seconds < 60) return `${seconds}s`
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`
-  return `${Math.floor(seconds / 86400)}d`
-}
+const columns: Column[] = [
+  { key: 'name', label: 'Name', className: 'resource-name' },
+  { key: 'age', label: 'Age' }
+]
 
-function openContextMenu(cr: ClusterRole, event: MouseEvent) {
-  selectedCR.value = cr
-
-  const button = event.target as HTMLElement
-  const rect = button.getBoundingClientRect()
-  const menuWidth = 200
-  const menuHeight = 120
-
-  let left
-  const availableLeft = rect.left
-  if (availableLeft >= menuWidth) {
-    left = rect.left - menuWidth + window.scrollX
-  } else {
-    left = rect.right + window.scrollX
-    if (left + menuWidth > window.innerWidth + window.scrollX) {
-      left = window.innerWidth - menuWidth + window.scrollX
-    }
-  }
-
-  let top
-  const availableBottom = window.innerHeight - rect.bottom
-  if (availableBottom >= menuHeight) {
-    top = rect.bottom + window.scrollY
-  } else {
-    top = rect.top - menuHeight + window.scrollY
-    if (top < window.scrollY) {
-      top = window.scrollY
-    }
-  }
-
-  menuStyle.value = {
-    position: 'absolute',
-    top: `${top}px`,
-    left: `${left}px`
-  }
-  showContextMenu.value = true
-}
-
-function hideContextMenu() {
-  showContextMenu.value = false
-}
-
-function handleShowDetails() {
-  if (selectedCR.value) emit('select', selectedCR.value)
-  hideContextMenu()
-}
-
-function handleEdit() {
-  if (selectedCR.value) {
-    emit('edit', '', selectedCR.value.metadata?.name || '')
-  }
-  hideContextMenu()
-}
-
-function handleDelete() {
-  if (selectedCR.value) {
-    emit('delete', '', selectedCR.value.metadata?.name || '')
-  }
-  hideContextMenu()
-}
-
-
+const contextMenuItems: ContextMenuItem[] = [
+  { label: 'Show Details', action: 'select' },
+  { label: 'Edit', action: 'edit' },
+  { label: 'Delete', action: 'delete', danger: true }
+]
 
 function onRefresh() { emit('refresh') }
 function onSearch(val: string) { emit('search', val) }
+function onSelect(item: ClusterRole) { emit('select', item) }
+
+function onContextAction(action: string, item: ClusterRole) {
+  selectedItem.value = item
+  const name = item.metadata?.name || ''
+  switch (action) {
+    case 'select':
+      emit('select', item)
+      break
+    case 'edit':
+      emit('edit', '', name)
+      break
+    case 'delete':
+      emit('delete', '', name)
+      break
+  }
+}
 </script>
 
 <style scoped>
-.menu-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 999;
-  cursor: default;
-}
-
-.cluster-context-menu {
-  background: #1e1f35;
-  border: 1px solid #3b3d5c;
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
-  min-width: 160px;
-}
-
-.ctx-menu-item {
-  padding: 6px 12px;
-  color: #d4d4d4;
-  cursor: pointer;
-  font-size: 0.875rem;
-  transition: background 0.15s;
-  padding-left: 34px;
-  text-align: left;
-  position: relative;
-  margin: -9px;
-}
-
-.ctx-menu-item:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-}
-
-.ctx-menu-item:first-child {
-  border-radius: 3px 3px 0 0;
-}
-
-.ctx-menu-item:last-child {
-  border-radius: 0 0 3px 3px;
-}
-
-.ctx-menu-arrow {
-  position: absolute;
-  left: 19px;
-  color: #868d8a;
-  font-size: 0.9rem;
-}
-
-.ctx-menu-danger {
-  color: #ef4444;
-}
-
-.ctx-menu-danger:hover {
-  background: rgba(239, 68, 68, 0.2);
+.resource-name {
+  font-weight: 500;
 }
 </style>
