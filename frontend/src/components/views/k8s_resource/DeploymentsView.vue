@@ -1,6 +1,6 @@
 <template>
   <K8sResourceListBase
-    :items="items"
+    :items="itemsWithStatus"
     :search="search"
     resource-title="Deployments"
     empty-message="Нет Deployments"
@@ -17,9 +17,10 @@
 import type { DeploymentInfo } from '../../../types'
 import K8sResourceListBase from '../K8sResourceListBase.vue'
 import type { Column, ContextMenuItem } from '../K8sResourceListBase.vue'
-import { ref } from 'vue'
+import DeploymentsPodsCell from './DeploymentsPodsCell.vue'
+import { ref, computed } from 'vue'
 
-defineProps<{ items: DeploymentInfo[]; search: string }>()
+const props = defineProps<{ items: DeploymentInfo[]; search: string }>()
 
 const emit = defineEmits<{
   (e: 'refresh'): void
@@ -35,10 +36,43 @@ const emit = defineEmits<{
 
 const selectedDeployment = ref<DeploymentInfo | null>(null)
 
+function getDeploymentStatus(dep: DeploymentInfo): string {
+  if (!dep.conditions || dep.conditions.length === 0) {
+    return 'Pending'
+  }
+
+  const availableCondition = dep.conditions.find(c => c.type === 'Available')
+  const progressingCondition = dep.conditions.find(c => c.type === 'Progressing')
+
+  if (availableCondition?.status === 'True' && progressingCondition?.status === 'True') {
+    return 'Running'
+  }
+
+  if (progressingCondition?.status === 'False') {
+    if (progressingCondition?.reason) {
+      return progressingCondition.reason
+    }
+    return 'Failed'
+  }
+
+  if (progressingCondition?.reason) {
+    return progressingCondition.reason
+  }
+
+  return 'Pending'
+}
+
+const itemsWithStatus = computed(() => {
+  return props.items.map(dep => ({
+    ...dep,
+    status: getDeploymentStatus(dep)
+  }))
+})
+
 const columns: Column[] = [
   { key: 'name', label: 'Name', className: 'resource-name' },
   { key: 'namespace', label: 'Namespace', className: 'ns-label' },
-  { key: 'readyReplicas', label: 'Pods' },
+  { key: 'pods', label: 'Pods', component: DeploymentsPodsCell },
   { key: 'updatedReplicas', label: 'Replicas' },
   { key: 'age', label: 'Age' },
   { key: 'status', label: 'Status' }
@@ -55,10 +89,14 @@ const contextMenuItems: ContextMenuItem[] = [
 
 function onRefresh() { emit('refresh') }
 function onSearch(val: string) { emit('search', val) }
-function onSelect(dep: DeploymentInfo) { emit('select', dep) }
+function onSelect(dep: DeploymentInfo) {
+  console.log('DeploymentsView.onSelect called with:', dep)
+  emit('select', dep)
+}
 
 function onContextAction(action: string, dep: DeploymentInfo) {
   selectedDeployment.value = dep
+
   switch (action) {
     case 'select':
       emit('select', dep)
@@ -80,51 +118,6 @@ function onContextAction(action: string, dep: DeploymentInfo) {
       break
   }
 }
-
-function getStatusText(dep: DeploymentInfo): string {
-  if (!dep.conditions || dep.conditions.length === 0) {
-    return 'Pending'
-  }
-  
-  const availableCondition = dep.conditions.find(c => c.type === 'Available')
-  const progressingCondition = dep.conditions.find(c => c.type === 'Progressing')
-  
-  if (availableCondition?.status === 'True' && progressingCondition?.status === 'True') {
-    return 'Ready'
-  }
-  
-  if (progressingCondition?.status === 'False') {
-    if (progressingCondition?.reason) {
-      return progressingCondition.reason
-    }
-    return 'Failed'
-  }
-  
-  if (progressingCondition?.reason) {
-    return progressingCondition.reason
-  }
-  
-  return 'Pending'
-}
-
-function getStatusClass(dep: DeploymentInfo): string {
-  if (!dep.conditions || dep.conditions.length === 0) {
-    return 'status-pending'
-  }
-  
-  const availableCondition = dep.conditions.find(c => c.type === 'Available')
-  const progressingCondition = dep.conditions.find(c => c.type === 'Progressing')
-  
-  if (availableCondition?.status === 'True' && progressingCondition?.status === 'True') {
-    return 'status-ready'
-  }
-  
-  if (progressingCondition?.status === 'False') {
-    return 'status-error'
-  }
-  
-  return 'status-pending'
-}
 </script>
 
 <style scoped>
@@ -134,31 +127,5 @@ function getStatusClass(dep: DeploymentInfo): string {
 
 .ns-label {
   color: #868d8a;
-}
-
-.status-ready {
-  color: #4ade80;
-  font-weight: bold;
-  font-size: 1em;
-}
-
-.status-pending {
-  color: #facc15;
-  font-weight: bold;
-  font-size: 1em;
-}
-
-.status-error {
-  color: #ef4444;
-  font-weight: bold;
-  font-size: 1em;
-}
-
-.clickable-row {
-  cursor: pointer;
-}
-
-.clickable-row:hover {
-  background: rgba(255, 255, 255, 0.02);
 }
 </style>

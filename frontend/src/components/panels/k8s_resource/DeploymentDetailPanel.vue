@@ -1,12 +1,25 @@
 <template>
-  <K8sResourceDetailBase
-    :resource="deployment"
-    resource-icon=""
-    @close="$emit('close')"
-  >
+  <div v-if="deployment" class="panel-wrapper">
+    <K8sResourceDetailBase
+      :resource="deployment"
+      resource-icon=""
+      @close="$emit('close')"
+    >
     <template #actions>
-      <button class="btn-action" title="Edit YAML" @click="$emit('edit')">✏️</button>
-      <button class="btn-action btn-danger" title="Delete" @click="$emit('delete')">🗑️</button>
+      <!-- Scale -->
+      <button class="btn-action" title="Scale deployment" @click="$emit('scale', deployment)">
+        <img :src="scaleIcon" alt="Scale" class="btn-icon"/>
+      </button>
+
+      <!-- Restart -->
+      <button class="btn-action" title="Restart deployment" @click="$emit('restart', deployment.namespace, deployment.name)">
+        <img :src="restartIcon" alt="Restart" class="btn-icon"/>
+      </button>
+
+      <!-- Logs -->
+      <button class="btn-action" title="View logs" @click="$emit('logs', deployment.namespace, deployment.name)">
+        <img :src="logsIcon" alt="Logs" class="btn-icon"/>
+      </button>
     </template>
 
     <template #properties>
@@ -41,15 +54,22 @@
     <template #events>
       <div class="empty-section">No events available</div>
     </template>
-  </K8sResourceDetailBase>
+    </K8sResourceDetailBase>
+  </div>
 </template>
 
 <script lang="ts" setup>
 import K8sResourceDetailBase from '../K8sResourceDetailBase.vue'
+import scaleIcon from '../../../assets/icons/scale.svg'
+import restartIcon from '../../../assets/icons/restart.svg'
+import logsIcon from '../../../assets/icons/logs.svg'
 
 defineProps<{ deployment: any }>()
 defineEmits<{
   (e: 'close'): void
+  (e: 'scale', dep: any): void
+  (e: 'restart', ns: string, name: string): void
+  (e: 'logs', ns: string, name: string): void
   (e: 'edit'): void
   (e: 'delete'): void
 }>()
@@ -94,17 +114,21 @@ defineEmits<{
 .btn-action {
   padding: 6px 10px;
   background: transparent;
-  border: 1px solid #3b3d5c;
+  border: none;
   border-radius: 4px;
   color: white;
   cursor: pointer;
   font-size: 1rem;
   transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
 }
 
 .btn-action:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: #5a5c7a;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .btn-action.btn-danger {
@@ -121,5 +145,28 @@ defineEmits<{
   text-align: center;
   color: #6b6d8a;
   font-size: 0.875rem;
+}
+
+.btn-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-block;
+  vertical-align: middle;
+  filter: invert(1);
+  opacity: 0.85;
+  transition: opacity 0.15s;
+}
+
+.btn-action:hover .btn-icon {
+  opacity: 1;
+}
+
+.btn-action.btn-danger .btn-icon {
+  filter: invert(1);
+  opacity: 0.9;
+}
+
+.btn-action.btn-danger:hover .btn-icon {
+  opacity: 1;
 }
 </style>

@@ -96,7 +96,6 @@
       v-if="selectedDeployment"
       :deployment="selectedDeployment"
       @close="selectedDeployment = null"
-      @pod-selected="openPodDetailFromDeployment"
       @scale="onDeploymentScale"
       @restart="onDeploymentRestart"
       @logs="onDeploymentLogs"
@@ -559,7 +558,11 @@ const activeViewEvents = computed(() => {
   }
 
   if (view === 'deployments') {
-    events.select = (dep: any) => { selectedDeployment.value = dep }
+    events.select = (dep: any) => {
+      console.log('App.vue deployments.select called with:', dep)
+      selectedDeployment.value = dep
+      console.log('App.vue selectedDeployment.value set to:', selectedDeployment.value)
+    }
     events.scale = (dep: any) => {
       deploymentToScale.value = dep
       showScaleDialog.value = true
