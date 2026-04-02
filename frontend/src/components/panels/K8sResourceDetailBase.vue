@@ -7,6 +7,16 @@
         <!-- Custom action menu items (slot or prop-based) -->
         <slot name="actions" :resource="resource"></slot>
 
+        <!-- Edit button -->
+        <button class="btn-action" @click="emit('edit')" title="Edit YAML">
+          <img :src="editIcon" alt="Edit" class="btn-icon"/>
+        </button>
+
+        <!-- Delete button -->
+        <button class="btn-action btn-danger" @click="emit('delete')" title="Delete resource">
+          <img :src="deleteIcon" alt="Delete" class="btn-icon"/>
+        </button>
+
         <!-- Close button -->
         <button class="btn-close" @click="emit('close')" title="Close">
           <img :src="closeIcon" alt="Close" class="icon-close"/>
@@ -78,6 +88,8 @@
 import { ref, computed } from 'vue'
 import copyIcon from '../../assets/icons/copy.svg'
 import closeIcon from '../../assets/icons/close.svg'
+import editIcon from '../../assets/icons/edit.svg'
+import deleteIcon from '../../assets/icons/delete.svg'
 
 export interface DetailTab {
   id: string
@@ -100,7 +112,9 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'action', actionId: string, data?: any): void
+  (e: 'edit'): void
+  (e: 'delete'): void
+  (e: 'action', data: { actionId: string; data?: any }): void
   (e: 'namespaceClick', namespace: string): void
 }>()
 
@@ -320,6 +334,58 @@ defineExpose({
 }
 
 .btn-close:hover .icon-close {
+  opacity: 1;
+}
+
+.btn-action {
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+}
+
+.btn-action:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-action.btn-danger {
+  color: #ef4444;
+}
+
+.btn-action.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.btn-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-block;
+  vertical-align: middle;
+  filter: invert(1);
+  opacity: 0.85;
+  transition: opacity 0.15s;
+}
+
+.btn-action:hover .btn-icon {
+  opacity: 1;
+}
+
+.btn-action.btn-danger .btn-icon {
+  filter: invert(1);
+  opacity: 0.9;
+}
+
+.btn-action.btn-danger:hover .btn-icon {
   opacity: 1;
 }
 
