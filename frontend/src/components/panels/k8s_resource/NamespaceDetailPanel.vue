@@ -1,27 +1,29 @@
 <template>
-  <K8sResourceDetailBase :resource="namespace" resource-icon="📂" @close="$emit('close')">
-    <template #actions>
-      <button class="btn-action" title="Edit YAML" @click="$emit('edit')">✏️</button>
-      <button class="btn-action btn-danger" title="Delete" @click="$emit('delete')">🗑️</button>
-    </template>
+  <div class="namespace-detail-panel-wrapper">
+    <K8sResourceDetailBase :resource="namespace" resource-icon="📂" @close="$emit('close')">
+      <template #actions>
+        <button class="btn-action" title="Edit YAML" @click="$emit('edit')">✏️</button>
+        <button class="btn-action btn-danger" title="Delete" @click="$emit('delete')">🗑️</button>
+      </template>
 
-    <template #properties>
-      <div class="ns-properties">
-        <div class="meta-row">
-          <span class="meta-label">Status:</span>
-          <span class="status-badge" :class="statusClass">{{ namespace.status }}</span>
+      <template #properties>
+        <div class="ns-properties">
+          <div class="meta-row">
+            <span class="meta-label">Status:</span>
+            <span class="status-badge" :class="statusClass">{{ namespace.status }}</span>
+          </div>
         </div>
-      </div>
-    </template>
+      </template>
 
-    <template #events>
-      <div class="empty-section">No events available</div>
-    </template>
-  </K8sResourceDetailBase>
+      <template #events>
+        <div class="empty-section">No events available</div>
+      </template>
+    </K8sResourceDetailBase>
+  </div>
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import K8sResourceDetailBase from '../K8sResourceDetailBase.vue'
 
 const props = defineProps<{ namespace: any }>()
@@ -31,12 +33,32 @@ defineEmits<{
   (e: 'delete'): void
 }>()
 
+onMounted(() => {
+  console.log('NamespaceDetailPanel mounted with namespace:', props.namespace)
+})
+
 const statusClass = computed(() => 
   props.namespace?.status === 'Active' ? 'status-active' : 'status-inactive'
 )
 </script>
 
 <style scoped>
+.namespace-detail-panel-wrapper {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 40%;
+  max-width: 600px;
+  background: #1a1b2e;
+  border-left: 1px solid #2a2b40;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .ns-properties {
   display: flex;
   flex-direction: column;

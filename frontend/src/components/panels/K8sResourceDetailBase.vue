@@ -37,7 +37,7 @@
       </div>
       <div v-if="resource.namespace" class="meta-row">
         <span class="meta-label">Namespace:</span>
-        <a class="meta-link" @click="emit('namespaceClick', resource.namespace)">
+        <a class="meta-link" @click.prevent="onNamespaceClick">
           {{ resource.namespace }}
         </a>
       </div>
@@ -117,6 +117,13 @@ const emit = defineEmits<{
   (e: 'action', data: { actionId: string; data?: any }): void
   (e: 'namespaceClick', namespace: string): void
 }>()
+
+function onNamespaceClick() {
+  if (props.resource && props.resource.namespace) {
+    console.log('K8sResourceDetailBase.onNamespaceClick:', props.resource.namespace)
+    emit('namespaceClick', props.resource.namespace)
+  }
+}
 
 defineSlots<{
   actions(props: { resource: any }): any
@@ -434,13 +441,19 @@ defineExpose({
 /* Meta Links */
 .meta-link {
   color: #60a5fa !important;
-  cursor: pointer;
+  cursor: pointer !important;
   text-decoration: underline;
   text-decoration-color: #60a5fa;
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
   transition: all 0.15s ease;
-  display: inline;
+  display: inline-block;
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  font: inherit !important;
+  pointer-events: auto !important;
+  user-select: none;
 }
 
 .meta-link:hover {
@@ -451,6 +464,11 @@ defineExpose({
 .meta-link:active {
   color: #3b82f6 !important;
   text-decoration-color: #3b82f6;
+}
+
+.meta-link:focus {
+  outline: 1px solid #60a5fa;
+  outline-offset: 2px;
 }
 
 /* Name with copy button */

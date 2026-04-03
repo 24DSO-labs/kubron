@@ -25,6 +25,8 @@ const emit = defineEmits<{
   (e: 'refresh'): void
   (e: 'search', val: string): void
   (e: 'select', item: DaemonSetInfo): void
+  (e: 'restart', ns: string, name: string): void
+  (e: 'logs', ns: string, name: string): void
   (e: 'edit', ns: string, name: string): void
   (e: 'delete', ns: string, name: string): void
 }>()
@@ -37,11 +39,14 @@ const columns: Column[] = [
   { key: 'desired', label: 'Desired' },
   { key: 'current', label: 'Current' },
   { key: 'ready', label: 'Ready' },
+  { key: 'available', label: 'Available' },
   { key: 'age', label: 'Age' }
 ]
 
 const contextMenuItems: ContextMenuItem[] = [
   { label: 'Show Details', action: 'select' },
+  { label: 'Restart', action: 'restart' },
+  { label: 'Logs', action: 'logs' },
   { label: 'Edit', action: 'edit' },
   { label: 'Delete', action: 'delete', danger: true }
 ]
@@ -55,6 +60,12 @@ function onContextAction(action: string, item: DaemonSetInfo) {
   switch (action) {
     case 'select':
       emit('select', item)
+      break
+    case 'restart':
+      emit('restart', item.namespace, item.name)
+      break
+    case 'logs':
+      emit('logs', item.namespace, item.name)
       break
     case 'edit':
       emit('edit', item.namespace, item.name)

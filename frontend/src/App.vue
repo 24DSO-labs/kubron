@@ -59,7 +59,7 @@
             v-on="activeViewEvents"
           />
         </main>
-      </template>
+</template>
     </div>
 
     <!-- Pod Detail Panel -->
@@ -102,7 +102,7 @@
       @edit="onDeploymentEdit"
       @delete="onDeploymentDelete"
       @pod-selected="openPodDetailFromDeployment"
-      @namespaceClick="onNamespaceClick"
+      @open-resource="onOpenResource"
       @show-details="onDeploymentShowReplicaSet"
     />
 
@@ -162,6 +162,20 @@
       @close="selectedReplicaSet = null"
       @edit="() => {}"
       @delete="() => {}"
+    />
+
+    <!-- DaemonSet Detail Panel -->
+    <DaemonSetDetailPanel
+      v-if="selectedDaemonSet"
+      :daemonset="selectedDaemonSet"
+      :cluster-name="activeClusterId"
+      @close="selectedDaemonSet = null"
+      @restart="onDaemonSetRestart"
+      @logs="onDaemonSetLogs"
+      @edit="onDaemonSetEdit"
+      @delete="onDaemonSetDelete"
+      @pod-selected="openPodDetailFromDaemonSet"
+      @open-resource="onOpenResource"
     />
 
     <!-- Node Detail View -->
@@ -284,6 +298,7 @@ const TabbedYamlEditorPanel = defineAsyncComponent(() => import('./components/pa
 const TabbedActionsPanel = defineAsyncComponent(() => import('./components/panels/TabbedPodActionsPanel.vue'))
 const NamespaceDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/NamespaceDetailPanel.vue'))
 const ReplicaSetDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ReplicaSetDetailPanel.vue'))
+const DaemonSetDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/DaemonSetDetailPanel.vue'))
 const NodeDetailView = defineAsyncComponent(() => import('./components/views/NodeDetailView.vue'))
 
 // ─── Composables ───
@@ -386,6 +401,7 @@ const selectedRoleBinding = ref<any | null>(null)
 const selectedClusterRole = ref<any | null>(null)
 const selectedClusterRoleBinding = ref<any | null>(null)
 const selectedNode = ref<any | null>(null)
+const selectedDaemonSet = ref<any | null>(null)
 const showScaleDialog = ref(false)
 const deploymentToScale = ref<any | null>(null)
 const revisionDepNs = ref({ ns: '', name: '' })
@@ -690,6 +706,42 @@ const activeViewEvents = computed(() => {
     }
   }
 
+  if (view === 'daemonsets') {
+    events.select = (ds: any) => {
+      selectedDaemonSet.value = ds
+    }
+    events.restart = (ns: string, n: string) => {
+      if (confirm(`Restart daemonset ${n}?`)) {
+        restartDeployment(ns, n)
+      }
+    }
+    events.logs = (ns: string, n: string) => {
+      tabbedDeploymentLogsOpen.value = true
+      nextTick(() => {
+        if (tabbedDeploymentLogsRef.value) {
+          tabbedDeploymentLogsRef.value.setPendingDeployment({ namespace: ns, name: n })
+        }
+      })
+    }
+    events.edit = (ns: string, n: string) => {
+      podActions.yamlEditorOpen.value = true
+      podActions.yamlEditorMeta.value = { resourceType: 'daemonset', resourceName: n, namespace: ns }
+      showYAML('daemonset', ns, n)
+    }
+    events.delete = (ns: string, n: string) => {
+      if (confirm(`Delete daemonset ${n}?`)) {
+        deleteDeploymentByName(ns, n)
+          .then(() => {
+            notifications.notifySuccess(`DaemonSet ${n} deleted`)
+            refreshData()
+          })
+          .catch((e: any) => {
+            notifications.notifyError(`Delete error: ${e.message || e}`)
+          })
+      }
+    }
+  }
+
   if (view === 'portforwarding') {
     events.refresh = refreshPortForwards
     events.stop = stopPortForward
@@ -741,11 +793,6 @@ function openPodDetailFromDeployment(pod: PodInfo) {
   openPodDetail(pod)
 }
 
-function onNamespaceClick(namespace: string) {
-  selectedNamespace.value = namespace
-  selectedDeployment.value = null
-  onNamespaceChange()
-}
 
 async function onShowRevisions(ns: string, name: string) {
   revisionDepNs.value = { ns, name }
@@ -782,7 +829,7 @@ function onPodDetailLogs(data: any) {
 }
 
 async function onOpenResource(data: { kind: string; name: string; namespace?: string }) {
- 
+  console.log('App.onOpenResource called with:', data)
   let { kind, name, namespace } = data
   
   // Если name содержит "/" (например "ReplicaSet/my-name"), распарсить
@@ -795,13 +842,18 @@ async function onOpenResource(data: { kind: string; name: string; namespace?: st
   }
   
   
-  // Закрываем Pod Panel и открываем соответствующий ресурс
+  // Закрываем все открытые панели детей перед открытием нового ресурса
   selectedPod.value = null
+  selectedDaemonSet.value = null
+  selectedDeployment.value = null
+  selectedReplicaSet.value = null
   
   try {
     switch (kind) {
       case 'Namespace':
+        console.log('Opening Namespace:', name)
         const ns = await k8s.getNamespace(name)
+        console.log('Namespace loaded:', ns)
         selectedNamespaceDetail.value = ns
         break
         
@@ -909,6 +961,52 @@ async function onDeploymentShowReplicaSet(revision: any) {
     selectedReplicaSet.value = rs
   } catch (e: any) {
     notifications.notifyError(`Failed to load ReplicaSet: ${e.message || e}`)
+  }
+}
+
+function openPodDetailFromDaemonSet(pod: PodInfo) {
+  selectedDaemonSet.value = null
+  openPodDetail(pod)
+}
+
+function onDaemonSetRestart(ns: string, name: string) {
+  if (confirm(`Restart daemonset ${name}?`)) {
+    restartDeployment(ns, name)
+  }
+}
+
+function onDaemonSetLogs(ns: string, name: string) {
+  tabbedDeploymentLogsOpen.value = true
+  nextTick(() => {
+    if (tabbedDeploymentLogsRef.value) {
+      tabbedDeploymentLogsRef.value.setPendingDeployment({ namespace: ns, name: name })
+    }
+  })
+}
+
+async function onDaemonSetEdit() {
+  if (!selectedDaemonSet.value) return
+  const ns = selectedDaemonSet.value.namespace
+  const name = selectedDaemonSet.value.name
+  podActions.yamlEditorMeta.value = { resourceType: 'daemonset', resourceName: name, namespace: ns }
+  await showYAML('daemonset', ns, name)
+  podActions.yamlEditorOpen.value = true
+}
+
+function onDaemonSetDelete() {
+  if (!selectedDaemonSet.value) return
+  const ns = selectedDaemonSet.value.namespace
+  const name = selectedDaemonSet.value.name
+  if (confirm(`Delete daemonset ${name}?`)) {
+    deleteDeploymentByName(ns, name)
+      .then(() => {
+        notifications.notifySuccess(`DaemonSet ${name} deleted`)
+        selectedDaemonSet.value = null
+        refreshData()
+      })
+      .catch((e: any) => {
+        notifications.notifyError(`Delete error: ${e.message || e}`)
+      })
   }
 }
 
