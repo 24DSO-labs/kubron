@@ -90,7 +90,6 @@ const contextMenuItems: ContextMenuItem[] = [
 function onRefresh() { emit('refresh') }
 function onSearch(val: string) { emit('search', val) }
 function onSelect(dep: DeploymentInfo) {
-  console.log('DeploymentsView.onSelect called with:', dep)
   emit('select', dep)
 }
 

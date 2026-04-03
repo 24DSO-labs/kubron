@@ -761,19 +761,14 @@ async function startPortForward(namespace?: string, podName?: string, localPort?
 
   if (!ns || !pod) return
 
-  console.log('useK8s.startPortForward called with:', { ns, pod, lp, pp })
-
-  try {
-    console.log('Calling StartPortForward backend with params:', ns, pod, lp, pp)
+   try {
     const result = await StartPortForward(ns, pod, lp, pp)
-    console.log('StartPortForward completed, result:', result)
     error.value = ''
     
     // Give the backend a moment to register the forward, then refresh
     await new Promise(resolve => setTimeout(resolve, 500))
     await refreshPortForwards()
   } catch (e: any) { 
-    console.error('Port forward error:', e)
     error.value = 'Port forward error: ' + (e.message || e) 
     throw e
   }
@@ -1035,11 +1030,10 @@ async function getServiceAccount(namespace: string, name: string) {
 
 async function getReplicaSet(namespace: string, name: string) {
   try {
-    console.log('getReplicaSet called with:', { namespace, name })
+    
     // Загружаем YAML для ReplicaSet
-    console.log('Calling GetResourceYAML with:', namespace, 'replicaset', name)
     const yaml = await GetResourceYAML(namespace, 'replicaset', name, true)
-    console.log('GetResourceYAML returned successfully')
+    
     // Преобразуем в объект для деталь панели
     const rs: any = {
       name,

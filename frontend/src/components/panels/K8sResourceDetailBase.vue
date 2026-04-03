@@ -391,6 +391,29 @@ defineExpose({
 
 /* ═══════ Scrollbar ═══════ */
 
+/* Universal dark scrollbar style for all scrollable elements */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1b2e;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #35365a;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #45466a;
+}
+
+::-webkit-scrollbar-corner {
+  background: #1a1b2e;
+}
+
 .detail-content::-webkit-scrollbar {
   width: 8px;
 }

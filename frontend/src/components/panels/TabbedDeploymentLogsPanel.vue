@@ -181,7 +181,6 @@ const displayedLogs = computed(() => {
 
 watch(activeTabId, async () => {
   if (currentTab.value && currentTab.value.rawLogs === '') {
-    console.log('Watch activeTabId triggered, loading pods for:', currentTab.value.deployment)
     await loadDeploymentPods()
   }
 })
@@ -191,7 +190,6 @@ watch(
   () => hasInitialized.value,
   async (initialized) => {
     if (initialized && pendingDeployment.value && openTabs.value.length === 0) {
-      console.log('Component initialized, adding pending deployment:', pendingDeployment.value)
       await addTab(pendingDeployment.value)
       pendingDeployment.value = null
     }
@@ -369,7 +367,6 @@ hasInitialized.value = true
 defineExpose({
   addTab,
   setPendingDeployment: (deployment: Deployment) => {
-    console.log('setPendingDeployment called with:', deployment)
     pendingDeployment.value = deployment
     if (hasInitialized.value && openTabs.value.length === 0) {
       addTab(deployment)

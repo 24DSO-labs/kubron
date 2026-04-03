@@ -60,11 +60,10 @@ const contextMenuItems: ContextMenuItem[] = [
 function onRefresh() { emit('refresh') }
 function onSearch(val: string) { emit('search', val) }
 function onSelect(item: ReplicaSetInfo) {
-  console.log('ReplicaSetsView.onSelect called with:', item)
   selectedReplicaSet.value = item
-  console.log('selectedReplicaSet.value set to:', selectedReplicaSet.value)
+
   emit('select', item)
-  console.log('select event emitted')
+
 }
 
 function onContextAction(action: string, item: ReplicaSetInfo) {
