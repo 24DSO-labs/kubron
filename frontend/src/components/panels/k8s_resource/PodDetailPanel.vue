@@ -550,13 +550,12 @@ function handleLogs(container: string) {
 }
 
 function openResource(kind: string, name: string, namespace?: string) {
-  console.log('PodDetailPanel.openResource called with:', { kind, name, namespace })
+  
   const data = {
     kind,
     name,
     namespace: namespace || props.pod.namespace
   }
-  console.log('Emitting open-resource event with:', data)
   emit('open-resource', data)
 }
 
@@ -595,7 +594,6 @@ function openControlledByResource() {
       name = parts[1]
     }
   }
-  console.log('openControlledByResource: parsed as', { kind, name })
   openResource(kind, name, props.pod.namespace)
 }
 
@@ -1133,6 +1131,7 @@ function formatTypeName(type: string): string {
   line-height: 22px;
   max-height: 340px;
   overflow: auto;
+  /* Using universal scrollbar styles from K8sResourceDetailBase */
 }
 
 .editor-gutter {

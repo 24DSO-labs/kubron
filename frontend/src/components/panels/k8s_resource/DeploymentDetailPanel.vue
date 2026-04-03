@@ -1,7 +1,7 @@
 <template>
   <div v-if="deployment" class="panel-wrapper">
     <K8sResourceDetailBase :resource="deployment" resource-icon="" :custom-tabs="customTabs" @close="$emit('close')"
-      @edit="$emit('edit')" @delete="$emit('delete')">
+      @edit="$emit('edit')" @delete="$emit('delete')" @namespaceClick="$emit('namespaceClick', $event)">
       <template #actions>
         <!-- Scale -->
         <button class="btn-action" title="Scale deployment" @click="$emit('scale', deployment)">
@@ -171,25 +171,34 @@
             <table class="revisions-table">
               <thead>
                 <tr>
-                  <th class="col-revision">#</th>
-                  <th class="col-summary">Summary</th>
-                  <th class="col-pods">Pods</th>
-                  <th class="col-age">Age</th>
+                  <th class="col-revision">REVISION</th>
+                  <th class="col-name">NAME</th>
+                  <th class="col-pods">PODS</th>
+                  <th class="col-age">AGE</th>
+                  <th class="col-images">IMAGES</th>
                   <th class="col-actions"></th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(revision, idx) in sortedRevisions" :key="idx" class="revision-row">
-                  <td class="col-revision">{{ revision.revision || idx + 1 }}</td>
-                  <td class="col-summary">{{ revision.name }}</td>
-                  <td class="col-pods">{{ revision.ready }}/{{ revision.replicas }}</td>
-                  <td class="col-age">{{ revision.age }}</td>
-                  <td class="col-actions">
+                <tr v-for="(revision, idx) in sortedRevisions" :key="idx" class="revision-row" @click="selectRevisionReplicaSet(revision)">
+                  <td class="col-revision">
+                    <span class="revision-badge">{{ revision.revision || idx + 1 }}</span>
+                  </td>
+                  <td class="col-name">{{ revision.name }}</td>
+                  <td class="col-pods">{{ revision.replicas }}/{{ revision.ready }}</td>
+                  <td class="col-age">{{ formatRevisionAge(revision.age) }}</td>
+                  <td class="col-images">
+                    <span v-if="revision.images" class="image-tag">{{ revision.images }}</span>
+                    <span v-else class="image-tag">—</span>
+                  </td>
+                  <td class="col-actions" @click.stop>
                     <div class="action-menu-wrapper">
                       <button class="btn-menu"
-                        @click="showRevisionMenu = showRevisionMenu === idx ? -1 : idx">⋮</button>
-                      <div v-if="showRevisionMenu === idx" class="revision-menu">
-                        <button class="menu-item" @click="rollbackToRevision(revision.revision)">Rollback</button>
+                        @click="openRevisionContextMenu(idx, $event)">⋮</button>
+                      <div v-if="activeRevisionMenuIdx === idx" class="context-menu" :style="revisionMenuStyle">
+                        <button class="menu-item" @click="closeRevisionMenu(); rollbackToRevision(revision.revision)">
+                          Rollback
+                        </button>
                       </div>
                     </div>
                   </td>
@@ -199,6 +208,7 @@
           </div>
           <div v-else class="empty-state-text">No revisions available</div>
         </div>
+        <div v-if="activeRevisionMenuIdx !== -1" class="menu-overlay" @click="closeRevisionMenu()"></div>
       </template>
 
       <template #tab-pods>
@@ -223,8 +233,8 @@
                   <td class="col-node">{{ pod.node || '—' }}</td>
                   <td class="col-namespace">{{ pod.namespace }}</td>
                   <td class="col-ready">{{ pod.ready }}</td>
-                  <td class="col-cpu">{{ podMetricsMap[pod.name]?.totalCpu || '—' }}</td>
-                  <td class="col-memory">{{ podMetricsMap[pod.name]?.totalMem || '—' }}</td>
+                  <td class="col-cpu">{{ formatCpu(podMetricsMap[pod.name]?.totalCpu) }}</td>
+                  <td class="col-memory">{{ formatMemory(podMetricsMap[pod.name]?.totalMem) }}</td>
                   <td class="col-status">
                     <span class="status-badge" :class="'status-' + (pod.status || 'unknown').toLowerCase()">
                       {{ pod.status || 'Unknown' }}
@@ -265,6 +275,8 @@ const emit = defineEmits<{
   (e: 'edit'): void
   (e: 'delete'): void
   (e: 'pod-selected', pod: PodInfo): void
+  (e: 'namespaceClick', namespace: string): void
+  (e: 'show-details', revision: any): void
 }>()
 
 const { rollbackDeployment: rollbackDeploymentAPI, pods, podMetrics, loadRevisions, revisions } = useK8s()
@@ -285,6 +297,28 @@ const podMetricsMap = ref<Record<string, any>>({})
 const revisionsLoaded = ref(false)
 const metricsTabs = ['CPU', 'Memory', 'Network', 'Disk I/O']
 const activeMetricTab = ref('CPU')
+const activeRevisionMenuIdx = ref(-1)
+const revisionMenuStyle = ref<Record<string, string>>({})
+
+function openRevisionContextMenu(idx: number, event: MouseEvent): void {
+  event.stopPropagation()
+  activeRevisionMenuIdx.value = activeRevisionMenuIdx.value === idx ? -1 : idx
+
+  if (activeRevisionMenuIdx.value === idx) {
+    const button = event.target as HTMLElement
+    const rect = button.getBoundingClientRect()
+    revisionMenuStyle.value = {
+      position: 'fixed',
+      top: `${rect.bottom + 4}px`,
+      right: `${window.innerWidth - rect.right}px`,
+      zIndex: '1000',
+    }
+  }
+}
+
+function closeRevisionMenu(): void {
+  activeRevisionMenuIdx.value = -1
+}
 
 async function rollbackToRevision(revision: string): Promise<void> {
   try {
@@ -292,8 +326,7 @@ async function rollbackToRevision(revision: string): Promise<void> {
     const revisionNum = parseInt(revision, 10)
     if (!confirm(`Rollback ${props.deployment.name} to revision ${revision}?`)) return
     await rollbackDeploymentAPI(props.deployment.namespace, props.deployment.name, revisionNum)
-    console.log('Rollback completed for revision:', revision)
-    showRevisionMenu.value = -1
+    activeRevisionMenuIdx.value = -1
     window.dispatchEvent(new CustomEvent('deployment-rollback', { detail: { namespace: props.deployment.namespace, name: props.deployment.name } }))
   } catch (err) {
     console.error('Rollback failed:', err)
@@ -304,6 +337,27 @@ function selectPod(pod: any): void {
   emit('pod-selected', pod)
 }
 
+function selectRevisionReplicaSet(revision: any): void {
+  // Emit event to open ReplicaSet detail panel
+  emit('show-details', revision)
+}
+
+function formatCpu(value: string | number | undefined): string {
+  if (!value) return '—'
+  const num = typeof value === 'string' ? parseFloat(value) : value
+  if (isNaN(num)) return '—'
+  return num.toFixed(3)
+}
+
+function formatMemory(value: string | number | undefined): string {
+  if (!value) return '—'
+  const num = typeof value === 'string' ? parseFloat(value) : value
+  if (isNaN(num)) return '—'
+  // Assuming value is in bytes, convert to MiB
+  const mib = num / (1024 * 1024)
+  return mib.toFixed(2) + ' MiB'
+}
+
 async function loadDeploymentPods() {
   if (!props.deployment) {
     deploymentPods.value = []
@@ -312,17 +366,16 @@ async function loadDeploymentPods() {
 
   try {
     const { getPods } = useK8s()
-    console.log(`Loading pods for namespace: ${props.deployment.namespace}`)
+   
     const allPods = await getPods(props.deployment.namespace) as PodInfo[]
 
-    console.log(`Got ${allPods?.length || 0} pods from GetPods`)
+  
 
     const filtered = (allPods || []).filter((pod: PodInfo) => {
       if (pod.namespace !== props.deployment?.namespace) return false
 
       if (pod.controlledBy) {
         if (pod.controlledBy.includes(props.deployment.name)) {
-          console.log(`Pod ${pod.name} matches via controlledBy: ${pod.controlledBy}`)
           return true
         }
       }
@@ -334,9 +387,6 @@ async function loadDeploymentPods() {
             const [key, value] = part.split('=').map((s: string) => s.trim())
             return pod.labels && pod.labels[key] === value
           })
-          if (matches) {
-            console.log(`Pod ${pod.name} matches via selector`)
-          }
           return matches
         } catch (e) {
           console.error('Error parsing selector:', e)
@@ -347,17 +397,19 @@ async function loadDeploymentPods() {
       return false
     })
 
-    console.log(`Filtered ${filtered.length} pods for deployment ${props.deployment.name} out of ${(allPods || []).length}`)
     deploymentPods.value = filtered
 
     const metricsMap: Record<string, any> = {}
     if (podMetrics.value && podMetrics.value.length > 0) {
       podMetrics.value.forEach((metric: any) => {
+       
         if (metric.namespace === props.deployment?.namespace) {
+        
           metricsMap[metric.name] = metric
         }
       })
-    }
+    } 
+    
     podMetricsMap.value = metricsMap
   } catch (err) {
     console.error('Error loading deployment pods:', err)
@@ -365,10 +417,22 @@ async function loadDeploymentPods() {
   }
 }
 
+async function loadDeploymentRevisions() {
+  if (!props.deployment) return
+  try {
+    await loadRevisions(props.deployment.namespace, props.deployment.name)
+    revisionsLoaded.value = true
+  } catch (err) {
+    console.error('Failed to load revisions:', err)
+    revisionsLoaded.value = true
+  }
+}
+
 watch(() => props.deployment, () => {
   loadDeploymentPods()
   revisionsLoaded.value = false
-}, { immediate: true })
+  loadDeploymentRevisions()
+}, { immediate: true, deep: true })
 
 watch(() => pods.value, () => {
   loadDeploymentPods()
@@ -389,6 +453,11 @@ function formatCreatedTime(created: string): string {
   const diffDays = Math.floor(diffHours / 24)
 
   return `${diffDays}d${diffHours % 24}h${diffMins % 60}m ago (${date.toLocaleString()})`
+}
+
+function formatRevisionAge(age: string | undefined): string {
+  if (!age) return '—'
+  return age
 }
 
 const replicasSummary = computed(() => {
@@ -772,6 +841,7 @@ const visibleLines = computed<FlatLine[]>(() => {
   line-height: 22px;
   max-height: 340px;
   overflow: auto;
+  /* Using universal scrollbar styles from K8sResourceDetailBase */
 }
 
 .editor-gutter {
@@ -1017,7 +1087,31 @@ const visibleLines = computed<FlatLine[]>(() => {
 
 .revisions-container {
   width: 100%;
-  overflow-x: auto;
+  overflow-x: auto !important;
+  scrollbar-color: #35365a #1a1b2e !important;
+  scrollbar-width: thin !important;
+}
+
+.revisions-container::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.revisions-container::-webkit-scrollbar-track {
+  background: #1a1b2e !important;
+}
+
+.revisions-container::-webkit-scrollbar-thumb {
+  background: #35365a !important;
+  border-radius: 4px !important;
+}
+
+.revisions-container::-webkit-scrollbar-thumb:hover {
+  background: #45466a !important;
+}
+
+.revisions-container::-webkit-scrollbar-corner {
+  background: #1a1b2e !important;
 }
 
 .revisions-table {
@@ -1029,7 +1123,7 @@ const visibleLines = computed<FlatLine[]>(() => {
 }
 
 .revisions-table thead {
-  background: #1f2139;
+  background: rgba(255, 255, 255, 0.02);
   border-bottom: 1px solid #2a2b40;
   position: sticky;
   top: 0;
@@ -1041,12 +1135,16 @@ const visibleLines = computed<FlatLine[]>(() => {
 }
 
 .revisions-table th {
-  padding: 10px 16px;
-  text-align: left;
-  font-weight: 600;
-  color: #d4d4d4;
-  border: none;
-  white-space: nowrap;
+  padding: 10px 16px !important;
+  text-align: left !important;
+  font-weight: 600 !important;
+  border: none !important;
+  white-space: nowrap !important;
+  text-transform: uppercase !important;
+  font-size: 0.75rem !important;
+  letter-spacing: 0.5px !important;
+  color: #868d8a !important;
+  background: rgba(255, 255, 255, 0.02) !important;
 }
 
 .revisions-table tbody tr {
@@ -1077,6 +1175,32 @@ const visibleLines = computed<FlatLine[]>(() => {
   min-width: 200px;
   word-break: break-all;
   color: #d4d4d4;
+}
+
+.col-pods-age {
+  width: 100px;
+  min-width: 100px;
+  text-align: center;
+  padding: 8px 16px !important;
+}
+
+.pods-age-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.pods-value {
+  color: #d4d4d4;
+  font-family: 'Courier New', monospace;
+  font-weight: 500;
+}
+
+.age-value {
+  color: #6b6d8a;
+  font-size: 0.85rem;
+  font-family: 'Courier New', monospace;
 }
 
 .col-pods {
@@ -1167,6 +1291,15 @@ const visibleLines = computed<FlatLine[]>(() => {
   color: #60a5fa;
 }
 
+.menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+}
+
 .empty-state-text {
   display: flex;
   align-items: center;
@@ -1184,7 +1317,31 @@ const visibleLines = computed<FlatLine[]>(() => {
 
 .pods-container {
   width: 100%;
-  overflow-x: auto;
+  overflow-x: auto !important;
+  scrollbar-color: #35365a #1a1b2e !important;
+  scrollbar-width: thin !important;
+}
+
+.pods-container::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.pods-container::-webkit-scrollbar-track {
+  background: #1a1b2e !important;
+}
+
+.pods-container::-webkit-scrollbar-thumb {
+  background: #35365a !important;
+  border-radius: 4px !important;
+}
+
+.pods-container::-webkit-scrollbar-thumb:hover {
+  background: #45466a !important;
+}
+
+.pods-container::-webkit-scrollbar-corner {
+  background: #1a1b2e !important;
 }
 
 .pods-table {
@@ -1196,7 +1353,7 @@ const visibleLines = computed<FlatLine[]>(() => {
 }
 
 .pods-table thead {
-  background: #1f2139;
+  background: rgba(255, 255, 255, 0.02);
   border-bottom: 1px solid #2a2b40;
   position: sticky;
   top: 0;
@@ -1204,12 +1361,16 @@ const visibleLines = computed<FlatLine[]>(() => {
 }
 
 .pods-table th {
-  padding: 10px 16px;
-  text-align: left;
-  font-weight: 600;
-  color: #d4d4d4;
-  border: none;
-  white-space: nowrap;
+  padding: 10px 16px !important;
+  text-align: left !important;
+  font-weight: 600 !important;
+  border: none !important;
+  white-space: nowrap !important;
+  text-transform: uppercase !important;
+  font-size: 0.75rem !important;
+  letter-spacing: 0.5px !important;
+  color: #868d8a !important;
+  background: rgba(255, 255, 255, 0.02) !important;
 }
 
 .pods-table tbody tr {
