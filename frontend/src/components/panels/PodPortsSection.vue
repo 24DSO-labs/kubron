@@ -127,18 +127,6 @@ async function startForward() {
     const finalLocalPort = Number(localPort.value)
     const finalPodPort = selectedPort.value.containerPort
     
-    console.log('=== PodPortsSection.startForward ===')
-    console.log('Input localPort value:', localPort.value)
-    console.log('Parsed localPort:', finalLocalPort)
-    console.log('podPort:', finalPodPort)
-    console.log('About to call onStartPortForward with:')
-    console.log({
-      namespace: props.namespace,
-      pod: props.podName,
-      localPort: finalLocalPort,
-      podPort: finalPodPort
-    })
-    
     await props.onStartPortForward(
       props.namespace,
       props.podName,
@@ -146,13 +134,11 @@ async function startForward() {
       finalPodPort
     )
     
-    console.log('Port forward started successfully')
     
     // Открыть в браузере если отмечено
     if (openBrowser.value) {
       const protocol = selectedPort.value.protocol?.toLowerCase() === 'https' ? 'https' : 'http'
       const url = `${protocol}://localhost:${finalLocalPort}`
-      console.log('Opening browser:', url)
       setTimeout(() => {
         window.open(url, '_blank')
       }, 500)
