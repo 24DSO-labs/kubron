@@ -220,15 +220,57 @@ export interface ReplicaSetInfo {
   images: string[]
 }
 
+export interface MatchExpression {
+  key: string
+  operator: string
+  values?: string[]
+}
+
+export interface NodeSelectorTerm {
+  matchExpressions: MatchExpression[]
+}
+
+export interface NodeSelectorInfo {
+  nodeSelectorTerms: NodeSelectorTerm[]
+}
+
+export interface PreferredNodeSelector {
+  weight: number
+  preference: NodeSelectorTerm
+}
+
+export interface NodeAffinityInfo {
+  requiredDuringSchedulingIgnoredDuringExecution?: NodeSelectorInfo
+  preferredDuringSchedulingIgnoredDuringExecution?: PreferredNodeSelector[]
+}
+
+export interface AffinityInfo {
+  nodeAffinity?: NodeAffinityInfo
+}
+
 export interface DaemonSetInfo {
   name: string
   namespace: string
-  desired: number
-  current: number
-  ready: number
-  available: number
+  desired?: number
+  current?: number
+  ready?: number
+  available?: number
+  desiredNumberScheduled?: number
+  currentNumberScheduled?: number
+  numberReady?: number
+  numberAvailable?: number
   age: string
-  images: string[]
+  images?: string[]
+  status?: string
+  created?: string
+  labels?: Record<string, string>
+  annotations?: Record<string, string>
+  selector?: string
+  nodeSelector?: string
+  strategy?: string
+  conditions?: ConditionInfo[]
+  tolerations?: TolerationInfo[]
+  affinity?: AffinityInfo
 }
 
 export interface JobInfo {

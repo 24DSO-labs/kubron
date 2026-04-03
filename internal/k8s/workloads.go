@@ -60,16 +60,56 @@ func (m *Manager) GetStatefulSets(namespace string) ([]StatefulSetInfo, error) {
 
 // === DaemonSets ===
 
+type NodeAffinityInfo struct {
+	RequiredDuringSchedulingIgnoredDuringExecution  *NodeSelectorInfo       `json:"requiredDuringSchedulingIgnoredDuringExecution"`
+	PreferredDuringSchedulingIgnoredDuringExecution []PreferredNodeSelector `json:"preferredDuringSchedulingIgnoredDuringExecution"`
+}
+
+type NodeSelectorInfo struct {
+	NodeSelectorTerms []NodeSelectorTerm `json:"nodeSelectorTerms"`
+}
+
+type NodeSelectorTerm struct {
+	MatchExpressions []MatchExpression `json:"matchExpressions"`
+}
+
+type PreferredNodeSelector struct {
+	Weight     int32            `json:"weight"`
+	Preference NodeSelectorTerm `json:"preference"`
+}
+
+type MatchExpression struct {
+	Key      string   `json:"key"`
+	Operator string   `json:"operator"`
+	Values   []string `json:"values"`
+}
+
+type AffinityInfo struct {
+	NodeAffinity *NodeAffinityInfo `json:"nodeAffinity"`
+}
+
 type DaemonSetInfo struct {
-	Name         string   `json:"name"`
-	Namespace    string   `json:"namespace"`
-	Desired      int32    `json:"desired"`
-	Current      int32    `json:"current"`
-	Ready        int32    `json:"ready"`
-	Available    int32    `json:"available"`
-	Age          string   `json:"age"`
-	Images       []string `json:"images"`
-	NodeSelector string   `json:"nodeSelector"`
+	Name                   string            `json:"name"`
+	Namespace              string            `json:"namespace"`
+	Desired                int32             `json:"desired"`
+	Current                int32             `json:"current"`
+	Ready                  int32             `json:"ready"`
+	Available              int32             `json:"available"`
+	DesiredNumberScheduled int32             `json:"desiredNumberScheduled"`
+	CurrentNumberScheduled int32             `json:"currentNumberScheduled"`
+	NumberReady            int32             `json:"numberReady"`
+	NumberAvailable        int32             `json:"numberAvailable"`
+	Age                    string            `json:"age"`
+	Created                string            `json:"created"`
+	Images                 []string          `json:"images"`
+	Labels                 map[string]string `json:"labels"`
+	Annotations            map[string]string `json:"annotations"`
+	Selector               string            `json:"selector"`
+	NodeSelector           string            `json:"nodeSelector"`
+	Strategy               string            `json:"strategy"`
+	Conditions             []ConditionInfo   `json:"conditions"`
+	Tolerations            []TolerationInfo  `json:"tolerations"`
+	Affinity               *AffinityInfo     `json:"affinity"`
 }
 
 func (m *Manager) GetDaemonSets(namespace string) ([]DaemonSetInfo, error) {
@@ -100,16 +140,119 @@ func (m *Manager) GetDaemonSets(namespace string) ([]DaemonSetInfo, error) {
 			}
 			ns = strings.Join(parts, ", ")
 		}
+
+		// Build selector string from MatchLabels
+		selectorStr := ""
+		if d.Spec.Selector != nil && len(d.Spec.Selector.MatchLabels) > 0 {
+			first := true
+			for k, v := range d.Spec.Selector.MatchLabels {
+				if !first {
+					selectorStr += ", "
+				}
+				selectorStr += k + "=" + v
+				first = false
+			}
+		}
+
+		// Convert conditions
+		var conditions []ConditionInfo
+		for _, cond := range d.Status.Conditions {
+			conditions = append(conditions, ConditionInfo{
+				Type:               string(cond.Type),
+				Status:             string(cond.Status),
+				LastTransitionTime: cond.LastTransitionTime.Format(time.RFC3339),
+				Reason:             cond.Reason,
+				Message:            cond.Message,
+			})
+		}
+
+		// Convert tolerations
+		var tolerations []TolerationInfo
+		for _, tol := range d.Spec.Template.Spec.Tolerations {
+			tolInfo := TolerationInfo{
+				Key:      tol.Key,
+				Operator: string(tol.Operator),
+				Value:    tol.Value,
+				Effect:   string(tol.Effect),
+			}
+			tolerations = append(tolerations, tolInfo)
+		}
+
+		// Extract node affinity information
+		var affinity *AffinityInfo
+		if d.Spec.Template.Spec.Affinity != nil && d.Spec.Template.Spec.Affinity.NodeAffinity != nil {
+			na := d.Spec.Template.Spec.Affinity.NodeAffinity
+			affinity = &AffinityInfo{
+				NodeAffinity: &NodeAffinityInfo{},
+			}
+
+			// Process required node affinity
+			if na.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+				terms := na.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+				selectorTerms := make([]NodeSelectorTerm, 0)
+				for _, term := range terms {
+					matchExpressions := make([]MatchExpression, 0)
+					for _, expr := range term.MatchExpressions {
+						matchExpressions = append(matchExpressions, MatchExpression{
+							Key:      expr.Key,
+							Operator: string(expr.Operator),
+							Values:   expr.Values,
+						})
+					}
+					selectorTerms = append(selectorTerms, NodeSelectorTerm{
+						MatchExpressions: matchExpressions,
+					})
+				}
+				affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &NodeSelectorInfo{
+					NodeSelectorTerms: selectorTerms,
+				}
+			}
+
+			// Process preferred node affinity
+			if na.PreferredDuringSchedulingIgnoredDuringExecution != nil {
+				preferred := make([]PreferredNodeSelector, 0)
+				for _, pref := range na.PreferredDuringSchedulingIgnoredDuringExecution {
+					matchExpressions := make([]MatchExpression, 0)
+					for _, expr := range pref.Preference.MatchExpressions {
+						matchExpressions = append(matchExpressions, MatchExpression{
+							Key:      expr.Key,
+							Operator: string(expr.Operator),
+							Values:   expr.Values,
+						})
+					}
+					preferred = append(preferred, PreferredNodeSelector{
+						Weight: pref.Weight,
+						Preference: NodeSelectorTerm{
+							MatchExpressions: matchExpressions,
+						},
+					})
+				}
+				affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = preferred
+			}
+		}
+
 		items = append(items, DaemonSetInfo{
-			Name:         d.Name,
-			Namespace:    d.Namespace,
-			Desired:      d.Status.DesiredNumberScheduled,
-			Current:      d.Status.CurrentNumberScheduled,
-			Ready:        d.Status.NumberReady,
-			Available:    d.Status.NumberAvailable,
-			Age:          formatAge(d.CreationTimestamp.Time),
-			Images:       images,
-			NodeSelector: ns,
+			Name:                   d.Name,
+			Namespace:              d.Namespace,
+			Desired:                d.Status.DesiredNumberScheduled,
+			Current:                d.Status.CurrentNumberScheduled,
+			Ready:                  d.Status.NumberReady,
+			Available:              d.Status.NumberAvailable,
+			DesiredNumberScheduled: d.Status.DesiredNumberScheduled,
+			CurrentNumberScheduled: d.Status.CurrentNumberScheduled,
+			NumberReady:            d.Status.NumberReady,
+			NumberAvailable:        d.Status.NumberAvailable,
+			Age:                    formatAge(d.CreationTimestamp.Time),
+			Created:                d.CreationTimestamp.Format(time.RFC3339),
+			Images:                 images,
+			Labels:                 d.Labels,
+			Annotations:            d.Annotations,
+			Selector:               selectorStr,
+			NodeSelector:           ns,
+			Strategy:               string(d.Spec.UpdateStrategy.Type),
+			Conditions:             conditions,
+			Tolerations:            tolerations,
+			Affinity:               affinity,
 		})
 	}
 	return items, nil

@@ -27,7 +27,50 @@
     <div v-else class="empty">{{ emptyMessage }}</div>
     <div v-if="showContextMenu" :style="menuStyle" class="cluster-context-menu" @click.stop>
       <template v-for="(item, index) in props.contextMenuItems" :key="index">
-        <div :class="['ctx-menu-item', { 'ctx-menu-danger': item.danger }]" @click="handleContextAction({ action: item.action })">
+        <div
+          v-if="item.label === 'Attach Pod'"
+          :class="['ctx-menu-item', { 'ctx-menu-danger': item.danger }]"
+          @mouseenter="() => { cancelAttachMenuTimeout(); showAttachMenu = true }"
+          @mouseleave="scheduleHideAttachMenu"
+        >
+          <span class="ctx-menu-arrow" v-if="hasAttachSubmenu">◀</span>{{ item.label }}
+          <div v-if="showAttachMenu && hasAttachSubmenu" class="ctx-menu-sub">
+            <div v-for="container in attachContainers" :key="container.name" class="ctx-menu-sub-item" @click="handleContextAction({ action: `attachPod:${container.name}` })">
+              {{ container.name }}
+            </div>
+          </div>
+        </div>
+        <div
+          v-else-if="item.label === 'Shell'"
+          :class="['ctx-menu-item', { 'ctx-menu-danger': item.danger }]"
+          @mouseenter="() => { cancelShellMenuTimeout(); showShellMenu = true }"
+          @mouseleave="scheduleHideShellMenu"
+        >
+          <span class="ctx-menu-arrow" v-if="hasShellSubmenu">◀</span>{{ item.label }}
+          <div v-if="showShellMenu && hasShellSubmenu" class="ctx-menu-sub">
+            <div v-for="container in shellContainers" :key="container.name" class="ctx-menu-sub-item" @click="handleContextAction({ action: `shell:${container.name}` })">
+              {{ container.name }}
+            </div>
+          </div>
+        </div>
+        <div
+          v-else-if="item.label === 'Logs'"
+          :class="['ctx-menu-item', { 'ctx-menu-danger': item.danger }]"
+          @mouseenter="() => { cancelLogsMenuTimeout(); showLogsMenu = true }"
+          @mouseleave="scheduleHideLogsMenu"
+        >
+          <span class="ctx-menu-arrow" v-if="hasLogsSubmenu">◀</span>{{ item.label }}
+          <div v-if="showLogsMenu && hasLogsSubmenu" class="ctx-menu-sub">
+            <div v-for="container in logsContainers" :key="container.name" class="ctx-menu-sub-item" @click="handleContextAction({ action: `logs:${container.name}` })">
+              {{ container.name }}
+            </div>
+          </div>
+        </div>
+        <div
+          v-else
+          :class="['ctx-menu-item', { 'ctx-menu-danger': item.danger }]"
+          @click="handleContextAction({ action: item.action })"
+        >
           <span class="ctx-menu-arrow"></span>{{ item.label }}
         </div>
       </template>
@@ -254,13 +297,13 @@ function onSearch(val: string) { emit('search', val) }
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 999;
+  z-index: 9998;
   cursor: default;
 }
 
 .ctx-menu-wrapper {
   position: absolute;
-  z-index: 1000;
+  z-index: 9999;
 }
 
 .cluster-context-menu {
@@ -268,7 +311,7 @@ function onSearch(val: string) { emit('search', val) }
   border: 1px solid #3b3d5c;
   border-radius: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
+  z-index: 9999;
   min-width: 160px;
   overflow: visible;
   padding: 0;
@@ -332,7 +375,7 @@ function onSearch(val: string) { emit('search', val) }
   border-radius: 4px;
   min-width: 160px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  z-index: 1001;
+  z-index: 10000;
   white-space: nowrap;
 }
 

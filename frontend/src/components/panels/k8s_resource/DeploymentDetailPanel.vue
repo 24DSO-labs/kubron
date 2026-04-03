@@ -1,7 +1,7 @@
 <template>
   <div v-if="deployment" class="panel-wrapper">
     <K8sResourceDetailBase :resource="deployment" resource-icon="" :custom-tabs="customTabs" @close="$emit('close')"
-      @edit="$emit('edit')" @delete="$emit('delete')" @namespaceClick="$emit('namespaceClick', $event)">
+      @edit="$emit('edit')" @delete="$emit('delete')" @namespaceClick="onNamespaceClick">
       <template #actions>
         <!-- Scale -->
         <button class="btn-action" title="Scale deployment" @click="$emit('scale', deployment)">
@@ -275,7 +275,7 @@ const emit = defineEmits<{
   (e: 'edit'): void
   (e: 'delete'): void
   (e: 'pod-selected', pod: PodInfo): void
-  (e: 'namespaceClick', namespace: string): void
+  (e: 'open-resource', data: { kind: string; name: string; namespace?: string }): void
   (e: 'show-details', revision: any): void
 }>()
 
@@ -331,6 +331,20 @@ async function rollbackToRevision(revision: string): Promise<void> {
   } catch (err) {
     console.error('Rollback failed:', err)
   }
+}
+
+function openResource(kind: string, name: string) {
+  const data = {
+    kind,
+    name,
+    namespace: props.deployment?.namespace
+  }
+  emit('open-resource', data)
+}
+
+function onNamespaceClick(namespace: string) {
+  console.log('DeploymentDetailPanel.onNamespaceClick called with:', namespace)
+  openResource('Namespace', namespace)
 }
 
 function selectPod(pod: any): void {
