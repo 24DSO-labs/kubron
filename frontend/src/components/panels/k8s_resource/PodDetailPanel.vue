@@ -4,7 +4,10 @@
     resource-icon=""
     :custom-tabs="customTabs"
     @close="emit('close')"
+    @edit="emit('edit')"
+    @delete="emit('delete')"
     @namespace-click="openResource('Namespace', $event)"
+  >
   >
     <!-- Two-level action menu -->
     <template #actions>
@@ -242,31 +245,25 @@
     <template #tab-containers v-if="pod.containers && pod.containers.length > 0">
       <div class="containers-section">
         <div v-for="c in pod.containers" :key="c.name" class="ct-block">
-          <!-- Container Header -->
           <div class="ct-header cursor-pointer" @click="toggleContainer(c.name)">
             <div class="ct-header-left">
               <span class="ct-chevron" :class="{ expanded: !collapsedContainers.has(c.name) }">›</span>
               <span class="ct-name">{{ c.name }}</span>
               <span v-if="c.isInit" class="ct-badge-init">init</span>
             </div>
-            
           </div>
 
-          <!-- Container Body -->
           <div v-if="!collapsedContainers.has(c.name)" class="ct-body">
-            <!-- Container Metrics -->
             <div v-if="clusterName && !c.isInit" class="ct-metrics-wrapper">
               <div class="ct-metrics-header" @click.stop="toggleContainerMetrics(c.name)">
                 <span class="ct-metrics-title">Metrics</span>
                 <span class="ct-metrics-toggle" :class="{ collapsed: collapsedContainerMetrics.has(c.name) }"></span>
               </div>
               <div v-if="!collapsedContainerMetrics.has(c.name)" class="ct-metrics-content">
-                <ContainerMetricsViewer :cluster-name="clusterName" :namespace="pod.namespace" :pod-name="pod.name"
-                  :container-name="c.name" />
+                <ContainerMetricsViewer :cluster-name="clusterName" :namespace="pod.namespace" :pod-name="pod.name" :container-name="c.name" />
               </div>
             </div>
 
-            <!-- Status -->
             <div class="ct-row">
               <span class="ct-label">Status</span>
               <span class="ct-val">
@@ -274,20 +271,17 @@
               </span>
             </div>
 
-            <!-- Image -->
             <div class="ct-row ct-row-alt">
               <span class="ct-label">Image</span>
               <span class="ct-val">{{ c.image }}</span>
             </div>
 
-            <!-- ImagePullPolicy -->
             <div class="ct-row">
               <span class="ct-label">ImagePullPolicy</span>
               <span class="ct-val">{{ c.imagePullPolicy || '—' }}</span>
             </div>
 
-            <!-- Ports -->
-            <div class="ct-row ct-row-alt ct-row-click" @click.stop="toggleContainerSection(c.name, 'ports')">
+           <div class="ct-row ct-row-alt ct-row-click" @click.stop="toggleContainerSection(c.name, 'ports')">
               <span class="ct-label">
                 Ports
                 <span class="ct-sec-toggle">{{ isContainerSectionCollapsed(c.name, 'ports') ? '›' : '×' }}</span>
@@ -302,7 +296,6 @@
               </span>
             </div>
 
-            <!-- Environment -->
             <div class="ct-row ct-row-click" @click.stop="toggleContainerSection(c.name, 'env')">
               <span class="ct-label">
                 Environment
@@ -325,7 +318,6 @@
               </div>
             </template>
 
-            <!-- Mounts -->
             <div class="ct-row ct-row-alt ct-row-click" @click.stop="toggleContainerSection(c.name, 'mounts')">
               <span class="ct-label">
                 Mounts
@@ -353,25 +345,21 @@
               </template>
             </template>
 
-            <!-- Command -->
             <div class="ct-row">
               <span class="ct-label">Command</span>
               <span class="ct-val">{{ formatCommand(c.command) }}</span>
             </div>
 
-            <!-- Args -->
             <div class="ct-row ct-row-alt" v-if="c.args && c.args.length">
               <span class="ct-label">Args</span>
               <span class="ct-val">{{ formatCommand(c.args) }}</span>
             </div>
 
-            <!-- WorkingDir -->
             <div class="ct-row" v-if="c.workingDir">
               <span class="ct-label">WorkingDir</span>
               <span class="ct-val">{{ c.workingDir }}</span>
             </div>
 
-            <!-- Requests -->
             <div :class="['ct-row', { 'ct-row-alt': !c.workingDir }]">
               <span class="ct-label">Requests</span>
               <span class="ct-val">
@@ -379,7 +367,6 @@
               </span>
             </div>
 
-            <!-- Limits -->
             <div class="ct-row ct-row-alt">
               <span class="ct-label">Limits</span>
               <span class="ct-val">
@@ -387,7 +374,6 @@
               </span>
             </div>
 
-            <!-- Probes -->
             <template v-if="c.probes">
               <div class="ct-row ct-row-click" @click.stop="toggleContainerSection(c.name, 'probes')">
                 <span class="ct-label">
@@ -424,7 +410,6 @@
               </template>
             </template>
 
-            <!-- Security Context -->
             <template v-if="c.securityContext">
               <div class="ct-row ct-row-alt ct-row-click" @click.stop="toggleContainerSection(c.name, 'security')">
                 <span class="ct-label">
@@ -469,7 +454,6 @@
               </template>
             </template>
 
-            <!-- TerminationMessagePath -->
             <div class="ct-row">
               <span class="ct-label">TerminationMessagePath</span>
               <span class="ct-val">{{ c.terminationMessagePath || '—' }}</span>
@@ -479,7 +463,7 @@
       </div>
     </template>
 
-    <!-- Events tab (empty placeholder) -->
+    <!-- Events tab -->
     <template #events>
       <div class="empty-section">No events available</div>
     </template>
@@ -498,6 +482,7 @@ import K8sResourceDetailBase from '../K8sResourceDetailBase.vue'
 import PodMetricsViewer from '../../metrics/PodMetricsViewer.vue'
 import ContainerMetricsViewer from '../../metrics/ContainerMetricsViewer.vue'
 import PodPortsSection from '../PodPortsSection.vue'
+import { useKubPodActions } from '../../../composables/KubPodActions'
 import attachIcon from '../../../assets/icons/attach.svg'
 import terminalIcon from '../../../assets/icons/terminal.svg'
 import logsIcon from '../../../assets/icons/logs.svg'
@@ -528,6 +513,44 @@ const emit = defineEmits<{
   (e: 'open-resource', data: { kind: string; name: string; namespace?: string }): void
 }>()
 
+// ═══════ Используем общий композабл для действий ═══════
+
+const selectedPod = computed(() => props.pod)
+
+const podActions = {
+  openAttachWithContainer: (container: string, pod: any) => {
+    showAttachMenu.value = false
+    emit('attach', { container, pod })
+  },
+  openShellWithContainer: (container: string, pod: any) => {
+    showTerminalMenu.value = false
+    emit('terminal', { container, pod })
+  },
+  openLogs: (pod: any, container?: string) => {
+    showLogsMenu.value = false
+    emit('logs', { container: container || '', pod })
+  },
+  evictPod: (pod: any) => {
+    emit('evict')
+  }
+}
+
+const k8sActions = {
+  showYAML: (kind: string, namespace: string, name: string) => {
+    emit('edit')
+  },
+  refreshData: () => {},
+  deleteResource: (namespace: string, name: string) => {
+    emit('delete')
+  }
+}
+
+const { handleContextAction } = useKubPodActions(
+  selectedPod,
+  podActions,
+  k8sActions
+)
+
 // ═══════ Action menu state ═══════
 
 const showAttachMenu = ref(false)
@@ -535,22 +558,18 @@ const showTerminalMenu = ref(false)
 const showLogsMenu = ref(false)
 
 function handleAttach(container: string) {
-  showAttachMenu.value = false
-  emit('attach', { container, pod: props.pod })
+  handleContextAction(`attachPod:${container}`, props.pod)
 }
 
 function handleTerminal(container: string) {
-  showTerminalMenu.value = false
-  emit('terminal', { container, pod: props.pod })
+  handleContextAction(`shell:${container}`, props.pod)
 }
 
 function handleLogs(container: string) {
-  showLogsMenu.value = false
-  emit('logs', { container, pod: props.pod })
+  handleContextAction(`logs:${container}`, props.pod)
 }
 
 function openResource(kind: string, name: string, namespace?: string) {
-  
   const data = {
     kind,
     name,
@@ -562,7 +581,6 @@ function openResource(kind: string, name: string, namespace?: string) {
 function getControlledByType(): string {
   if (!props.pod.controlledBy) return ''
   const val = props.pod.controlledBy
-  // Parse "ResourceType/name" format
   if (val.includes('/')) {
     const parts = val.split('/')
     return parts[0]
@@ -573,7 +591,6 @@ function getControlledByType(): string {
 function getControlledByName(): string {
   if (!props.pod.controlledBy) return ''
   const val = props.pod.controlledBy
-  // Parse "ResourceType/name" format
   if (val.includes('/')) {
     const parts = val.split('/')
     return parts[parts.length - 1]
@@ -584,7 +601,6 @@ function getControlledByName(): string {
 function openControlledByResource() {
   if (!props.pod.controlledBy) return
   const val = props.pod.controlledBy
-  // Parse "ResourceType/name" format
   let kind = 'ReplicaSet'
   let name = val
   if (val.includes('/')) {
@@ -918,7 +934,6 @@ function formatTypeName(type: string): string {
   return type.replace(/([a-z])([A-Z])/g, '$1 $2')
 }
 </script>
-
 <style scoped>
 /* ═══════ Two-level action menu ═══════ */
 
