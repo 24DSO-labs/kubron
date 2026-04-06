@@ -33,7 +33,7 @@
           @mouseenter="() => { cancelAttachMenuTimeout(); showAttachMenu = true }"
           @mouseleave="scheduleHideAttachMenu"
         >
-          <span class="ctx-menu-arrow" v-if="hasAttachSubmenu">◀</span>{{ item.label }}
+          <span class="ctx-menu-arrow" v-if="hasAttachSubmenu"><</span>{{ item.label }}
           <div v-if="showAttachMenu && hasAttachSubmenu" class="ctx-menu-sub">
             <div v-for="container in attachContainers" :key="container.name" class="ctx-menu-sub-item" @click="handleContextAction({ action: `attachPod:${container.name}` })">
               {{ container.name }}
@@ -46,7 +46,7 @@
           @mouseenter="() => { cancelShellMenuTimeout(); showShellMenu = true }"
           @mouseleave="scheduleHideShellMenu"
         >
-          <span class="ctx-menu-arrow" v-if="hasShellSubmenu">◀</span>{{ item.label }}
+          <span class="ctx-menu-arrow" v-if="hasShellSubmenu"><</span>{{ item.label }}
           <div v-if="showShellMenu && hasShellSubmenu" class="ctx-menu-sub">
             <div v-for="container in shellContainers" :key="container.name" class="ctx-menu-sub-item" @click="handleContextAction({ action: `shell:${container.name}` })">
               {{ container.name }}
@@ -59,7 +59,7 @@
           @mouseenter="() => { cancelLogsMenuTimeout(); showLogsMenu = true }"
           @mouseleave="scheduleHideLogsMenu"
         >
-          <span class="ctx-menu-arrow" v-if="hasLogsSubmenu">◀</span>{{ item.label }}
+          <span class="ctx-menu-arrow" v-if="hasLogsSubmenu"><</span>{{ item.label }}
           <div v-if="showLogsMenu && hasLogsSubmenu" class="ctx-menu-sub">
             <div v-for="container in logsContainers" :key="container.name" class="ctx-menu-sub-item" @click="handleContextAction({ action: `logs:${container.name}` })">
               {{ container.name }}
@@ -80,7 +80,7 @@
 
 <script lang="ts" setup>
 import ContentHeader from '../ContentHeader.vue'
-import { ref, onUnmounted, onMounted } from 'vue'
+import { ref, onUnmounted } from 'vue'
 
 export interface Column {
   key: string
@@ -114,6 +114,7 @@ const emit = defineEmits<{
   (e: 'search', val: string): void
   (e: 'select', item: any): void
   (e: 'contextAction', action: string, item: any, subAction?: string): void
+  (e: 'contextOpen', item: any): void
 }>()
 
 const showContextMenu = ref(false)
@@ -189,39 +190,37 @@ function getCellValue(item: any, key: string): string {
 function getStatusColor(status: string): string {
   const statusLower = status?.toLowerCase() || ''
   
-  if (statusLower === 'running') return '#4ade80' // Green
-  if (statusLower === 'succeeded') return '#4ade80' // Green
-  if (statusLower === 'pending') return '#facc15' // Yellow
-  if (statusLower === 'failed') return '#ef4444' // Red
-  if (statusLower === 'crashed' || statusLower === 'crashloopbackoff') return '#dc2626' // Dark Red
-  if (statusLower === 'imagepullbackoff') return '#f97316' // Orange
-  if (statusLower === 'evicted') return '#ef4444' // Red
-  if (statusLower === 'terminating') return '#f97316' // Orange
-  if (statusLower === 'unknown') return '#868d8a' // Gray
-  if (statusLower === 'progressdeadlineexceeded') return '#ec4899' // Pink
-  if (statusLower === 'replicafailure') return '#ef4444' // Red
+  if (statusLower === 'running') return '#4ade80'
+  if (statusLower === 'succeeded') return '#4ade80'
+  if (statusLower === 'pending') return '#facc15'
+  if (statusLower === 'failed') return '#ef4444'
+  if (statusLower === 'crashed' || statusLower === 'crashloopbackoff') return '#dc2626'
+  if (statusLower === 'imagepullbackoff') return '#f97316'
+  if (statusLower === 'evicted') return '#ef4444'
+  if (statusLower === 'terminating') return '#f97316'
+  if (statusLower === 'unknown') return '#868d8a'
+  if (statusLower === 'progressdeadlineexceeded') return '#ec4899'
+  if (statusLower === 'replicafailure') return '#ef4444'
   
-  return '#868d8a' // Default gray
+  return '#868d8a'
 }
 
 function getItemKey(item: any): string {
   if (props.getItemKey) return props.getItemKey(item)
   const ns = (item as any).namespace
-  return ns ? `${ns}${item.name}` : item.name
+  return ns ? `$${ns}$${item.name}` : item.name
 }
 
 function openContextMenu(item: any, event: MouseEvent) {
   selectedItem.value = item
+  emit('contextOpen', item)
   
-  // Create a deep copy of context menu items to enable state management
   localContextMenuItems.value = JSON.parse(JSON.stringify(props.contextMenuItems))
   
-  // Reset all submenu flags
   localContextMenuItems.value.forEach(menuItem => {
     menuItem.show = false
   })
   
-  // Check if item has containers (for Pod-like objects)
   const containers = (item as any).containers || []
   const regularContainers = containers.filter((c: any) => !c.isInit)
   
