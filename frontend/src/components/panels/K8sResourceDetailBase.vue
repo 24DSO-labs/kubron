@@ -8,7 +8,7 @@
         <slot name="actions" :resource="resource"></slot>
 
         <!-- Edit button -->
-        <button class="btn-action" @click="emit('edit')" title="Edit YAML">
+        <button class="btn-action" @click="emit('edit')" title="Edit">
           <img :src="editIcon" alt="Edit" class="btn-icon"/>
         </button>
 
@@ -86,119 +86,71 @@
 
 <script lang="ts" setup>
 import { ref, computed } from 'vue'
-import copyIcon from '../../assets/icons/copy.svg'
-import closeIcon from '../../assets/icons/close.svg'
 import editIcon from '../../assets/icons/edit.svg'
 import deleteIcon from '../../assets/icons/delete.svg'
+import closeIcon from '../../assets/icons/close.svg'
+import copyIcon from '../../assets/icons/copy.svg'
 
-export interface DetailTab {
+interface DetailTab {
   id: string
   label: string
 }
 
-const props = withDefaults(
-  defineProps<{
-    resource: any
-    resourceIcon?: string
-    showMetaInfo?: boolean
-    customTabs?: DetailTab[]
-  }>(),
-  {
-    resourceIcon: '',
-    showMetaInfo: true,
-    customTabs: () => []
-  }
-)
+const props = defineProps<{
+  resource: any
+  resourceIcon?: string
+  customTabs?: DetailTab[]
+}>()
 
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'edit'): void
   (e: 'delete'): void
-  (e: 'action', data: { actionId: string; data?: any }): void
   (e: 'namespaceClick', namespace: string): void
 }>()
 
-function onNamespaceClick() {
-  if (props.resource && props.resource.namespace) {
-    console.log('K8sResourceDetailBase.onNamespaceClick:', props.resource.namespace)
-    emit('namespaceClick', props.resource.namespace)
-  }
-}
-
-defineSlots<{
-  actions(props: { resource: any }): any
-  properties(props: { resource: any }): any
-  events(props: { resource: any }): any
-  [key: string]: (props: { resource: any }) => any
-}>()
-
 const activeTab = ref('properties')
-const metricsCollapsed = ref(false)
+
+const showMetaInfo = computed(() => {
+  return props.resource && props.resource.name
+})
 
 const tabs = computed<DetailTab[]>(() => {
   const baseTabs: DetailTab[] = [
     { id: 'properties', label: 'Properties' },
     { id: 'events', label: 'Events' }
   ]
-  return [...baseTabs, ...props.customTabs]
+  if (props.customTabs) {
+    return [...baseTabs, ...props.customTabs]
+  }
+  return baseTabs
 })
 
-// Format Age - relative format like "14d 11h 29m ago"
-function formatAgeRelative(age: string): string {
-  if (!age) return '—'
-  
-  // Parse age string like "14d", "11h", "29m" or combined
-  const parts = age.match(/(\d+)([dhms])/g) || []
-  if (parts.length === 0) return age
-  
-  return parts.join(' ') + ' ago'
+function onNamespaceClick() {
+  if (props.resource?.namespace) {
+    emit('namespaceClick', props.resource.namespace)
+  }
 }
 
-// Format created timestamp to absolute format
+function copyToClipboard(text: string) {
+  navigator.clipboard.writeText(text).catch(err => {
+    console.error('Failed to copy:', err)
+  })
+}
+
+function formatAgeRelative(age: string): string {
+  return age || '—'
+}
+
 function formatAgeAbsolute(created: string): string {
-  if (!created) return '—'
-  
+  if (!created) return ''
   try {
     const date = new Date(created)
-    if (isNaN(date.getTime())) return created
-    
-    // Format: "19 мар. 2026 г., 7:21:20 GMT+7"
-    const options: Intl.DateTimeFormatOptions = {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      timeZone: 'Asia/Krasnoyarsk',
-      timeZoneName: 'short'
-    }
-    return new Intl.DateTimeFormat('ru-RU', options).format(date)
+    return date.toLocaleString()
   } catch {
     return created
   }
 }
-
-// Copy to clipboard
-async function copyToClipboard(text: string): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(text)
-  } catch (err) {
-    console.error('Failed to copy to clipboard:', err)
-  }
-}
-
-// Toggle metrics collapse/expand
-function toggleMetrics() {
-  metricsCollapsed.value = !metricsCollapsed.value
-}
-
-// Expose methods and state for child components
-defineExpose({
-  metricsCollapsed,
-  toggleMetrics,
-  activeTab
-})
 </script>
 
 <style scoped>
@@ -210,8 +162,6 @@ defineExpose({
   height: 100%;
   overflow: hidden;
 }
-
-/* ═══════ Header ═══════ */
 
 .detail-header {
   display: flex;
@@ -241,8 +191,6 @@ defineExpose({
   flex-shrink: 0;
 }
 
-/* ═══════ Meta Info ═══════ */
-
 .detail-meta {
   padding: 12px 16px;
   border-bottom: 1px solid #2a2b40;
@@ -270,8 +218,6 @@ defineExpose({
   white-space: nowrap;
 }
 
-/* ═══════ Tabs ═══════ */
-
 .tabs {
   overflow-x: auto;
   flex-shrink: 0;
@@ -298,8 +244,6 @@ defineExpose({
   color: white;
 }
 
-/* ═══════ Content ═══════ */
-
 .detail-content {
   flex: 1;
   overflow-y: auto;
@@ -309,8 +253,6 @@ defineExpose({
 .detail-section {
   padding: 8px 0;
 }
-
-/* ═══════ Buttons ═══════ */
 
 .btn-close {
   padding: 6px 10px;
@@ -396,9 +338,6 @@ defineExpose({
   opacity: 1;
 }
 
-/* ═══════ Scrollbar ═══════ */
-
-/* Universal dark scrollbar style for all scrollable elements */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -438,7 +377,6 @@ defineExpose({
   background: #45466a;
 }
 
-/* Meta Links */
 .meta-link {
   color: #60a5fa !important;
   cursor: pointer !important;
@@ -471,7 +409,6 @@ defineExpose({
   outline-offset: 2px;
 }
 
-/* Name with copy button */
 .name-with-copy {
   display: flex;
   align-items: center;
@@ -511,32 +448,13 @@ defineExpose({
   background: rgba(59, 130, 246, 0.1);
 }
 
-/* Utility classes */
-.flex {
-  display: flex;
-}
+.flex { display: flex; }
+.space-x-4 { gap: 1rem; }
+.border-b { border-bottom: 1px solid; }
+.border-gray-700 { border-bottom-color: #2a2b40; }
+.mb-4 { margin-bottom: 1rem; }
+.text-gray-300 { color: #d4d4d4; }
 
-.space-x-4 {
-  gap: 1rem;
-}
-
-.border-b {
-  border-bottom: 1px solid;
-}
-
-.border-gray-700 {
-  border-bottom-color: #2a2b40;
-}
-
-.mb-4 {
-  margin-bottom: 1rem;
-}
-
-.text-gray-300 {
-  color: #d4d4d4;
-}
-
-/* Age display */
 .age-display {
   display: flex;
   flex-direction: column;
@@ -551,57 +469,5 @@ defineExpose({
 .age-absolute {
   font-size: 0.8rem;
   color: #868d8a;
-}
-
-/* Collapsible metrics section */
-.metrics-section {
-  margin-top: 16px;
-  border: 1px solid #2a2b40;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.metrics-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.02);
-  border-bottom: 1px solid #2a2b40;
-  cursor: pointer;
-  user-select: none;
-  transition: background 0.15s;
-}
-
-.metrics-header:hover {
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.metrics-header-title {
-  flex: 1;
-  font-weight: 500;
-  color: #d4d4d4;
-}
-
-.metrics-toggle {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  transition: transform 0.2s;
-  color: #868d8a;
-}
-
-.metrics-toggle.collapsed {
-  transform: rotate(-90deg);
-}
-
-.metrics-content {
-  padding: 16px;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.metrics-content.hidden {
-  display: none;
 }
 </style>

@@ -10,15 +10,17 @@
     @search="onSearch"
     @select="onSelect"
     @context-action="onContextAction"
+    @context-open="onContextOpen"
   />
 </template>
 
 <script lang="ts" setup>
 import type { PodInfo, PodMetricsInfo } from '../../../types'
 import K8sResourceListBase from '../K8sResourceListBase.vue'
-import type { Column, ContextMenuItem } from '../K8sResourceListBase.vue'
+import type { Column } from '../K8sResourceListBase.vue'
 import PodContainersCellComponent from './PodContainersCellComponent.vue'
 import { ref, computed } from 'vue'
+import { useKubPodActions } from '../../../composables/KubPodActions'
 
 const props = defineProps<{
   items: PodInfo[]
@@ -41,46 +43,41 @@ const emit = defineEmits<{
 
 const selectedPod = ref<PodInfo | null>(null)
 
-// Format CPU value to 3 decimal places
-function formatCpu(cpuStr: string | undefined): string {
-  if (!cpuStr) return '—'
-  try {
-    const cpu = parseFloat(cpuStr)
-    return isNaN(cpu) ? '—' : cpu.toFixed(3)
-  } catch {
-    return '—'
+// Pod действия — передаем через emit наверх
+const podActions = {
+  openAttachWithContainer: (container: string, pod: PodInfo) => {
+    emit('attachPod', pod, container)
+  },
+  openShellWithContainer: (container: string, pod: PodInfo) => {
+    emit('shell', pod, container)
+  },
+  openLogs: (pod: PodInfo, container?: string) => {
+    emit('logs', pod, container)
+  },
+  evictPod: (pod: PodInfo) => {
+    emit('evict', pod)
   }
 }
 
-// Format Memory value from bytes to MiB
-function formatMemory(memStr: string | undefined): string {
-  if (!memStr) return '—'
-  try {
-    const bytes = parseFloat(memStr)
-    if (isNaN(bytes)) return '—'
-    const mib = bytes / 1024 / 1024
-    return mib.toFixed(1) + 'MiB'
-  } catch {
-    return '—'
+// Общие k8s действия
+const k8sActions = {
+  showYAML: (kind: string, namespace: string, name: string) => {
+    emit('edit', selectedPod.value!)
+  },
+  refreshData: () => {
+    emit('refresh')
+  },
+  deleteResource: (namespace: string, name: string) => {
+    emit('delete', selectedPod.value!)
   }
 }
 
-// Get status color based on pod status
-function getStatusColor(status: string): string {
-  const statusLower = status?.toLowerCase() || ''
-  
-  if (statusLower === 'running') return '#4ade80' // Green
-  if (statusLower === 'succeeded') return '#4ade80' // Green
-  if (statusLower === 'pending') return '#facc15' // Yellow
-  if (statusLower === 'failed') return '#ef4444' // Red
-  if (statusLower === 'crashed' || statusLower === 'crashloopbackoff') return '#dc2626' // Dark Red
-  if (statusLower === 'imagepullbackoff') return '#f97316' // Orange
-  if (statusLower === 'evicted') return '#ef4444' // Red
-  if (statusLower === 'terminating') return '#f97316' // Orange
-  if (statusLower === 'unknown') return '#868d8a' // Gray
-  
-  return '#868d8a' // Default gray
-}
+// Используем новый композабл
+const { contextMenuItems, handleContextAction } = useKubPodActions(
+  selectedPod,
+  podActions,
+  k8sActions
+)
 
 // Merge metrics with pods
 const itemsWithMetrics = computed(() => {
@@ -107,78 +104,48 @@ const columns: Column[] = [
   { key: 'qos', label: 'QoS' }
 ]
 
-const contextMenuItems = computed<ContextMenuItem[]>(() => {
-  const allContainers = selectedPod.value?.containers || []
-  const regularContainers = allContainers.filter(c => !c.isInit)
-  return [
-    { label: 'Show Details', action: 'select' },
-    {
-      label: 'Attach Pod',
-      submenu: regularContainers.map(c => ({
-        label: c.name,
-        key: `attach-${c.name}`,
-        action: `attachPod:${c.name}`
-      })) || []
-    },
-    {
-      label: 'Shell',
-      submenu: regularContainers.map(c => ({
-        label: c.name,
-        key: `shell-${c.name}`,
-        action: `shell:${c.name}`
-      })) || []
-    },
-    { label: 'Evict', action: 'evict' },
-    {
-      label: 'Logs',
-      submenu: regularContainers.map(c => ({
-        label: c.name,
-        key: `logs-${c.name}`,
-        action: `logs:${c.name}`
-      })) || []
-    },
-    { label: 'Edit', action: 'edit' },
-    { label: 'Delete', action: 'delete', danger: true }
-  ]
-})
+function formatCpu(cpuStr: string | undefined): string {
+  if (!cpuStr) return '—'
+  try {
+    const cpu = parseFloat(cpuStr)
+    return isNaN(cpu) ? '—' : cpu.toFixed(3)
+  } catch {
+    return '—'
+  }
+}
+
+function formatMemory(memStr: string | undefined): string {
+  if (!memStr) return '—'
+  try {
+    const bytes = parseFloat(memStr)
+    if (isNaN(bytes)) return '—'
+    const mib = bytes / 1024 / 1024
+    return mib.toFixed(1) + 'MiB'
+  } catch {
+    return '—'
+  }
+}
 
 function onRefresh() { emit('refresh') }
 function onSearch(val: string) { emit('search', val) }
-function onSelect(pod: PodInfo) { emit('select', pod) }
+
+function onSelect(pod: PodInfo) {
+  selectedPod.value = pod
+  emit('select', pod)
+}
+
+// Вызывается при ОТКРЫТИИ контекстного меню (до выбора действия)
+function onContextOpen(pod: PodInfo) {
+  selectedPod.value = pod
+}
 
 function onContextAction(action: string, pod: PodInfo) {
   selectedPod.value = pod
-  
-  // Handle submenu actions with container names
-  if (action.startsWith('attachPod:')) {
-    const containerName = action.substring('attachPod:'.length)
-    emit('attachPod', pod, containerName)
-    return
-  }
-  if (action.startsWith('shell:')) {
-    const containerName = action.substring('shell:'.length)
-    emit('shell', pod, containerName)
-    return
-  }
-  if (action.startsWith('logs:')) {
-    const containerName = action.substring('logs:'.length)
-    emit('logs', pod, containerName)
-    return
-  }
-  
-  switch (action) {
-    case 'select':
-      emit('select', pod)
-      break
-    case 'evict':
-      emit('evict', pod)
-      break
-    case 'edit':
-      emit('edit', pod)
-      break
-    case 'delete':
-      emit('delete', pod)
-      break
+  handleContextAction(action, pod)
+
+  // select обрабатываем здесь
+  if (action === 'select') {
+    emit('select', pod)
   }
 }
 </script>
@@ -194,53 +161,5 @@ function onContextAction(action: string, pod: PodInfo) {
 
 .metric-cell {
   font-family: monospace;
-}
-
-.warn {
-  color: #facc15;
-}
-
-.text-running {
-  color: #4ade80;
-}
-
-.text-pending {
-  color: #facc15;
-}
-
-.text-failed {
-  color: #ef4444;
-}
-
-.text-succeeded {
-  color: #4ade80;
-}
-
-.text-unknown {
-  color: #868d8a;
-}
-
-.container-square {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  margin: 0 2px;
-  border-radius: 2px;
-}
-
-.square-green {
-  background-color: #4ade80;
-}
-
-.square-red {
-  background-color: #ef4444;
-}
-
-.square-yellow {
-  background-color: #facc15;
-}
-
-.square-gray {
-  background-color: #868d8a;
 }
 </style>

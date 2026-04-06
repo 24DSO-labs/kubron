@@ -63,33 +63,33 @@
     </div>
 
     <!-- Pod Detail Panel -->
-    <PodDetailPanel
-      v-if="selectedPod"
-      :pod="selectedPod"
-      :logs="podLogs"
-      v-model:logContainer="logContainer"
-      v-model:logLines="logLines"
-      v-model:execCmd="execCmd"
-      :execOutput="execOutput"
-      :statusClass="statusClass"
-      v-model:pfLocalPort="pfLocalPort"
-      v-model:pfPodPort="pfPodPort"
-      :portForwards="portForwards || []"
-      :cluster-name="activeClusterId"
-      :on-start-port-forward="startPortForward"
-      :on-stop-port-forward="stopPortForward"
-      @close="selectedPod = null"
-      @loadLogs="loadLogs"
-      @runExec="runExec"
-      @delete="podActions.removePod()"
-      @openTerminal="podActions.terminalOpen.value = true"
-      @evict="podActions.evictPod()"
-      @edit="podActions.editPod()"
-      @attach="onPodDetailAttach"
-      @terminal="onPodDetailTerminal"
-      @logs="onPodDetailLogs"
-      @open-resource="onOpenResource"
-    />
+   <PodDetailPanel
+  v-if="selectedPod"
+  :pod="selectedPod"
+  :logs="podLogs"
+  v-model:logContainer="logContainer"
+  v-model:logLines="logLines"
+  v-model:execCmd="execCmd"
+  :execOutput="execOutput"
+  :statusClass="statusClass"
+  v-model:pfLocalPort="pfLocalPort"
+  v-model:pfPodPort="pfPodPort"
+  :portForwards="portForwards || []"
+  :cluster-name="activeClusterId"
+  :on-start-port-forward="startPortForward"
+  :on-stop-port-forward="stopPortForward"
+  @close="selectedPod = null"
+  @loadLogs="loadLogs"
+  @runExec="runExec"
+  @delete="podActions.removePod()"
+  @openTerminal="podActions.terminalOpen.value = true"
+  @evict="podActions.evictPod()"
+  @edit="onPodDetailEdit"
+  @attach="onPodDetailAttach"
+  @terminal="onPodDetailTerminal"
+  @logs="onPodDetailLogs"
+  @open-resource="onOpenResource"
+/>
 
     <!-- Deployment Detail Panel -->
     <DeploymentDetailPanel
@@ -768,6 +768,15 @@ function closeAllDetailPanels() {
   showScaleDialog.value = false
   tabbedDeploymentLogsOpen.value = false
   revisions.value = []
+}
+
+async function onPodDetailEdit() {
+  if (!selectedPod.value) return
+  const ns = selectedPod.value.namespace
+  const name = selectedPod.value.name
+  podActions.yamlEditorMeta.value = { resourceType: 'pod', resourceName: name, namespace: ns }
+  await showYAML('pod', ns, name)
+  podActions.yamlEditorOpen.value = true
 }
 
 function onNavigate(view: string) {
