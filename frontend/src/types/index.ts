@@ -206,9 +206,18 @@ export interface StatefulSetInfo {
   namespace: string
   replicas: number
   readyReplicas: number
+  updatedReplicas?: number
   age: string
   images: string[]
   serviceName: string
+  conditions?: ConditionInfo[]
+  status?: string
+  labels?: Record<string, string>
+  annotations?: Record<string, string>
+  selector?: string
+  nodeSelector?: string
+  podAntiAffinity?: PodAntiAffinityInfo
+  revisions?: RevisionInfo[]
 }
 
 export interface ReplicaSetInfo {
