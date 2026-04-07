@@ -9,6 +9,7 @@
     @refresh="onRefresh"
     @search="onSearch"
     @select="onSelect"
+    @context-open="onContextOpen"
     @context-action="onContextAction"
   />
 </template>
@@ -16,9 +17,9 @@
 <script lang="ts" setup>
 import type { DeploymentInfo } from '../../../types'
 import K8sResourceListBase from '../K8sResourceListBase.vue'
-import type { Column, ContextMenuItem } from '../K8sResourceListBase.vue'
-import DeploymentsPodsCell from './DeploymentsPodsCell.vue'
+import type { Column } from '../K8sResourceListBase.vue'
 import { ref, computed } from 'vue'
+import { useKubDeploymentActions } from '../../../composables/KubDeploymentActions'
 
 const props = defineProps<{ items: DeploymentInfo[]; search: string }>()
 
@@ -35,6 +36,39 @@ const emit = defineEmits<{
 }>()
 
 const selectedDeployment = ref<DeploymentInfo | null>(null)
+
+// Deployment действия — передаем через emit наверх
+const resourceActions = {
+  scale: (dep: DeploymentInfo) => {
+    emit('scale', dep, 1)
+  },
+  restart: (ns: string, name: string) => {
+    emit('restart', ns, name)
+  },
+  logs: (ns: string, name: string) => {
+    emit('logs', ns, name)
+  }
+}
+
+// Общие k8s действия
+const k8sActions = {
+  showYAML: (kind: string, namespace: string, name: string) => {
+    emit('edit', namespace, name)
+  },
+  refreshData: () => {
+    emit('refresh')
+  },
+  deleteResource: (namespace: string, name: string) => {
+    emit('delete', namespace, name)
+  }
+}
+
+// Используем новый композабл
+const { contextMenuItems, handleContextAction } = useKubDeploymentActions(
+  selectedDeployment,
+  resourceActions,
+  k8sActions
+)
 
 function getDeploymentStatus(dep: DeploymentInfo): string {
   if (!dep.conditions || dep.conditions.length === 0) {
@@ -72,19 +106,13 @@ const itemsWithStatus = computed(() => {
 const columns: Column[] = [
   { key: 'name', label: 'Name', className: 'resource-name' },
   { key: 'namespace', label: 'Namespace', className: 'ns-label' },
-  { key: 'pods', label: 'Pods', component: DeploymentsPodsCell },
+  { key: 'pods', label: 'Pods', 
+    formatter: (item) => `${item.readyReplicas}/${item.replicas}`,
+    colorFn: (item) => item.readyReplicas === item.replicas ? '#4ade80' : '#facc15'
+  },
   { key: 'updatedReplicas', label: 'Replicas' },
   { key: 'age', label: 'Age' },
   { key: 'status', label: 'Status' }
-]
-
-const contextMenuItems: ContextMenuItem[] = [
-  { label: 'Show Details', action: 'select' },
-  { label: 'Scale', action: 'scale' },
-  { label: 'Restart', action: 'restart' },
-  { label: 'Logs', action: 'logs' },
-  { label: 'Edit', action: 'edit' },
-  { label: 'Delete', action: 'delete', danger: true }
 ]
 
 function onRefresh() { emit('refresh') }
@@ -93,28 +121,17 @@ function onSelect(dep: DeploymentInfo) {
   emit('select', dep)
 }
 
+function onContextOpen(dep: DeploymentInfo) {
+  selectedDeployment.value = dep
+}
+
 function onContextAction(action: string, dep: DeploymentInfo) {
   selectedDeployment.value = dep
+  handleContextAction(action, dep)
 
-  switch (action) {
-    case 'select':
-      emit('select', dep)
-      break
-    case 'scale':
-      emit('scale', dep, 1)
-      break
-    case 'restart':
-      emit('restart', dep.namespace, dep.name)
-      break
-    case 'logs':
-      emit('logs', dep.namespace, dep.name)
-      break
-    case 'edit':
-      emit('edit', dep.namespace, dep.name)
-      break
-    case 'delete':
-      emit('delete', dep.namespace, dep.name)
-      break
+  // select обрабатываем здесь
+  if (action === 'select') {
+    emit('select', dep)
   }
 }
 </script>
