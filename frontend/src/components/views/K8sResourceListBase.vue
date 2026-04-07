@@ -11,13 +11,12 @@
       </thead>
       <tbody>
         <tr v-for="item in items" :key="getItemKey(item)" @click="handleRowClick(item)" class="clickable-row">
-          <td v-for="col in columns" :key="col.key" :class="col.className">
-            <component v-if="col.component" :is="col.component" :item="item" :col="col" />
-            <span v-else-if="col.key === 'status'" :style="{ color: getStatusColor(getCellValue(item, col.key)) }">
-              {{ getCellValue(item, col.key) }}
-            </span>
-            <span v-else>{{ getCellValue(item, col.key) }}</span>
-          </td>
+  <td v-for="col in columns" :key="col.key" :class="col.className">
+    <component v-if="col.component" :is="col.component" :item="item" :col="col" />
+    <span v-else :style="getColumnStyle(col, item)">
+      {{ getColumnValue(col, item) }}
+    </span>
+  </td>
           <td @click.stop>
             <button class="btn-icon" @click.stop="openContextMenu(item, $event)">⋮</button>
           </td>
@@ -87,6 +86,8 @@ export interface Column {
   label: string
   className?: string
   component?: any
+  formatter?: (item: any) => string
+  colorFn?: (item: any) => string
 }
 
 export interface ContextMenuItem {
@@ -203,6 +204,17 @@ function getStatusColor(status: string): string {
   if (statusLower === 'replicafailure') return '#ef4444'
   
   return '#868d8a'
+}
+
+function getColumnValue(col: Column, item: any): string {
+  if (col.formatter) return col.formatter(item)
+  return getCellValue(item, col.key)
+}
+
+function getColumnStyle(col: Column, item: any): { color?: string } {
+  if (col.colorFn) return { color: col.colorFn(item) }
+  if (col.key === 'status') return { color: getStatusColor(getCellValue(item, col.key)) }
+  return {}
 }
 
 function getItemKey(item: any): string {

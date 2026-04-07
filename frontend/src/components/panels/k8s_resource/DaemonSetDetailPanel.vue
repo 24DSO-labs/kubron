@@ -5,12 +5,12 @@
       <template #actions>
         <!-- Restart -->
         <button class="btn-action" title="Restart daemonset"
-          @click="$emit('restart', daemonset.namespace, daemonset.name)">
+          @click="handleContextAction('restart', daemonset)">
           <img :src="restartIcon" alt="Restart" class="btn-icon" />
         </button>
 
         <!-- Logs -->
-        <button class="btn-action" title="View logs" @click="$emit('logs', daemonset.namespace, daemonset.name)">
+        <button class="btn-action" title="View logs" @click="handleContextAction('logs', daemonset)">
           <img :src="logsIcon" alt="Logs" class="btn-icon" />
         </button>
       </template>
@@ -203,11 +203,11 @@
 import { ref, computed, watch } from 'vue'
 import type { PodInfo, ConditionInfo } from '../../../types'
 import K8sResourceDetailBase from '../K8sResourceDetailBase.vue'
-import type { DetailTab } from '../K8sResourceDetailBase.vue'
 import restartIcon from '../../../assets/icons/restart.svg'
 import logsIcon from '../../../assets/icons/logs.svg'
 import DaemonSetMetricsViewer from '../../metrics/DaemonSetMetricsViewer.vue'
 import { useK8s } from '../../../composables/useK8s'
+import { useKubDaemonSetActions } from '../../../composables/KubDaemonSetActions'
 
 const props = defineProps<{ daemonset: any; clusterName?: string }>()
 const emit = defineEmits<{
@@ -222,6 +222,11 @@ const emit = defineEmits<{
 
 const { pods, podMetrics } = useK8s()
 
+interface DetailTab {
+  id: string
+  label: string
+}
+
 const customTabs: DetailTab[] = [
   { id: 'pods', label: 'Pods' }
 ]
@@ -234,6 +239,34 @@ const metricsExpanded = ref(false)
 const collapsedSet = ref<Set<number>>(new Set())
 const daemonsetPods = ref<any[]>([])
 const podMetricsMap = ref<Record<string, any>>({})
+
+// Используем композабл для действий
+const selectedResource = computed(() => props.daemonset)
+
+const resourceActions = {
+  restart: (resource: any) => {
+    emit('restart', resource.namespace, resource.name)
+  },
+  logs: (resource: any) => {
+    emit('logs', resource.namespace, resource.name)
+  }
+}
+
+const k8sActions = {
+  showYAML: (kind: string, namespace: string, name: string) => {
+    emit('edit')
+  },
+  refreshData: () => {},
+  deleteResource: (namespace: string, name: string) => {
+    emit('delete')
+  }
+}
+
+const { handleContextAction } = useKubDaemonSetActions(
+  selectedResource,
+  resourceActions,
+  k8sActions
+)
 
 interface YamlNode {
   raw: string

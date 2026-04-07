@@ -10,14 +10,16 @@
     @search="onSearch"
     @select="onSelect"
     @context-action="onContextAction"
+    @context-open="onContextOpen"
   />
 </template>
 
 <script lang="ts" setup>
 import type { DaemonSetInfo } from '../../../types'
 import K8sResourceListBase from '../K8sResourceListBase.vue'
-import type { Column, ContextMenuItem } from '../K8sResourceListBase.vue'
+import type { Column } from '../K8sResourceListBase.vue'
 import { ref } from 'vue'
+import { useKubDaemonSetActions } from '../../../composables/KubDaemonSetActions'
 
 defineProps<{ items: DaemonSetInfo[]; search: string }>()
 
@@ -31,7 +33,7 @@ const emit = defineEmits<{
   (e: 'delete', ns: string, name: string): void
 }>()
 
-const selectedItem = ref<DaemonSetInfo | null>(null)
+const selectedResource = ref<DaemonSetInfo | null>(null)
 
 const columns: Column[] = [
   { key: 'name', label: 'Name', className: 'resource-name' },
@@ -43,36 +45,52 @@ const columns: Column[] = [
   { key: 'age', label: 'Age' }
 ]
 
-const contextMenuItems: ContextMenuItem[] = [
-  { label: 'Show Details', action: 'select' },
-  { label: 'Restart', action: 'restart' },
-  { label: 'Logs', action: 'logs' },
-  { label: 'Edit', action: 'edit' },
-  { label: 'Delete', action: 'delete', danger: true }
-]
+// Определим действия через emit
+const resourceActions = {
+  restart: (resource: DaemonSetInfo) => {
+    emit('restart', resource.namespace, resource.name)
+  },
+  logs: (resource: DaemonSetInfo) => {
+    emit('logs', resource.namespace, resource.name)
+  }
+}
+
+const k8sActions = {
+  showYAML: (kind: string, namespace: string, name: string) => {
+    emit('edit', namespace, name)
+  },
+  refreshData: () => {
+    emit('refresh')
+  },
+  deleteResource: (namespace: string, name: string) => {
+    emit('delete', namespace, name)
+  }
+}
+
+// Используем композабл
+const { contextMenuItems, handleContextAction } = useKubDaemonSetActions(
+  selectedResource,
+  resourceActions,
+  k8sActions
+)
 
 function onRefresh() { emit('refresh') }
 function onSearch(val: string) { emit('search', val) }
-function onSelect(item: DaemonSetInfo) { emit('select', item) }
 
-function onContextAction(action: string, item: DaemonSetInfo) {
-  selectedItem.value = item
-  switch (action) {
-    case 'select':
-      emit('select', item)
-      break
-    case 'restart':
-      emit('restart', item.namespace, item.name)
-      break
-    case 'logs':
-      emit('logs', item.namespace, item.name)
-      break
-    case 'edit':
-      emit('edit', item.namespace, item.name)
-      break
-    case 'delete':
-      emit('delete', item.namespace, item.name)
-      break
+function onSelect(item: DaemonSetInfo) {
+  selectedResource.value = item
+  emit('select', item)
+}
+
+function onContextOpen(resource: DaemonSetInfo) {
+  selectedResource.value = resource
+}
+
+function onContextAction(action: string, resource: DaemonSetInfo) {
+  selectedResource.value = resource
+  handleContextAction(action, resource)
+  if (action === 'select') {
+    emit('select', resource)
   }
 }
 </script>

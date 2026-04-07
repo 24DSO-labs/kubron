@@ -4,18 +4,18 @@
       @edit="$emit('edit')" @delete="$emit('delete')" @namespaceClick="onNamespaceClick">
       <template #actions>
         <!-- Scale -->
-        <button class="btn-action" title="Scale deployment" @click="$emit('scale', deployment)">
+        <button class="btn-action" title="Scale deployment" @click="handleContextAction('scale', deployment)">
           <img :src="scaleIcon" alt="Scale" class="btn-icon" />
         </button>
 
         <!-- Restart -->
         <button class="btn-action" title="Restart deployment"
-          @click="$emit('restart', deployment.namespace, deployment.name)">
+          @click="handleContextAction('restart', deployment)">
           <img :src="restartIcon" alt="Restart" class="btn-icon" />
         </button>
 
         <!-- Logs -->
-        <button class="btn-action" title="View logs" @click="$emit('logs', deployment.namespace, deployment.name)">
+        <button class="btn-action" title="View logs" @click="handleContextAction('logs', deployment)">
           <img :src="logsIcon" alt="Logs" class="btn-icon" />
         </button>
       </template>
@@ -259,12 +259,17 @@
 import { ref, computed, watch } from 'vue'
 import type { DeploymentInfo, PodAntiAffinityInfo, ConditionInfo, PodInfo } from '../../../types'
 import K8sResourceDetailBase from '../K8sResourceDetailBase.vue'
-import type { DetailTab } from '../K8sResourceDetailBase.vue'
 import scaleIcon from '../../../assets/icons/scale.svg'
 import restartIcon from '../../../assets/icons/restart.svg'
 import logsIcon from '../../../assets/icons/logs.svg'
 import DeploymentMetricsViewer from '../../metrics/DeploymentMetricsViewer.vue'
 import { useK8s } from '../../../composables/useK8s'
+import { useKubDeploymentActions } from '../../../composables/KubDeploymentActions'
+
+interface DetailTab {
+  id: string
+  label: string
+}
 
 const props = defineProps<{ deployment: any; clusterName?: string }>()
 const emit = defineEmits<{
@@ -280,6 +285,38 @@ const emit = defineEmits<{
 }>()
 
 const { rollbackDeployment: rollbackDeploymentAPI, pods, podMetrics, loadRevisions, revisions } = useK8s()
+
+// ═══════ Используем общий композабл для действий ═══════
+
+const selectedDeployment = computed(() => props.deployment)
+
+const resourceActions = {
+  scale: (dep: any) => {
+    emit('scale', dep)
+  },
+  restart: (ns: string, name: string) => {
+    emit('restart', ns, name)
+  },
+  logs: (ns: string, name: string) => {
+    emit('logs', ns, name)
+  }
+}
+
+const k8sActions = {
+  showYAML: (kind: string, namespace: string, name: string) => {
+    emit('edit')
+  },
+  refreshData: () => {},
+  deleteResource: (namespace: string, name: string) => {
+    emit('delete')
+  }
+}
+
+const { handleContextAction } = useKubDeploymentActions(
+  selectedDeployment,
+  resourceActions,
+  k8sActions
+)
 
 const customTabs: DetailTab[] = [
   { id: 'revisions', label: 'Revisions' },
