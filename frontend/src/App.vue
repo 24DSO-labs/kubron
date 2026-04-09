@@ -223,14 +223,22 @@
       @edit="() => onClusterRoleBindingEdit('', selectedClusterRoleBinding.name)"
       @delete="() => onClusterRoleBindingDelete('', selectedClusterRoleBinding.name)"
     />
-
+   
     <!-- Tabbed Actions Panel (Terminal/Logs/Attach) -->
-    <TabbedActionsPanel
-      v-if="podActions.tabbedActionsOpen.value"
-      :pod-actions="podActions"
-      @close="podActions.closeTabbedActions()"
-      @evict="podActions.evictPod()"
-    />
+<TabbedActionsPanel
+  v-if="podActions.tabbedActionsOpen.value"
+  :pod-actions="podActions"
+  @close="podActions.closeTabbedActions()"
+  @evict="podActions.evictPod()"
+/>
+
+<TabbedPodActionsPanel
+  v-if="logsPanel.isOpen.value"
+  :resource="logsPanel.logsData.value?.resource"
+  :selectedContainer="logsPanel.logsData.value?.selectedContainer"
+  :containers="logsPanel.logsData.value?.containers"
+  @close="logsPanel.closeLogs"
+/>
 
     <!-- YAML Editor Panel -->
     <TabbedYamlEditorPanel
@@ -273,6 +281,7 @@ import { useClusters } from './composables/useClusters'
 import { usePodActions } from './composables/usePodActions'
 import { useClusterConnection } from './composables/useClusterConnection'
 import { useNotifications } from './composables/useNotifications'
+import { useLogsPanel } from './composables/useLogsPanel'
 import { viewRegistry } from './composables/useViewRegistry'
 import type { PodInfo } from './types'
 
@@ -295,7 +304,7 @@ const ClusterRoleDetailPanel = defineAsyncComponent(() => import('./components/p
 const ClusterRoleBindingDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ClusterRoleBindingDetailPanel.vue'))
 const ConfigMapPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ConfigMapPanel.vue'))
 const TabbedYamlEditorPanel = defineAsyncComponent(() => import('./components/panels/TabbedYamlEditorPanel.vue'))
-const TabbedActionsPanel = defineAsyncComponent(() => import('./components/panels/TabbedPodActionsPanel.vue'))
+const TabbedPodActionsPanel = defineAsyncComponent(() => import('./components/panels/TabbedPodActionsPanel.vue'))
 const NamespaceDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/NamespaceDetailPanel.vue'))
 const ReplicaSetDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ReplicaSetDetailPanel.vue'))
 const DaemonSetDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/DaemonSetDetailPanel.vue'))
@@ -306,6 +315,7 @@ const NodeDetailView = defineAsyncComponent(() => import('./components/views/Nod
 const k8s = useK8s()
 const clustersApi = useClusters()
 const notifications = useNotifications()
+const logsPanel = useLogsPanel()
 
 const {
   namespaces, overview, selectedNamespace,
@@ -565,6 +575,7 @@ const activeViewEvents = computed(() => {
         podActions.openShellWithContainer(data.container, data.pod)
       }
     }
+    events.openLogs = (data) => logsPanel.openLogs(data)
   }
 
   if (view === 'deployments') {

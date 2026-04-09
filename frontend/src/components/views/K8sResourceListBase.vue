@@ -116,6 +116,7 @@ const emit = defineEmits<{
   (e: 'select', item: any): void
   (e: 'contextAction', action: string, item: any, subAction?: string): void
   (e: 'contextOpen', item: any): void
+  (e: 'openLogs', data: { resource: any; selectedContainer: string; containers: { name: string }[] }): void
 }>()
 
 const showContextMenu = ref(false)
@@ -288,7 +289,13 @@ function hideContextMenu() {
 
 function handleContextAction(menuItem: any) {
   if (selectedItem.value && menuItem.action) {
-    emit('contextAction', menuItem.action, selectedItem.value)
+    if (menuItem.action.startsWith('logs:')) {
+      const containerName = menuItem.action.split(':')[1];
+      const containers = selectedItem.value.containers?.filter((c: { isInit: boolean }) => !c.isInit) || [];
+      emit('openLogs', { resource: selectedItem.value, selectedContainer: containerName, containers });
+    } else {
+      emit('contextAction', menuItem.action, selectedItem.value);
+    }
   }
   hideContextMenu()
 }
