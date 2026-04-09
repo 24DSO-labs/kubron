@@ -90,11 +90,6 @@ export function useKubPodActions(selectedPod: Ref<any>, podActions: PodActions, 
       openShellWithContainer(container, pod)
       return
     }
-    if (action.startsWith('logs:')) {
-      const container = action.substring('logs:'.length)
-      openLogs(pod, container)
-      return
-    }
     if (action === 'evict') {
       evictPod(pod)
       return

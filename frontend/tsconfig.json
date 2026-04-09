@@ -1,4 +1,3 @@
-// @ts-ignore TS5070
 {
   "compilerOptions": {
     "target": "ESNext",
@@ -17,7 +16,13 @@
       "DOM"
     ],
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "types": ["vite/client"],
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
   },
   "include": [
     "src/**/*.ts",
