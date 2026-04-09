@@ -12,11 +12,11 @@
             @click="activeTabId = tab.id"
           >
             <span class="tab-icon">📋</span>
-            <span class="tab-name">{{ tab.deployment.name }}</span>
+            <span class="tab-name">{{ tab.resourceType }}/{{ tab.resourceName }}</span>
             <button class="tab-close" @click.stop="closeTab(tab.id)">✕</button>
           </div>
         </div>
-        <button class="btn-add-tab" @click="$emit('add-tab')" title="Add more deployments">+</button>
+        <button class="btn-add-tab" @click="$emit('add-tab')" title="Add more resources">+</button>
       </div>
       <button class="btn-close" @click="$emit('close')">✕</button>
     </div>
@@ -27,7 +27,7 @@
         <label>Pods:</label>
         <select v-model="selectedPodName" @change="onPodChange" class="select-pod">
           <option value="">All Pods</option>
-          <option v-for="pod in currentDeploymentPods" :key="pod.name" :value="pod.name">
+          <option v-for="pod in currentResourcePods" :key="pod.name" :value="pod.name">
             {{ pod.name }}
           </option>
         </select>
@@ -61,8 +61,8 @@
     <!-- Info bar -->
     <div class="logs-info">
       <span v-if="currentTab">
-        Displaying logs from Namespace: <strong>{{ currentTab.deployment.namespace }}</strong> for Deployment: <strong>{{ currentTab.deployment.name }}</strong> | 
-        Pods: <strong>{{ currentDeploymentPods.length }}</strong>
+        Displaying logs from Namespace: <strong>{{ currentTab.namespace }}</strong> for {{ currentTab.resourceType }}: <strong>{{ currentTab.resourceName }}</strong> | 
+        Pods: <strong>{{ currentResourcePods.length }}</strong>
       </span>
     </div>
 
@@ -79,47 +79,52 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { GetPods, GetPodLogs } from '../../../wailsjs/go/main/App'
+import { globalTabbedLogsPanel } from '../../composables/useTabbedLogsPanel'
+import type { PodInfo } from '../../types/index'
 
-interface Deployment {
-  namespace: string
-  name: string
-}
-
-interface Pod {
-  namespace: string
+interface MinimalPod {
   name: string
   containers?: Array<{ name: string }>
 }
 
 interface Tab {
   id: string
-  deployment: Deployment
-  pods: Pod[]
-  selectedPodName: string
-  selectedContainer: string
-  rawLogs: string
+  resourceType: string
+  resourceName: string
+  namespace: string
+  pods: MinimalPod[]
+  selectedPodName?: string
+  selectedContainer?: string
+  rawLogs?: string
   loading: boolean
 }
+
+const { tabs: openTabs, activeTabId, closeTabbedLogs } = globalTabbedLogsPanel
 
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'add-tab'): void
 }>()
 
-const openTabs = ref<Tab[]>([])
-const activeTabId = ref('')
 const logLines = ref(100)
 const searchText = ref('')
-const pendingDeployment = ref<Deployment | null>(null)
+const sidebarWidth = ref(200) // Default fallback
+
+onMounted(() => {
+  const sidebar = document.querySelector('.sidebar') as HTMLElement | null
+  if (sidebar) {
+    sidebarWidth.value = sidebar.offsetWidth
+  }
+})
+
 const hasInitialized = ref(false)
 
-// Drag and resize state
-const panelX = ref(window.innerWidth * 0.2)
-const panelY = ref(window.innerHeight * 0.2)
-const panelWidth = ref(window.innerWidth * 0.6)
-const panelHeight = ref(window.innerHeight * 0.6)
+const panelX = ref(276) // Slight adjustment to align with sidebar border
+const panelY = ref(window.innerHeight - 300)
+const panelWidth = ref(window.innerWidth - sidebarWidth.value - 80)
+const panelHeight = ref(300)
 const isDragging = ref(false)
 const isResizing = ref(false)
 const dragStartX = ref(0)
@@ -138,7 +143,7 @@ const panelStyle = computed(() => ({
 }))
 
 const currentTab = computed(() => openTabs.value.find(t => t.id === activeTabId.value))
-const currentDeploymentPods = computed(() => currentTab.value?.pods || [])
+const currentResourcePods = computed(() => currentTab.value?.pods || [])
 const selectedPodName = computed({
   get: () => currentTab.value?.selectedPodName || '',
   set: (val) => {
@@ -157,12 +162,12 @@ const rawLogs = computed(() => currentTab.value?.rawLogs || '')
 const availableContainers = computed(() => {
   if (!selectedPodName.value) {
     const containers = new Set<string>()
-    currentDeploymentPods.value.forEach(pod => {
+    currentResourcePods.value.forEach(pod => {
       pod.containers?.forEach(c => containers.add(c.name))
     })
     return Array.from(containers).sort()
   } else {
-    const pod = currentDeploymentPods.value.find(p => p.name === selectedPodName.value)
+    const pod = currentResourcePods.value.find(p => p.name === selectedPodName.value)
     return pod?.containers?.map(c => c.name) || []
   }
 })
@@ -181,7 +186,7 @@ const displayedLogs = computed(() => {
 
 watch(activeTabId, async () => {
   if (currentTab.value && currentTab.value.rawLogs === '') {
-    await loadDeploymentPods()
+    await loadResourcePods()
   }
 })
 
@@ -189,100 +194,109 @@ watch(activeTabId, async () => {
 watch(
   () => hasInitialized.value,
   async (initialized) => {
-    if (initialized && pendingDeployment.value && openTabs.value.length === 0) {
-      await addTab(pendingDeployment.value)
-      pendingDeployment.value = null
+    if (initialized && openTabs.value.length > 0) {
+      await loadResourcePods()
     }
   }
 )
 
-async function addTab(deployment: Deployment) {
-  const tabId = `deployment-logs-${deployment.namespace}-${deployment.name}-${Date.now()}`
-  const newTab: Tab = {
-    id: tabId,
-    deployment,
-    pods: [],
-    selectedPodName: '',
-    selectedContainer: '',
-    rawLogs: '',
-    loading: false,
-  }
-  openTabs.value.push(newTab)
-  activeTabId.value = tabId
-  await new Promise(resolve => setTimeout(resolve, 0))
-  await loadDeploymentPods()
-}
-
 function closeTab(tabId: string) {
-  openTabs.value = openTabs.value.filter(t => t.id !== tabId)
+  const index = openTabs.value.findIndex((t: Tab) => t.id === tabId)
+  if (index !== -1) {
+    openTabs.value.splice(index, 1)
+  }
   if (activeTabId.value === tabId && openTabs.value.length > 0) {
     activeTabId.value = openTabs.value[0].id
   }
   if (openTabs.value.length === 0) {
+    closeTabbedLogs()
     emit('close')
   }
 }
 
-async function loadDeploymentPods() {
-  if (!currentTab.value) return
+async function loadResourcePods() {
+  const tab = currentTab.value
+  if (!tab) return
   
   try {
-    currentTab.value.loading = true
-    const allPods = await GetPods(currentTab.value.deployment.namespace)
+    tab.loading = true
+    const allPods = await GetPods(tab.namespace)
     
-    currentTab.value.pods = allPods.filter((pod: Pod) => {
-      const labels = (pod as any).labels || {}
-      return labels['app.kubernetes.io/instance'] === currentTab.value!.deployment.name ||
-             labels['app'] === currentTab.value!.deployment.name ||
-             pod.name.startsWith(currentTab.value!.deployment.name)
-    })
+    let filteredPods: MinimalPod[] = []
+    const resourceName = tab.resourceName
 
-    if (currentTab.value.pods.length > 0 && !currentTab.value.selectedPodName) {
-      currentTab.value.selectedPodName = currentTab.value.pods[0].name
-      currentTab.value.selectedContainer = currentTab.value.pods[0].containers?.[0]?.name || ''
+    switch (tab.resourceType.toLowerCase()) {
+      case 'deployment':
+        filteredPods = allPods.filter((pod: any) => {
+          const podLabels = pod.labels || {}
+          return podLabels['app.kubernetes.io/instance'] === resourceName ||
+                 podLabels['app'] === resourceName ||
+                 pod.name.startsWith(resourceName)
+        })
+        break
+      case 'job':
+        filteredPods = allPods.filter((pod: any) => pod.name.startsWith(resourceName + '-'))
+        break
+      case 'pod':
+        filteredPods = allPods.filter((pod: any) => pod.name === resourceName)
+        break
+      // Add more cases as needed
+      default:
+        console.warn('Unsupported resource type:', tab.resourceType)
+        filteredPods = []
+    }
+
+    tab.pods = filteredPods
+
+    if (tab.pods.length > 0 && !tab.selectedPodName) {
+      tab.selectedPodName = tab.pods[0].name
+      tab.selectedContainer = tab.pods[0].containers?.[0]?.name || ''
     }
     
-    if (currentTab.value.selectedPodName || currentTab.value.pods.length > 0) {
+    if (tab.selectedPodName || tab.pods.length > 0) {
       await loadLogs()
     }
   } catch (e) {
-    console.error('Error loading deployment pods:', e)
+    console.error('Error loading resource pods:', e)
+    tab.rawLogs = `Error loading pods: ${e}`
   } finally {
-    if (currentTab.value) currentTab.value.loading = false
+    tab.loading = false
   }
 }
 
 async function onPodChange() {
-  if (!currentTab.value) return
-  currentTab.value.selectedContainer = ''
-  const pod = currentTab.value.pods.find(p => p.name === currentTab.value!.selectedPodName)
+  const tab = currentTab.value
+  if (!tab) return
+  tab.selectedContainer = ''
+  const pod = tab.pods.find((p: MinimalPod) => p.name === tab.selectedPodName)
   if (pod?.containers?.[0]) {
-    currentTab.value.selectedContainer = pod.containers[0].name
+    tab.selectedContainer = pod.containers[0].name
   }
   await loadLogs()
 }
 
 async function loadLogs() {
-  if (!currentTab.value || (!currentTab.value.selectedPodName && currentTab.value.pods.length === 0)) return
+  const tab = currentTab.value
+  if (!tab || (!tab.selectedPodName && tab.pods.length === 0)) return
   
   try {
-    currentTab.value.loading = true
+    tab.loading = true
     
-    if (currentTab.value.selectedPodName) {
-      const container = currentTab.value.selectedContainer || 
-        currentTab.value.pods.find(p => p.name === currentTab.value!.selectedPodName)?.containers?.[0]?.name || ''
-      currentTab.value.rawLogs = await GetPodLogs(
-        currentTab.value.deployment.namespace,
-        currentTab.value.selectedPodName,
+    if (tab.selectedPodName) {
+      const container = tab.selectedContainer || 
+        tab.pods.find((p: MinimalPod) => p.name === tab.selectedPodName)?.containers?.[0]?.name || ''
+      tab.rawLogs = await GetPodLogs(
+        tab.namespace,
+        tab.selectedPodName,
         container,
         logLines.value
       )
     } else {
       const allLogs: string[] = []
-      for (const pod of currentTab.value.pods) {
-        const container = currentTab.value.selectedContainer || pod.containers?.[0]?.name || ''
+      for (const pod of tab.pods) {
+        const container = tab.selectedContainer || pod.containers?.[0]?.name || ''
         try {
-          const logs = await GetPodLogs(currentTab.value.deployment.namespace, pod.name, container, logLines.value)
+          const logs = await GetPodLogs(tab.namespace, pod.name, container, logLines.value)
           if (logs) {
             allLogs.push(`\n========== ${pod.name} ==========\n`)
             allLogs.push(logs)
@@ -292,12 +306,12 @@ async function loadLogs() {
           allLogs.push(String(e))
         }
       }
-      currentTab.value.rawLogs = allLogs.join('')
+      tab.rawLogs = allLogs.join('')
     }
   } catch (e) {
-    if (currentTab.value) currentTab.value.rawLogs = `Error loading logs: ${e}`
+    tab.rawLogs = `Error loading logs: ${e}`
   } finally {
-    if (currentTab.value) currentTab.value.loading = false
+    tab.loading = false
   }
 }
 
@@ -306,7 +320,7 @@ function downloadLogs() {
   const content = displayedLogs.value
   const element = document.createElement('a')
   element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content))
-  element.setAttribute('download', `${currentTab.value.deployment.name}-logs.txt`)
+  element.setAttribute('download', `${currentTab.value.resourceType}-${currentTab.value.resourceName}-logs.txt`)
   element.style.display = 'none'
   document.body.appendChild(element)
   element.click()
@@ -362,18 +376,6 @@ function startResize(e: MouseEvent) {
 
 // Initialize component and mark as ready
 hasInitialized.value = true
-
-// Expose addTab and setPendingDeployment for parent component
-defineExpose({
-  addTab,
-  setPendingDeployment: (deployment: Deployment) => {
-    pendingDeployment.value = deployment
-    if (hasInitialized.value && openTabs.value.length === 0) {
-      addTab(deployment)
-      pendingDeployment.value = null
-    }
-  },
-})
 </script>
 
 <style scoped>
@@ -516,6 +518,19 @@ defineExpose({
 }
 
 .select-pod,
+.select-container {
+  min-width: 120px;
+  background: #1a1b26;
+  color: #d4d4d4;
+}
+
+.select-pod option,
+.select-container option {
+  background: #232430;
+  color: #d4d4d4;
+}
+
+.select-pod,
 .select-container,
 .input-lines,
 .input-search {
@@ -526,11 +541,6 @@ defineExpose({
   border-radius: 3px;
   font-size: 12px;
   font-family: inherit;
-}
-
-.select-pod,
-.select-container {
-  min-width: 120px;
 }
 
 .input-lines {
@@ -577,13 +587,14 @@ defineExpose({
   background: #232430;
   border-bottom: 1px solid #3b3d5c;
   font-size: 12px;
-  color: #999;
+  color: #d4d4d4;
+  text-align: left;
 }
 
 .logs-content {
   flex: 1;
   overflow: auto;
-  background: #0d0e12;
+  background: #1a1b26;
 }
 
 .logs-text {
@@ -592,9 +603,10 @@ defineExpose({
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 12px;
   line-height: 1.5;
-  color: #a0a0a0;
+  color: #d4d4d4;
   white-space: pre-wrap;
   word-wrap: break-word;
+  text-align: left;
 }
 
 .logs-loading {
