@@ -59,7 +59,8 @@ func (m *Manager) GetPodLogs(namespace, name, container string, lines int64) (st
 	defer cancel()
 
 	opts := &corev1.PodLogOptions{
-		TailLines: &lines,
+		TailLines:  &lines,
+		Timestamps: true,
 	}
 
 	if container != "" {
