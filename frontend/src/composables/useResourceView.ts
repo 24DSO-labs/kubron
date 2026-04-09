@@ -4,6 +4,7 @@ import { useDetailPanel } from './useDetailPanel'
 import { useK8s } from './useK8s'
 import { globalTabbedYamlEditor } from './useTabbedYamlEditor'
 import { GetResourceYAML } from '../../wailsjs/go/main/App'
+import { globalTabbedLogsPanel } from './useTabbedLogsPanel'
 
 // Абсолютный путь от src/ — работает ВСЕГДА
 const panelModules = import.meta.glob('/src/panels/k8s_resource/*.vue')
@@ -23,14 +24,14 @@ export default function useResourceView(resourceType: string, showUniversalDetai
     if (action.startsWith('logs:')) {
       const container = action.split(':')[1]
       console.log('Opening logs for container', container, 'in', resourceType, item.name)
-      // logsPanel.openLogs({ resource: item, selectedContainer: container, containers: item.containers })
+      globalTabbedLogsPanel.openTabbedLogs(resourceType, item.name, item.namespace || '', item.containers, container)
     } else if (action === 'details') {
       onSelect(item)
     } else {
       switch (action) {
         case 'logs':
           console.log('Opening logs for', resourceType, '(no specific container):', item.name)
-          // logsPanel.openLogs({ resource: item, selectedContainer: 'default' })
+          globalTabbedLogsPanel.openTabbedLogs(resourceType, item.name, item.namespace || '', item.containers)
           break
         case 'delete':
           console.log('Deleting', resourceType, ':', item.name)
