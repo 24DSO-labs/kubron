@@ -223,6 +223,15 @@
       @edit="() => onClusterRoleBindingEdit('', selectedClusterRoleBinding.name)"
       @delete="() => onClusterRoleBindingDelete('', selectedClusterRoleBinding.name)"
     />
+
+    <!-- Universal Detail Panel -->
+    <component
+      v-if="globalDetailPanel.detailPanelState.value.isOpen"
+      :is="globalDetailPanel.detailPanelState.value.component"
+      :resource="globalDetailPanel.detailPanelState.value.resource"
+      v-bind="globalDetailPanel.detailPanelState.value.props"
+      v-on="globalDetailPanel.detailPanelState.value.events"
+    />
    
     <!-- Tabbed Actions Panel (Terminal/Logs/Attach) -->
 <TabbedActionsPanel
@@ -283,6 +292,7 @@ import { useClusterConnection } from './composables/useClusterConnection'
 import { useNotifications } from './composables/useNotifications'
 import { useLogsPanel } from './composables/useLogsPanel'
 import { viewRegistry } from './composables/useViewRegistry'
+import { globalDetailPanel } from './composables/useDetailPanel'
 import type { PodInfo } from './types'
 
 import ClusterBar from './components/ClusterBar.vue'
