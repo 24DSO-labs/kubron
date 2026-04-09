@@ -53,8 +53,28 @@
       </div>
 
       <div class="toolbar-actions">
-        <button @click="loadLogs" class="btn-action" title="Refresh">🔄</button>
-        <button @click="downloadLogs" class="btn-action" title="Download">⬇️</button>
+        <button 
+          @click="showTimestamp = !showTimestamp" 
+          class="btn-action" 
+          :class="{ active: showTimestamp }"
+          title="Show Timestamp"
+        >
+          <img :src="timestampIcon" alt="Timestamp" class="icon-svg" />
+        </button>
+        <button 
+          @click="wrapLines = !wrapLines" 
+          class="btn-action" 
+          :class="{ active: wrapLines }"
+          title="Wrap Lines"
+        >
+          <img :src="wrapLinesIcon" alt="Wrap Lines" class="icon-svg" />
+        </button>
+        <button @click="loadLogs" class="btn-action btn-refresh" title="Refresh">
+          <img :src="restartIcon" alt="Refresh" class="icon-svg" />
+        </button>
+        <button @click="downloadLogs" class="btn-action" title="Download">
+          <img :src="downloadIcon" alt="Download" class="icon-svg" />
+        </button>
       </div>
     </div>
 
@@ -69,7 +89,7 @@
     <!-- Logs content -->
     <div class="logs-content">
       <div v-if="loading" class="logs-loading">⏳ Loading logs...</div>
-      <pre v-else-if="displayedLogs" class="logs-text">{{ displayedLogs }}</pre>
+      <pre v-else-if="displayedLogs" class="logs-text" :class="{ 'no-wrap': !wrapLines }" v-html="searchText ? highlightedLogs : displayedLogs"></pre>
       <div v-else class="logs-empty">No logs available</div>
     </div>
 
@@ -83,6 +103,10 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { GetPods, GetPodLogs } from '../../../wailsjs/go/main/App'
 import { globalTabbedLogsPanel } from '../../composables/useTabbedLogsPanel'
 import type { PodInfo } from '../../types/index'
+import restartIcon from '../../assets/icons/restart.svg'
+import downloadIcon from '../../assets/icons/download.svg'
+import timestampIcon from '../../assets/icons/timestamp.svg'
+import wrapLinesIcon from '../../assets/icons/wrap-lines.svg'
 
 interface MinimalPod {
   name: string
@@ -110,6 +134,9 @@ const emit = defineEmits<{
 
 const logLines = ref(100)
 const searchText = ref('')
+const currentMatchIndex = ref(0)
+const showTimestamp = ref(false)
+const wrapLines = ref(true)
 const sidebarWidth = ref(200) // Default fallback
 
 onMounted(() => {
@@ -133,6 +160,7 @@ const resizeStartX = ref(0)
 const resizeStartY = ref(0)
 const resizeStartWidth = ref(0)
 const resizeStartHeight = ref(0)
+let autoRefreshInterval: ReturnType<typeof setInterval> | null = null
 
 const panelStyle = computed(() => ({
   position: 'fixed' as const,
@@ -172,22 +200,82 @@ const availableContainers = computed(() => {
   }
 })
 
+const matchCount = computed(() => {
+  if (!searchText.value || !rawLogs.value) return 0
+  const search = searchText.value.toLowerCase()
+  const lines = rawLogs.value.split('\n')
+  return lines.filter(line => line.toLowerCase().includes(search)).length
+})
+
 const displayedLogs = computed(() => {
   if (!rawLogs.value) return ''
   
-  if (!searchText.value) return rawLogs.value
+  let logs = rawLogs.value
+  
+  // Remove or keep timestamps based on showTimestamp flag
+  if (!showTimestamp.value) {
+    // Remove timestamps from the beginning of lines (format: YYYY-MM-DDTHH:MM:SS.nnnZ or YYYY-MM-DDTHH:MM:SS.nnnZ+HH:MM)
+    logs = logs
+      .split('\n')
+      .map(line => {
+        if (!line.trim()) return line
+        // Remove timestamp prefix if present
+        const timestampRegex = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z[+-]?\d{0,2}:?\d{0,2})\s+(.*)$/
+        const match = line.match(timestampRegex)
+        if (match && match[2]) {
+          return match[2]
+        }
+        return line
+      })
+      .join('\n')
+  } else {
+    // Add formatted timestamps if enabled
+    logs = logs
+      .split('\n')
+      .map(line => {
+        if (!line.trim()) return line
+        // Check if line already has timestamp at the beginning
+        const timestampRegex = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z[+-]?\d{0,2}:?\d{0,2})\s+(.*)$/
+        const match = line.match(timestampRegex)
+        if (match && match[1]) {
+          const fullTimestamp = match[1]
+          const message = match[2]
+          // Keep the full timestamp
+          return `[${fullTimestamp}] ${message}`
+        }
+        return line
+      })
+      .join('\n')
+  }
+  
+  // Apply search filter
+  if (!searchText.value) return logs
   
   const search = searchText.value.toLowerCase()
-  return rawLogs.value
+  return logs
     .split('\n')
     .filter(line => line.toLowerCase().includes(search))
     .join('\n')
+})
+
+const highlightedLogs = computed(() => {
+  if (!rawLogs.value) return rawLogs.value
+  
+  if (!searchText.value) return rawLogs.value
+  
+  const search = searchText.value
+  const escapedSearch = escapeRegex(search)
+  const regex = new RegExp(`(${escapedSearch})`, 'gi')
+  return rawLogs.value.replace(regex, '<mark class="search-highlight">$1</mark>')
 })
 
 watch(activeTabId, async () => {
   if (currentTab.value && currentTab.value.rawLogs === '') {
     await loadResourcePods()
   }
+  // Reset auto-refresh when switching tabs
+  stopAutoRefresh()
+  startAutoRefresh()
 })
 
 // Watch for initialization
@@ -196,9 +284,40 @@ watch(
   async (initialized) => {
     if (initialized && openTabs.value.length > 0) {
       await loadResourcePods()
+      startAutoRefresh()
     }
   }
 )
+
+function startAutoRefresh() {
+  // Clear existing interval if any
+  stopAutoRefresh()
+  // Set up auto-refresh every 45 seconds
+  autoRefreshInterval = setInterval(() => {
+    loadLogs()
+  }, 45000) // 45 seconds
+}
+
+function stopAutoRefresh() {
+  if (autoRefreshInterval) {
+    clearInterval(autoRefreshInterval)
+    autoRefreshInterval = null
+  }
+}
+
+// Clean up on component unmount
+onMounted(() => {
+  const sidebar = document.querySelector('.sidebar') as HTMLElement | null
+  if (sidebar) {
+    sidebarWidth.value = sidebar.offsetWidth
+  }
+})
+
+watch(() => openTabs.value.length, (newLength) => {
+  if (newLength === 0) {
+    stopAutoRefresh()
+  }
+})
 
 function closeTab(tabId: string) {
   const index = openTabs.value.findIndex((t: Tab) => t.id === tabId)
@@ -209,6 +328,7 @@ function closeTab(tabId: string) {
     activeTabId.value = openTabs.value[0].id
   }
   if (openTabs.value.length === 0) {
+    stopAutoRefresh()
     closeTabbedLogs()
     emit('close')
   }
@@ -325,6 +445,20 @@ function downloadLogs() {
   document.body.appendChild(element)
   element.click()
   document.body.removeChild(element)
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function goToNextMatch() {
+  if (matchCount.value === 0) return
+  currentMatchIndex.value = (currentMatchIndex.value + 1) % matchCount.value
+}
+
+function goToPrevMatch() {
+  if (matchCount.value === 0) return
+  currentMatchIndex.value = (currentMatchIndex.value - 1 + matchCount.value) % matchCount.value
 }
 
 function startDrag(e: MouseEvent) {
@@ -582,6 +716,31 @@ hasInitialized.value = true
   color: #fff;
 }
 
+.btn-action.active {
+  background: rgba(79, 99, 255, 0.2);
+  border-color: #4f63ff;
+  color: #4f63ff;
+}
+
+.btn-action.active:hover {
+  background: rgba(79, 99, 255, 0.3);
+}
+
+.btn-refresh {
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-svg {
+  width: 14px;
+  height: 14px;
+  
+  stroke-width: 2;
+  filter: invert(1);
+}
+
 .logs-info {
   padding: 8px 16px;
   background: #232430;
@@ -589,6 +748,96 @@ hasInitialized.value = true
   font-size: 12px;
   color: #d4d4d4;
   text-align: left;
+}
+
+.search-bar {
+  padding: 8px 16px;
+  background: #1f2028;
+  border-bottom: 1px solid #3b3d5c;
+  display: flex;
+  align-items: center;
+}
+
+.search-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.input-search-main {
+  flex: 1;
+  background: #2a2b3a;
+  border: 1px solid #3b3d5c;
+  color: #d4d4d4;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.input-search-main:focus {
+  outline: none;
+  border-color: #4a5568;
+  box-shadow: 0 0 0 2px rgba(74, 85, 104, 0.2);
+}
+
+.input-search-main::placeholder {
+  color: #666;
+}
+
+.search-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.search-nav-btn {
+  background: #2a2b3a;
+  border: 1px solid #3b3d5c;
+  color: #999;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  transition: all 0.2s;
+  min-width: 28px;
+  text-align: center;
+}
+
+.search-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #d4d4d4;
+  border-color: #4a5568;
+}
+
+.search-count {
+  color: #999;
+  font-size: 11px;
+  padding: 0 6px;
+  min-width: 40px;
+  text-align: center;
+}
+
+.search-close-btn {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 4px 6px;
+  font-size: 14px;
+  transition: color 0.2s;
+}
+
+.search-close-btn:hover {
+  color: #d4d4d4;
+}
+
+.search-highlight {
+  background-color: #7a5e00;
+  color: #ffd700;
+  font-weight: bold;
 }
 
 .logs-content {
@@ -607,6 +856,14 @@ hasInitialized.value = true
   white-space: pre-wrap;
   word-wrap: break-word;
   text-align: left;
+  word-break: break-word;
+}
+
+.logs-text.no-wrap {
+  white-space: pre;
+  word-wrap: normal;
+  word-break: normal;
+  overflow-x: auto;
 }
 
 .logs-loading {
