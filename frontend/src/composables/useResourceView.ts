@@ -1,5 +1,9 @@
 import { ref, computed, defineAsyncComponent } from 'vue'
 import useResourceListBase from './useResourceListBase'
+import { useDetailPanel } from './useDetailPanel'
+import { useK8s } from './useK8s'
+import { globalTabbedYamlEditor } from './useTabbedYamlEditor'
+import { GetResourceYAML } from '../../wailsjs/go/main/App'
 
 // Абсолютный путь от src/ — работает ВСЕГДА
 const panelModules = import.meta.glob('/src/panels/k8s_resource/*.vue')
@@ -7,13 +11,10 @@ const panelModules = import.meta.glob('/src/panels/k8s_resource/*.vue')
 export default function useResourceView(resourceType: string, showUniversalDetailFn?: (component: any, resource: any) => void) {
   const { mergedColumns, mergedMenuItems } = useResourceListBase(resourceType)
 
-  const selectedItem = ref(null)
-  const showDetail = ref(false)
+  const { openResourceDetail } = useDetailPanel()
 
   const onSelect = (item: any) => {
-    selectedItem.value = item
-    
-    
+    openResourceDetail(resourceType, item)
   }
 
   const onContextAction = (action: string, item: any) => {
@@ -23,6 +24,8 @@ export default function useResourceView(resourceType: string, showUniversalDetai
       const container = action.split(':')[1]
       console.log('Opening logs for container', container, 'in', resourceType, item.name)
       // logsPanel.openLogs({ resource: item, selectedContainer: container, containers: item.containers })
+    } else if (action === 'details') {
+      onSelect(item)
     } else {
       switch (action) {
         case 'logs':
@@ -34,8 +37,18 @@ export default function useResourceView(resourceType: string, showUniversalDetai
           // k8s.DeleteJob(item.namespace, item.name) // Адаптировать
           break
         case 'yaml':
-          console.log('Editing YAML for', resourceType, ':', item.name)
-          // yaml.ShowYAML(resourceType, item.namespace, item.name)
+          GetResourceYAML(item.namespace || '', resourceType, item.name, true)
+            .then(yaml => {
+              globalTabbedYamlEditor.openTabbedYamlEditor(
+                resourceType,
+                item.name,
+                item.namespace || '',
+                yaml
+              )
+            })
+            .catch(err => {
+              console.error('Error loading YAML:', err)
+            })
           break
         case 'details':
           onSelect(item)
@@ -52,8 +65,6 @@ export default function useResourceView(resourceType: string, showUniversalDetai
     mergedColumns,
     mergedMenuItems,
     onContextAction,
-    onSelect,
-    selectedItem,
-    showDetail
+    onSelect
   }
 }

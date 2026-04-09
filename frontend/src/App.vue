@@ -17,13 +17,9 @@
 
     <div class="app-body">
       <!-- Cluster Bar -->
-      <ClusterBar
-        :clusters="clusters"
-        @select="clusterConn.selectCluster"
-        @add="clusterConn.showAddCluster.value = true"
-        @delete="clusterConn.deleteCluster"
-        @update="clusterConn.updateCluster"
-      />
+      <ClusterBar :clusters="clusters" @select="clusterConn.selectCluster"
+        @add="clusterConn.showAddCluster.value = true" @delete="clusterConn.deleteCluster"
+        @update="clusterConn.updateCluster" />
 
       <!-- Нет кластеров -->
       <div v-if="clusters.length === 0 && !clusterConn.showAddCluster.value" class="welcome-screen">
@@ -40,242 +36,123 @@
 
       <!-- Основной интерфейс -->
       <template v-else-if="activeClusterId">
-      <Sidebar
-        :currentView="currentView"
-        :selectedNamespace="selectedNamespace"
-        :namespaces="namespaces"
-        :clusterName="activeClusterMeta?.displayName"
-        @navigate="onNavigate"
-        @nsChange="onNsChange"
-      />
+        <Sidebar :currentView="currentView" :selectedNamespace="selectedNamespace" :namespaces="namespaces"
+          :clusterName="activeClusterMeta?.displayName" @navigate="onNavigate" @nsChange="onNsChange" />
 
         <main class="content">
           <div v-if="loading" class="loading">⏳ Загрузка...</div>
 
-          <component
-            v-if="!loading && activeViewComponent"
-            :is="activeViewComponent"
-            v-bind="activeViewProps"
-            v-on="activeViewEvents"
-          />
+          <component v-if="!loading && activeViewComponent" :is="activeViewComponent" v-bind="activeViewProps"
+            v-on="activeViewEvents" />
         </main>
-</template>
+      </template>
     </div>
+    <!-- ///////////////////////////////////////////////////// -->
+    <!-- Universal Detail Panel -->
+    <component v-if="globalDetailPanel.detailPanelState.value.isOpen"
+      :is="globalDetailPanel.detailPanelState.value.component"
+      :resource="globalDetailPanel.detailPanelState.value.resource"
+      v-bind="globalDetailPanel.detailPanelState.value.props" v-on="globalDetailPanel.detailPanelState.value.events" />
+
+    <!-- YAML Editor Panel -->
+    <TabbedYamlEditorPanel v-if="globalTabbedYamlEditor.isOpen()" @apply="(tabId) => applyYAMLTabbed(tabId)"
+      @close="globalTabbedYamlEditor.closeTabbedYamlEditor()" />
+
+    <!-- Add Cluster Dialog -->
+    <AddClusterDialog v-if="clusterConn.showAddCluster.value" @close="clusterConn.showAddCluster.value = false"
+      @addFile="clusterConn.addFromFile" @addText="clusterConn.addFromText" />
+
+    <!-- Notifications -->
+    <NotificationToast :notifications="notifications.notifications.value" @dismiss="notifications.dismiss" />
+  
+
 
     <!-- Pod Detail Panel -->
-   <PodDetailPanel
-  v-if="selectedPod"
-  :pod="selectedPod"
-  :logs="podLogs"
-  v-model:logContainer="logContainer"
-  v-model:logLines="logLines"
-  v-model:execCmd="execCmd"
-  :execOutput="execOutput"
-  :statusClass="statusClass"
-  v-model:pfLocalPort="pfLocalPort"
-  v-model:pfPodPort="pfPodPort"
-  :portForwards="portForwards || []"
-  :cluster-name="activeClusterId"
-  :on-start-port-forward="startPortForward"
-  :on-stop-port-forward="stopPortForward"
-  @close="selectedPod = null"
-  @loadLogs="loadLogs"
-  @runExec="runExec"
-  @delete="podActions.removePod()"
-  @openTerminal="podActions.terminalOpen.value = true"
-  @evict="podActions.evictPod()"
-  @edit="onPodDetailEdit"
-  @attach="onPodDetailAttach"
-  @terminal="onPodDetailTerminal"
-  @logs="onPodDetailLogs"
-  @open-resource="onOpenResource"
-/>
+    <PodDetailPanel v-if="selectedPod" :pod="selectedPod" :logs="podLogs" v-model:logContainer="logContainer"
+      v-model:logLines="logLines" v-model:execCmd="execCmd" :execOutput="execOutput" :statusClass="statusClass"
+      v-model:pfLocalPort="pfLocalPort" v-model:pfPodPort="pfPodPort" :portForwards="portForwards || []"
+      :cluster-name="activeClusterId" :on-start-port-forward="startPortForward" :on-stop-port-forward="stopPortForward"
+      @close="selectedPod = null" @loadLogs="loadLogs" @runExec="runExec" @delete="podActions.removePod()"
+      @openTerminal="podActions.terminalOpen.value = true" @evict="podActions.evictPod()" @edit="onPodDetailEdit"
+      @attach="onPodDetailAttach" @terminal="onPodDetailTerminal" @logs="onPodDetailLogs"
+      @open-resource="onOpenResource" />
 
     <!-- Deployment Detail Panel -->
-    <DeploymentDetailPanel
-      v-if="selectedDeployment"
-      :deployment="selectedDeployment"
-      @close="selectedDeployment = null"
-      @scale="onDeploymentScale"
-      @restart="onDeploymentRestart"
-      @logs="onDeploymentLogs"
-      @edit="onDeploymentEdit"
-      @delete="onDeploymentDelete"
-      @pod-selected="openPodDetailFromDeployment"
-      @open-resource="onOpenResource"
-      @show-details="onDeploymentShowReplicaSet"
-    />
+    <DeploymentDetailPanel v-if="selectedDeployment" :deployment="selectedDeployment" @close="selectedDeployment = null"
+      @scale="onDeploymentScale" @restart="onDeploymentRestart" @logs="onDeploymentLogs" @edit="onDeploymentEdit"
+      @delete="onDeploymentDelete" @pod-selected="openPodDetailFromDeployment" @open-resource="onOpenResource"
+      @show-details="onDeploymentShowReplicaSet" />
 
     <!-- Scale Deployment Dialog -->
-    <ScaleDeploymentDialog
-      v-if="showScaleDialog && deploymentToScale"
-      :deployment="deploymentToScale"
-      @close="showScaleDialog = false"
-      @scale="onScaleDeployment"
-    />
+    <ScaleDeploymentDialog v-if="showScaleDialog && deploymentToScale" :deployment="deploymentToScale"
+      @close="showScaleDialog = false" @scale="onScaleDeployment" />
 
     <!-- Tabbed Deployment Logs Panel -->
-    <TabbedDeploymentLogsPanel
-      v-if="tabbedDeploymentLogsOpen"
-      ref="tabbedDeploymentLogsRef"
-      @close="tabbedDeploymentLogsOpen = false"
-    />
+    <TabbedDeploymentLogsPanel v-if="tabbedDeploymentLogsOpen" ref="tabbedDeploymentLogsRef"
+      @close="tabbedDeploymentLogsOpen = false" />
 
     <!-- Service Detail Panel -->
-    <ServiceDetailPanel
-      v-if="selectedService"
-      :svc="selectedService"
-      :portForwards="portForwards"
-      @close="selectedService = null"
-      @forward="forwardServicePort"
-      @stopForward="stopPortForward"
-    />
+    <ServiceDetailPanel v-if="selectedService" :svc="selectedService" :portForwards="portForwards"
+      @close="selectedService = null" @forward="forwardServicePort" @stopForward="stopPortForward" />
 
     <!-- ConfigMap Panel -->
-    <ConfigMapPanel
-      v-if="selectedConfigMap"
-      :cm="selectedConfigMap"
-      @close="selectedConfigMap = null"
-    />
+    <ConfigMapPanel v-if="selectedConfigMap" :cm="selectedConfigMap" @close="selectedConfigMap = null" />
 
     <!-- Namespace Detail Panel -->
-    <NamespaceDetailPanel
-      v-if="selectedNamespaceDetail"
-      :namespace="selectedNamespaceDetail"
-      @close="selectedNamespaceDetail = null"
-    />
+    <NamespaceDetailPanel v-if="selectedNamespaceDetail" :namespace="selectedNamespaceDetail"
+      @close="selectedNamespaceDetail = null" />
 
     <!-- ServiceAccount Detail Panel -->
     <!-- @ts-ignore -->
-    <ServiceAccountDetailPanel
-      v-if="selectedServiceAccount"
-      :account="selectedServiceAccount"
-      @close="selectedServiceAccount = null"
-      @edit="onServiceAccountEdit"
-      @delete="onServiceAccountDelete"
-    />
+    <ServiceAccountDetailPanel v-if="selectedServiceAccount" :account="selectedServiceAccount"
+      @close="selectedServiceAccount = null" @edit="onServiceAccountEdit" @delete="onServiceAccountDelete" />
 
     <!-- ReplicaSet Detail Panel -->
-    <ReplicaSetDetailPanel
-      v-if="selectedReplicaSet"
-      :resource="selectedReplicaSet"
-      @close="selectedReplicaSet = null"
-      @edit="() => {}"
-      @delete="() => {}"
-    />
+    <ReplicaSetDetailPanel v-if="selectedReplicaSet" :resource="selectedReplicaSet" @close="selectedReplicaSet = null"
+      @edit="() => { }" @delete="() => { }" />
 
     <!-- DaemonSet Detail Panel -->
-    <DaemonSetDetailPanel
-      v-if="selectedDaemonSet"
-      :daemonset="selectedDaemonSet"
-      :cluster-name="activeClusterId"
-      @close="selectedDaemonSet = null"
-      @restart="onDaemonSetRestart"
-      @logs="onDaemonSetLogs"
-      @edit="onDaemonSetEdit"
-      @delete="onDaemonSetDelete"
-      @pod-selected="openPodDetailFromDaemonSet"
-      @open-resource="onOpenResource"
-    />
+    <DaemonSetDetailPanel v-if="selectedDaemonSet" :daemonset="selectedDaemonSet" :cluster-name="activeClusterId"
+      @close="selectedDaemonSet = null" @restart="onDaemonSetRestart" @logs="onDaemonSetLogs" @edit="onDaemonSetEdit"
+      @delete="onDaemonSetDelete" @pod-selected="openPodDetailFromDaemonSet" @open-resource="onOpenResource" />
 
     <!-- Node Detail View -->
-    <NodeDetailView
-      v-if="selectedNode"
-      :node="selectedNode"
-      :status-class="statusClass"
-      :cluster-name="activeClusterId"
-      @close="selectedNode = null"
-      @edit="() => {}"
-    />
+    <NodeDetailView v-if="selectedNode" :node="selectedNode" :status-class="statusClass" :cluster-name="activeClusterId"
+      @close="selectedNode = null" @edit="() => { }" />
 
     <!-- Role Detail Panel -->
-    <RoleDetailPanel
-      v-if="selectedRole"
-      :role="selectedRole"
-      @close="selectedRole = null"
+    <RoleDetailPanel v-if="selectedRole" :role="selectedRole" @close="selectedRole = null"
       @edit="() => onRoleEdit(selectedRole?.namespace, selectedRole?.name)"
-      @delete="() => onRoleDelete(selectedRole?.namespace, selectedRole?.name)"
-    />
+      @delete="() => onRoleDelete(selectedRole?.namespace, selectedRole?.name)" />
 
     <!-- RoleBinding Detail Panel -->
-    <RoleBindingDetailPanel
-      v-if="selectedRoleBinding"
-      :binding="selectedRoleBinding"
+    <RoleBindingDetailPanel v-if="selectedRoleBinding" :binding="selectedRoleBinding"
       @close="selectedRoleBinding = null"
       @edit="() => onRoleBindingEdit(selectedRoleBinding.namespace, selectedRoleBinding.name)"
-      @delete="() => onRoleBindingDelete(selectedRoleBinding.namespace, selectedRoleBinding.name)"
-    />
+      @delete="() => onRoleBindingDelete(selectedRoleBinding.namespace, selectedRoleBinding.name)" />
 
     <!-- ClusterRole Detail Panel -->
-    <ClusterRoleDetailPanel
-      v-if="selectedClusterRole"
-      :role="selectedClusterRole"
-      @close="selectedClusterRole = null"
+    <ClusterRoleDetailPanel v-if="selectedClusterRole" :role="selectedClusterRole" @close="selectedClusterRole = null"
       @edit="() => onClusterRoleEdit('', selectedClusterRole.name)"
-      @delete="() => onClusterRoleDelete('', selectedClusterRole.name)"
-    />
+      @delete="() => onClusterRoleDelete('', selectedClusterRole.name)" />
 
     <!-- ClusterRoleBinding Detail Panel -->
-    <ClusterRoleBindingDetailPanel
-      v-if="selectedClusterRoleBinding"
-      :binding="selectedClusterRoleBinding"
+    <ClusterRoleBindingDetailPanel v-if="selectedClusterRoleBinding" :binding="selectedClusterRoleBinding"
       @close="selectedClusterRoleBinding = null"
       @edit="() => onClusterRoleBindingEdit('', selectedClusterRoleBinding.name)"
-      @delete="() => onClusterRoleBindingDelete('', selectedClusterRoleBinding.name)"
-    />
+      @delete="() => onClusterRoleBindingDelete('', selectedClusterRoleBinding.name)" />
 
-    <!-- Universal Detail Panel -->
-    <component
-      v-if="globalDetailPanel.detailPanelState.value.isOpen"
-      :is="globalDetailPanel.detailPanelState.value.component"
-      :resource="globalDetailPanel.detailPanelState.value.resource"
-      v-bind="globalDetailPanel.detailPanelState.value.props"
-      v-on="globalDetailPanel.detailPanelState.value.events"
-    />
-   
+    
     <!-- Tabbed Actions Panel (Terminal/Logs/Attach) -->
-<TabbedActionsPanel
-  v-if="podActions.tabbedActionsOpen.value"
-  :pod-actions="podActions"
-  @close="podActions.closeTabbedActions()"
-  @evict="podActions.evictPod()"
-/>
+    <TabbedActionsPanel v-if="podActions.tabbedActionsOpen.value" :pod-actions="podActions"
+      @close="podActions.closeTabbedActions()" @evict="podActions.evictPod()" />
 
-<TabbedPodActionsPanel
-  v-if="logsPanel.isOpen.value"
-  :resource="logsPanel.logsData.value?.resource"
-  :selectedContainer="logsPanel.logsData.value?.selectedContainer"
-  :containers="logsPanel.logsData.value?.containers"
-  @close="logsPanel.closeLogs"
-/>
+    <TabbedPodActionsPanel v-if="logsPanel.isOpen.value" :resource="logsPanel.logsData.value?.resource"
+      :selectedContainer="logsPanel.logsData.value?.selectedContainer"
+      :containers="logsPanel.logsData.value?.containers" @close="logsPanel.closeLogs" />
 
-    <!-- YAML Editor Panel -->
-    <TabbedYamlEditorPanel
-      v-if="podActions.yamlEditorOpen.value"
-      :content="yamlContent"
-      :resourceType="podActions.yamlEditorMeta.value.resourceType"
-      :resourceName="podActions.yamlEditorMeta.value.resourceName"
-      :namespace="podActions.yamlEditorMeta.value.namespace"
-      @update:content="(v: string) => yamlContent = v"
-      @apply="applyYAML"
-      @cancel="podActions.yamlEditorOpen.value = false"
-      @close="podActions.yamlEditorOpen.value = false"
-    />
-
-    <!-- Add Cluster Dialog -->
-    <AddClusterDialog
-      v-if="clusterConn.showAddCluster.value"
-      @close="clusterConn.showAddCluster.value = false"
-      @addFile="clusterConn.addFromFile"
-      @addText="clusterConn.addFromText"
-    />
-
-    <!-- Notifications -->
-    <NotificationToast
-      :notifications="notifications.notifications.value"
-      @dismiss="notifications.dismiss"
-    />
-
+    
+    
     <!-- Connecting overlay -->
     <div v-if="clusterConn.connecting.value" class="overlay">
       <div class="spinner">⏳ Подключение...</div>
@@ -293,6 +170,7 @@ import { useNotifications } from './composables/useNotifications'
 import { useLogsPanel } from './composables/useLogsPanel'
 import { viewRegistry } from './composables/useViewRegistry'
 import { globalDetailPanel } from './composables/useDetailPanel'
+import { globalTabbedYamlEditor } from './composables/useTabbedYamlEditor'
 import type { PodInfo } from './types'
 
 import ClusterBar from './components/ClusterBar.vue'
@@ -313,7 +191,9 @@ const RoleBindingDetailPanel = defineAsyncComponent(() => import('./components/p
 const ClusterRoleDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ClusterRoleDetailPanel.vue'))
 const ClusterRoleBindingDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ClusterRoleBindingDetailPanel.vue'))
 const ConfigMapPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ConfigMapPanel.vue'))
-const TabbedYamlEditorPanel = defineAsyncComponent(() => import('./components/panels/TabbedYamlEditorPanel.vue'))
+
+const TabbedYamlEditorPanel = defineAsyncComponent(() => import('./components/utils/TabbedYamlEditorPanel.vue'))
+
 const TabbedPodActionsPanel = defineAsyncComponent(() => import('./components/panels/TabbedPodActionsPanel.vue'))
 const NamespaceDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/NamespaceDetailPanel.vue'))
 const ReplicaSetDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ReplicaSetDetailPanel.vue'))
@@ -496,10 +376,10 @@ const activeViewProps = computed(() => {
   const view = currentView.value
 
   if (view === 'overview') {
-  props.overview = overview.value
-  props.pct = pct               // ← передаём саму функцию
-  props.clusterName = activeClusterId.value
-}
+    props.overview = overview.value
+    props.pct = pct               // ← передаём саму функцию
+    props.clusterName = activeClusterId.value
+  }
 
   if (view === 'pods') {
     props.statusClass = statusClass
@@ -514,7 +394,7 @@ const activeViewProps = computed(() => {
     props.statusClass = statusClass
   }
 
- if (view === 'nodes') {
+  if (view === 'nodes') {
     props.metrics = nodeMetrics.value
     props.statusClass = statusClass
     props.clusterName = activeClusterId.value
@@ -590,8 +470,8 @@ const activeViewEvents = computed(() => {
 
   if (view === 'deployments') {
     events.select = (dep: any) => {
-       selectedDeployment.value = dep
-      }
+      selectedDeployment.value = dep
+    }
     events.scale = (dep: any) => {
       deploymentToScale.value = dep
       showScaleDialog.value = true
@@ -835,7 +715,7 @@ async function onRollback(rev: string | number) {
 }
 
 function onPodDetailAttach(data: any) {
-  
+
   if (data.pod) {
     selectedPod.value = data.pod
     podActions.openAttachWithContainer(data.container, data.pod)
@@ -843,7 +723,7 @@ function onPodDetailAttach(data: any) {
 }
 
 function onPodDetailTerminal(data: any) {
-  
+
   if (data.pod) {
     selectedPod.value = data.pod
     podActions.openShellWithContainer(data.container, data.pod)
@@ -851,7 +731,7 @@ function onPodDetailTerminal(data: any) {
 }
 
 function onPodDetailLogs(data: any) {
-  
+
   if (data.pod) {
     selectedPod.value = data.pod
     podActions.openLogs(data.pod, data.container)
@@ -861,7 +741,7 @@ function onPodDetailLogs(data: any) {
 async function onOpenResource(data: { kind: string; name: string; namespace?: string }) {
   console.log('App.onOpenResource called with:', data)
   let { kind, name, namespace } = data
-  
+
   // Если name содержит "/" (например "ReplicaSet/my-name"), распарсить
   if (name.includes('/')) {
     const parts = name.split('/')
@@ -870,14 +750,14 @@ async function onOpenResource(data: { kind: string; name: string; namespace?: st
       name = parts[1]
     }
   }
-  
-  
+
+
   // Закрываем все открытые панели детей перед открытием нового ресурса
   selectedPod.value = null
   selectedDaemonSet.value = null
   selectedDeployment.value = null
   selectedReplicaSet.value = null
-  
+
   try {
     switch (kind) {
       case 'Namespace':
@@ -886,19 +766,19 @@ async function onOpenResource(data: { kind: string; name: string; namespace?: st
         console.log('Namespace loaded:', ns)
         selectedNamespaceDetail.value = ns
         break
-        
+
       case 'Node':
         const node = await k8s.getNode(name)
         selectedNode.value = node
         break
-        
+
       case 'ServiceAccount':
         if (namespace) {
           const sa = await k8s.getServiceAccount(namespace, name)
           selectedServiceAccount.value = sa
         }
         break
-        
+
       case 'ReplicaSet':
         if (namespace) {
           try {
@@ -912,7 +792,7 @@ async function onOpenResource(data: { kind: string; name: string; namespace?: st
           console.warn('No namespace provided for ReplicaSet')
         }
         break
-        
+
       default:
         notifications.notifyError(`Unknown resource type: ${kind}`)
     }
@@ -1044,7 +924,7 @@ async function onServiceAccountEdit() {
   if (!selectedServiceAccount.value) return
   const ns = selectedServiceAccount.value.namespace
   const name = selectedServiceAccount.value.name
-  
+
   try {
     podActions.yamlEditorMeta.value = { resourceType: 'serviceaccount', resourceName: name, namespace: ns }
     await showYAML('serviceaccount', ns, name)
@@ -1058,7 +938,7 @@ function onServiceAccountDelete() {
   if (!selectedServiceAccount.value) return
   const ns = selectedServiceAccount.value.namespace
   const name = selectedServiceAccount.value.name
-  
+
   if (confirm(`Delete ServiceAccount ${name}?`)) {
     k8s.deleteServiceAccount(ns, name)
       .then(() => {
@@ -1083,7 +963,7 @@ async function onRoleEdit(...args: any[]) {
   const [nsOrEvent, nameParam] = args
   const ns = typeof nsOrEvent === 'string' ? nsOrEvent : nsOrEvent?.namespace
   const name = typeof nsOrEvent === 'string' ? nameParam : nsOrEvent?.name
-  
+
   try {
     podActions.yamlEditorMeta.value = { resourceType: 'role', resourceName: name, namespace: ns }
     await showYAML('role', ns, name)
@@ -1097,7 +977,7 @@ function onRoleDelete(...args: any[]) {
   const [nsOrEvent, nameParam] = args
   const ns = typeof nsOrEvent === 'string' ? nsOrEvent : nsOrEvent?.namespace
   const name = typeof nsOrEvent === 'string' ? nameParam : nsOrEvent?.name
-  
+
   if (confirm(`Delete Role ${name}?`)) {
     k8s.deleteRole(ns, name)
       .then(() => {
@@ -1122,7 +1002,7 @@ async function onRoleBindingEdit(...args: any[]) {
   const [nsOrEvent, nameParam] = args
   const ns = typeof nsOrEvent === 'string' ? nsOrEvent : nsOrEvent?.namespace
   const name = typeof nsOrEvent === 'string' ? nameParam : nsOrEvent?.name
-  
+
   try {
     podActions.yamlEditorMeta.value = { resourceType: 'rolebinding', resourceName: name, namespace: ns }
     await showYAML('rolebinding', ns, name)
@@ -1136,7 +1016,7 @@ function onRoleBindingDelete(...args: any[]) {
   const [nsOrEvent, nameParam] = args
   const ns = typeof nsOrEvent === 'string' ? nsOrEvent : nsOrEvent?.namespace
   const name = typeof nsOrEvent === 'string' ? nameParam : nsOrEvent?.name
-  
+
   if (confirm(`Delete RoleBinding ${name}?`)) {
     k8s.deleteRoleBinding(ns, name)
       .then(() => {
@@ -1160,7 +1040,7 @@ function onRoleBindingNamespaceClick(ns: string | undefined) {
 async function onClusterRoleEdit(...args: any[]) {
   const [nsOrEvent, nameParam] = args
   const name = typeof nsOrEvent === 'string' ? nameParam : nsOrEvent?.name
-  
+
   try {
     podActions.yamlEditorMeta.value = { resourceType: 'clusterrole', resourceName: name, namespace: '' }
     await showYAML('clusterrole', '', name)
@@ -1172,7 +1052,7 @@ async function onClusterRoleEdit(...args: any[]) {
 
 function onClusterRoleDelete(...args: any[]) {
   const name = typeof args[0] === 'string' ? args[1] : args[0]?.name
-  
+
   if (confirm(`Delete ClusterRole ${name}?`)) {
     k8s.deleteClusterRole(name)
       .then(() => {
@@ -1189,7 +1069,7 @@ function onClusterRoleDelete(...args: any[]) {
 async function onClusterRoleBindingEdit(...args: any[]) {
   const [nsOrEvent, nameParam] = args
   const name = typeof nsOrEvent === 'string' ? nameParam : nsOrEvent?.name
-  
+
   try {
     podActions.yamlEditorMeta.value = { resourceType: 'clusterrolebinding', resourceName: name, namespace: '' }
     await showYAML('clusterrolebinding', '', name)
@@ -1202,7 +1082,7 @@ async function onClusterRoleBindingEdit(...args: any[]) {
 function onClusterRoleBindingDelete(...args: any[]) {
   const [nsOrEvent, nameParam] = args
   const name = typeof nsOrEvent === 'string' ? nameParam : nsOrEvent?.name
-  
+
   if (confirm(`Delete ClusterRoleBinding ${name}?`)) {
     k8s.deleteClusterRoleBinding(name)
       .then(() => {
@@ -1229,6 +1109,19 @@ watch(error, (val) => {
     setTimeout(() => { error.value = '' }, 100)
   }
 })
+
+async function applyYAMLTabbed(tabId: string) {
+  const tab = globalTabbedYamlEditor.tabs.value.find(t => t.id === tabId)
+  if (tab) {
+    try {
+      await k8s.applyYAML(tab.content, tab.resourceType, tab.namespace, tab.resourceName)
+      notifications.notifySuccess(`${tab.resourceType} ${tab.resourceName} updated`)
+      refreshData()
+    } catch (e: any) {
+      notifications.notifyError(`Apply error: ${e.message || e}`)
+    }
+  }
+}
 
 // ─── Init ───
 

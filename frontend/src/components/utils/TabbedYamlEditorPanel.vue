@@ -47,23 +47,9 @@ import "monaco-editor/esm/vs/editor/editor.main";
 import "monaco-editor/esm/vs/basic-languages/yaml/yaml";
 import codiconFont from "monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon.ttf?url";
 
-interface EditorTab {
-  id: string;
-  title: string;
-  icon: string;
-  resourceType: string;
-  resourceName: string;
-  namespace: string;
-  content: string;
-  originalContent: string;
-}
+import { globalTabbedYamlEditor } from '../../composables/useTabbedYamlEditor';
 
-const props = defineProps<{
-  content?: string;
-  resourceType?: string;
-  resourceName?: string;
-  namespace?: string;
-}>();
+const { tabs, activeTabId } = globalTabbedYamlEditor;
 
 const emit = defineEmits<{
   (e: "update:content", val: string, tabId: string): void;
@@ -76,8 +62,6 @@ const panelHeight = ref(400);
 const panelWidth = ref(800);
 const panelLeft = ref(0);
 const panelTop = ref(0);
-const activeTabId = ref<string>("");
-const tabs = ref<EditorTab[]>([]);
 const editors = new Map<string, monaco.editor.IStandaloneCodeEditor>();
 const editorContainers = new Map<string, HTMLDivElement>();
 let isResizing = false;
@@ -96,13 +80,13 @@ onMounted(() => {
     `url('${codiconFont}')`
   );
 
-  if (props.resourceName && props.resourceType && props.namespace !== undefined) {
-    addTab({
-      resourceType: props.resourceType,
-      resourceName: props.resourceName,
-      namespace: props.namespace,
-      content: props.content || "",
-    });
+  // Создаём редакторы для существующих табов
+  tabs.value.forEach(tab => {
+    setTimeout(() => createEditor(tab.id), 0);
+  });
+
+  if (tabs.value.length > 0) {
+    activeTabId.value = tabs.value[0].id;
   } else {
     addNewTab();
   }
@@ -113,39 +97,11 @@ onMounted(() => {
   window.addEventListener("mouseup", stopDrag);
 });
 
-watch([() => props.resourceName, () => props.resourceType, () => props.namespace, () => props.content], () => {
-  if (props.resourceName && props.resourceType && props.namespace !== undefined) {
-    // Check if this resource is already open
-    const existingTab = tabs.value.find(
-      (t) =>
-        t.resourceType === props.resourceType &&
-        t.resourceName === props.resourceName &&
-        t.namespace === props.namespace
-    );
+// Нет нужды в watch на props, так как состояние глобальное
 
-    if (existingTab) {
-      // Switch to existing tab
-      activeTabId.value = existingTab.id;
-      // Update content if it changed
-      if (props.content && props.content !== existingTab.content) {
-        existingTab.content = props.content;
-        existingTab.originalContent = props.content;
-        const editor = editors.get(existingTab.id);
-        if (editor) {
-          editor.setValue(props.content);
-        }
-      }
-    } else {
-      // Add new tab
-      addTab({
-        resourceType: props.resourceType,
-        resourceName: props.resourceName,
-        namespace: props.namespace,
-        content: props.content || "",
-      });
-    }
-  }
-});
+function addNewTab() {
+  globalTabbedYamlEditor.openTabbedYamlEditor("Resource", "Untitled", "default", "# New YAML document\n");
+}
 
 onBeforeUnmount(() => {
   window.removeEventListener("mousemove", handleResize);
@@ -155,44 +111,7 @@ onBeforeUnmount(() => {
   editors.forEach((editor) => editor?.dispose());
 });
 
-function generateTabId() {
-  return `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
-
-function addTab(options: {
-  resourceType: string;
-  resourceName: string;
-  namespace: string;
-  content: string;
-}) {
-  const id = generateTabId();
-  const newTab: EditorTab = {
-    id,
-    title: `${options.resourceType}/${options.resourceName}`,
-    icon: "📄",
-    resourceType: options.resourceType,
-    resourceName: options.resourceName,
-    namespace: options.namespace,
-    content: options.content,
-    originalContent: options.content,
-  };
-
-  tabs.value.push(newTab);
-  activeTabId.value = id;
-
-  setTimeout(() => {
-    createEditor(id);
-  }, 0);
-}
-
-function addNewTab() {
-  addTab({
-    resourceType: "Resource",
-    resourceName: "Untitled",
-    namespace: "default",
-    content: "# New YAML document\n",
-  });
-}
+// Нет локального addTab, используем глобальный openTabbedYamlEditor
 
 function closeTab(index: number) {
   const tab = tabs.value[index];
@@ -367,6 +286,16 @@ function handleResize(e: MouseEvent) {
   if (panelWidth.value < 300) panelWidth.value = 300;
 }
 
+// Watch на tabs для создания редакторов при добавлении новых табов
+watch(tabs, (newTabs) => {
+  newTabs.forEach(tab => {
+    if (!editors.has(tab.id)) {
+      setTimeout(() => createEditor(tab.id), 0);
+    }
+  });
+}, { deep: true });
+
+// Watch на activeTabId для layout
 watch(activeTabId, () => {
   setTimeout(() => {
     const editor = editors.get(activeTabId.value);
