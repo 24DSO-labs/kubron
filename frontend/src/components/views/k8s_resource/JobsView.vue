@@ -5,7 +5,7 @@
       :search="search"
       :resourceTitle="'Jobs'"
       :emptyMessage="'No jobs found'"
-      :resourceType="'jobs'"
+      :resourceType="'job'"
       @refresh="refreshData"
       @search="(v) => search = v"
       @select="onSelect"

@@ -82,6 +82,7 @@
 import ContentHeader from '../ContentHeader.vue'
 import { ref, onUnmounted } from 'vue'
 import useResourceListBase from '../../composables/useResourceListBase'
+import { useResourceDetailOpener } from '../../composables/useDetailPanel'
 import type { Column, ContextMenuItem } from '../../types'
 
 const props = defineProps<{
@@ -106,6 +107,9 @@ const emit = defineEmits<{
 
 // Используем composable для defaults
 const { mergedColumns, mergedMenuItems } = useResourceListBase(props.resourceType)
+
+// Используем composable для автоматического открытия деталей
+const { openDetails } = useResourceDetailOpener()
 
 // Слияние с кастомными из props, если предоставлены
 const finalColumns = props.customColumns ? [...mergedColumns, ...props.customColumns] : mergedColumns
@@ -281,14 +285,21 @@ function hideContextMenu() {
 
 function handleContextAction(menuItem: any) {
   if (selectedItem.value && menuItem.action) {
+    if (menuItem.action === 'details') {
+      openDetails(props.resourceType, selectedItem.value)
+    } else {
       emit('contextAction', menuItem.action, selectedItem.value);
-    
+    }
   }
   hideContextMenu()
 }
 
 function handleRowClick(item: any) {
+  // Сначала эмитим событие select для обратной совместимости
   emit('select', item)
+  
+  // Затем автоматически открываем детальную панель
+  openDetails(props.resourceType, item)
 }
 
 function onRefresh() { emit('refresh') }
