@@ -6,7 +6,7 @@ export default function useResourceListBase(resourceType: string) {
   const defaultColumns: Column[] = [
     { key: 'name', label: 'Name' },
     { key: 'age', label: 'Age' },
-    // Добавьте другие общие, если нужно (например, { key: 'age', label: 'Age' })
+    
   ]
 
   // Общие пункты меню
@@ -15,7 +15,7 @@ export default function useResourceListBase(resourceType: string) {
     { label: 'Logs', action: 'logs' },
     { label: 'Edit', action: 'yaml' },
     { label: 'Delete', action: 'delete', danger: true },
-    // Добавьте 'Details' если нужно: { label: 'Open Details', action: 'details' }
+    
   ]
 
   // Кастомизация по типу ресурса (если нужно расширять)

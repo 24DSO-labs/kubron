@@ -58,6 +58,9 @@
     <TabbedYamlEditorPanel v-if="globalTabbedYamlEditor.isOpen()" @apply="(tabId) => applyYAMLTabbed(tabId)"
       @close="globalTabbedYamlEditor.closeTabbedYamlEditor()" />
 
+    <!-- Logs Panel -->
+    <TabbedLogsPanel v-if="globalTabbedLogsPanel.isOpen()" @close="globalTabbedLogsPanel.closeTabbedLogs()" />
+
     <!-- Add Cluster Dialog -->
     <AddClusterDialog v-if="clusterConn.showAddCluster.value" @close="clusterConn.showAddCluster.value = false"
       @addFile="clusterConn.addFromFile" @addText="clusterConn.addFromText" />
@@ -171,6 +174,7 @@ import { useLogsPanel } from './composables/useLogsPanel'
 import { viewRegistry } from './composables/useViewRegistry'
 import { globalDetailPanel } from './composables/useDetailPanel'
 import { globalTabbedYamlEditor } from './composables/useTabbedYamlEditor'
+import { globalTabbedLogsPanel } from './composables/useTabbedLogsPanel'
 import type { PodInfo } from './types'
 
 import ClusterBar from './components/ClusterBar.vue'
@@ -193,6 +197,7 @@ const ClusterRoleBindingDetailPanel = defineAsyncComponent(() => import('./compo
 const ConfigMapPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ConfigMapPanel.vue'))
 
 const TabbedYamlEditorPanel = defineAsyncComponent(() => import('./components/utils/TabbedYamlEditorPanel.vue'))
+const TabbedLogsPanel = defineAsyncComponent(() => import('./components/utils/TabbedLogsPanel.vue'))
 
 const TabbedPodActionsPanel = defineAsyncComponent(() => import('./components/panels/TabbedPodActionsPanel.vue'))
 const NamespaceDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/NamespaceDetailPanel.vue'))

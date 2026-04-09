@@ -324,6 +324,33 @@ func (m *Manager) GetJobs(namespace string) ([]JobInfo, error) {
 	return items, nil
 }
 
+func (m *Manager) GetPodsForJob(namespace, jobName string) ([]PodInfo, error) {
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	pods, err := conn.Client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var ownedPods []PodInfo
+	for _, p := range pods.Items {
+		for _, owner := range p.OwnerReferences {
+			if owner.Kind == "Job" && owner.Name == jobName {
+				ownedPods = append(ownedPods, convertPod(p))
+				break
+			}
+		}
+	}
+
+	return ownedPods, nil
+}
+
 // === CronJobs ===
 
 type CronJobInfo struct {
