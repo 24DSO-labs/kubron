@@ -729,10 +729,9 @@ async function showYAML(kind: string, namespace: string, name: string) {
   } catch (e: any) { yamlContent.value = 'Ошибка: ' + (e.message || e) }
 }
 
-async function applyYAML() {
+async function applyYAML(content: string, kind: string, namespace: string, name: string) {
   try {
-    await ApplyYAML(yamlEditNs.value, yamlEditKind.value, yamlEditName.value, yamlContent.value)
-    yamlEditing.value = false
+    await ApplyYAML(namespace, kind, name, content)
     error.value = ''
     await refreshData()
   } catch (e: any) { error.value = 'Apply error: ' + (e.message || e) }

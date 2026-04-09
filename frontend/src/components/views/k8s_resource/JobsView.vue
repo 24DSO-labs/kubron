@@ -23,7 +23,7 @@ import type { JobInfo } from '../../../types'
 
 const { filteredJobs, refreshData, search } = useK8s()
 
-const { onSelect, onContextAction, showDetail, selectedItem } = useResourceView('jobs')
+const { onSelect, onContextAction } = useResourceView('job')
 
 
 
