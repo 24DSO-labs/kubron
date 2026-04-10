@@ -54,12 +54,12 @@
       :resource="globalDetailPanel.detailPanelState.value.resource"
       v-bind="globalDetailPanel.detailPanelState.value.props" v-on="globalDetailPanel.detailPanelState.value.events" />
 
-    <!-- YAML Editor Panel -->
-    <TabbedYamlEditorPanel v-if="globalTabbedYamlEditor.isOpen()" @apply="(tabId) => applyYAMLTabbed(tabId)"
-      @close="globalTabbedYamlEditor.closeTabbedYamlEditor()" />
-
-    <!-- Logs Panel -->
-    <TabbedLogsPanel v-if="globalTabbedLogsPanel.isOpen()" @close="globalTabbedLogsPanel.closeTabbedLogs()" />
+    <!-- Unified Tabbed Panel (Logs & YAML Editor) -->
+<TabbedPanel 
+  v-if="globalTabbedPanel.isOpen()" 
+  @close="globalTabbedPanel.closeAllTabs()"
+  @apply-yaml="applyYAMLTabbed" 
+/>
 
     <!-- Add Cluster Dialog -->
     <AddClusterDialog v-if="clusterConn.showAddCluster.value" @close="clusterConn.showAddCluster.value = false"
@@ -173,8 +173,7 @@ import { useNotifications } from './composables/useNotifications'
 import { useLogsPanel } from './composables/useLogsPanel'
 import { viewRegistry } from './composables/useViewRegistry'
 import { globalDetailPanel } from './composables/useDetailPanel'
-import { globalTabbedYamlEditor } from './composables/useTabbedYamlEditor'
-import { globalTabbedLogsPanel } from './composables/useTabbedLogsPanel'
+import { globalTabbedPanel } from './composables/useTabbedPanel'
 import type { PodInfo } from './types'
 
 import ClusterBar from './components/ClusterBar.vue'
@@ -195,9 +194,7 @@ const RoleBindingDetailPanel = defineAsyncComponent(() => import('./components/p
 const ClusterRoleDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ClusterRoleDetailPanel.vue'))
 const ClusterRoleBindingDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ClusterRoleBindingDetailPanel.vue'))
 const ConfigMapPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ConfigMapPanel.vue'))
-
-const TabbedYamlEditorPanel = defineAsyncComponent(() => import('./components/utils/TabbedYamlEditorPanel.vue'))
-const TabbedLogsPanel = defineAsyncComponent(() => import('./components/utils/TabbedLogsPanel.vue'))
+const TabbedPanel = defineAsyncComponent(() => import('./components/utils/TabbedPanel.vue'))
 
 const TabbedPodActionsPanel = defineAsyncComponent(() => import('./components/panels/TabbedPodActionsPanel.vue'))
 const NamespaceDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/NamespaceDetailPanel.vue'))
@@ -1116,8 +1113,8 @@ watch(error, (val) => {
 })
 
 async function applyYAMLTabbed(tabId: string) {
-  const tab = globalTabbedYamlEditor.tabs.value.find(t => t.id === tabId)
-  if (tab) {
+  const tab = globalTabbedPanel.tabs.value.find(t => t.id === tabId)
+  if (tab && tab.type === 'yaml') {
     try {
       await k8s.applyYAML(tab.content, tab.resourceType, tab.namespace, tab.resourceName)
       notifications.notifySuccess(`${tab.resourceType} ${tab.resourceName} updated`)
