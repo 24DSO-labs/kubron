@@ -2,9 +2,8 @@ import { ref, computed, defineAsyncComponent } from 'vue'
 import useResourceListBase from './useResourceListBase'
 import { useDetailPanel } from './useDetailPanel'
 import { useK8s } from './useK8s'
-import { globalTabbedYamlEditor } from './useTabbedYamlEditor'
+import { globalTabbedPanel } from './useTabbedPanel'
 import { GetResourceYAML } from '../../wailsjs/go/main/App'
-import { globalTabbedLogsPanel } from './useTabbedLogsPanel'
 
 // Абсолютный путь от src/ — работает ВСЕГДА
 const panelModules = import.meta.glob('/src/panels/k8s_resource/*.vue')
@@ -19,19 +18,16 @@ export default function useResourceView(resourceType: string, showUniversalDetai
   }
 
   const onContextAction = (action: string, item: any) => {
-    console.log('Context action:', action, 'for item:', item)
-
+    
     if (action.startsWith('logs:')) {
       const container = action.split(':')[1]
-      console.log('Opening logs for container', container, 'in', resourceType, item.name)
-      globalTabbedLogsPanel.openTabbedLogs(resourceType, item.name, item.namespace || '', item.containers, container)
+      globalTabbedPanel.openLogsTab(resourceType, item.name, item.namespace || '', item.containers, container)
     } else if (action === 'details') {
       onSelect(item)
     } else {
       switch (action) {
         case 'logs':
-          console.log('Opening logs for', resourceType, '(no specific container):', item.name)
-          globalTabbedLogsPanel.openTabbedLogs(resourceType, item.name, item.namespace || '', item.containers)
+          globalTabbedPanel.openLogsTab(resourceType, item.name, item.namespace || '', item.containers)
           break
         case 'delete':
           console.log('Deleting', resourceType, ':', item.name)
@@ -40,7 +36,7 @@ export default function useResourceView(resourceType: string, showUniversalDetai
         case 'yaml':
           GetResourceYAML(item.namespace || '', resourceType, item.name, true)
             .then(yaml => {
-              globalTabbedYamlEditor.openTabbedYamlEditor(
+              globalTabbedPanel.openYamlTab(
                 resourceType,
                 item.name,
                 item.namespace || '',
@@ -59,8 +55,6 @@ export default function useResourceView(resourceType: string, showUniversalDetai
       }
     }
   }
-
-
 
   return {
     mergedColumns,
