@@ -83,6 +83,7 @@ import ContentHeader from '../ContentHeader.vue'
 import { ref, onUnmounted } from 'vue'
 import useResourceListBase from '../../composables/useResourceListBase'
 import { useResourceDetailOpener } from '../../composables/useDetailPanel'
+import { useK8s } from '../../composables/useK8s'
 import type { Column, ContextMenuItem } from '../../types'
 
 const props = defineProps<{
@@ -283,15 +284,92 @@ function hideContextMenu() {
   showContextMenu.value = false
 }
 
-function handleContextAction(menuItem: any) {
+async function handleContextAction(menuItem: any) {
   if (selectedItem.value && menuItem.action) {
     if (menuItem.action === 'details') {
       openDetails(props.resourceType, selectedItem.value)
+    } else if (menuItem.action === 'delete') {
+      await handleDelete(selectedItem.value)
     } else {
       emit('contextAction', menuItem.action, selectedItem.value);
     }
   }
   hideContextMenu()
+}
+
+async function handleDelete(item: any) {
+  if (!confirm(`Удалить ${props.resourceType} ${item.name}?`)) return
+  
+  try {
+    const k8s = useK8s()
+    const namespace = item.namespace || ''
+    const name = item.name
+    
+    // Вызываем соответствующую функцию delete на основе типа ресурса
+    const resourceTypeLower = props.resourceType.toLowerCase()
+    
+    switch (resourceTypeLower) {
+      case 'pod':
+        await k8s.deletePodByName(namespace, name)
+        break
+      case 'deployment':
+        await k8s.deleteDeploymentByName(namespace, name)
+        break
+      case 'statefulset':
+        console.log(`Delete StatefulSet: ${namespace}/${name}`)
+        emit('contextAction', 'deleteStatefulSet', item)
+        break
+      case 'daemonset':
+        console.log(`Delete DaemonSet: ${namespace}/${name}`)
+        emit('contextAction', 'deleteDaemonSet', item)
+        break
+      case 'job':
+        console.log(`Delete Job: ${namespace}/${name}`)
+        emit('contextAction', 'deleteJob', item)
+        break
+      case 'cronjob':
+        console.log(`Delete CronJob: ${namespace}/${name}`)
+        emit('contextAction', 'deleteCronJob', item)
+        break
+      case 'service':
+        console.log(`Delete Service: ${namespace}/${name}`)
+        emit('contextAction', 'deleteService', item)
+        break
+      case 'configmap':
+        console.log(`Delete ConfigMap: ${namespace}/${name}`)
+        emit('contextAction', 'deleteConfigMap', item)
+        break
+      case 'secret':
+        console.log(`Delete Secret: ${namespace}/${name}`)
+        emit('contextAction', 'deleteSecret', item)
+        break
+      case 'serviceaccount':
+        await k8s.deleteServiceAccount(namespace, name)
+        break
+      case 'role':
+        await k8s.deleteRole(namespace, name)
+        break
+      case 'rolebinding':
+        await k8s.deleteRoleBinding(namespace, name)
+        break
+      case 'clusterrole':
+        await k8s.deleteClusterRole(name)
+        break
+      case 'clusterrolebinding':
+        await k8s.deleteClusterRoleBinding(name)
+        break
+      default:
+        console.error(`Delete not implemented for resource type: ${props.resourceType}`)
+        throw new Error(`Delete не поддерживается для типа ресурса: ${props.resourceType}`)
+    }
+    
+    // После успешного удаления эмитим событие refresh
+    emit('refresh')
+  } catch (e: any) {
+    const message = e.message || String(e)
+    console.error(`Ошибка удаления ${props.resourceType}:`, message)
+    alert(`Ошибка удаления: ${message}`)
+  }
 }
 
 function handleRowClick(item: any) {
