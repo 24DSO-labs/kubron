@@ -4,8 +4,9 @@
       :items="filteredJobs"
       :search="search"
       :resourceTitle="'Jobs'"
-      :emptyMessage="'No jobs found'"
+      :emptyMessage="'Нет джоб'"
       :resourceType="'job'"
+      
       @refresh="refreshData"
       @search="(v) => search = v"
       @select="onSelect"
@@ -14,6 +15,9 @@
     
   </div>
 </template>
+
+
+
 
 <script lang="ts" setup>
 import { useK8s } from '../../../composables/useK8s'

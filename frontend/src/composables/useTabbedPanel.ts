@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
+import { GetPods } from '../../wailsjs/go/main/App'
 
-export type TabType = 'logs' | 'yaml'
+export type TabType = 'logs' | 'yaml' | 'terminal'
 
 export interface BaseTab {
   id: string
@@ -27,7 +28,16 @@ export interface YamlTab extends BaseTab {
   originalContent: string
 }
 
-export type Tab = LogsTab | YamlTab
+export interface TerminalTab extends BaseTab {
+  type: 'terminal'
+  mode: 'shell' | 'attach'
+  pod: string
+  podObj: any | null
+  container: string
+  containers: Array<{ name: string }>
+}
+
+export type Tab = LogsTab | YamlTab | TerminalTab
 
 // Глобальное состояние
 const tabs = ref<Tab[]>([])
@@ -70,6 +80,66 @@ function openLogsTab(resourceType: string, resourceName: string, namespace: stri
     tabs.value.push(newTab)
     activeTabId.value = id
   }
+}
+
+async function openTerminalTab(
+  resourceType: string,
+  resourceName: string,
+  namespace: string,
+  pod: string,
+  container: string,
+  mode: 'shell' | 'attach' = 'shell'
+) {
+  const id = `terminal-${mode}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  
+  // Получаем информацию о поде для списка контейнеров
+  let podContainers: Array<{ name: string }> = []
+  let podObj: any = null
+  
+  try {
+    const allPods = await GetPods(namespace)
+    podObj = allPods.find((p: any) => p.name === pod)
+    if (podObj && podObj.containers) {
+      podContainers = podObj.containers
+    } else {
+      // Fallback: используем текущий контейнер
+      podContainers = [{ name: container }]
+    }
+  } catch (e) {
+    console.error('Error getting pod info:', e)
+    podContainers = [{ name: container }]
+  }
+  
+  const newTab: TerminalTab = {
+    id,
+    type: 'terminal',
+    icon: mode === 'shell' ? '🖥' : '📎',
+    title: mode === 'shell' ? `Terminal: ${pod}/${container}` : `Attach: ${pod}/${container}`,
+    resourceType,
+    resourceName,
+    namespace,
+    mode,
+    pod,
+    podObj,
+    container,
+    containers: podContainers,
+  }
+  
+  tabs.value.push(newTab)
+  activeTabId.value = id
+}
+
+// Дополнительная перегрузка для совместимости
+function openTerminalTabExtended(
+  resourceType: string,
+  resourceName: string,
+  resourceNamespace: string,
+  namespace: string,
+  pod: string,
+  container: string,
+  mode: 'shell' | 'attach' = 'shell'
+) {
+  return openTerminalTab(resourceType, resourceName, namespace, pod, container, mode)
 }
 
 function openYamlTab(resourceType: string, resourceName: string, namespace: string, content: string) {
@@ -135,6 +205,7 @@ export const globalTabbedPanel = {
   activeTabId,
   openLogsTab,
   openYamlTab,
+  openTerminalTab,
   closeTab,
   closeAllTabs,
   isOpen

@@ -1,16 +1,9 @@
 <template>
   <div class="tabbed-panel" :style="panelStyle" @mousedown="startDrag">
-    <!-- Header with tabs -->
     <div class="panel-header" @mousedown.stop="startDrag">
       <div class="tabs-container">
         <div class="tabs-list">
-          <div
-            v-for="tab in tabs"
-            :key="tab.id"
-            class="tab"
-            :class="{ active: activeTabId === tab.id }"
-            @click="activeTabId = tab.id"
-          >
+          <div v-for="tab in tabs" :key="tab.id" class="tab" :class="{ active: activeTabId === tab.id }" @click="activeTabId = tab.id">
             <span class="tab-icon">{{ tab.icon }}</span>
             <span class="tab-name">{{ tab.title }}</span>
             <button class="tab-close" @click.stop="closeTab(tab.id)">✕</button>
@@ -19,147 +12,98 @@
       </div>
       <button class="btn-close" @click="closeAllTabs">✕</button>
     </div>
-
-    <!-- Content area -->
     <div class="panel-content">
       <template v-for="tab in tabs" :key="tab.id">
-        <!-- Logs View -->
         <div v-if="tab.type === 'logs' && activeTabId === tab.id" class="logs-view">
-          <!-- Logs toolbar -->
           <div class="logs-toolbar">
             <div class="toolbar-group">
               <label>Pods:</label>
-              <select 
-                :value="(tab as LogsTab).selectedPodName" 
-                @change="onPodChange($event, tab as LogsTab)" 
-                class="select-pod"
-              >
+              <select :value="(tab as LogsTab).selectedPodName" @change="onPodChange($event, tab as LogsTab)" class="select-pod">
                 <option value="">All Pods</option>
-                <option v-for="pod in (tab as LogsTab).pods" :key="pod.name" :value="pod.name">
-                  {{ pod.name }}
-                </option>
+                <option v-for="pod in (tab as LogsTab).pods" :key="pod.name" :value="pod.name">{{ pod.name }}</option>
               </select>
             </div>
-
             <div class="toolbar-group">
               <label>Containers:</label>
-              <select 
-                :value="(tab as LogsTab).selectedContainer" 
-                @change="onContainerChange($event, tab as LogsTab)" 
-                class="select-container"
-              >
+              <select :value="(tab as LogsTab).selectedContainer" @change="onContainerChange($event, tab as LogsTab)" class="select-container">
                 <option value="">All Containers</option>
-                <option v-for="container in getAvailableContainers(tab as LogsTab)" :key="container" :value="container">
-                  {{ container }}
-                </option>
+                <option v-for="container in getAvailableContainers(tab as LogsTab)" :key="container" :value="container">{{ container }}</option>
               </select>
             </div>
-
             <div class="toolbar-group">
               <label>Lines:</label>
               <input v-model.number="logLines" type="number" min="10" max="10000" @change="loadLogs(tab as LogsTab)" class="input-lines" />
             </div>
-
             <div class="toolbar-group search-group">
               <input v-model="searchText" type="text" placeholder="Search in logs" class="input-search" />
             </div>
-
             <div class="toolbar-actions">
-              <button 
-                @click="showTimestamp = !showTimestamp" 
-                class="btn-action" 
-                :class="{ active: showTimestamp }"
-                title="Show Timestamp"
-              >
-                <img :src="timestampIcon" alt="Timestamp" class="icon-svg" />
-              </button>
-              <button 
-                @click="wrapLines = !wrapLines" 
-                class="btn-action" 
-                :class="{ active: wrapLines }"
-                title="Wrap Lines"
-              >
-                <img :src="wrapLinesIcon" alt="Wrap Lines" class="icon-svg" />
-              </button>
-              <button @click="loadLogs(tab as LogsTab)" class="btn-action btn-refresh" title="Refresh">
-                <img :src="restartIcon" alt="Refresh" class="icon-svg" />
-              </button>
-              <button @click="downloadLogs(tab as LogsTab)" class="btn-action" title="Download">
-                <img :src="downloadIcon" alt="Download" class="icon-svg" />
-              </button>
+              <button @click="showTimestamp = !showTimestamp" class="btn-action" :class="{ active: showTimestamp }"><img :src="timestampIcon" class="icon-svg" /></button>
+              <button @click="wrapLines = !wrapLines" class="btn-action" :class="{ active: wrapLines }"><img :src="wrapLinesIcon" class="icon-svg" /></button>
+              <button @click="loadLogs(tab as LogsTab)" class="btn-action btn-refresh"><img :src="restartIcon" class="icon-svg" /></button>
+              <button @click="downloadLogs(tab as LogsTab)" class="btn-action"><img :src="downloadIcon" class="icon-svg" /></button>
             </div>
           </div>
-
-          <!-- Logs info bar -->
-          <div class="logs-info">
-            <span>
-              Namespace: <strong>{{ tab.namespace }}</strong> | 
-              {{ tab.resourceType }}: <strong>{{ tab.resourceName }}</strong> | 
-              Pods: <strong>{{ (tab as LogsTab).pods.length }}</strong>
-            </span>
-          </div>
-
-          <!-- Logs content -->
+          <div class="logs-info"><span>Namespace: <strong>{{ tab.namespace }}</strong> | {{ tab.resourceType }}: <strong>{{ tab.resourceName }}</strong> | Pods: <strong>{{ (tab as LogsTab).pods.length }}</strong></span></div>
           <div class="logs-content">
-            <div v-if="(tab as LogsTab).loading" class="logs-loading">⏳ Loading logs...</div>
-            <pre 
-              v-else-if="(tab as LogsTab).rawLogs" 
-              class="logs-text" 
-              :class="{ 'no-wrap': !wrapLines }" 
-              v-html="searchText ? getHighlightedLogs(tab as LogsTab) : getDisplayedLogs(tab as LogsTab)"
-            ></pre>
-            <div v-else class="logs-empty">No logs available</div>
+            <div v-if="(tab as LogsTab).loading" class="logs-loading">⏳ Loading...</div>
+            <pre v-else-if="(tab as LogsTab).rawLogs" class="logs-text" :class="{ 'no-wrap': !wrapLines }" v-html="searchText ? getHighlightedLogs(tab as LogsTab) : getDisplayedLogs(tab as LogsTab)"></pre>
+            <div v-else class="logs-empty">No logs</div>
           </div>
         </div>
-
-        <!-- YAML Editor View -->
         <div v-else-if="tab.type === 'yaml' && activeTabId === tab.id" class="yaml-view">
           <div class="editor-header">
-            <div class="editor-title">
-              <span class="editor-icon">✏️</span>
-              <span class="editor-resource">{{ tab.resourceType }} <strong>{{ tab.resourceName }}</strong></span>
-              <span class="editor-namespace">in namespace <a href="#" class="ns-link">{{ tab.namespace }}</a></span>
-            </div>
-            <div class="editor-actions">
-              <button class="btn btn-sm btn-save" @click="saveYaml(tab as YamlTab)" title="Apply changes">💾 Save</button>
-            </div>
+            <div class="editor-title"><span>{{ tab.resourceType }} <strong>{{ tab.resourceName }}</strong></span> <span class="editor-namespace">in <a href="#" class="ns-link">{{ tab.namespace }}</a></span></div>
+            <button class="btn btn-sm btn-save" @click="saveYaml(tab as YamlTab)">💾 Save</button>
           </div>
           <div :ref="el => setEditorContainer(tab.id, el as HTMLDivElement)" class="editor-container"></div>
         </div>
+        <div v-else-if="tab.type === 'terminal' && activeTabId === tab.id" class="terminal-view">
+          <div class="terminal-header">
+            <div class="terminal-title"><span>{{ (tab as TerminalTab).mode === 'shell' ? 'Terminal' : 'Attach' }}: <strong>{{ (tab as TerminalTab).container }}</strong> @ {{ (tab as TerminalTab).pod }}</span></div>
+            <div class="terminal-controls">
+              <select :value="(tab as TerminalTab).container" @change="onTerminalContainerChange($event, tab as TerminalTab)" class="container-select">
+                <option v-for="c in getTerminalContainers(tab as TerminalTab)" :key="c" :value="c">{{ c }}</option>
+              </select>
+              <span class="status-indicator">{{ terminalStatuses[tab.id] || '🔴' }}</span>
+              <button class="btn btn-sm" @click="reconnectTerminal(tab.id)" :disabled="terminalConnecting[tab.id] !== false">🔄</button>
+            </div>
+          </div>
+          <div :ref="el => setTerminalContainer(tab.id, el as HTMLDivElement)" class="terminal-container"></div>
+        </div>
       </template>
+      <div v-if="tabs.length === 0" class="no-tabs"><p>No tabs open</p></div>
     </div>
-
-    <!-- Resize handle -->
     <div class="resize-handle" @mousedown.stop="startResize"></div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, reactive } from 'vue'
 import * as monaco from 'monaco-editor'
-import { GetPods, GetPodLogs } from '../../../wailsjs/go/main/App'
+import { Terminal } from 'xterm'
+import { FitAddon } from 'xterm-addon-fit'
+import 'xterm/css/xterm.css'
+import {
+  GetPods,
+  GetPodLogs,
+  StartTerminalSession,
+  ReadTerminal,
+  WriteTerminal,
+  CloseTerminal,
+  DetectShell,
+  ResizeTerminal,
+} from '../../../wailsjs/go/main/App'
 import { globalTabbedPanel } from '../../composables/useTabbedPanel'
-import type { LogsTab, YamlTab, Tab } from '../../composables/useTabbedPanel'
-
-// Import icons
+import type { LogsTab, YamlTab, TerminalTab } from '../../composables/useTabbedPanel'
 import restartIcon from '../../assets/icons/restart.svg'
 import downloadIcon from '../../assets/icons/download.svg'
 import timestampIcon from '../../assets/icons/timestamp.svg'
 import wrapLinesIcon from '../../assets/icons/wrap-lines.svg'
 
-const emit = defineEmits<{
-  (e: 'close'): void
-  (e: 'apply-yaml', tabId: string): void
-}>()
-
-// Global state - используем globalTabbedPanel напрямую
+const emit = defineEmits<{(e: 'close'): void; (e: 'apply-yaml', tabId: string): void}>()
 const tabs = computed(() => globalTabbedPanel.tabs.value)
-const activeTabId = computed({
-  get: () => globalTabbedPanel.activeTabId.value,
-  set: (val) => { globalTabbedPanel.activeTabId.value = val }
-})
-
-// Panel positioning
+const activeTabId = computed({ get: () => globalTabbedPanel.activeTabId.value, set: (val) => { globalTabbedPanel.activeTabId.value = val }})
 const sidebarWidth = ref(200)
 const panelX = ref(276)
 const panelY = ref(window.innerHeight - 400)
@@ -169,59 +113,58 @@ const isDragging = ref(false)
 const isResizing = ref(false)
 const dragStartX = ref(0)
 const dragStartY = ref(0)
+const dragStartLeft = ref(0)
+const dragStartTop = ref(0)
 const resizeStartX = ref(0)
 const resizeStartY = ref(0)
 const resizeStartWidth = ref(0)
 const resizeStartHeight = ref(0)
-
-// Logs specific state
 const logLines = ref(100)
 const searchText = ref('')
 const showTimestamp = ref(false)
 const wrapLines = ref(true)
 let autoRefreshInterval: ReturnType<typeof setInterval> | null = null
-
-// YAML editors map
 const editors = new Map<string, monaco.editor.IStandaloneCodeEditor>()
 const editorContainers = new Map<string, HTMLDivElement>()
 
-const panelStyle = computed(() => ({
-  position: 'fixed' as const,
-  left: `${panelX.value}px`,
-  top: `${panelY.value}px`,
-  width: `${panelWidth.value}px`,
-  height: `${panelHeight.value}px`,
-}))
+// Terminal state
+const terminalStatuses = reactive<Record<string, string>>({})
+const terminalConnecting = reactive<Record<string, boolean>>({})
+const terminalInstances = new Map<string, TerminalInstance>()
+const terminalContainers = new Map<string, HTMLDivElement>()
+const initializingTabs = new Set<string>()
 
-// Используем методы из globalTabbedPanel
+const DEFAULT_COLS = 80
+const DEFAULT_ROWS = 24
+
+interface TerminalInstance {
+  terminal: Terminal
+  fitAddon: FitAddon
+  sessionID: string
+  readLoopAborted: boolean
+  resizeObserver?: ResizeObserver
+  resizeTimer?: ReturnType<typeof setTimeout>
+}
+
+const panelStyle = computed(() => ({ position: 'fixed' as const, left: `${panelX.value}px`, top: `${panelY.value}px`, width: `${panelWidth.value}px`, height: `${panelHeight.value}px` }))
 const closeTab = (tabId: string) => globalTabbedPanel.closeTab(tabId)
 const closeAllTabs = () => globalTabbedPanel.closeAllTabs()
 
-// Lifecycle
 onMounted(() => {
   const sidebar = document.querySelector('.sidebar') as HTMLElement | null
-  if (sidebar) {
-    sidebarWidth.value = sidebar.offsetWidth
-  }
-  
-  // Initialize Monaco editor styles
+  if (sidebar) sidebarWidth.value = sidebar.offsetWidth
   const style = document.createElement('style')
-  style.textContent = `
-    @font-face {
-      font-family: 'codicon';
-      src: url('${new URL('monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon.ttf', import.meta.url).href}') format('truetype');
-    }
-  `
+  style.textContent = `@font-face { font-family: 'codicon'; src: url('${new URL('monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon.ttf', import.meta.url).href}') format('truetype'); }`
   document.head.appendChild(style)
-
-  // Initialize first tab if exists
   if (tabs.value.length > 0 && activeTabId.value) {
-    const activeTab = tabs.value.find(t => t.id === activeTabId.value)
-    if (activeTab?.type === 'logs') {
-      loadResourcePods(activeTab as LogsTab)
-      startAutoRefresh()
-    }
+    const activeTab = tabs.value.find((t: any) => t.id === activeTabId.value)
+    if (activeTab?.type === 'logs') { loadResourcePods(activeTab as LogsTab); startAutoRefresh() }
+    else if (activeTab?.type === 'terminal') initTerminal(activeTab as TerminalTab)
   }
+  window.addEventListener('mousemove', handleResize)
+  window.addEventListener('mousemove', handleDrag)
+  window.addEventListener('mouseup', stopResize)
+  window.addEventListener('mouseup', stopDrag)
 })
 
 onBeforeUnmount(() => {
@@ -229,151 +172,75 @@ onBeforeUnmount(() => {
   editors.forEach(editor => editor.dispose())
   editors.clear()
   editorContainers.clear()
+  cleanupAllTerminals()
+  window.removeEventListener('mousemove', handleResize)
+  window.removeEventListener('mousemove', handleDrag)
+  window.removeEventListener('mouseup', stopResize)
+  window.removeEventListener('mouseup', stopDrag)
 })
 
-// Watchers
 watch(activeTabId, async (newId) => {
-  const tab = tabs.value.find(t => t.id === newId)
+  const tab = tabs.value.find((t: any) => t.id === newId)
   if (!tab) return
-  
-  if (tab.type === 'logs' && !(tab as LogsTab).rawLogs) {
-    await loadResourcePods(tab as LogsTab)
-    startAutoRefresh()
-  } else if (tab.type === 'yaml') {
-    await nextTick()
-    initializeEditor(tab as YamlTab)
-  }
+  if (tab.type === 'logs' && !(tab as LogsTab).rawLogs) { await loadResourcePods(tab as LogsTab); startAutoRefresh() }
+  else if (tab.type === 'yaml') { await nextTick(); initializeEditor(tab as YamlTab) }
+  else if (tab.type === 'terminal') { await nextTick(); await new Promise(r => setTimeout(r, 50)); await initTerminal(tab as TerminalTab) }
 })
 
-// Helper functions
-function getAvailableContainers(tab: LogsTab): string[] {
-  if (!tab.selectedPodName) {
-    const containers = new Set<string>()
-    tab.pods.forEach(pod => {
-      pod.containers?.forEach(c => containers.add(c.name))
-    })
-    return Array.from(containers).sort()
-  } else {
-    const pod = tab.pods.find(p => p.name === tab.selectedPodName)
-    return pod?.containers?.map(c => c.name) || []
+watch(tabs, (newTabs) => {
+  const currentTabIds = new Set(newTabs.map((t: any) => t.id))
+  for (const [tabId, instance] of terminalInstances) {
+    if (!currentTabIds.has(tabId)) { cleanupTerminal(tabId, instance); terminalInstances.delete(tabId); terminalContainers.delete(tabId); initializingTabs.delete(tabId) }
   }
+  editors.forEach((editor, id) => { if (!currentTabIds.has(id)) { editor.dispose(); editors.delete(id); editorContainers.delete(id) } })
+}, { deep: true })
+
+function getAvailableContainers(tab: LogsTab): string[] {
+  if (!tab.selectedPodName) { const containers = new Set<string>(); tab.pods.forEach((pod: any) => { pod.containers?.forEach((c: any) => containers.add(c.name)) }); return Array.from(containers).sort() }
+  else { const pod = tab.pods.find(p => p.name === tab.selectedPodName); return pod?.containers?.map((c: any) => c.name) || [] }
 }
 
 function getDisplayedLogs(tab: LogsTab): string {
   if (!tab.rawLogs) return ''
-  
   let logs = tab.rawLogs
-  
-  // Process timestamps
-  if (!showTimestamp.value) {
-    logs = logs
-      .split('\n')
-      .map(line => {
-        if (!line.trim()) return line
-        const timestampRegex = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z[+-]?\d{0,2}:?\d{0,2})\s+(.*)$/
-        const match = line.match(timestampRegex)
-        if (match && match[2]) {
-          return match[2]
-        }
-        return line
-      })
-      .join('\n')
-  } else {
-    logs = logs
-      .split('\n')
-      .map(line => {
-        if (!line.trim()) return line
-        const timestampRegex = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z[+-]?\d{0,2}:?\d{0,2})\s+(.*)$/
-        const match = line.match(timestampRegex)
-        if (match && match[1]) {
-          const fullTimestamp = match[1]
-          const message = match[2]
-          return `[${fullTimestamp}] ${message}`
-        }
-        return line
-      })
-      .join('\n')
-  }
-  
-  // Apply search filter
+  if (!showTimestamp.value) { logs = logs.split('\n').map((line: string) => { if (!line.trim()) return line; const m = line.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z[+-]?\d{0,2}:?\d{0,2})\s+(.*)$/); if (m && m[2]) return m[2]; return line }).join('\n') }
+  else { logs = logs.split('\n').map((line: string) => { if (!line.trim()) return line; const m = line.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z[+-]?\d{0,2}:?\d{0,2})\s+(.*)$/); if (m && m[1]) return `[${m[1]}] ${m[2]}`; return line }).join('\n') }
   if (!searchText.value) return logs
-  
   const search = searchText.value.toLowerCase()
-  return logs
-    .split('\n')
-    .filter(line => line.toLowerCase().includes(search))
-    .join('\n')
+  return logs.split('\n').filter((line: string) => line.toLowerCase().includes(search)).join('\n')
 }
 
 function getHighlightedLogs(tab: LogsTab): string {
   if (!tab.rawLogs || !searchText.value) return tab.rawLogs || ''
-  
   const logs = getDisplayedLogs(tab)
-  const search = searchText.value
-  const escapedSearch = escapeRegex(search)
-  const regex = new RegExp(`(${escapedSearch})`, 'gi')
-  return logs.replace(regex, '<mark class="search-highlight">$1</mark>')
+  const escaped = searchText.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return logs.replace(new RegExp(`(${escaped})`, 'gi'), '<mark class="search-highlight">$1</mark>')
 }
 
-// Logs functions
 async function loadResourcePods(tab: LogsTab) {
   try {
     tab.loading = true
     const allPods = await GetPods(tab.namespace)
-    
     let filteredPods: any[] = []
     const resourceName = tab.resourceName
-
     switch (tab.resourceType.toLowerCase()) {
-      case 'deployment':
-        filteredPods = allPods.filter((pod: any) => {
-          const podLabels = pod.labels || {}
-          return podLabels['app.kubernetes.io/instance'] === resourceName ||
-                 podLabels['app'] === resourceName ||
-                 pod.name.startsWith(resourceName)
-        })
-        break
-      case 'job':
-        filteredPods = allPods.filter((pod: any) => pod.name.startsWith(resourceName + '-'))
-        break
-      case 'pod':
-        filteredPods = allPods.filter((pod: any) => pod.name === resourceName)
-        break
-      default:
-        console.warn('Unsupported resource type:', tab.resourceType)
-        filteredPods = []
+      case 'deployment': filteredPods = allPods.filter((pod: any) => { const l = pod.labels || {}; return l['app.kubernetes.io/instance'] === resourceName || l['app'] === resourceName || pod.name.startsWith(resourceName) }); break
+      case 'job': filteredPods = allPods.filter((pod: any) => pod.name.startsWith(resourceName + '-')); break
+      case 'pod': filteredPods = allPods.filter((pod: any) => pod.name === resourceName); break
+      default: filteredPods = []
     }
-
     tab.pods = filteredPods
-
-    if (tab.pods.length > 0 && !tab.selectedPodName) {
-      tab.selectedPodName = tab.pods[0].name
-      tab.selectedContainer = tab.pods[0].containers?.[0]?.name || ''
-    }
-    
-    if (tab.selectedPodName || tab.pods.length > 0) {
-      await loadLogs(tab)
-    }
-  } catch (e) {
-    console.error('Error loading resource pods:', e)
-    tab.rawLogs = `Error loading pods: ${e}`
-  } finally {
-    tab.loading = false
-  }
+    if (tab.pods.length > 0 && !tab.selectedPodName) { tab.selectedPodName = tab.pods[0].name; tab.selectedContainer = tab.pods[0].containers?.[0]?.name || '' }
+    if (tab.selectedPodName || tab.pods.length > 0) await loadLogs(tab)
+  } catch (e: any) { tab.rawLogs = `Error: ${e}` }
+  finally { tab.loading = false }
 }
 
 async function onPodChange(event: Event, tab: LogsTab) {
   const target = event.target as HTMLSelectElement
   tab.selectedPodName = target.value
   tab.selectedContainer = ''
-  
-  if (tab.selectedPodName) {
-    const pod = tab.pods.find(p => p.name === tab.selectedPodName)
-    if (pod?.containers?.[0]) {
-      tab.selectedContainer = pod.containers[0].name
-    }
-  }
-  
+  if (tab.selectedPodName) { const pod = tab.pods.find(p => p.name === tab.selectedPodName); if (pod?.containers?.[0]) tab.selectedContainer = pod.containers[0].name }
   await loadLogs(tab)
 }
 
@@ -385,41 +252,22 @@ async function onContainerChange(event: Event, tab: LogsTab) {
 
 async function loadLogs(tab: LogsTab) {
   if (!tab.selectedPodName && tab.pods.length === 0) return
-  
   try {
     tab.loading = true
-    
     if (tab.selectedPodName) {
-      const container = tab.selectedContainer || 
-        tab.pods.find(p => p.name === tab.selectedPodName)?.containers?.[0]?.name || ''
-      tab.rawLogs = await GetPodLogs(
-        tab.namespace,
-        tab.selectedPodName,
-        container,
-        logLines.value
-      )
+      const container = tab.selectedContainer || tab.pods.find(p => p.name === tab.selectedPodName)?.containers?.[0]?.name || ''
+      tab.rawLogs = await GetPodLogs(tab.namespace, tab.selectedPodName, container, logLines.value)
     } else {
       const allLogs: string[] = []
       for (const pod of tab.pods) {
         const container = tab.selectedContainer || pod.containers?.[0]?.name || ''
-        try {
-          const logs = await GetPodLogs(tab.namespace, pod.name, container, logLines.value)
-          if (logs) {
-            allLogs.push(`\n========== ${pod.name} ==========\n`)
-            allLogs.push(logs)
-          }
-        } catch (e) {
-          allLogs.push(`\n========== ${pod.name} (error) ==========\n`)
-          allLogs.push(String(e))
-        }
+        try { const logs = await GetPodLogs(tab.namespace, pod.name, container, logLines.value); if (logs) { allLogs.push(`\n=== ${pod.name} ===\n`); allLogs.push(logs) } }
+        catch (e: any) { allLogs.push(`\n=== ${pod.name} (error) ===\n${e}`) }
       }
       tab.rawLogs = allLogs.join('')
     }
-  } catch (e) {
-    tab.rawLogs = `Error loading logs: ${e}`
-  } finally {
-    tab.loading = false
-  }
+  } catch (e: any) { tab.rawLogs = `Error: ${e}` }
+  finally { tab.loading = false }
 }
 
 function downloadLogs(tab: LogsTab) {
@@ -433,94 +281,216 @@ function downloadLogs(tab: LogsTab) {
   document.body.removeChild(element)
 }
 
-function startAutoRefresh() {
-  stopAutoRefresh()
-  autoRefreshInterval = setInterval(() => {
-    const activeTab = tabs.value.find(t => t.id === activeTabId.value)
-    if (activeTab?.type === 'logs') {
-      loadLogs(activeTab as LogsTab)
-    }
-  }, 45000)
-}
+function startAutoRefresh() { stopAutoRefresh(); autoRefreshInterval = setInterval(() => { const t = tabs.value.find((x: any) => x.id === activeTabId.value); if (t?.type === 'logs') loadLogs(t as LogsTab) }, 45000) }
+function stopAutoRefresh() { if (autoRefreshInterval) { clearInterval(autoRefreshInterval); autoRefreshInterval = null } }
 
-function stopAutoRefresh() {
-  if (autoRefreshInterval) {
-    clearInterval(autoRefreshInterval)
-    autoRefreshInterval = null
-  }
-}
-
-// YAML Editor functions
 function setEditorContainer(tabId: string, el: HTMLDivElement | null) {
-  if (el) {
-    editorContainers.set(tabId, el)
-    const tab = tabs.value.find(t => t.id === tabId)
-    if (tab?.type === 'yaml') {
-      nextTick(() => initializeEditor(tab as YamlTab))
-    }
-  }
+  if (el) { editorContainers.set(tabId, el); const tab = tabs.value.find((t: any) => t.id === tabId); if (tab?.type === 'yaml') nextTick(() => initializeEditor(tab as YamlTab)) }
 }
 
 function initializeEditor(tab: YamlTab) {
   const container = editorContainers.get(tab.id)
   if (!container) return
-  
-  // Dispose existing editor if any
   const existingEditor = editors.get(tab.id)
-  if (existingEditor) {
-    existingEditor.dispose()
-  }
-  
-  // Create new editor
-  const editor = monaco.editor.create(container, {
-    value: tab.content,
-    language: 'yaml',
-    theme: 'vs-dark',
-    automaticLayout: true,
-    minimap: { enabled: true },
-    scrollBeyondLastLine: false,
-    wordWrap: 'off',
-    fontSize: 12,
-    fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
-    lineNumbers: 'on',
-    folding: true,
-    formatOnPaste: false,
-    formatOnType: false,
-  })
-  
-  // Update content on change
-  editor.onDidChangeModelContent(() => {
-    tab.content = editor.getValue()
-  })
-  
+  if (existingEditor) { existingEditor.dispose(); editors.delete(tab.id) }
+  const editor = monaco.editor.create(container, { value: tab.content, language: 'yaml', theme: 'vs-dark', automaticLayout: true, minimap: { enabled: true }, scrollBeyondLastLine: false, wordWrap: 'off', fontSize: 12, fontFamily: "'Monaco', 'Menlo', monospace", lineNumbers: 'on', folding: true })
+  editor.onDidChangeModelContent(() => { tab.content = editor.getValue() })
   editors.set(tab.id, editor)
 }
 
-function saveYaml(tab: YamlTab) {
-  emit('apply-yaml', tab.id)
-  tab.originalContent = tab.content
+function saveYaml(tab: YamlTab) { emit('apply-yaml', tab.id); tab.originalContent = tab.content }
+
+// Terminal functions
+function getTerminalContainers(tab: TerminalTab): string[] {
+  // Используем новое свойство containers
+  if (tab.containers && tab.containers.length > 0) {
+    return tab.containers.map(c => c.name)
+  }
+  // Fallback на podObj
+  return tab.podObj?.containers?.map((c: any) => c.name) || []
 }
 
-// Panel controls
+function onTerminalContainerChange(event: Event, tab: TerminalTab) {
+  const target = event.target as HTMLSelectElement
+  tab.container = target.value
+  reconnectTerminal(tab.id)
+}
+
+function setTerminalContainer(tabId: string, el: HTMLDivElement | null) {
+  if (!el) return
+  terminalContainers.set(tabId, el)
+  if (terminalInstances.has(tabId) || initializingTabs.has(tabId)) return
+  const tab = tabs.value.find((t: any) => t.id === tabId)
+  if (!tab || tab.type !== 'terminal') return
+  initializingTabs.add(tabId)
+  terminalStatuses[tabId] = '🟡'
+  terminalConnecting[tabId] = true
+  nextTick().then(() => setTimeout(() => initTerminal(tab as TerminalTab), 200))
+}
+
+async function initTerminal(tab: TerminalTab) {
+  const container = terminalContainers.get(tab.id)
+  if (!container) { terminalStatuses[tab.id] = '🔴'; terminalConnecting[tab.id] = true; initializingTabs.delete(tab.id); return }
+  terminalStatuses[tab.id] = '🟡'
+  terminalConnecting[tab.id] = true
+  try {
+    let shell = '/bin/sh'
+    try { shell = await DetectShell(tab.namespace, tab.pod, tab.container) } catch { shell = '/bin/sh' }
+    
+    // Очищаем контейнер перед созданием терминала
+    container.innerHTML = ''
+    
+    const terminal = new Terminal({ 
+      fontFamily: 'Monaco, Menlo, "Courier New", monospace', 
+      fontSize: 13, 
+      lineHeight: 1.2, 
+      theme: { 
+        background: '#1e1e1e', 
+        foreground: '#d4d4d4', 
+        cursor: '#00ff00',
+        cursorAccent: '#00ff00'
+      }, 
+      cursorBlink: true, 
+      disableStdin: false, 
+      cols: DEFAULT_COLS, 
+      rows: DEFAULT_ROWS, 
+      allowProposedApi: true,
+      scrollback: 10000,
+      tabStopWidth: 4
+    })
+    const fitAddon = new FitAddon()
+    terminal.loadAddon(fitAddon)
+    terminal.open(container)
+    
+    // Ждем пока терминал откроется
+    await nextTick()
+    await new Promise(r => setTimeout(r, 150))
+    
+    // Fit перед фокусом
+    try { fitAddon.fit() } catch {}
+    
+    const sessionID = `term_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    const cols = terminal.cols
+    const rows = terminal.rows
+    const sessionMode = tab.mode === 'attach' ? '' : shell
+    await StartTerminalSession(sessionID, tab.namespace, tab.pod, tab.container, sessionMode, cols, rows)
+    const instance: TerminalInstance = { terminal, fitAddon, sessionID, readLoopAborted: false }
+    terminalInstances.set(tab.id, instance)
+    terminalStatuses[tab.id] = '🟢'
+    terminalConnecting[tab.id] = false
+    
+    // Обработчики событий
+    terminal.onData((data: string) => { if (!instance.sessionID) return; const bytes = Array.from(new TextEncoder().encode(data)); WriteTerminal(instance.sessionID, bytes).catch(() => {}) })
+    terminal.onResize(({ cols, rows }) => debouncedResize(tab.id, cols, rows))
+    
+    // ResizeObserver для контейнера
+    instance.resizeObserver = new ResizeObserver(() => safeFit(tab.id))
+    instance.resizeObserver.observe(container)
+    
+    // Фокус при клике
+    container.addEventListener('mousedown', () => { terminal.focus() })
+    container.addEventListener('click', () => { terminal.focus() })
+    
+    await new Promise(r => setTimeout(r, 100))
+    
+    // Финальный fit и фокус
+    try { fitAddon.fit() } catch {}
+    readLoop(tab.id, instance)
+    terminal.focus()
+    
+    // Скролл вниз при подключении
+    const viewport = container.querySelector('.xterm-viewport') as HTMLElement
+    if (viewport) {
+      await nextTick()
+      viewport.scrollTop = viewport.scrollHeight
+    }
+  } catch (e: any) { console.error('Terminal init error:', e); terminalStatuses[tab.id] = '🔴'; terminalConnecting[tab.id] = true }
+  initializingTabs.delete(tab.id)
+}
+
+function safeFit(tabId: string) { const instance = terminalInstances.get(tabId); if (!instance?.fitAddon) return; try { instance.fitAddon.fit() } catch {} }
+
+function debouncedResize(tabId: string, cols: number, rows: number) {
+  const instance = terminalInstances.get(tabId)
+  if (!instance?.sessionID) return
+  if (instance.resizeTimer) clearTimeout(instance.resizeTimer)
+  instance.resizeTimer = setTimeout(async () => { try { await ResizeTerminal(instance.sessionID, cols, rows) } catch {} }, 150)
+}
+
+async function readLoop(tabId: string, instance: TerminalInstance) {
+  const capturedSessionID = instance.sessionID
+  while (!instance.readLoopAborted && capturedSessionID === instance.sessionID && instance.terminal) {
+    try {
+      const result: any = await ReadTerminal(capturedSessionID)
+      if (!result || capturedSessionID !== instance.sessionID) {
+        instance.terminal?.write('\r\n[Session ended]\r\n')
+        terminalStatuses[tabId] = '🔴'
+        terminalConnecting[tabId] = true
+        break
+      }
+      if (typeof result === 'string' && result.length > 0) {
+        try {
+          const binary = atob(result)
+          instance.terminal?.write(binary)
+        } catch {
+          instance.terminal?.write(result)
+        }
+      }
+    } catch (e: any) {
+      if (!instance.readLoopAborted && capturedSessionID === instance.sessionID) {
+        instance.terminal?.write(`\r\n[Connection lost]\r\n`)
+        terminalStatuses[tabId] = '🔴'
+        terminalConnecting[tabId] = true
+      }
+      break
+    }
+  }
+}
+
+function cleanupTerminal(tabId: string, instance: TerminalInstance) {
+  instance.readLoopAborted = true
+  if (instance.resizeTimer) clearTimeout(instance.resizeTimer)
+  if (instance.sessionID) CloseTerminal(instance.sessionID).catch(() => {})
+  if (instance.resizeObserver) instance.resizeObserver.disconnect()
+  try { instance.fitAddon = undefined as any } catch {}
+  try { instance.terminal.dispose() } catch {}
+  terminalStatuses[tabId] = '🔴'
+  terminalConnecting[tabId] = true
+}
+
+function cleanupAllTerminals() {
+  for (const [tabId, instance] of terminalInstances) cleanupTerminal(tabId, instance)
+  terminalInstances.clear()
+  terminalContainers.clear()
+  initializingTabs.clear()
+}
+
+async function reconnectTerminal(tabId: string) {
+  const instance = terminalInstances.get(tabId)
+  if (instance) cleanupTerminal(tabId, instance)
+  terminalInstances.delete(tabId)
+  initializingTabs.delete(tabId)
+  const tab = tabs.value.find((t: any) => t.id === tabId)
+  if (tab) { initializingTabs.add(tabId); await initTerminal(tab as TerminalTab) }
+}
+
+// Panel resize and drag functions
 function startDrag(e: MouseEvent) {
   isDragging.value = true
-  dragStartX.value = e.clientX - panelX.value
-  dragStartY.value = e.clientY - panelY.value
-  
-  const onMouseMove = (moveEvent: MouseEvent) => {
-    if (!isDragging.value) return
-    panelX.value = moveEvent.clientX - dragStartX.value
-    panelY.value = moveEvent.clientY - dragStartY.value
-  }
-  
-  const onMouseUp = () => {
-    isDragging.value = false
-    document.removeEventListener('mousemove', onMouseMove)
-    document.removeEventListener('mouseup', onMouseUp)
-  }
-  
-  document.addEventListener('mousemove', onMouseMove)
-  document.addEventListener('mouseup', onMouseUp)
+  dragStartX.value = e.clientX
+  dragStartY.value = e.clientY
+  dragStartLeft.value = panelX.value
+  dragStartTop.value = panelY.value
+}
+
+function stopDrag() { isDragging.value = false }
+
+function handleDrag(e: MouseEvent) {
+  if (!isDragging.value) return
+  const deltaX = e.clientX - dragStartX.value
+  const deltaY = e.clientY - dragStartY.value
+  panelX.value = dragStartLeft.value + deltaX
+  panelY.value = dragStartTop.value + deltaY
 }
 
 function startResize(e: MouseEvent) {
@@ -529,45 +499,19 @@ function startResize(e: MouseEvent) {
   resizeStartY.value = e.clientY
   resizeStartWidth.value = panelWidth.value
   resizeStartHeight.value = panelHeight.value
-  
-  const onMouseMove = (moveEvent: MouseEvent) => {
-    if (!isResizing.value) return
-    const deltaX = moveEvent.clientX - resizeStartX.value
-    const deltaY = moveEvent.clientY - resizeStartY.value
-    
-    panelWidth.value = Math.max(400, resizeStartWidth.value + deltaX)
-    panelHeight.value = Math.max(250, resizeStartHeight.value + deltaY)
-  }
-  
-  const onMouseUp = () => {
-    isResizing.value = false
-    document.removeEventListener('mousemove', onMouseMove)
-    document.removeEventListener('mouseup', onMouseUp)
-  }
-  
-  document.addEventListener('mousemove', onMouseMove)
-  document.addEventListener('mouseup', onMouseUp)
+  e.preventDefault()
 }
 
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
+function stopResize() { isResizing.value = false }
 
-// Clean up editors when tabs are closed
-watch(tabs, (newTabs) => {
-  // Clean up editors for closed tabs
-  const tabIds = new Set(newTabs.map(t => t.id))
-  editors.forEach((editor, id) => {
-    if (!tabIds.has(id)) {
-      editor.dispose()
-      editors.delete(id)
-      editorContainers.delete(id)
-    }
-  })
-}, { deep: true })
+function handleResize(e: MouseEvent) {
+  if (!isResizing.value) return
+  const deltaX = e.clientX - resizeStartX.value
+  const deltaY = e.clientY - resizeStartY.value
+  panelWidth.value = Math.max(400, resizeStartWidth.value + deltaX)
+  panelHeight.value = Math.max(250, resizeStartHeight.value + deltaY)
+}
 </script>
-
-
 
 <style scoped>
 .tabbed-panel {
@@ -623,24 +567,11 @@ watch(tabs, (newTabs) => {
   min-width: 140px;
 }
 
-.tab:hover {
-  background: #252a3a;
-}
+.tab:hover { background: #252a3a; }
+.tab.active { background: #2a2b3a; border-bottom-color: #2a2b3a; color: #e0e0e0; }
 
-.tab.active {
-  background: #2a2b3a;
-  border-bottom-color: #2a2b3a;
-  color: #e0e0e0;
-}
-
-.tab-icon {
-  font-size: 14px;
-}
-
-.tab-name {
-  font-size: 12px;
-  font-weight: 500;
-}
+.tab-icon { font-size: 14px; }
+.tab-name { font-size: 12px; font-weight: 500; }
 
 .tab-close {
   background: none;
@@ -653,9 +584,7 @@ watch(tabs, (newTabs) => {
   margin-left: auto;
 }
 
-.tab-close:hover {
-  color: #999;
-}
+.tab-close:hover { color: #999; }
 
 .btn-close {
   background: none;
@@ -667,9 +596,7 @@ watch(tabs, (newTabs) => {
   transition: color 0.2s;
 }
 
-.btn-close:hover {
-  color: #fff;
-}
+.btn-close:hover { color: #fff; }
 
 .panel-content {
   flex: 1;
@@ -678,8 +605,7 @@ watch(tabs, (newTabs) => {
   overflow: hidden;
 }
 
-/* Остальные стили остаются такими же, как в предыдущей версии */
-/* Logs View Styles */
+/* Logs View */
 .logs-view {
   display: flex;
   flex-direction: column;
@@ -709,49 +635,18 @@ watch(tabs, (newTabs) => {
   white-space: nowrap;
 }
 
-.select-pod,
-.select-container {
-  min-width: 120px;
-  background: #1a1b26;
-  color: #d4d4d4;
-}
-
-.select-pod option,
-.select-container option {
-  background: #232430;
-  color: #d4d4d4;
-}
-
-.select-pod,
-.select-container,
-.input-lines,
-.input-search {
+.select-pod, .select-container, .input-lines, .input-search {
   background: #1a1b26;
   border: 1px solid #3b3d5c;
   color: #d4d4d4;
   padding: 6px 8px;
   border-radius: 3px;
   font-size: 12px;
-  font-family: inherit;
 }
 
-.input-lines {
-  width: 60px;
-}
-
-.search-group {
-  flex: 1;
-  min-width: 200px;
-}
-
-.input-search {
-  width: 100%;
-  padding: 6px 10px;
-}
-
-.input-search::placeholder {
-  color: #666;
-}
+.input-lines { width: 60px; }
+.search-group { flex: 1; min-width: 200px; }
+.input-search { width: 100%; padding: 6px 10px; }
 
 .toolbar-actions {
   display: flex;
@@ -769,34 +664,11 @@ watch(tabs, (newTabs) => {
   transition: all 0.2s;
 }
 
-.btn-action:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
+.btn-action:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.btn-action.active { background: rgba(79, 99, 255, 0.2); border-color: #4f63ff; color: #4f63ff; }
+.btn-refresh { padding: 6px 8px; display: flex; align-items: center; justify-content: center; }
 
-.btn-action.active {
-  background: rgba(79, 99, 255, 0.2);
-  border-color: #4f63ff;
-  color: #4f63ff;
-}
-
-.btn-action.active:hover {
-  background: rgba(79, 99, 255, 0.3);
-}
-
-.btn-refresh {
-  padding: 6px 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.icon-svg {
-  width: 14px;
-  height: 14px;
-  stroke-width: 2;
-  filter: invert(1);
-}
+.icon-svg { width: 14px; height: 14px; stroke-width: 2; filter: invert(1); }
 
 .logs-info {
   padding: 8px 16px;
@@ -804,7 +676,6 @@ watch(tabs, (newTabs) => {
   border-bottom: 1px solid #3b3d5c;
   font-size: 12px;
   color: #d4d4d4;
-  text-align: left;
 }
 
 .logs-content {
@@ -816,24 +687,17 @@ watch(tabs, (newTabs) => {
 .logs-text {
   margin: 0;
   padding: 16px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-family: 'Monaco', 'Menlo', monospace;
   font-size: 12px;
   line-height: 1.5;
   color: #d4d4d4;
   white-space: pre-wrap;
   word-wrap: break-word;
-  text-align: left;
-  word-break: break-word;
 }
 
-.logs-text.no-wrap {
-  white-space: pre;
-  word-wrap: normal;
-  word-break: normal;
-  overflow-x: auto;
-}
+.logs-text.no-wrap { white-space: pre; word-wrap: normal; word-break: normal; overflow-x: auto; }
 
-.logs-loading {
+.logs-loading, .logs-empty {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -842,22 +706,9 @@ watch(tabs, (newTabs) => {
   font-size: 14px;
 }
 
-.logs-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: #666;
-  font-size: 14px;
-}
+.search-highlight { background-color: #7a5e00; color: #ffd700; font-weight: bold; }
 
-.search-highlight {
-  background-color: #7a5e00;
-  color: #ffd700;
-  font-weight: bold;
-}
-
-/* YAML Editor View Styles */
+/* YAML View */
 .yaml-view {
   display: flex;
   flex-direction: column;
@@ -871,8 +722,6 @@ watch(tabs, (newTabs) => {
   padding: 10px 16px;
   border-bottom: 1px solid #3b3d5c;
   background: #252526;
-  flex-shrink: 0;
-  gap: 16px;
 }
 
 .editor-title {
@@ -880,49 +729,11 @@ watch(tabs, (newTabs) => {
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  flex: 1;
-  min-width: 0;
 }
 
-.editor-icon {
-  font-size: 16px;
-  flex-shrink: 0;
-}
-
-.editor-resource {
-  color: #d4d4d4;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-weight: 500;
-}
-
-.editor-resource strong {
-  color: #60a5fa;
-}
-
-.editor-namespace {
-  color: #6b6d8a;
-  font-size: 12px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.ns-link {
-  color: #60a5fa;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.ns-link:hover {
-  text-decoration: underline;
-}
-
-.editor-actions {
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
-}
+.editor-namespace { color: #6b6d8a; font-size: 12px; }
+.ns-link { color: #60a5fa; text-decoration: none; }
+.ns-link:hover { text-decoration: underline; }
 
 .btn {
   padding: 6px 12px;
@@ -930,38 +741,146 @@ watch(tabs, (newTabs) => {
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
-  transition: all 0.15s;
 }
 
-.btn-sm {
+.btn-sm { padding: 4px 8px; }
+.btn-save { background: #10b981; color: white; }
+.btn-save:hover { background: #059669; }
+
+.editor-container { flex: 1; overflow: hidden; position: relative; }
+
+/* Terminal View */
+.terminal-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.terminal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid #3b3d5c;
+  background: #252526;
+}
+
+.terminal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #d4d4d4;
+}
+
+.terminal-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.container-select {
+  background: #1a1b26;
+  border: 1px solid #3b3d5c;
+  color: #d4d4d4;
   padding: 4px 8px;
-  font-size: 11px;
+  border-radius: 3px;
+  font-size: 12px;
+  min-width: 100px;
+  max-width: 200px;
 }
 
-.btn-save {
-  background: #10b981;
-  color: white;
-}
+.status-indicator { font-size: 12px; }
 
-.btn-save:hover {
-  background: #059669;
-}
-
-.editor-container {
+.terminal-container {
   flex: 1;
   overflow: hidden;
+  padding: 0;
+  margin: 0;
   position: relative;
+  background: #1e1e1e;
+  padding-left: 8px !important;
 }
 
-/* Common input/select focus styles */
-select:focus,
-input:focus {
-  outline: none;
-  border-color: #4a5568;
-  background: rgba(255, 255, 255, 0.05);
+:deep(.xterm) {
+  width: 100% !important;
+  height: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  position: relative !important;
+  left: 0 !important;
 }
 
-/* Resize handle */
+:deep(.xterm-cursor-layer) {
+  z-index: 10 !important;
+}
+
+:deep(.xterm-screen) {
+  margin: 0 !important;
+  padding: 0 !important;
+  position: relative !important;
+  left: 20px !important;
+  text-align: left !important;
+}
+
+:deep(.xterm-rows) {
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+}
+
+:deep(.xterm-viewport) {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 12px !important;
+  z-index: 100 !important;
+}
+
+:deep(.xterm-scroll-area) {
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+}
+
+:deep(.xterm-char-measure-element) {
+  position: absolute !important;
+  left: -10000px !important;
+}
+
+/* Убираем отступы у строк терминала */
+:deep(.xterm .xterm-row) {
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+}
+
+/* Скроллбар для терминала */
+:deep(.xterm-viewport::-webkit-scrollbar) {
+  width: 10px !important;
+}
+
+:deep(.xterm-viewport::-webkit-scrollbar-track) {
+  background: #1e1e1e !important;
+}
+
+:deep(.xterm-viewport::-webkit-scrollbar-thumb) {
+  background: #444 !important;
+  border-radius: 5px !important;
+}
+
+:deep(.xterm-viewport::-webkit-scrollbar-thumb:hover) {
+  background: #555 !important;
+}
+
+.no-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #666;
+}
+
 .resize-handle {
   position: absolute;
   bottom: 0;
@@ -971,50 +890,16 @@ input:focus {
   cursor: se-resize;
   background: linear-gradient(135deg, transparent 50%, #3b3d5c 50%);
   opacity: 0.5;
-  transition: opacity 0.2s;
 }
 
-.resize-handle:hover {
-  opacity: 1;
-}
+.resize-handle:hover { opacity: 1; }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #1a1b26; }
+::-webkit-scrollbar-thumb { background: #3b3d5c; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #4a5568; }
 
-::-webkit-scrollbar-track {
-  background: #1a1b26;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #3b3d5c;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #4a5568;
-}
-
-/* Monaco editor overrides */
-:deep(.monaco-editor) {
-  background-color: #1a1b26 !important;
-}
-
-:deep(.monaco-editor .margin) {
-  background-color: #1a1b26 !important;
-}
-
-:deep(.monaco-editor .monaco-editor-background) {
-  background-color: #1a1b26 !important;
-}
-
-:deep(.monaco-editor .minimap) {
-  border-left: 1px solid #3b3d5c;
-}
-
-:deep(.monaco-editor .line-numbers) {
-  color: #666 !important;
-}
+:deep(.monaco-editor) { background-color: #1a1b26 !important; }
+:deep(.monaco-editor .margin) { background-color: #1a1b26 !important; }
+:deep(.monaco-editor .minimap) { border-left: 1px solid #3b3d5c; }
 </style>
