@@ -24,6 +24,10 @@ export default function useResourceListBase(resourceType: string) {
       { label: 'Shell', action: 'shell' },
       { label: 'Attach', action: 'attach' }
     )
+    // Добавляем Evict перед Delete
+    defaultMenuItems.splice(defaultMenuItems.length - 1, 0,
+      { label: 'Evict', action: 'evict', danger: true }
+    )
   }
 
   // Кастомизация по типу ресурса (если нужно расширять)

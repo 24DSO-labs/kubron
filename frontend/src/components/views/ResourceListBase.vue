@@ -27,7 +27,7 @@
     <div v-else class="empty">{{ emptyMessage }}</div>
     
     <!-- Delete Confirmation Dialog -->
-    <DeleteConfirmationDialog
+    <ConfirmationDialog
       v-model="showDeleteDialog"
       :resource-type="resourceType"
       :resource-name="itemToDelete?.name || ''"
@@ -92,7 +92,7 @@
 
 <script lang="ts" setup>
 import ContentHeader from '../ContentHeader.vue'
-import DeleteConfirmationDialog from '../utils/DeleteConfirmationDialog.vue'
+import ConfirmationDialog from '../utils/ConfirmationDialog.vue'
 import { ref, onUnmounted } from 'vue'
 import useResourceListBase from '../../composables/useResourceListBase'
 import { useResourceDetailOpener } from '../../composables/useDetailPanel'

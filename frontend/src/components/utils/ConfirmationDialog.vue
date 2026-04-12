@@ -10,7 +10,7 @@
         <button class="btn btn-cancel" @click="handleCancel">Отмена</button>
         <button class="btn btn-danger" @click="handleConfirm" :disabled="isDeleting">
           <span v-if="isDeleting" class="spinner"></span>
-          Удалить
+          Подтвердить
         </button>
       </div>
     </div>

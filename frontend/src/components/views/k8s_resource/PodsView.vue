@@ -12,20 +12,65 @@
       @select="onSelect"
       @contextAction="onContextAction"
     />
+    
+    <!-- Dialog подтверждения Evict -->
+    <ConfirmationDialog
+      v-model="showEvictDialog"
+      resource-type="pod"
+      :resource-name="podToEvict?.name || ''"
+      :namespace="podToEvict?.namespace"
+      :title="`Evict pod ${podToEvict?.name}?`"
+      @confirm="confirmEvict"
+    />
   </div>
 </template>
 
 <script lang="ts" setup>
+import { ref } from 'vue'
 import { useK8s } from '../../../composables/useK8s'
 import useResourceView from '../../../composables/useResourceView'
 import ResourceListBase from '../ResourceListBase.vue'
+import ConfirmationDialog from '../../utils/ConfirmationDialog.vue'
 import type { PodInfo, Column } from '../../../types'
 import { computed } from 'vue'
+import { EvictPod } from '../../../../wailsjs/go/main/App'
 
 
 const { filteredPods, refreshData, search, mergePodMetrics, podMetrics } = useK8s()
 
-const { onSelect, onContextAction } = useResourceView('pod')
+const { onSelect, onContextAction: baseOnContextAction } = useResourceView('pod')
+
+// Состояние для диалога Evict
+const showEvictDialog = ref(false)
+const podToEvict = ref<any>(null)
+
+// Кастомный обработчик контекстного меню для подов с поддержкой evict
+const onContextAction = (action: string, item: any) => {
+  if (action === 'evict') {
+    podToEvict.value = item
+    showEvictDialog.value = true
+    return
+  }
+  // Остальные действия передаём в базовый обработчик
+  baseOnContextAction(action, item)
+}
+
+// Подтверждение Evict
+const confirmEvict = () => {
+  if (!podToEvict.value) return
+  
+  EvictPod(podToEvict.value.namespace || '', podToEvict.value.name)
+    .then(() => {
+      console.log(`Pod ${podToEvict.value.name} evicted`)
+      refreshData()
+    })
+    .catch((err: any) => {
+      console.error('Error evicting pod:', err)
+    })
+    .finally(() => {
+      podToEvict.value = null
+    })
+}
 
 const itemsWithMetrics = computed(() => {
   return mergePodMetrics(filteredPods.value, podMetrics.value)
