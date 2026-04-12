@@ -129,6 +129,40 @@ function pct(a: number, b: number): string {
   return Math.round((a / b) * 100) + '%'
 }
 
+// --- Metrics Formatters ---
+function formatCpu(cpuStr: string | undefined): string {
+  if (!cpuStr) return '—'
+  try {
+    const cpu = parseFloat(cpuStr)
+    return isNaN(cpu) ? '—' : cpu.toFixed(3)
+  } catch {
+    return '—'
+  }
+}
+
+function formatMemory(memStr: string | undefined): string {
+  if (!memStr) return '—'
+  try {
+    const bytes = parseFloat(memStr)
+    if (isNaN(bytes)) return '—'
+    const mib = bytes / 1024 / 1024
+    return mib.toFixed(1) + 'MiB'
+  } catch {
+    return '—'
+  }
+}
+
+function mergePodMetrics(pods: PodInfo[], metrics: PodMetricsInfo[]) {
+  return pods.map(pod => {
+    const metric = metrics.find(m => m.name === pod.name && m.namespace === pod.namespace)
+    return {
+      ...pod,
+      cpu: formatCpu(metric?.totalCpu),
+      memory: formatMemory(metric?.totalMem)
+    }
+  })
+}
+
 // --- Filters ---
 function filterBySearch<T extends { name: string; namespace?: string }>(items: T[] | null | undefined): T[] {
   const arr = Array.isArray(items) ? items : []
@@ -740,8 +774,11 @@ async function applyYAML(content: string, kind: string, namespace: string, name:
 // --- Metrics ---
 async function loadPodMetrics() {
   try {
-    podMetrics.value = await GetPodMetrics(selectedNamespace.value)
-  } catch (e: any) { podMetrics.value = [] }
+    const metrics = await GetPodMetrics(selectedNamespace.value)
+    podMetrics.value = metrics || []
+  } catch (e: any) { 
+    podMetrics.value = [] 
+  }
 }
 
 async function loadNodeMetrics() {
@@ -933,7 +970,7 @@ export function useK8s() {
     filteredServiceAccounts, filteredRoles, filteredRoleBindings, filteredClusterRoles, filteredClusterRoleBindings,
 
     // Helpers
-    statusClass, pct,
+    statusClass, pct, formatCpu, formatMemory, mergePodMetrics,
 
     // Actions
     loadContexts, connect, disconnect, loadNamespaces,

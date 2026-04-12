@@ -2,123 +2,86 @@
   <div>
     <ResourceListBase
       :items="itemsWithMetrics"
-      :search="localSearch"
+      :search="search"
       resource-title="Pods"
       empty-message="Нет подов"
-      resource-type="pods"
+      resource-type="pod"
       :custom-columns="columns"
       @refresh="refreshData"
-      @search="(v) => { localSearch = v; emit('search', v) }"
+      @search="(v) => search = v"
       @select="onSelect"
       @contextAction="onContextAction"
-      @shell:open="onShellOpen"
-      @attach:open="onAttachOpen"
-      @logs:open="onLogsOpen"
     />
   </div>
 </template>
 
 <script lang="ts" setup>
-import type { PodInfo, PodMetricsInfo, Column } from '../../../types'
 import { useK8s } from '../../../composables/useK8s'
-import ResourceListBase from '../ResourceListBase.vue'
-import PodContainersCellComponent from './PodContainersCellComponent.vue'
-import { computed, ref } from 'vue'
 import useResourceView from '../../../composables/useResourceView'
+import ResourceListBase from '../ResourceListBase.vue'
+import type { PodInfo, Column } from '../../../types'
+import { computed } from 'vue'
 
-const { filteredPods, refreshData, search } = useK8s()
 
-const props = defineProps<{
-  podMetrics: PodMetricsInfo[]
-}>()
-
-const emit = defineEmits<{
-  (e: 'search', val: string): void
-}>()
-
-const localSearch = ref(search.value)
+const { filteredPods, refreshData, search, mergePodMetrics, podMetrics } = useK8s()
 
 const { onSelect, onContextAction } = useResourceView('pod')
 
-// Merge metrics with pods
 const itemsWithMetrics = computed(() => {
-  return filteredPods.value.map(pod => {
-    const metric = props.podMetrics.find(m => m.name === pod.name && m.namespace === pod.namespace)
-    return {
-      ...pod,
-      cpu: formatCpu(metric?.totalCpu),
-      memory: formatMemory(metric?.totalMem)
-    }
-  })
+  return mergePodMetrics(filteredPods.value, podMetrics.value)
 })
 
 const columns: Column[] = [
-  { key: 'name', label: 'Name', className: 'resource-name' },
-  { key: 'namespace', label: 'Namespace', className: 'ns-label' },
+  { key: 'name', label: 'NAME', className: 'resource-name' },
+  { key: 'namespace', label: 'NAMESPACE', className: 'ns-label' },
   { key: 'cpu', label: 'CPU', className: 'mono metric-cell' },
-  { key: 'memory', label: 'Memory', className: 'mono metric-cell' },
-  { key: 'containers', label: 'Containers', component: PodContainersCellComponent },
-  { key: 'status', label: 'Status' },
-  { key: 'restarts', label: 'Restarts' },
-  { key: 'age', label: 'Age' },
-  { key: 'node', label: 'Node' },
-  { key: 'qos', label: 'QoS' }
+  { key: 'memory', label: 'MEMORY', className: 'mono metric-cell' },
+  { 
+    key: 'containers', 
+    label: 'CONTAINERS',
+    formatter: (item) => {
+      if (!item?.containers) return ''
+      return item.containers.map((c: any) => {
+        let color = 'red'
+        if (c.isInit) color = 'gray'
+        else if (c.ready) color = 'green'
+        else if (c.state?.includes('wait') || c.state?.includes('Creat') || c.state?.includes('Pend')) color = 'yellow'
+        else if (c.state === 'terminated' || c.state?.includes('Complet')) color = 'gray'
+        return `<span class="container-square square-${color}" title="${c.name}"></span>`
+      }).join('')
+    }
+  },
+  { key: 'status', label: 'STATUS', className: 'status-label' },
+  { key: 'restarts', label: 'RESTARTS' },
+  { key: 'age', label: 'AGE' },
+  { key: 'node', label: 'NODE' },
+  { key: 'qos', label: 'QOS' }
 ]
 
-function formatCpu(cpuStr: string | undefined): string {
-  if (!cpuStr) return '—'
-  try {
-    const cpu = parseFloat(cpuStr)
-    return isNaN(cpu) ? '—' : cpu.toFixed(3)
-  } catch {
-    return '—'
-  }
-}
-
-function formatMemory(memStr: string | undefined): string {
-  if (!memStr) return '—'
-  try {
-    const bytes = parseFloat(memStr)
-    if (isNaN(bytes)) return '—'
-    const mib = bytes / 1024 / 1024
-    return mib.toFixed(1) + 'MiB'
-  } catch {
-    return '—'
-  }
-}
-
-function onShellOpen(namespace: string, podName: string, container: string) {
-  const pod = filteredPods.value.find(p => p.name === podName && p.namespace === namespace)
-  if (pod) {
-    onContextAction(`shell:${container}`, pod)
-  }
-}
-
-function onAttachOpen(namespace: string, podName: string, container: string) {
-  const pod = filteredPods.value.find(p => p.name === podName && p.namespace === namespace)
-  if (pod) {
-    onContextAction(`attach:${container}`, pod)
-  }
-}
-
-function onLogsOpen(namespace: string, podName: string, container: string) {
-  const pod = filteredPods.value.find(p => p.name === podName && p.namespace === namespace)
-  if (pod) {
-    onContextAction(`logs:${container}`, pod)
-  }
-}
 </script>
 
 <style scoped>
-.resource-name {
-  font-weight: 500;
+.container-square {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  cursor: help;
 }
 
-.ns-label {
-  color: #868d8a;
+.square-green {
+  background-color: #4ade80;
 }
 
-.metric-cell {
-  font-family: monospace;
+.square-red {
+  background-color: #ef4444;
+}
+
+.square-yellow {
+  background-color: #facc15;
+}
+
+.square-gray {
+  background-color: #868d8a;
 }
 </style>
