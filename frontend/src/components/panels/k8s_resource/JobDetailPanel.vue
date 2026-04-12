@@ -2,13 +2,21 @@
   <ResourceDetailsBase 
     v-if="jobData"
     :resource="jobData" 
-    resource-icon="📦"
+    :resource-type="'job'"
+    resource-icon=""
     :title="jobData.name || 'Job'"
     @close="$emit('close')"
     @edit="handleEdit"
     @delete="handleDelete"
     @namespace-click="handleNamespaceClick"
+    @context-action="handleContextAction"
   >
+    <template #actions>
+      <button class="btn-action btn-retry" title="Retry job" @click.stop="handleRetry">
+        <img :src="restartIcon" alt="Retry" class="btn-icon" />
+      </button>
+    </template>
+
     <template #properties>
       <div class="resource-properties">
         <div class="property-section">
@@ -94,6 +102,7 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
 import ResourceDetailsBase from '../ResourceDetailsBase.vue'
+import restartIcon from '../../../assets/icons/restart.svg'
 
 interface JobData {
   name: string
@@ -114,7 +123,13 @@ interface JobData {
 }
 
 const props = defineProps<{ resource: any }>()
-const emit = defineEmits<{ (e: 'close'): void; (e: 'edit'): void; (e: 'delete'): void; (e: 'namespaceClick', ns: string): void }>()
+const emit = defineEmits<{
+  (e: 'close'): void
+  (e: 'edit'): void
+  (e: 'delete'): void
+  (e: 'namespaceClick', ns: string): void
+  (e: 'contextAction', action: string): void
+}>()
 
 // Адаптер для поддержки обоих форматов данных (JobInfo и Kubernetes resource)
 const jobData = computed<JobData>(() => {
@@ -140,17 +155,19 @@ const jobData = computed<JobData>(() => {
     }
   }
   // Если это JobInfo формат - используем как есть
+  // JobInfo имеет поля: name, namespace, completions, succeeded, failed, active, duration, age, status
   return {
     name: r.name,
     namespace: r.namespace,
     uid: r.uid,
-    creationTimestamp: r.created || r.age,
-    parallelism: r.parallelism,
-    completions: r.completions,
-    backoffLimit: r.backoffLimit,
-    active: r.active,
-    succeeded: r.succeeded,
-    failed: r.failed,
+    // Для JobInfo age - это строка вида "2d", нужно преобразовать в дату
+    creationTimestamp: r.creationTimestamp || r.created || (r.age ? ageToDate(r.age) : ''),
+    parallelism: r.parallelism !== undefined ? r.parallelism : 1,
+    completions: r.completions !== undefined ? r.completions : 1,
+    backoffLimit: r.backoffLimit !== undefined ? r.backoffLimit : 6,
+    active: r.active !== undefined ? r.active : 0,
+    succeeded: r.succeeded !== undefined ? r.succeeded : 0,
+    failed: r.failed !== undefined ? r.failed : 0,
     conditions: r.conditions || [],
     containers: r.containers || [],
     metadata: null,
@@ -158,6 +175,23 @@ const jobData = computed<JobData>(() => {
     status: null
   }
 })
+
+// Helper function to convert age string (e.g., "2d", "3h", "5m") to ISO date string
+function ageToDate(age: string): string {
+  if (!age || age === '—') return ''
+  const now = new Date()
+  const match = age.match(/(\d+)([smhdw])/)
+  if (!match) return ''
+  const value = parseInt(match[1])
+  const unit = match[2]
+  const diffMs = 
+    unit === 's' ? value * 1000 :
+    unit === 'm' ? value * 60 * 1000 :
+    unit === 'h' ? value * 60 * 60 * 1000 :
+    unit === 'd' ? value * 24 * 60 * 60 * 1000 :
+    unit === 'w' ? value * 7 * 24 * 60 * 60 * 1000 : 0
+  return new Date(now.getTime() - diffMs).toISOString()
+}
 
 const container = computed(() => {
   const containers = jobData.value?.containers
@@ -201,8 +235,13 @@ const formatAgeRelative = (ts: string): string => {
 }
 
 const handleEdit = () => emit('edit')
-const handleDelete = () => emit('delete')
+const handleDelete = () => emit('contextAction', 'delete')
 const handleNamespaceClick = (ns: string) => emit('namespaceClick', ns)
+const handleContextAction = (action: string) => emit('contextAction', action)
+const handleRetry = () => {
+  console.log('Retry button clicked')
+  emit('contextAction', 'retry')
+}
 </script>
 
 <style scoped>
