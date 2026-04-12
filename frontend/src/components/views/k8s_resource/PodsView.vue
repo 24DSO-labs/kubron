@@ -44,7 +44,7 @@ const { onSelect, onContextAction: baseOnContextAction } = useResourceView('pod'
 const showEvictDialog = ref(false)
 const podToEvict = ref<any>(null)
 
-// Кастомный обработчик контекстного меню для подов с поддержкой evict
+// Кастомный обработчик контекстного меню 
 const onContextAction = (action: string, item: any) => {
   if (action === 'evict') {
     podToEvict.value = item
