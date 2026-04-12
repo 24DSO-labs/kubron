@@ -146,9 +146,6 @@
       @delete="() => onClusterRoleBindingDelete('', selectedClusterRoleBinding.name)" />
 
     
-    <!-- Tabbed Actions Panel (Terminal/Logs/Attach) -->
-    <TabbedActionsPanel v-if="podActions.tabbedActionsOpen.value" :pod-actions="podActions"
-      @close="podActions.closeTabbedActions()" @evict="podActions.evictPod()" />
 
     <TabbedPodActionsPanel v-if="logsPanel.isOpen.value" :resource="logsPanel.logsData.value?.resource"
       :selectedContainer="logsPanel.logsData.value?.selectedContainer"
@@ -164,7 +161,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useK8s } from './composables/useK8s'
 import { useClusters } from './composables/useClusters'
 import { usePodActions } from './composables/usePodActions'
@@ -196,7 +193,6 @@ const ClusterRoleBindingDetailPanel = defineAsyncComponent(() => import('./compo
 const ConfigMapPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ConfigMapPanel.vue'))
 const TabbedPanel = defineAsyncComponent(() => import('./components/utils/TabbedPanel.vue'))
 
-const TabbedPodActionsPanel = defineAsyncComponent(() => import('./components/panels/TabbedPodActionsPanel.vue'))
 const NamespaceDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/NamespaceDetailPanel.vue'))
 const ReplicaSetDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ReplicaSetDetailPanel.vue'))
 const DaemonSetDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/DaemonSetDetailPanel.vue'))
@@ -280,16 +276,6 @@ const podActions = usePodActions({
   refreshData,
   deletePodByName,
   showYAML,
-})
-
-const tabbedActionsPanel = ref<any>(null)
-
-import { watch, nextTick } from 'vue'
-
-watch(tabbedActionsPanel, (newVal) => {
-  if (newVal) {
-    podActions.setTabbedActionsPanelRef(newVal)
-  }
 })
 
 // ─── Local State ───
@@ -431,6 +417,7 @@ const activeViewEvents = computed(() => {
   if (view === 'pods') {
     events.select = openPodDetail
     events.attachPod = (pod: any, container?: string) => {
+      console.log('[App] Событие attachPod', { pod, container })
       if (container) {
         podActions.openAttachWithContainer(container, pod)
       } else {
@@ -438,6 +425,7 @@ const activeViewEvents = computed(() => {
       }
     }
     events.shell = (pod: any, container?: string) => {
+      console.log('[App] Событие shell', { pod, container })
       if (container) {
         podActions.openShellWithContainer(container, pod)
       } else {
@@ -446,6 +434,7 @@ const activeViewEvents = computed(() => {
     }
     events.evict = podActions.evictPod
     events.logs = (pod: any, container?: string) => {
+      console.log('[App] Событие logs', { pod, container })
       if (container) {
         podActions.openLogs(pod, container)
       } else {
@@ -456,18 +445,37 @@ const activeViewEvents = computed(() => {
     events.delete = podActions.removePod
     // События из PodDetailPanel для TabbedPodActionsPanel
     events.attach = (data: any) => {
+      console.log('[App] Событие attach', data)
       if (data.pod) {
         selectedPod.value = data.pod
         podActions.openAttachWithContainer(data.container, data.pod)
       }
     }
     events.terminal = (data: any) => {
+      console.log('[App] Событие terminal', data)
       if (data.pod) {
         selectedPod.value = data.pod
         podActions.openShellWithContainer(data.container, data.pod)
       }
     }
-    events.openLogs = (data) => logsPanel.openLogs(data)
+    events.openLogs = (data) => {
+      console.log('[App] Событие openLogs', data)
+      logsPanel.openLogs(data)
+    }
+    // Универсальный обработчик контекстного меню для всех ресурсов
+    events.contextAction = createUniversalContextActionHandler('pod')
+    events['shell:open'] = (ns: string, podName: string, container: string) => {
+      console.log('[App] Событие shell:open', { ns, podName, container })
+      handleShellOpen(ns, podName, container)
+    }
+    events['attach:open'] = (ns: string, podName: string, container: string) => {
+      console.log('[App] Событие attach:open', { ns, podName, container })
+      handleAttachOpen(ns, podName, container)
+    }
+    events['logs:open'] = (ns: string, podName: string, container: string) => {
+      console.log('[App] Событие logs:open', { ns, podName, container })
+      handleLogsOpen(ns, podName, container)
+    }
   }
 
   if (view === 'deployments') {
@@ -654,6 +662,174 @@ const activeViewEvents = computed(() => {
 })
 
 // ─── Handlers ───
+
+// Универсальный обработчик контекстного меню для всех ресурсов
+function createUniversalContextActionHandler(resourceType: string) {
+  return (action: string, item: any) => {
+    // Обработка действий с подменю контейнеров (shell:container, attach:container, logs:container)
+    if (action.startsWith('shell:')) {
+      const container = action.split(':')[1]
+      if (resourceType === 'pod') {
+        podActions.openShellWithContainer(container, item)
+      }
+      return
+    }
+    if (action.startsWith('attach:')) {
+      const container = action.split(':')[1]
+      if (resourceType === 'pod') {
+        podActions.openAttachWithContainer(container, item)
+      }
+      return
+    }
+    if (action.startsWith('logs:')) {
+      const container = action.split(':')[1]
+      if (resourceType === 'pod') {
+        podActions.openLogs(item, container)
+      } else {
+        openLogsForAnyResource(item, container)
+      }
+      return
+    }
+    
+    switch (action) {
+      case 'details':
+        openResourceDetail(resourceType, item)
+        break
+      case 'shell':
+        if (resourceType === 'pod') {
+          if (item.containers && item.containers.length > 0) {
+            podActions.openShellWithContainer(item.containers[0].name, item)
+          }
+        }
+        break
+      case 'attach':
+        if (resourceType === 'pod') {
+          if (item.containers && item.containers.length > 0) {
+            podActions.openAttachWithContainer(item.containers[0].name, item)
+          }
+        }
+        break
+      case 'logs':
+        if (resourceType === 'pod') {
+          if (item.containers && item.containers.length > 0) {
+            podActions.openLogs(item, item.containers[0].name)
+          }
+        } else {
+          openLogsForAnyResource(item)
+        }
+        break
+      case 'edit':
+        openResourceEdit(resourceType, item)
+        break
+      case 'delete':
+        deleteResource(resourceType, item)
+        break
+      case 'evict':
+        if (resourceType === 'pod') podActions.evictPod(item)
+        break
+    }
+  }
+}
+
+function openResourceDetail(resourceType: string, item: any) {
+  // Используем глобальную панель деталей
+  globalDetailPanel.openResourceDetail(resourceType, item)
+}
+
+function openResourceEdit(resourceType: string, item: any) {
+  if (resourceType === 'pod') {
+    onPodDetailEdit()
+  } else {
+    // Для других ресурсов открываем YAML редактор
+    const ns = item.namespace || ''
+    const name = item.name
+    podActions.yamlEditorMeta.value = { resourceType, resourceName: name, namespace: ns }
+    showYAML(resourceType, ns, name)
+      .then(() => {
+        podActions.yamlEditorOpen.value = true
+      })
+      .catch((e: any) => {
+        notifications.notifyError(`Error loading YAML: ${e.message || e}`)
+      })
+  }
+}
+
+function deleteResource(resourceType: string, item: any) {
+  const ns = item.namespace || ''
+  const name = item.name
+  if (confirm(`Delete ${resourceType} ${name}?`)) {
+    // Используем k8s функции для удаления
+    switch (resourceType) {
+      case 'pod':
+        k8s.deletePodByName(ns, name).then(() => {
+          notifications.notifySuccess(`${resourceType} ${name} deleted`)
+          refreshData()
+        }).catch((e: any) => notifications.notifyError(`Delete error: ${e.message || e}`))
+        break
+      case 'deployment':
+        k8s.deleteDeploymentByName(ns, name).then(() => {
+          notifications.notifySuccess(`${resourceType} ${name} deleted`)
+          refreshData()
+        }).catch((e: any) => notifications.notifyError(`Delete error: ${e.message || e}`))
+        break
+      case 'serviceaccount':
+        k8s.deleteServiceAccount(ns, name).then(() => {
+          notifications.notifySuccess(`${resourceType} ${name} deleted`)
+          refreshData()
+        }).catch((e: any) => notifications.notifyError(`Delete error: ${e.message || e}`))
+        break
+      case 'role':
+        k8s.deleteRole(ns, name).then(() => {
+          notifications.notifySuccess(`${resourceType} ${name} deleted`)
+          refreshData()
+        }).catch((e: any) => notifications.notifyError(`Delete error: ${e.message || e}`))
+        break
+      case 'rolebinding':
+        k8s.deleteRoleBinding(ns, name).then(() => {
+          notifications.notifySuccess(`${resourceType} ${name} deleted`)
+          refreshData()
+        }).catch((e: any) => notifications.notifyError(`Delete error: ${e.message || e}`))
+        break
+      case 'clusterrole':
+        k8s.deleteClusterRole(name).then(() => {
+          notifications.notifySuccess(`${resourceType} ${name} deleted`)
+          refreshData()
+        }).catch((e: any) => notifications.notifyError(`Delete error: ${e.message || e}`))
+        break
+      case 'clusterrolebinding':
+        k8s.deleteClusterRoleBinding(name).then(() => {
+          notifications.notifySuccess(`${resourceType} ${name} deleted`)
+          refreshData()
+        }).catch((e: any) => notifications.notifyError(`Delete error: ${e.message || e}`))
+        break
+      default:
+        console.warn(`Delete not implemented for resource type: ${resourceType}`)
+    }
+  }
+}
+
+function openLogsForAnyResource(item: any, container?: string) {
+  // Для всех ресурсов открываем логи через TabbedPanel
+  const ns = item.namespace || ''
+  const name = item.name
+  const containerName = container || name
+  handleLogsOpen(ns, name, containerName)
+}
+
+// Обработчики для TabbedPanel (shell/attach/logs)
+function handleShellOpen(namespace: string, pod: string, container: string) {
+  globalTabbedPanel.openTerminalTab('pod', pod, namespace, pod, container, 'shell')
+}
+
+function handleAttachOpen(namespace: string, pod: string, container: string) {
+  globalTabbedPanel.openTerminalTab('pod', pod, namespace, pod, container, 'attach')
+}
+
+function handleLogsOpen(namespace: string, resourceName: string, container: string) {
+  // Определяем тип ресурса из контекста (можно расширить)
+  // Пока используем 'pod' как default, но в будущем можно передавать тип ресурса
+  globalTabbedPanel.openLogsTab('pod', resourceName, namespace, [{ name: container }], container)
+}
 
 function closeAllDetailPanels() {
   selectedPod.value = null

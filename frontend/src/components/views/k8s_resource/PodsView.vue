@@ -1,87 +1,48 @@
 <template>
-  <K8sResourceListBase
-    :items="itemsWithMetrics"
-    :search="search"
-    resource-title="Pods"
-    empty-message="Нет подов"
-    :columns="columns"
-    :context-menu-items="contextMenuItems"
-    @refresh="onRefresh"
-    @search="onSearch"
-    @select="onSelect"
-    @context-action="onContextAction"
-    @context-open="onContextOpen"
-  />
+  <div>
+    <ResourceListBase
+      :items="itemsWithMetrics"
+      :search="localSearch"
+      resource-title="Pods"
+      empty-message="Нет подов"
+      resource-type="pods"
+      :custom-columns="columns"
+      @refresh="refreshData"
+      @search="(v) => { localSearch = v; emit('search', v) }"
+      @select="onSelect"
+      @contextAction="onContextAction"
+      @shell:open="onShellOpen"
+      @attach:open="onAttachOpen"
+      @logs:open="onLogsOpen"
+    />
+  </div>
 </template>
 
 <script lang="ts" setup>
-import type { PodInfo, PodMetricsInfo } from '../../../types'
-import K8sResourceListBase from '../K8sResourceListBase.vue'
-import type { Column } from '../K8sResourceListBase.vue'
+import type { PodInfo, PodMetricsInfo, Column } from '../../../types'
+import { useK8s } from '../../../composables/useK8s'
+import ResourceListBase from '../ResourceListBase.vue'
 import PodContainersCellComponent from './PodContainersCellComponent.vue'
-import { ref, computed } from 'vue'
-import { useKubPodActions } from '../../../composables/KubPodActions'
+import { computed, ref } from 'vue'
+import useResourceView from '../../../composables/useResourceView'
+
+const { filteredPods, refreshData, search } = useK8s()
 
 const props = defineProps<{
-  items: PodInfo[]
-  search: string
-  statusClass: (s: string) => string
   podMetrics: PodMetricsInfo[]
 }>()
 
 const emit = defineEmits<{
-  (e: 'refresh'): void
   (e: 'search', val: string): void
-  (e: 'select', pod: PodInfo): void
-  (e: 'attachPod', pod: PodInfo, container?: string): void
-  (e: 'shell', pod: PodInfo, container?: string): void
-  (e: 'evict', pod: PodInfo): void
-  (e: 'logs', pod: PodInfo, container?: string): void
-  (e: 'edit', pod: PodInfo): void
-  (e: 'delete', pod: PodInfo): void
 }>()
 
-const selectedPod = ref<PodInfo | null>(null)
+const localSearch = ref(search.value)
 
-// Pod действия — передаем через emit наверх
-const podActions = {
-  openAttachWithContainer: (container: string, pod: PodInfo) => {
-    emit('attachPod', pod, container)
-  },
-  openShellWithContainer: (container: string, pod: PodInfo) => {
-    emit('shell', pod, container)
-  },
-  openLogs: (pod: PodInfo, container?: string) => {
-    emit('logs', pod, container)
-  },
-  evictPod: (pod: PodInfo) => {
-    emit('evict', pod)
-  }
-}
-
-// Общие k8s действия
-const k8sActions = {
-  showYAML: (kind: string, namespace: string, name: string) => {
-    emit('edit', selectedPod.value!)
-  },
-  refreshData: () => {
-    emit('refresh')
-  },
-  deleteResource: (namespace: string, name: string) => {
-    emit('delete', selectedPod.value!)
-  }
-}
-
-// Используем новый композабл
-const { contextMenuItems, handleContextAction } = useKubPodActions(
-  selectedPod,
-  podActions,
-  k8sActions
-)
+const { onSelect, onContextAction } = useResourceView('pod')
 
 // Merge metrics with pods
 const itemsWithMetrics = computed(() => {
-  return props.items.map(pod => {
+  return filteredPods.value.map(pod => {
     const metric = props.podMetrics.find(m => m.name === pod.name && m.namespace === pod.namespace)
     return {
       ...pod,
@@ -126,26 +87,24 @@ function formatMemory(memStr: string | undefined): string {
   }
 }
 
-function onRefresh() { emit('refresh') }
-function onSearch(val: string) { emit('search', val) }
-
-function onSelect(pod: PodInfo) {
-  selectedPod.value = pod
-  emit('select', pod)
+function onShellOpen(namespace: string, podName: string, container: string) {
+  const pod = filteredPods.value.find(p => p.name === podName && p.namespace === namespace)
+  if (pod) {
+    onContextAction(`shell:${container}`, pod)
+  }
 }
 
-// Вызывается при ОТКРЫТИИ контекстного меню (до выбора действия)
-function onContextOpen(pod: PodInfo) {
-  selectedPod.value = pod
+function onAttachOpen(namespace: string, podName: string, container: string) {
+  const pod = filteredPods.value.find(p => p.name === podName && p.namespace === namespace)
+  if (pod) {
+    onContextAction(`attach:${container}`, pod)
+  }
 }
 
-function onContextAction(action: string, pod: PodInfo) {
-  selectedPod.value = pod
-  handleContextAction(action, pod)
-
-  // select обрабатываем здесь
-  if (action === 'select') {
-    emit('select', pod)
+function onLogsOpen(namespace: string, podName: string, container: string) {
+  const pod = filteredPods.value.find(p => p.name === podName && p.namespace === namespace)
+  if (pod) {
+    onContextAction(`logs:${container}`, pod)
   }
 }
 </script>

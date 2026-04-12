@@ -9,14 +9,22 @@ export default function useResourceListBase(resourceType: string) {
     
   ]
 
-  // Общие пункты меню
+  // Базовые пункты меню - для всех ресурсов
   const defaultMenuItems: ContextMenuItem[] = [
     { label: 'Open Details', action: 'details' },
     { label: 'Logs', action: 'logs' },
     { label: 'Edit', action: 'yaml' },
     { label: 'Delete', action: 'delete', danger: true },
-    
   ]
+
+  // Добавляем специфичные пункты для подов
+  if (resourceType === 'pods') {
+    // Вставляем Shell и Attach после Open Details
+    defaultMenuItems.splice(1, 0,
+      { label: 'Shell', action: 'shell' },
+      { label: 'Attach', action: 'attach' }
+    )
+  }
 
   // Кастомизация по типу ресурса (если нужно расширять)
   let customColumns: Column[] = []

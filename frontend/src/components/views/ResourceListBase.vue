@@ -27,25 +27,12 @@
     <div v-if="showContextMenu" :style="menuStyle" class="cluster-context-menu" @click.stop>
       <template v-for="(item, index) in mergedMenuItems" :key="index">
         <div
-          v-if="item.label === 'Attach Pod'"
-          :class="['ctx-menu-item', { 'ctx-menu-danger': item.danger }]"
-          @mouseenter="() => { cancelAttachMenuTimeout(); showAttachMenu = true }"
-          @mouseleave="scheduleHideAttachMenu"
-        >
-          <span class="ctx-menu-arrow" v-if="hasAttachSubmenu"><</span>{{ item.label }}
-          <div v-if="showAttachMenu && hasAttachSubmenu" class="ctx-menu-sub">
-            <div v-for="container in attachContainers" :key="container.name" class="ctx-menu-sub-item" @click="handleContextAction({ action: `attachPod:${container.name}` })">
-              {{ container.name }}
-            </div>
-          </div>
-        </div>
-        <div
-          v-else-if="item.label === 'Shell'"
+          v-if="item.action === 'shell'"
           :class="['ctx-menu-item', { 'ctx-menu-danger': item.danger }]"
           @mouseenter="() => { cancelShellMenuTimeout(); showShellMenu = true }"
           @mouseleave="scheduleHideShellMenu"
         >
-          <span class="ctx-menu-arrow" v-if="hasShellSubmenu"><</span>{{ item.label }}
+          <span class="ctx-menu-arrow" v-if="hasShellSubmenu">></span>{{ item.label }}
           <div v-if="showShellMenu && hasShellSubmenu" class="ctx-menu-sub">
             <div v-for="container in shellContainers" :key="container.name" class="ctx-menu-sub-item" @click="handleContextAction({ action: `shell:${container.name}` })">
               {{ container.name }}
@@ -53,13 +40,25 @@
           </div>
         </div>
         <div
-          v-else-if="item.label === 'Logs'"
+          v-else-if="item.action === 'attach'"
+          :class="['ctx-menu-item', { 'ctx-menu-danger': item.danger }]"
+          @mouseenter="() => { cancelAttachMenuTimeout(); showAttachMenu = true }"
+          @mouseleave="scheduleHideAttachMenu"
+        >
+          <span class="ctx-menu-arrow" v-if="hasAttachSubmenu">></span>{{ item.label }}
+          <div v-if="showAttachMenu && hasAttachSubmenu" class="ctx-menu-sub">
+            <div v-for="container in attachContainers" :key="container.name" class="ctx-menu-sub-item" @click="handleContextAction({ action: `attach:${container.name}` })">
+              {{ container.name }}
+            </div>
+          </div>
+        </div>
+        <div
+          v-else-if="item.action === 'logs'"
           :class="['ctx-menu-item', { 'ctx-menu-danger': item.danger }]"
           @mouseenter="() => { cancelLogsMenuTimeout(); showLogsMenu = true }"
           @mouseleave="scheduleHideLogsMenu"
-          @click="() => { if (!hasLogsSubmenu) handleContextAction({ action: item.action }) }"
         >
-          <span class="ctx-menu-arrow" v-if="hasLogsSubmenu"><</span>{{ item.label }}
+          <span class="ctx-menu-arrow" v-if="hasLogsSubmenu">></span>{{ item.label }}
           <div v-if="showLogsMenu && hasLogsSubmenu" class="ctx-menu-sub">
             <div v-for="container in logsContainers" :key="container.name" class="ctx-menu-sub-item" @click="handleContextAction({ action: `logs:${container.name}` })">
               {{ container.name }}
@@ -103,7 +102,9 @@ const emit = defineEmits<{
   (e: 'select', item: any): void
   (e: 'contextAction', action: string, item: any, subAction?: string): void
   (e: 'contextOpen', item: any): void
-  
+  (e: 'shell:open', namespace: string, pod: string, container: string): void
+  (e: 'attach:open', namespace: string, pod: string, container: string): void
+  (e: 'logs:open', namespace: string, pod: string, container: string): void
 }>()
 
 // Используем composable для defaults
@@ -241,6 +242,13 @@ function openContextMenu(item: any, event: MouseEvent) {
   hasShellSubmenu.value = regularContainers.length > 0
   hasLogsSubmenu.value = regularContainers.length > 0
   
+  // Если нет контейнеров (не под), используем имя ресурса как идентификатор для логов
+  if (regularContainers.length === 0) {
+    const resourceName = item.name || ''
+    logsContainers.value = [{ name: resourceName }]
+    hasLogsSubmenu.value = false
+  }
+  
   showAttachMenu.value = false
   showShellMenu.value = false
   showLogsMenu.value = false
@@ -284,14 +292,39 @@ function hideContextMenu() {
   showContextMenu.value = false
 }
 
-async function handleContextAction(menuItem: any) {
+async function handleContextAction(menuItem: any, subAction?: string) {
+  console.log('[ResourceListBase] handleContextAction вызван', { menuItem, subAction, selectedItem: selectedItem.value })
+  
   if (selectedItem.value && menuItem.action) {
-    if (menuItem.action === 'details') {
+    const action = menuItem.action
+    const item = selectedItem.value
+    const namespace = item.namespace || ''
+    const podName = item.name
+    const container = subAction || item.container || ''
+    
+    console.log('[ResourceListBase] Обработка действия:', { action, namespace, podName, container })
+    
+    if (action === 'details') {
+      console.log('[ResourceListBase] Открытие деталей')
       openDetails(props.resourceType, selectedItem.value)
-    } else if (menuItem.action === 'delete') {
+    } else if (action === 'delete') {
+      console.log('[ResourceListBase] Удаление элемента')
       await handleDelete(selectedItem.value)
+    } else if (action.startsWith('shell:')) {
+      const shellContainer = action.split(':')[1] || container
+      console.log('[ResourceListBase] Эмит shell:open', { namespace, podName, shellContainer })
+      emit('shell:open', namespace, podName, shellContainer)
+    } else if (action.startsWith('attach:')) {
+      const attachContainer = action.split(':')[1] || container
+      console.log('[ResourceListBase] Эмит attach:open', { namespace, podName, attachContainer })
+      emit('attach:open', namespace, podName, attachContainer)
+    } else if (action.startsWith('logs:')) {
+      const logsContainer = action.split(':')[1] || container
+      console.log('[ResourceListBase] Эмит logs:open', { namespace, podName, logsContainer })
+      emit('logs:open', namespace, podName, logsContainer)
     } else {
-      emit('contextAction', menuItem.action, selectedItem.value);
+      console.log('[ResourceListBase] Эмит contextAction', { action, item })
+      emit('contextAction', action, selectedItem.value)
     }
   }
   hideContextMenu()
