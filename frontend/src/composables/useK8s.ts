@@ -1097,3 +1097,20 @@ async function deleteReplicaSet(namespace: string, name: string) {
     throw e
   }
 }
+
+async function getJobDetail(namespace: string, name: string) {
+  try {
+    // Получаем YAML и парсим его для получения полной информации
+    const yaml = await GetResourceYAML(namespace, 'job', name, true)
+    // YAML можно распарсить на бэкенде или использовать как есть
+    // Для сейчас возвращаем объект с yaml для отображения
+    return {
+      yaml,
+      name,
+      namespace
+    }
+  } catch (e: any) {
+    error.value = 'Error loading Job: ' + (e.message || e)
+    throw e
+  }
+}
