@@ -18,7 +18,7 @@ export default function useResourceListBase(resourceType: string) {
   ]
 
   // Добавляем специфичные пункты для подов
-  if (resourceType === 'pods') {
+  if (resourceType === 'pod') {
     // Вставляем Shell и Attach после Open Details
     defaultMenuItems.splice(1, 0,
       { label: 'Shell', action: 'shell' },

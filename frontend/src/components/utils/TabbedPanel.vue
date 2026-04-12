@@ -693,6 +693,7 @@ function handleResize(e: MouseEvent) {
   color: #d4d4d4;
   white-space: pre-wrap;
   word-wrap: break-word;
+  text-align: left;
 }
 
 .logs-text.no-wrap { white-space: pre; word-wrap: normal; word-break: normal; overflow-x: auto; }

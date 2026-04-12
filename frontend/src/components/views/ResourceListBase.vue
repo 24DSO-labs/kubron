@@ -5,18 +5,19 @@
     <table v-if="items.length > 0" class="table">
       <thead>
         <tr>
-          <th v-for="col in mergedColumns" :key="col.key">{{ col.label }}</th>
+          <th v-for="col in finalColumns" :key="col.key">{{ col.label }}</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="item in items" :key="getItemKey(item)" @click="handleRowClick(item)" class="clickable-row">
-  <td v-for="col in mergedColumns" :key="col.key" :class="col.className">
-    <component v-if="col.component" :is="col.component" :item="item" :col="col" />
-    <span v-else :style="getColumnStyle(col, item)">
-      {{ getColumnValue(col, item) }}
-    </span>
-  </td>
+          <td v-for="col in finalColumns" :key="col.key" :class="col.className">
+            <component v-if="col.component" :is="col.component" :item="item" :col="col" />
+            <span v-else-if="col.formatter" v-html="getColumnValue(col, item)"></span>
+            <span v-else :style="getColumnStyle(col, item)">
+              {{ getColumnValue(col, item) }}
+            </span>
+          </td>
           <td @click.stop>
             <button class="btn-icon" @click.stop="openContextMenu(item, $event)">⋮</button>
           </td>
@@ -24,6 +25,18 @@
       </tbody>
     </table>
     <div v-else class="empty">{{ emptyMessage }}</div>
+    
+    <!-- Delete Confirmation Dialog -->
+    <DeleteConfirmationDialog
+      v-model="showDeleteDialog"
+      :resource-type="resourceType"
+      :resource-name="itemToDelete?.name || ''"
+      :namespace="itemToDelete?.namespace"
+      :is-deleting="isDeleting"
+      @confirm="handleDeleteConfirm"
+      @cancel="handleDeleteCancel"
+    />
+    
     <div v-if="showContextMenu" :style="menuStyle" class="cluster-context-menu" @click.stop>
       <template v-for="(item, index) in mergedMenuItems" :key="index">
         <div
@@ -32,7 +45,7 @@
           @mouseenter="() => { cancelShellMenuTimeout(); showShellMenu = true }"
           @mouseleave="scheduleHideShellMenu"
         >
-          <span class="ctx-menu-arrow" v-if="hasShellSubmenu">></span>{{ item.label }}
+          <span class="ctx-menu-arrow" v-if="hasShellSubmenu"><</span>{{ item.label }}
           <div v-if="showShellMenu && hasShellSubmenu" class="ctx-menu-sub">
             <div v-for="container in shellContainers" :key="container.name" class="ctx-menu-sub-item" @click="handleContextAction({ action: `shell:${container.name}` })">
               {{ container.name }}
@@ -45,7 +58,7 @@
           @mouseenter="() => { cancelAttachMenuTimeout(); showAttachMenu = true }"
           @mouseleave="scheduleHideAttachMenu"
         >
-          <span class="ctx-menu-arrow" v-if="hasAttachSubmenu">></span>{{ item.label }}
+          <span class="ctx-menu-arrow" v-if="hasAttachSubmenu"><</span>{{ item.label }}
           <div v-if="showAttachMenu && hasAttachSubmenu" class="ctx-menu-sub">
             <div v-for="container in attachContainers" :key="container.name" class="ctx-menu-sub-item" @click="handleContextAction({ action: `attach:${container.name}` })">
               {{ container.name }}
@@ -58,7 +71,7 @@
           @mouseenter="() => { cancelLogsMenuTimeout(); showLogsMenu = true }"
           @mouseleave="scheduleHideLogsMenu"
         >
-          <span class="ctx-menu-arrow" v-if="hasLogsSubmenu">></span>{{ item.label }}
+          <span class="ctx-menu-arrow" v-if="hasLogsSubmenu"><</span>{{ item.label }}
           <div v-if="showLogsMenu && hasLogsSubmenu" class="ctx-menu-sub">
             <div v-for="container in logsContainers" :key="container.name" class="ctx-menu-sub-item" @click="handleContextAction({ action: `logs:${container.name}` })">
               {{ container.name }}
@@ -79,6 +92,7 @@
 
 <script lang="ts" setup>
 import ContentHeader from '../ContentHeader.vue'
+import DeleteConfirmationDialog from '../utils/DeleteConfirmationDialog.vue'
 import { ref, onUnmounted } from 'vue'
 import useResourceListBase from '../../composables/useResourceListBase'
 import { useResourceDetailOpener } from '../../composables/useDetailPanel'
@@ -113,8 +127,8 @@ const { mergedColumns, mergedMenuItems } = useResourceListBase(props.resourceTyp
 // Используем composable для автоматического открытия деталей
 const { openDetails } = useResourceDetailOpener()
 
-// Слияние с кастомными из props, если предоставлены
-const finalColumns = props.customColumns ? [...mergedColumns, ...props.customColumns] : mergedColumns
+// Если есть customColumns, используем только их, иначе - базовые
+const finalColumns = props.customColumns && props.customColumns.length > 0 ? props.customColumns : mergedColumns
 const finalMenuItems = props.customMenuItems ? [...mergedMenuItems, ...props.customMenuItems] : mergedMenuItems
 
 const showContextMenu = ref(false)
@@ -122,6 +136,11 @@ const menuStyle = ref<Record<string, string>>({})
 const selectedItem = ref<any>(null)
 const localContextMenuItems = ref<ContextMenuItem[]>([])
 const showAttachMenu = ref(false)
+
+// Delete confirmation dialog
+const showDeleteDialog = ref(false)
+const itemToDelete = ref<any>(null)
+const isDeleting = ref(false)
 const showShellMenu = ref(false)
 const showLogsMenu = ref(false)
 
@@ -192,6 +211,7 @@ function getStatusColor(status: string): string {
   
   if (statusLower === 'running') return '#4ade80'
   if (statusLower === 'succeeded') return '#4ade80'
+  if (statusLower === 'completed') return '#60a5fa'
   if (statusLower === 'pending') return '#facc15'
   if (statusLower === 'failed') return '#ef4444'
   if (statusLower === 'crashed' || statusLower === 'crashloopbackoff') return '#dc2626'
@@ -308,20 +328,21 @@ async function handleContextAction(menuItem: any, subAction?: string) {
       console.log('[ResourceListBase] Открытие деталей')
       openDetails(props.resourceType, selectedItem.value)
     } else if (action === 'delete') {
-      console.log('[ResourceListBase] Удаление элемента')
-      await handleDelete(selectedItem.value)
+      console.log('[ResourceListBase] Удаление элемента - открытие диалога')
+      itemToDelete.value = selectedItem.value
+      showDeleteDialog.value = true
     } else if (action.startsWith('shell:')) {
       const shellContainer = action.split(':')[1] || container
-      console.log('[ResourceListBase] Эмит shell:open', { namespace, podName, shellContainer })
-      emit('shell:open', namespace, podName, shellContainer)
+      console.log('[ResourceListBase] Эмит contextAction shell:', { namespace, podName, shellContainer })
+      emit('contextAction', `shell:${shellContainer}`, selectedItem.value)
     } else if (action.startsWith('attach:')) {
       const attachContainer = action.split(':')[1] || container
-      console.log('[ResourceListBase] Эмит attach:open', { namespace, podName, attachContainer })
-      emit('attach:open', namespace, podName, attachContainer)
+      console.log('[ResourceListBase] Эмит contextAction attach:', { namespace, podName, attachContainer })
+      emit('contextAction', `attach:${attachContainer}`, selectedItem.value)
     } else if (action.startsWith('logs:')) {
       const logsContainer = action.split(':')[1] || container
-      console.log('[ResourceListBase] Эмит logs:open', { namespace, podName, logsContainer })
-      emit('logs:open', namespace, podName, logsContainer)
+      console.log('[ResourceListBase] Эмит contextAction logs:', { namespace, podName, logsContainer })
+      emit('contextAction', `logs:${logsContainer}`, selectedItem.value)
     } else {
       console.log('[ResourceListBase] Эмит contextAction', { action, item })
       emit('contextAction', action, selectedItem.value)
@@ -331,7 +352,9 @@ async function handleContextAction(menuItem: any, subAction?: string) {
 }
 
 async function handleDelete(item: any) {
-  if (!confirm(`Удалить ${props.resourceType} ${item.name}?`)) return
+  if (isDeleting.value) return
+  
+  isDeleting.value = true
   
   try {
     const k8s = useK8s()
@@ -398,11 +421,26 @@ async function handleDelete(item: any) {
     
     // После успешного удаления эмитим событие refresh
     emit('refresh')
+    showDeleteDialog.value = false
+    itemToDelete.value = null
   } catch (e: any) {
     const message = e.message || String(e)
     console.error(`Ошибка удаления ${props.resourceType}:`, message)
     alert(`Ошибка удаления: ${message}`)
+  } finally {
+    isDeleting.value = false
   }
+}
+
+function handleDeleteConfirm() {
+  if (itemToDelete.value) {
+    handleDelete(itemToDelete.value)
+  }
+}
+
+function handleDeleteCancel() {
+  showDeleteDialog.value = false
+  itemToDelete.value = null
 }
 
 function handleRowClick(item: any) {
@@ -435,19 +473,19 @@ function onSearch(val: string) { emit('search', val) }
   border-radius: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   z-index: 9999;
-  min-width: 160px;
+  min-width: 140px;
   overflow: visible;
   padding: 0;
   position: relative;
 }
 
 .ctx-menu-item {
-  padding: 6px 12px;
+  padding: 3px;
   color: #d4d4d4;
   cursor: pointer;
   font-size: 0.875rem;
   transition: background 0.15s;
-  padding-left: 34px;
+  padding-left: 27px;
   text-align: left;
   position: relative;
 }
@@ -459,9 +497,10 @@ function onSearch(val: string) { emit('search', val) }
 
 .ctx-menu-arrow {
   position: absolute;
-  left: 19px;
+  left: 7px;
+  top: 6px;
   color: #868d8a;
-  font-size: 0.9rem;
+  font-size: xx-small;
 }
 
 .ctx-menu-sub {
