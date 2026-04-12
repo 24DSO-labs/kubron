@@ -371,7 +371,6 @@ const activeViewProps = computed(() => {
 
   if (view === 'pods') {
     props.statusClass = statusClass
-    props.podMetrics = podMetrics.value
   }
 
   if (view === 'jobs') {
