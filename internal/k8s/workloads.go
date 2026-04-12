@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -349,6 +350,71 @@ func (m *Manager) GetPodsForJob(namespace, jobName string) ([]PodInfo, error) {
 	}
 
 	return ownedPods, nil
+}
+
+func (m *Manager) DeleteJob(namespace, jobName string) error {
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	return conn.Client.BatchV1().Jobs(namespace).Delete(ctx, jobName, metav1.DeleteOptions{})
+}
+
+func (m *Manager) DeleteDaemonSet(namespace, daemonSetName string) error {
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	return conn.Client.AppsV1().DaemonSets(namespace).Delete(ctx, daemonSetName, metav1.DeleteOptions{})
+}
+
+// RetryJob creates a new job from an existing job configuration
+func (m *Manager) RetryJob(namespace, jobName string) error {
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	// Get the existing job
+	job, err := conn.Client.BatchV1().Jobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	// Delete the old job first
+	propagationPolicy := metav1.DeletePropagationBackground
+	err = conn.Client.BatchV1().Jobs(namespace).Delete(ctx, jobName, metav1.DeleteOptions{
+		PropagationPolicy: &propagationPolicy,
+	})
+	if err != nil {
+		return err
+	}
+
+	// Clear resource version and uid for the new job
+	job.ResourceVersion = ""
+	job.UID = ""
+	job.Status = batchv1.JobStatus{}
+
+	// Add annotation to track retry
+	if job.Annotations == nil {
+		job.Annotations = make(map[string]string)
+	}
+	job.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.RFC3339)
+
+	// Create the new job
+	_, err = conn.Client.BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
+	return err
 }
 
 // === CronJobs ===

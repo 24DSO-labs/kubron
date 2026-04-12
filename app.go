@@ -194,6 +194,18 @@ func (a *App) GetJobs(namespace string) ([]k8s.JobInfo, error) {
 	return a.k8sMgr.GetJobs(namespace)
 }
 
+func (a *App) DeleteJob(namespace, name string) error {
+	return a.k8sMgr.DeleteJob(namespace, name)
+}
+
+func (a *App) DeleteDaemonSet(namespace, name string) error {
+	return a.k8sMgr.DeleteDaemonSet(namespace, name)
+}
+
+func (a *App) RetryJob(namespace, name string) error {
+	return a.k8sMgr.RetryJob(namespace, name)
+}
+
 // === CronJobs ===
 
 func (a *App) GetCronJobs(namespace string) ([]k8s.CronJobInfo, error) {

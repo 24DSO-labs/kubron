@@ -37,7 +37,7 @@ const emit = defineEmits<{
 
 const title = computed(() => {
   if (props.title) return props.title
-  return `Удалить ${props.resourceType}?`
+  return `Delete ${props.resourceType} "${props.resourceName}"?`
 })
 
 function handleCancel() {
