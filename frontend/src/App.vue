@@ -147,9 +147,10 @@
 
     
 
-    <TabbedPodActionsPanel v-if="logsPanel.isOpen.value" :resource="logsPanel.logsData.value?.resource"
+    <!-- TabbedPodActionsPanel временно отключен - используется globalTabbedPanel -->
+    <!-- <TabbedPodActionsPanel v-if="logsPanel.isOpen.value" :resource="logsPanel.logsData.value?.resource"
       :selectedContainer="logsPanel.logsData.value?.selectedContainer"
-      :containers="logsPanel.logsData.value?.containers" @close="logsPanel.closeLogs" />
+      :containers="logsPanel.logsData.value?.containers" @close="logsPanel.closeLogs" /> -->
 
     
     
@@ -183,7 +184,7 @@ import { defineAsyncComponent } from 'vue'
 const PodDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/PodDetailPanel.vue'))
 const DeploymentDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/DeploymentDetailPanel.vue'))
 const ScaleDeploymentDialog = defineAsyncComponent(() => import('./components/panels/ScaleDeploymentDialog.vue'))
-const TabbedDeploymentLogsPanel = defineAsyncComponent(() => import('./components/panels/TabbedDeploymentLogsPanel.vue'))
+// const TabbedDeploymentLogsPanel = defineAsyncComponent(() => import('./components/panels/TabbedDeploymentLogsPanel.vue'))
 const ServiceDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ServiceDetailPanel.vue'))
 const ServiceAccountDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ServiceAccountDetailPanel.vue'))
 const RoleDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/RoleDetailPanel.vue'))
@@ -192,6 +193,8 @@ const ClusterRoleDetailPanel = defineAsyncComponent(() => import('./components/p
 const ClusterRoleBindingDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ClusterRoleBindingDetailPanel.vue'))
 const ConfigMapPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ConfigMapPanel.vue'))
 const TabbedPanel = defineAsyncComponent(() => import('./components/utils/TabbedPanel.vue'))
+// TabbedPodActionsPanel закомментирован - используется globalTabbedPanel
+// const TabbedPodActionsPanel = defineAsyncComponent(() => import('./components/panels/TabbedPodActionsPanel.vue'))
 
 const NamespaceDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/NamespaceDetailPanel.vue'))
 const ReplicaSetDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ReplicaSetDetailPanel.vue'))
