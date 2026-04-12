@@ -935,6 +935,51 @@ async function deleteClusterRoleBinding(name: string) {
   }
 }
 
+// --- Delete Job ---
+async function deleteJob(ns: string, name: string) {
+  try {
+    const app = await dynamicImportApp()
+    if ((app as any).DeleteJob) {
+      await (app as any).DeleteJob(ns, name)
+    } else {
+      throw new Error('DeleteJob not available')
+    }
+  } catch (e: any) {
+    error.value = 'Ошибка удаления Job: ' + (e.message || e)
+    throw e
+  }
+}
+
+// --- Delete DaemonSet ---
+async function deleteDaemonSet(ns: string, name: string) {
+  try {
+    const app = await dynamicImportApp()
+    if ((app as any).DeleteDaemonSet) {
+      await (app as any).DeleteDaemonSet(ns, name)
+    } else {
+      throw new Error('DeleteDaemonSet not available')
+    }
+  } catch (e: any) {
+    error.value = 'Ошибка удаления DaemonSet: ' + (e.message || e)
+    throw e
+  }
+}
+
+// --- Retry Job ---
+async function retryJob(ns: string, name: string) {
+  try {
+    const app = await dynamicImportApp()
+    if ((app as any).RetryJob) {
+      await (app as any).RetryJob(ns, name)
+    } else {
+      throw new Error('RetryJob not available')
+    }
+  } catch (e: any) {
+    error.value = 'Ошибка retry Job: ' + (e.message || e)
+    throw e
+  }
+}
+
 // --- Export ---
 export function useK8s() {
   // Watch for navigation changes
@@ -977,7 +1022,7 @@ export function useK8s() {
     switchView, onNamespaceChange, refreshData,
     openPodDetail, loadLogs, deletePod, deletePodByName,
      runExec,
-    doScale, scaleDeployment, restartDeployment, loadRevisions, rollbackDeployment, deleteDeploymentByName, deleteServiceAccount, deleteRole, deleteRoleBinding, deleteClusterRole, deleteClusterRoleBinding,
+    doScale, scaleDeployment, restartDeployment, loadRevisions, rollbackDeployment, deleteDeploymentByName, deleteServiceAccount, deleteRole, deleteRoleBinding, deleteClusterRole, deleteClusterRoleBinding, deleteJob, deleteDaemonSet, retryJob,
     openConfigMapDetail, showYAML, applyYAML,
     loadPodMetrics, loadNodeMetrics,
     startPortForward, stopPortForward, refreshPortForwards,

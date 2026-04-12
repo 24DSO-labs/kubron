@@ -47,12 +47,21 @@
         </main>
       </template>
     </div>
-    <!-- ///////////////////////////////////////////////////// -->
+    
     <!-- Universal Detail Panel -->
-    <component v-if="globalDetailPanel.detailPanelState.value.isOpen"
+    <component v-if="globalDetailPanel.detailPanelState.value.isOpen && globalDetailPanel.detailPanelState.value.component"
       :is="globalDetailPanel.detailPanelState.value.component"
       :resource="globalDetailPanel.detailPanelState.value.resource"
       v-bind="globalDetailPanel.detailPanelState.value.props" v-on="globalDetailPanel.detailPanelState.value.events" />
+
+    <!-- Confirmation Dialog для удаления ресурсов из Detail Panel -->
+    <ConfirmationDialog
+      v-model="showDeleteResourceDialog"
+      :resource-type="deleteResourceMeta.type"
+      :resource-name="deleteResourceMeta.name"
+      :namespace="deleteResourceMeta.namespace"
+      @confirm="confirmDeleteResource"
+      @cancel="cancelDeleteResource" />
 
     <!-- Unified Tabbed Panel (Logs & YAML Editor) -->
 <TabbedPanel 
@@ -90,10 +99,7 @@
     <ScaleDeploymentDialog v-if="showScaleDialog && deploymentToScale" :deployment="deploymentToScale"
       @close="showScaleDialog = false" @scale="onScaleDeployment" />
 
-    <!-- Tabbed Deployment Logs Panel -->
-    <TabbedDeploymentLogsPanel v-if="tabbedDeploymentLogsOpen" ref="tabbedDeploymentLogsRef"
-      @close="tabbedDeploymentLogsOpen = false" />
-
+ 
     <!-- Service Detail Panel -->
     <ServiceDetailPanel v-if="selectedService" :svc="selectedService" :portForwards="portForwards"
       @close="selectedService = null" @forward="forwardServicePort" @stopForward="stopPortForward" />
@@ -147,12 +153,6 @@
 
     
 
-    <!-- TabbedPodActionsPanel временно отключен - используется globalTabbedPanel -->
-    <!-- <TabbedPodActionsPanel v-if="logsPanel.isOpen.value" :resource="logsPanel.logsData.value?.resource"
-      :selectedContainer="logsPanel.logsData.value?.selectedContainer"
-      :containers="logsPanel.logsData.value?.containers" @close="logsPanel.closeLogs" /> -->
-
-    
     
     <!-- Connecting overlay -->
     <div v-if="clusterConn.connecting.value" class="overlay">
@@ -172,6 +172,7 @@ import { useLogsPanel } from './composables/useLogsPanel'
 import { viewRegistry } from './composables/useViewRegistry'
 import { globalDetailPanel } from './composables/useDetailPanel'
 import { globalTabbedPanel } from './composables/useTabbedPanel'
+import { globalResourceActions } from './composables/useResourceActions'
 import type { PodInfo } from './types'
 
 import ClusterBar from './components/ClusterBar.vue'
@@ -181,10 +182,11 @@ import NotificationToast from './components/NotificationToast.vue'
 
 // Ленивая загрузка панелей
 import { defineAsyncComponent } from 'vue'
+import ConfirmationDialog from './components/utils/ConfirmationDialog.vue'
 const PodDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/PodDetailPanel.vue'))
 const DeploymentDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/DeploymentDetailPanel.vue'))
 const ScaleDeploymentDialog = defineAsyncComponent(() => import('./components/panels/ScaleDeploymentDialog.vue'))
-// const TabbedDeploymentLogsPanel = defineAsyncComponent(() => import('./components/panels/TabbedDeploymentLogsPanel.vue'))
+
 const ServiceDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ServiceDetailPanel.vue'))
 const ServiceAccountDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ServiceAccountDetailPanel.vue'))
 const RoleDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/RoleDetailPanel.vue'))
@@ -193,8 +195,6 @@ const ClusterRoleDetailPanel = defineAsyncComponent(() => import('./components/p
 const ClusterRoleBindingDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ClusterRoleBindingDetailPanel.vue'))
 const ConfigMapPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ConfigMapPanel.vue'))
 const TabbedPanel = defineAsyncComponent(() => import('./components/utils/TabbedPanel.vue'))
-// TabbedPodActionsPanel закомментирован - используется globalTabbedPanel
-// const TabbedPodActionsPanel = defineAsyncComponent(() => import('./components/panels/TabbedPodActionsPanel.vue'))
 
 const NamespaceDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/NamespaceDetailPanel.vue'))
 const ReplicaSetDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ReplicaSetDetailPanel.vue'))
@@ -302,6 +302,11 @@ const deploymentLogsOpen = ref(false)
 const deploymentForLogs = ref<any | null>(null)
 const tabbedDeploymentLogsOpen = ref(false)
 const tabbedDeploymentLogsRef = ref<any>(null)
+
+// Состояние для диалога подтверждения удаления ресурса из Detail Panel
+const showDeleteResourceDialog = ref(false)
+const deleteResourceMeta = ref({ type: '', namespace: '', name: '' })
+let pendingDeleteAction: (() => void) | null = null
 
 // ─── Data map for dynamic component ───
 
@@ -464,8 +469,6 @@ const activeViewEvents = computed(() => {
       console.log('[App] Событие openLogs', data)
       logsPanel.openLogs(data)
     }
-    // Универсальный обработчик контекстного меню для всех ресурсов
-    events.contextAction = createUniversalContextActionHandler('pod')
     events['shell:open'] = (ns: string, podName: string, container: string) => {
       console.log('[App] Событие shell:open', { ns, podName, container })
       handleShellOpen(ns, podName, container)
@@ -665,158 +668,6 @@ const activeViewEvents = computed(() => {
 
 // ─── Handlers ───
 
-// Универсальный обработчик контекстного меню для всех ресурсов
-function createUniversalContextActionHandler(resourceType: string) {
-  return (action: string, item: any) => {
-    // Обработка действий с подменю контейнеров (shell:container, attach:container, logs:container)
-    if (action.startsWith('shell:')) {
-      const container = action.split(':')[1]
-      if (resourceType === 'pod') {
-        podActions.openShellWithContainer(container, item)
-      }
-      return
-    }
-    if (action.startsWith('attach:')) {
-      const container = action.split(':')[1]
-      if (resourceType === 'pod') {
-        podActions.openAttachWithContainer(container, item)
-      }
-      return
-    }
-    if (action.startsWith('logs:')) {
-      const container = action.split(':')[1]
-      if (resourceType === 'pod') {
-        podActions.openLogs(item, container)
-      } else {
-        openLogsForAnyResource(item, container)
-      }
-      return
-    }
-    
-    switch (action) {
-      case 'details':
-        openResourceDetail(resourceType, item)
-        break
-      case 'shell':
-        if (resourceType === 'pod') {
-          if (item.containers && item.containers.length > 0) {
-            podActions.openShellWithContainer(item.containers[0].name, item)
-          }
-        }
-        break
-      case 'attach':
-        if (resourceType === 'pod') {
-          if (item.containers && item.containers.length > 0) {
-            podActions.openAttachWithContainer(item.containers[0].name, item)
-          }
-        }
-        break
-      case 'logs':
-        if (resourceType === 'pod') {
-          if (item.containers && item.containers.length > 0) {
-            podActions.openLogs(item, item.containers[0].name)
-          }
-        } else {
-          openLogsForAnyResource(item)
-        }
-        break
-      case 'edit':
-        openResourceEdit(resourceType, item)
-        break
-      case 'delete':
-        deleteResource(resourceType, item)
-        break
-      case 'evict':
-        if (resourceType === 'pod') podActions.evictPod(item)
-        break
-    }
-  }
-}
-
-function openResourceDetail(resourceType: string, item: any) {
-  // Используем глобальную панель деталей
-  globalDetailPanel.openResourceDetail(resourceType, item)
-}
-
-function openResourceEdit(resourceType: string, item: any) {
-  if (resourceType === 'pod') {
-    onPodDetailEdit()
-  } else {
-    // Для других ресурсов открываем YAML редактор
-    const ns = item.namespace || ''
-    const name = item.name
-    podActions.yamlEditorMeta.value = { resourceType, resourceName: name, namespace: ns }
-    showYAML(resourceType, ns, name)
-      .then(() => {
-        podActions.yamlEditorOpen.value = true
-      })
-      .catch((e: any) => {
-        notifications.notifyError(`Error loading YAML: ${e.message || e}`)
-      })
-  }
-}
-
-function deleteResource(resourceType: string, item: any) {
-  const ns = item.namespace || ''
-  const name = item.name
-  if (confirm(`Delete ${resourceType} ${name}?`)) {
-    // Используем k8s функции для удаления
-    switch (resourceType) {
-      case 'pod':
-        k8s.deletePodByName(ns, name).then(() => {
-          notifications.notifySuccess(`${resourceType} ${name} deleted`)
-          refreshData()
-        }).catch((e: any) => notifications.notifyError(`Delete error: ${e.message || e}`))
-        break
-      case 'deployment':
-        k8s.deleteDeploymentByName(ns, name).then(() => {
-          notifications.notifySuccess(`${resourceType} ${name} deleted`)
-          refreshData()
-        }).catch((e: any) => notifications.notifyError(`Delete error: ${e.message || e}`))
-        break
-      case 'serviceaccount':
-        k8s.deleteServiceAccount(ns, name).then(() => {
-          notifications.notifySuccess(`${resourceType} ${name} deleted`)
-          refreshData()
-        }).catch((e: any) => notifications.notifyError(`Delete error: ${e.message || e}`))
-        break
-      case 'role':
-        k8s.deleteRole(ns, name).then(() => {
-          notifications.notifySuccess(`${resourceType} ${name} deleted`)
-          refreshData()
-        }).catch((e: any) => notifications.notifyError(`Delete error: ${e.message || e}`))
-        break
-      case 'rolebinding':
-        k8s.deleteRoleBinding(ns, name).then(() => {
-          notifications.notifySuccess(`${resourceType} ${name} deleted`)
-          refreshData()
-        }).catch((e: any) => notifications.notifyError(`Delete error: ${e.message || e}`))
-        break
-      case 'clusterrole':
-        k8s.deleteClusterRole(name).then(() => {
-          notifications.notifySuccess(`${resourceType} ${name} deleted`)
-          refreshData()
-        }).catch((e: any) => notifications.notifyError(`Delete error: ${e.message || e}`))
-        break
-      case 'clusterrolebinding':
-        k8s.deleteClusterRoleBinding(name).then(() => {
-          notifications.notifySuccess(`${resourceType} ${name} deleted`)
-          refreshData()
-        }).catch((e: any) => notifications.notifyError(`Delete error: ${e.message || e}`))
-        break
-      default:
-        console.warn(`Delete not implemented for resource type: ${resourceType}`)
-    }
-  }
-}
-
-function openLogsForAnyResource(item: any, container?: string) {
-  // Для всех ресурсов открываем логи через TabbedPanel
-  const ns = item.namespace || ''
-  const name = item.name
-  const containerName = container || name
-  handleLogsOpen(ns, name, containerName)
-}
 
 // Обработчики для TabbedPanel (shell/attach/logs)
 function handleShellOpen(namespace: string, pod: string, container: string) {
@@ -1306,6 +1157,106 @@ async function applyYAMLTabbed(tabId: string) {
 // ─── Init ───
 
 onMounted(() => clusterConn.initialize())
+
+// ─── Обработчики глобальных событий для Detail Panel ───
+// Используем универсальный обработчик из useResourceActions
+
+function confirmDeleteResource() {
+  if (pendingDeleteAction) {
+    pendingDeleteAction()
+  }
+  showDeleteResourceDialog.value = false
+  deleteResourceMeta.value = { type: '', namespace: '', name: '' }
+}
+
+function cancelDeleteResource() {
+  showDeleteResourceDialog.value = false
+  deleteResourceMeta.value = { type: '', namespace: '', name: '' }
+  pendingDeleteAction = null
+}
+
+// Обработчик события удаления ресурса - использует универсальный обработчик
+function handleDeleteResource(event: CustomEvent) {
+  const { resourceType, namespace, name } = event.detail
+  deleteResourceMeta.value = { type: resourceType, namespace, name }
+  
+  // Устанавливаем функцию удаления через универсальный обработчик
+  pendingDeleteAction = async () => {
+    try {
+      await globalResourceActions.deleteResource(resourceType, namespace, name)
+    } catch (e: any) {
+      notifications.notifyError(`Delete error: ${e.message || e}`)
+    }
+  }
+  
+  // Показываем диалог подтверждения
+  showDeleteResourceDialog.value = true
+}
+
+// Обработчик контекстных действий из Detail Panel - использует универсальный обработчик
+function handleContextAction(event: CustomEvent) {
+  const { action, resourceType, resource } = event.detail
+  console.log('Handling context action from Detail Panel:', action, resourceType, resource)
+  
+  const ns = resource.namespace || resource.metadata?.namespace || ''
+  const name = resource.name || resource.metadata?.name
+  
+  // Обрабатываем действия через универсальный обработчик
+  switch (action) {
+    case 'delete':
+      // Delete обрабатывается отдельно через handleDeleteResource
+      break
+    case 'edit':
+      globalResourceActions.editResource(resourceType, ns, name)
+        .catch((e: any) => notifications.notifyError(`Edit error: ${e.message || e}`))
+      break
+    case 'shell':
+      if (resourceType === 'pod' && resource.containers?.length > 0) {
+        globalResourceActions.openShell(ns, name, resource.containers[0].name)
+      }
+      break
+    case 'attach':
+      if (resourceType === 'pod' && resource.containers?.length > 0) {
+        globalResourceActions.openAttach(ns, name, resource.containers[0].name)
+      }
+      break
+    case 'logs':
+      if (resourceType === 'pod' && resource.containers?.length > 0) {
+        globalResourceActions.openLogs(ns, name, resource.containers[0].name)
+      }
+      break
+    case 'evict':
+      if (resourceType === 'pod') {
+        globalResourceActions.evictPod(ns, name)
+      }
+      break
+    case 'retry':
+      if (resourceType === 'job') {
+        k8s.retryJob(ns, name)
+          .then(() => {
+            notifications.notifySuccess(`Job ${name} retry initiated`)
+            refreshData()
+          })
+          .catch((e: any) => {
+            notifications.notifyError(`Retry error: ${e.message || e}`)
+          })
+      }
+      break
+    default:
+      console.log('Unhandled action:', action)
+  }
+}
+
+// Регистрируем глобальные обработчики событий
+onMounted(() => {
+  window.addEventListener('kubron-delete-resource', handleDeleteResource as EventListener)
+  window.addEventListener('kubron-context-action', handleContextAction as EventListener)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('kubron-delete-resource', handleDeleteResource as EventListener)
+  window.removeEventListener('kubron-context-action', handleContextAction as EventListener)
+})
 </script>
 
 <style src="./assets/style.css"></style>

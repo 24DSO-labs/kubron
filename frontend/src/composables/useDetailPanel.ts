@@ -1,4 +1,6 @@
-import { ref, type Component, defineAsyncComponent } from 'vue'
+import { ref, type Component, defineAsyncComponent, type AsyncComponentLoader } from 'vue'
+import { GetResourceYAML } from '../../wailsjs/go/main/App'
+import { globalTabbedPanel } from './useTabbedPanel'
 
 export interface DetailPanelConfig {
   component: Component
@@ -23,8 +25,8 @@ const detailPanelState = ref<DetailPanelState>({
   events: {}
 })
 
-// Маппинг типов ресурсов к компонентам детальных панелей
-const resourcePanelComponents: Record<string, () => Promise<any>> = {
+// Маппинг типов ресурсов к компонентам детальных панелей ( AsyncComponentLoader)
+const resourcePanelComponents: Record<string, AsyncComponentLoader> = {
   job: () => import('../components/panels/k8s_resource/JobDetailPanel.vue'),
   pod: () => import('../components/panels/k8s_resource/PodDetailPanel.vue'),
   deployment: () => import('../components/panels/k8s_resource/DeploymentDetailPanel.vue'),
@@ -36,6 +38,9 @@ const resourcePanelComponents: Record<string, () => Promise<any>> = {
   namespace: () => import('../components/panels/k8s_resource/NamespaceDetailPanel.vue'),
   // ... можно добавить другие типы ресурсов
 }
+
+// Кэш для асинхронных компонентов
+const componentCache: Record<string, Component> = {}
 
 /**
  * Универсальный composable для управления детальными панелями
@@ -73,12 +78,23 @@ export function useDetailPanel() {
    * @param resourceType - тип ресурса
    */
   function getPanelComponent(resourceType: string): Component | null {
-    const componentLoader = resourcePanelComponents[resourceType.toLowerCase()]
+    const type = resourceType.toLowerCase()
+    
+    // Проверяем кэш
+    if (componentCache[type]) {
+      return componentCache[type]
+    }
+    
+    const componentLoader = resourcePanelComponents[type]
     if (!componentLoader) {
       console.warn(`No detail panel component found for resource type: ${resourceType}`)
       return null
     }
-    return defineAsyncComponent(componentLoader)
+    
+    // Создаём асинхронный компонент и кэшируем
+    const asyncComponent = defineAsyncComponent(componentLoader)
+    componentCache[type] = asyncComponent
+    return asyncComponent
   }
 
   /**
@@ -98,19 +114,60 @@ export function useDetailPanel() {
       return
     }
 
+    const handleDelete = () => {
+      const ns = resource.namespace || resource.metadata?.namespace || ''
+      const name = resource.name || resource.metadata?.name
+      // Используем ConfirmationDialog через глобальное событие
+      // Эмитим кастомное событие для открытия диалога подтверждения
+      const deleteEvent = new CustomEvent('kubron-delete-resource', {
+        detail: { resourceType, namespace: ns, name }
+      })
+      window.dispatchEvent(deleteEvent)
+      closePanel()
+    }
+
+    const handleContextAction = (action: string) => {
+      console.log('Context action from detail panel:', action, resourceType, resource.name)
+      if (action === 'delete') {
+        handleDelete()
+      } else if (action === 'yaml' || action === 'edit') {
+        // Edit уже обрабатывается отдельной кнопкой
+      } else if (action === 'retry') {
+        // Retry для Job - используем универсальное событие
+        const actionEvent = new CustomEvent('kubron-context-action', {
+          detail: { action: 'retry', resourceType, resource }
+        })
+        window.dispatchEvent(actionEvent)
+      } else {
+        // Другие действия (logs, shell, attach, etc.)
+        // Эмитим событие для обработки в App.vue
+        const actionEvent = new CustomEvent('kubron-context-action', {
+          detail: { action, resourceType, resource }
+        })
+        window.dispatchEvent(actionEvent)
+      }
+    }
+
     const baseEvents: Record<string, (...args: any[]) => void> = {
       close: closePanel,
       edit: () => {
-        console.log(`Edit ${resourceType}:`, resource.name)
-        // Здесь можно добавить логику редактирования YAML
+        const ns = resource.namespace || resource.metadata?.namespace || ''
+        const name = resource.name || resource.metadata?.name
+        GetResourceYAML(ns, resourceType, name, true)
+          .then(yaml => {
+            globalTabbedPanel.openYamlTab(
+              resourceType,
+              name,
+              ns,
+              yaml
+            )
+          })
+          .catch(err => {
+            console.error('Error loading YAML:', err)
+          })
       },
-      delete: () => {
-        if (confirm(`Delete ${resourceType} ${resource.name}?`)) {
-          console.log(`Delete ${resourceType}:`, resource.name)
-          // Здесь можно добавить логику удаления
-          closePanel()
-        }
-      }
+      delete: handleDelete,
+      contextAction: handleContextAction
     }
 
     const events = {
