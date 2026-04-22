@@ -1,4 +1,4 @@
-import { ref, type Component, defineAsyncComponent, type AsyncComponentLoader } from 'vue'
+import { ref, type Component } from 'vue'
 import { GetResourceYAML } from '../../wailsjs/go/main/App'
 import { globalTabbedPanel } from './useTabbedPanel'
 
@@ -25,22 +25,19 @@ const detailPanelState = ref<DetailPanelState>({
   events: {}
 })
 
-// Маппинг типов ресурсов к компонентам детальных панелей ( AsyncComponentLoader)
-const resourcePanelComponents: Record<string, AsyncComponentLoader> = {
-  job: () => import('../components/panels/k8s_resource/JobDetailPanel.vue'),
-  pod: () => import('../components/panels/k8s_resource/PodDetailPanel.vue'),
-  deployment: () => import('../components/panels/k8s_resource/DeploymentDetailPanel.vue'),
-  service: () => import('../components/panels/k8s_resource/ServiceDetailPanel.vue'),
-  daemonset: () => import('../components/panels/k8s_resource/DaemonSetDetailPanel.vue'),
-  statefulset: () => import('../components/panels/k8s_resource/StatefulSetDetailPanel.vue'),
-  configmap: () => import('../components/panels/k8s_resource/ConfigMapPanel.vue'),
-  secret: () => import('../components/panels/k8s_resource/SecretDetailPanel.vue'),
-  namespace: () => import('../components/panels/k8s_resource/NamespaceDetailPanel.vue'),
+// Маппинг типов ресурсов к именам компонентов (для динамического resolve)
+const resourcePanelNames: Record<string, string> = {
+  job: 'JobDetailPanel',
+  pod: 'PodDetailPanel',
+  deployment: 'DeploymentDetailPanel',
+  service: 'ServiceDetailPanel',
+  daemonset: 'DaemonSetDetailPanel',
+  statefulset: 'StatefulSetDetailPanel',
+  configmap: 'ConfigMapPanel',
+  secret: 'SecretDetailPanel',
+  namespace: 'NamespaceDetailPanel',
   // ... можно добавить другие типы ресурсов
 }
-
-// Кэш для асинхронных компонентов
-const componentCache: Record<string, Component> = {}
 
 /**
  * Универсальный composable для управления детальными панелями
@@ -74,27 +71,12 @@ export function useDetailPanel() {
   }
 
   /**
-   * Получить компонент для детальной панели по типу ресурса
+   * Получить имя компонента для детальной панели по типу ресурса
    * @param resourceType - тип ресурса
    */
-  function getPanelComponent(resourceType: string): Component | null {
+  function getPanelComponentName(resourceType: string): string | null {
     const type = resourceType.toLowerCase()
-    
-    // Проверяем кэш
-    if (componentCache[type]) {
-      return componentCache[type]
-    }
-    
-    const componentLoader = resourcePanelComponents[type]
-    if (!componentLoader) {
-      console.warn(`No detail panel component found for resource type: ${resourceType}`)
-      return null
-    }
-    
-    // Создаём асинхронный компонент и кэшируем
-    const asyncComponent = defineAsyncComponent(componentLoader)
-    componentCache[type] = asyncComponent
-    return asyncComponent
+    return resourcePanelNames[type] || null
   }
 
   /**
@@ -103,14 +85,27 @@ export function useDetailPanel() {
    * @param resource - объект ресурса
    * @param additionalEvents - дополнительные события
    */
-  function openResourceDetail(
+  async function openResourceDetail(
     resourceType: string,
     resource: any,
     additionalEvents?: Record<string, (...args: any[]) => void>
   ) {
-    const component = getPanelComponent(resourceType)
-    if (!component) {
+    const componentName = getPanelComponentName(resourceType)
+    if (!componentName) {
       console.error(`Cannot open detail panel: no component found for ${resourceType}`)
+      return
+    }
+
+    // Динамически импортируем компонент по имени
+    const component = await import(`../components/panels/k8s_resource/${componentName}.vue`)
+      .then(m => m.default)
+      .catch(err => {
+        console.error(`Failed to load component ${componentName}:`, err)
+        return null
+      })
+
+    if (!component) {
+      console.error(`Cannot open detail panel: failed to load component for ${resourceType}`)
       return
     }
 
@@ -203,7 +198,7 @@ export function useDetailPanel() {
     closePanel,
     isPanelOpen,
     getPanelState,
-    getPanelComponent,
+    getPanelComponentName,
     openResourceDetail
   }
 }

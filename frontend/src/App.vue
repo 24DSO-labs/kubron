@@ -162,7 +162,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick, markRaw, shallowRef } from 'vue'
 import { useK8s } from './composables/useK8s'
 import { useClusters } from './composables/useClusters'
 import { usePodActions } from './composables/usePodActions'
@@ -180,26 +180,40 @@ import AddClusterDialog from './components/AddClusterDialog.vue'
 import Sidebar from './components/Sidebar.vue'
 import NotificationToast from './components/NotificationToast.vue'
 
-// Ленивая загрузка панелей
-import { defineAsyncComponent } from 'vue'
+// Импортируем панели напрямую и оборачиваем в markRaw чтобы Vue не делал их реактивными
 import ConfirmationDialog from './components/utils/ConfirmationDialog.vue'
-const PodDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/PodDetailPanel.vue'))
-const DeploymentDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/DeploymentDetailPanel.vue'))
-const ScaleDeploymentDialog = defineAsyncComponent(() => import('./components/panels/ScaleDeploymentDialog.vue'))
+import PodDetailPanelRaw from './components/panels/k8s_resource/PodDetailPanel.vue'
+import DeploymentDetailPanelRaw from './components/panels/k8s_resource/DeploymentDetailPanel.vue'
+import ScaleDeploymentDialogRaw from './components/panels/ScaleDeploymentDialog.vue'
+import ServiceDetailPanelRaw from './components/panels/k8s_resource/ServiceDetailPanel.vue'
+import ServiceAccountDetailPanelRaw from './components/panels/k8s_resource/ServiceAccountDetailPanel.vue'
+import RoleDetailPanelRaw from './components/panels/k8s_resource/RoleDetailPanel.vue'
+import RoleBindingDetailPanelRaw from './components/panels/k8s_resource/RoleBindingDetailPanel.vue'
+import ClusterRoleDetailPanelRaw from './components/panels/k8s_resource/ClusterRoleDetailPanel.vue'
+import ClusterRoleBindingDetailPanelRaw from './components/panels/k8s_resource/ClusterRoleBindingDetailPanel.vue'
+import ConfigMapPanelRaw from './components/panels/k8s_resource/ConfigMapPanel.vue'
+import TabbedPanelRaw from './components/utils/TabbedPanel.vue'
+import NamespaceDetailPanelRaw from './components/panels/k8s_resource/NamespaceDetailPanel.vue'
+import ReplicaSetDetailPanelRaw from './components/panels/k8s_resource/ReplicaSetDetailPanel.vue'
+import DaemonSetDetailPanelRaw from './components/panels/k8s_resource/DaemonSetDetailPanel.vue'
+import NodeDetailViewRaw from './components/views/NodeDetailView.vue'
 
-const ServiceDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ServiceDetailPanel.vue'))
-const ServiceAccountDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ServiceAccountDetailPanel.vue'))
-const RoleDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/RoleDetailPanel.vue'))
-const RoleBindingDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/RoleBindingDetailPanel.vue'))
-const ClusterRoleDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ClusterRoleDetailPanel.vue'))
-const ClusterRoleBindingDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ClusterRoleBindingDetailPanel.vue'))
-const ConfigMapPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ConfigMapPanel.vue'))
-const TabbedPanel = defineAsyncComponent(() => import('./components/utils/TabbedPanel.vue'))
-
-const NamespaceDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/NamespaceDetailPanel.vue'))
-const ReplicaSetDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/ReplicaSetDetailPanel.vue'))
-const DaemonSetDetailPanel = defineAsyncComponent(() => import('./components/panels/k8s_resource/DaemonSetDetailPanel.vue'))
-const NodeDetailView = defineAsyncComponent(() => import('./components/views/NodeDetailView.vue'))
+// Оборачиваем в markRaw для предотвращения реактивности
+const PodDetailPanel = markRaw(PodDetailPanelRaw)
+const DeploymentDetailPanel = markRaw(DeploymentDetailPanelRaw)
+const ScaleDeploymentDialog = markRaw(ScaleDeploymentDialogRaw)
+const ServiceDetailPanel = markRaw(ServiceDetailPanelRaw)
+const ServiceAccountDetailPanel = markRaw(ServiceAccountDetailPanelRaw)
+const RoleDetailPanel = markRaw(RoleDetailPanelRaw)
+const RoleBindingDetailPanel = markRaw(RoleBindingDetailPanelRaw)
+const ClusterRoleDetailPanel = markRaw(ClusterRoleDetailPanelRaw)
+const ClusterRoleBindingDetailPanel = markRaw(ClusterRoleBindingDetailPanelRaw)
+const ConfigMapPanel = markRaw(ConfigMapPanelRaw)
+const TabbedPanel = markRaw(TabbedPanelRaw)
+const NamespaceDetailPanel = markRaw(NamespaceDetailPanelRaw)
+const ReplicaSetDetailPanel = markRaw(ReplicaSetDetailPanelRaw)
+const DaemonSetDetailPanel = markRaw(DaemonSetDetailPanelRaw)
+const NodeDetailView = markRaw(NodeDetailViewRaw)
 
 // ─── Composables ───
 
