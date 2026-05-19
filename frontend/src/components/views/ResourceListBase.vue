@@ -456,7 +456,7 @@ function onSearch(val: string) { emit('search', val) }
 </script>
 
 <style scoped>
-/* Скопировать стиль из оригинального K8sResourceListBase.vue */
+/* Скопировать стиль из оригинального K8sResourceListBase_old.vue */
 .menu-overlay {
   position: fixed;
   top: 0;

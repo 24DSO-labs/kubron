@@ -1,5 +1,5 @@
 <template>
-  <K8sResourceListBase
+  <K8sResourceListBaseOld
     :items="itemsWithStatus"
     :search="search"
     resource-title="Deployments"
@@ -16,8 +16,8 @@
 
 <script lang="ts" setup>
 import type { DeploymentInfo } from '../../../types'
-import K8sResourceListBase from '../K8sResourceListBase.vue'
-import type { Column } from '../K8sResourceListBase.vue'
+import K8sResourceListBase from '../K8sResourceListBase_old.vue'
+import type { Column } from '../K8sResourceListBase_old.vue'
 import { ref, computed } from 'vue'
 import { useKubDeploymentActions } from '../../../composables/KubDeploymentActions'
 
