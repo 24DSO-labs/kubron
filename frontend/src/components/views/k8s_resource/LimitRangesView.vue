@@ -1,5 +1,5 @@
 <template>
-  <K8sResourceListBase
+  <K8sResourceListBaseOld
     :items="items"
     :search="search"
     resource-title="LimitRanges"
@@ -15,8 +15,8 @@
 
 <script lang="ts" setup>
 import type { LimitRangeInfo } from '../../../types'
-import K8sResourceListBase from '../K8sResourceListBase.vue'
-import type { Column, ContextMenuItem } from '../K8sResourceListBase.vue'
+import K8sResourceListBase from '../K8sResourceListBase_old.vue'
+import type { Column, ContextMenuItem } from '../K8sResourceListBase_old.vue'
 import { ref } from 'vue'
 
 defineProps<{ items: LimitRangeInfo[]; search: string }>()
