@@ -1,5 +1,5 @@
 <template>
-  <K8sResourceListBase
+  <K8sResourceListBaseOld
     :items="items"
     :search="search"
     resource-title="DaemonSets"
@@ -16,8 +16,8 @@
 
 <script lang="ts" setup>
 import type { DaemonSetInfo } from '../../../types'
-import K8sResourceListBase from '../K8sResourceListBase.vue'
-import type { Column } from '../K8sResourceListBase.vue'
+import K8sResourceListBase from '../K8sResourceListBase_old.vue'
+import type { Column } from '../K8sResourceListBase_old.vue'
 import { ref } from 'vue'
 import { useKubDaemonSetActions } from '../../../composables/KubDaemonSetActions'
 
