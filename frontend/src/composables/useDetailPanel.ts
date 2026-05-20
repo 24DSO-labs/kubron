@@ -170,11 +170,40 @@ export function useDetailPanel() {
       ...additionalEvents
     }
 
+    // Подготавливаем специфические props для разных типов компонентов
+    let componentProps: Record<string, any> = {}
+
+    // Для PodDetailPanel передаем resource как pod и добавляем statusClass
+    if (componentName === 'PodDetailPanel') {
+      componentProps = {
+        pod: resource,
+        statusClass: (s: string) => {
+          // Базовая реализация statusClass для подов
+          const statusLower = s?.toLowerCase() || ''
+          
+          if (statusLower === 'running') return 'status-running'
+          if (statusLower === 'succeeded') return 'status-succeeded'
+          if (statusLower === 'completed') return 'status-completed'
+          if (statusLower === 'pending') return 'status-pending'
+          if (statusLower === 'failed') return 'status-failed'
+          if (statusLower === 'crashed' || statusLower === 'crashloopbackoff') return 'status-crashed'
+          if (statusLower === 'imagepullbackoff') return 'status-warning'
+          if (statusLower === 'evicted') return 'status-failed'
+          if (statusLower === 'terminating') return 'status-terminating'
+          if (statusLower === 'unknown') return 'status-unknown'
+          if (statusLower === 'progressdeadlineexceeded') return 'status-warning'
+          if (statusLower === 'replicafailure') return 'status-failed'
+          
+          return 'status-unknown'
+        }
+      }
+    }
+
     openPanel({
       component,
       resource,
       events,
-      props: {}
+      props: componentProps
     })
   }
 

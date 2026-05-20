@@ -1,13 +1,16 @@
 <template>
-  <K8sResourceDetailBase
+  <ResourceDetailsBase
+    v-if="pod"
     :resource="pod"
     resource-icon=""
-    :custom-tabs="customTabs"
+    :title="pod.name"
+    resource-type="Pod"
+    :containers="pod.containers"
     @close="emit('close')"
     @edit="emit('edit')"
     @delete="emit('delete')"
     @namespace-click="openResource('Namespace', $event)"
-  >
+    @context-action="handleContextAction"
   >
     <!-- Two-level action menu -->
     <template #actions>
@@ -242,221 +245,223 @@
     </template>
 
     <!-- Containers tab content -->
-    <template #tab-containers v-if="pod.containers && pod.containers.length > 0">
-      <div class="containers-section">
-        <div v-for="c in pod.containers" :key="c.name" class="ct-block">
-          <div class="ct-header cursor-pointer" @click="toggleContainer(c.name)">
-            <div class="ct-header-left">
-              <span class="ct-chevron" :class="{ expanded: !collapsedContainers.has(c.name) }">›</span>
-              <span class="ct-name">{{ c.name }}</span>
-              <span v-if="c.isInit" class="ct-badge-init">init</span>
-            </div>
-          </div>
-
-          <div v-if="!collapsedContainers.has(c.name)" class="ct-body">
-            <div v-if="clusterName && !c.isInit" class="ct-metrics-wrapper">
-              <div class="ct-metrics-header" @click.stop="toggleContainerMetrics(c.name)">
-                <span class="ct-metrics-title">Metrics</span>
-                <span class="ct-metrics-toggle" :class="{ collapsed: collapsedContainerMetrics.has(c.name) }"></span>
-              </div>
-              <div v-if="!collapsedContainerMetrics.has(c.name)" class="ct-metrics-content">
-                <ContainerMetricsViewer :cluster-name="clusterName" :namespace="pod.namespace" :pod-name="pod.name" :container-name="c.name" />
+    <template #tab-content="{ resource, activeTab }">
+      <div v-if="activeTab === 'containers'" class="tab-content">
+        <div class="containers-section">
+          <div v-for="c in resource.containers" :key="c.name" class="ct-block">
+            <div class="ct-header cursor-pointer" @click="toggleContainer(c.name)">
+              <div class="ct-header-left">
+                <span class="ct-chevron" :class="{ expanded: !collapsedContainers.has(c.name) }">›</span>
+                <span class="ct-name">{{ c.name }}</span>
+                <span v-if="c.isInit" class="ct-badge-init">init</span>
               </div>
             </div>
 
-            <div class="ct-row">
-              <span class="ct-label">Status</span>
-              <span class="ct-val">
-                <span :class="containerStatusColor(c)">{{ c.state }}{{ c.ready ? ', ready' : '' }}</span>
-              </span>
-            </div>
+            <div v-if="!collapsedContainers.has(c.name)" class="ct-body">
+              <div v-if="clusterName && !c.isInit" class="ct-metrics-wrapper">
+                <div class="ct-metrics-header" @click.stop="toggleContainerMetrics(c.name)">
+                  <span class="ct-metrics-title">Metrics</span>
+                  <span class="ct-metrics-toggle" :class="{ collapsed: collapsedContainerMetrics.has(c.name) }"></span>
+                </div>
+                <div v-if="!collapsedContainerMetrics.has(c.name)" class="ct-metrics-content">
+                  <ContainerMetricsViewer :cluster-name="clusterName" :namespace="resource.namespace" :pod-name="resource.name" :container-name="c.name" />
+                </div>
+              </div>
 
-            <div class="ct-row ct-row-alt">
-              <span class="ct-label">Image</span>
-              <span class="ct-val">{{ c.image }}</span>
-            </div>
+              <div class="ct-row">
+                <span class="ct-label">Status</span>
+                <span class="ct-val">
+                  <span :class="containerStatusColor(c)">{{ c.state }}{{ c.ready ? ', ready' : '' }}</span>
+                </span>
+              </div>
 
-            <div class="ct-row">
-              <span class="ct-label">ImagePullPolicy</span>
-              <span class="ct-val">{{ c.imagePullPolicy || '—' }}</span>
-            </div>
+              <div class="ct-row ct-row-alt">
+                <span class="ct-label">Image</span>
+                <span class="ct-val">{{ c.image }}</span>
+              </div>
 
-           <div class="ct-row ct-row-alt ct-row-click" @click.stop="toggleContainerSection(c.name, 'ports')">
-              <span class="ct-label">
-                Ports
-                <span class="ct-sec-toggle">{{ isContainerSectionCollapsed(c.name, 'ports') ? '›' : '×' }}</span>
-              </span>
-            </div>
-            <div v-if="!isContainerSectionCollapsed(c.name, 'ports')" class="ct-row ct-sub-row ct-row-alt">
-              <span class="ct-label"></span>
-              <span class="ct-val">
-                <PodPortsSection :namespace="pod.namespace" :pod-name="pod.name" :ports="c.ports"
-                  :port-forwards="portForwards" :on-start-port-forward="onStartPortForward"
-                  :on-stop-port-forward="onStopPortForward" />
-              </span>
-            </div>
+              <div class="ct-row">
+                <span class="ct-label">ImagePullPolicy</span>
+                <span class="ct-val">{{ c.imagePullPolicy || '—' }}</span>
+              </div>
 
-            <div class="ct-row ct-row-click" @click.stop="toggleContainerSection(c.name, 'env')">
-              <span class="ct-label">
-                Environment
-                <span class="ct-sec-toggle">{{ isContainerSectionCollapsed(c.name, 'env') ? '›' : '×' }}</span>
-              </span>
-              <span class="ct-val" v-if="isContainerSectionCollapsed(c.name, 'env')">
-                {{ (c.env?.length || 0) }} {{ (c.env?.length || 0) === 1 ? 'Var' : 'Vars' }}
-              </span>
-              <span class="ct-val" v-else-if="!c.env || !c.env.length">None</span>
-            </div>
-            <template v-if="!isContainerSectionCollapsed(c.name, 'env') && c.env && c.env.length">
-              <div v-for="(e, ei) in c.env" :key="e.name"
-                :class="['ct-row', 'ct-sub-row', { 'ct-row-alt': (ei as number) % 2 === 0 }]">
+             <div class="ct-row ct-row-alt ct-row-click" @click.stop="toggleContainerSection(c.name, 'ports')">
+                <span class="ct-label">
+                  Ports
+                  <span class="ct-sec-toggle">{{ isContainerSectionCollapsed(c.name, 'ports') ? '›' : '×' }}</span>
+                </span>
+              </div>
+              <div v-if="!isContainerSectionCollapsed(c.name, 'ports')" class="ct-row ct-sub-row ct-row-alt">
                 <span class="ct-label"></span>
-                <span class="ct-val ct-env-cell">
-                  <span class="ct-env-name">{{ e.name }}</span>
-                  <span class="ct-env-sep">:</span>
-                  <span class="ct-env-value">{{ e.value || '' }}</span>
+                <span class="ct-val">
+                  <PodPortsSection :namespace="resource.namespace" :pod-name="resource.name" :ports="c.ports"
+                    :port-forwards="portForwards" :on-start-port-forward="onStartPortForward"
+                    :on-stop-port-forward="onStopPortForward" />
                 </span>
               </div>
-            </template>
 
-            <div class="ct-row ct-row-alt ct-row-click" @click.stop="toggleContainerSection(c.name, 'mounts')">
-              <span class="ct-label">
-                Mounts
-                <span class="ct-sec-toggle">{{ isContainerSectionCollapsed(c.name, 'mounts') ? '›' : '×' }}</span>
-              </span>
-              <span class="ct-val" v-if="isContainerSectionCollapsed(c.name, 'mounts')">
-                {{ (c.volumeMounts?.length || 0) }} {{ (c.volumeMounts?.length || 0) === 1 ? 'Mount' : 'Mounts' }}
-              </span>
-              <span class="ct-val" v-else-if="!c.volumeMounts || !c.volumeMounts.length">None</span>
-            </div>
-
-            <template v-if="!isContainerSectionCollapsed(c.name, 'mounts') && c.volumeMounts && c.volumeMounts.length">
-              <template v-for="(m, mi) in c.volumeMounts" :key="m.name + ':' + m.mountPath">
-                <div :class="['ct-row', 'ct-sub-row', { 'ct-row-alt': (mi as number) % 2 === 0 }]">
-                  <span class="ct-label"></span>
-                  <span class="ct-val ct-mount-path">{{ m.mountPath }}</span>
-                </div>
-                <div :class="['ct-row', 'ct-sub-row', { 'ct-row-alt': (mi as number) % 2 === 0 }]">
-                  <span class="ct-label"></span>
-                  <span class="ct-val ct-mount-from">
-                    from {{ m.name }} ({{ m.readOnly ? 'ro' : 'rw' }})
-                    <span v-if="m.subPath" class="ct-mount-sub">subPath={{ m.subPath }}</span>
-                  </span>
-                </div>
-              </template>
-            </template>
-
-            <div class="ct-row">
-              <span class="ct-label">Command</span>
-              <span class="ct-val">{{ formatCommand(c.command) }}</span>
-            </div>
-
-            <div class="ct-row ct-row-alt" v-if="c.args && c.args.length">
-              <span class="ct-label">Args</span>
-              <span class="ct-val">{{ formatCommand(c.args) }}</span>
-            </div>
-
-            <div class="ct-row" v-if="c.workingDir">
-              <span class="ct-label">WorkingDir</span>
-              <span class="ct-val">{{ c.workingDir }}</span>
-            </div>
-
-            <div :class="['ct-row', { 'ct-row-alt': !c.workingDir }]">
-              <span class="ct-label">Requests</span>
-              <span class="ct-val">
-                CPU: {{ c.resources?.requestsCpu || '—' }}, Memory: {{ c.resources?.requestsMemory || '—' }}
-              </span>
-            </div>
-
-            <div class="ct-row ct-row-alt">
-              <span class="ct-label">Limits</span>
-              <span class="ct-val">
-                CPU: {{ c.resources?.limitsCpu || '—' }}, Memory: {{ c.resources?.limitsMemory || '—' }}
-              </span>
-            </div>
-
-            <template v-if="c.probes">
-              <div class="ct-row ct-row-click" @click.stop="toggleContainerSection(c.name, 'probes')">
+              <div class="ct-row ct-row-click" @click.stop="toggleContainerSection(c.name, 'env')">
                 <span class="ct-label">
-                  Probes
-                  <span class="ct-sec-toggle">{{ isContainerSectionCollapsed(c.name, 'probes') ? '›' : '×' }}</span>
+                  Environment
+                  <span class="ct-sec-toggle">{{ isContainerSectionCollapsed(c.name, 'env') ? '›' : '×' }}</span>
                 </span>
-                <span class="ct-val" v-if="isContainerSectionCollapsed(c.name, 'probes')">Configured</span>
+                <span class="ct-val" v-if="isContainerSectionCollapsed(c.name, 'env')">
+                  {{ (c.env?.length || 0) }} {{ (c.env?.length || 0) === 1 ? 'Var' : 'Vars' }}
+                </span>
+                <span class="ct-val" v-else-if="!c.env || !c.env.length">None</span>
               </div>
-              <template v-if="!isContainerSectionCollapsed(c.name, 'probes')">
-                <div class="ct-row ct-sub-row">
+              <template v-if="!isContainerSectionCollapsed(c.name, 'env') && c.env && c.env.length">
+                <div v-for="(e, ei) in c.env" :key="e.name"
+                  :class="['ct-row', 'ct-sub-row', { 'ct-row-alt': (ei as number) % 2 === 0 }]">
                   <span class="ct-label"></span>
                   <span class="ct-val ct-env-cell">
-                    <span class="ct-env-name">Liveness</span>
+                    <span class="ct-env-name">{{ e.name }}</span>
                     <span class="ct-env-sep">:</span>
-                    <span class="ct-env-value">{{ c.probes.liveness || '—' }}</span>
-                  </span>
-                </div>
-                <div class="ct-row ct-sub-row ct-row-alt">
-                  <span class="ct-label"></span>
-                  <span class="ct-val ct-env-cell">
-                    <span class="ct-env-name">Readiness</span>
-                    <span class="ct-env-sep">:</span>
-                    <span class="ct-env-value">{{ c.probes.readiness || '—' }}</span>
-                  </span>
-                </div>
-                <div class="ct-row ct-sub-row">
-                  <span class="ct-label"></span>
-                  <span class="ct-val ct-env-cell">
-                    <span class="ct-env-name">Startup</span>
-                    <span class="ct-env-sep">:</span>
-                    <span class="ct-env-value">{{ c.probes.startup || '—' }}</span>
+                    <span class="ct-env-value">{{ e.value || '—' }}</span>
                   </span>
                 </div>
               </template>
-            </template>
 
-            <template v-if="c.securityContext">
-              <div class="ct-row ct-row-alt ct-row-click" @click.stop="toggleContainerSection(c.name, 'security')">
+              <div class="ct-row ct-row-alt ct-row-click" @click.stop="toggleContainerSection(c.name, 'mounts')">
                 <span class="ct-label">
-                  Security Context
-                  <span class="ct-sec-toggle">{{ isContainerSectionCollapsed(c.name, 'security') ? '›' : '×' }}</span>
+                  Mounts
+                  <span class="ct-sec-toggle">{{ isContainerSectionCollapsed(c.name, 'mounts') ? '›' : '×' }}</span>
                 </span>
-                <span class="ct-val" v-if="isContainerSectionCollapsed(c.name, 'security')">Configured</span>
+                <span class="ct-val" v-if="isContainerSectionCollapsed(c.name, 'mounts')">
+                  {{ (c.volumeMounts?.length || 0) }} {{ (c.volumeMounts?.length || 0) === 1 ? 'Mount' : 'Mounts' }}
+                </span>
+                <span class="ct-val" v-else-if="!c.volumeMounts || !c.volumeMounts.length">None</span>
               </div>
-              <template v-if="!isContainerSectionCollapsed(c.name, 'security')">
-                <div class="ct-row ct-sub-row">
-                  <span class="ct-label"></span>
-                  <span class="ct-val ct-env-cell">
-                    <span class="ct-env-name">RunAsUser</span>
-                    <span class="ct-env-sep">:</span>
-                    <span class="ct-env-value">{{ fmtMaybe(c.securityContext.runAsUser) }}</span>
-                  </span>
-                </div>
-                <div class="ct-row ct-sub-row ct-row-alt">
-                  <span class="ct-label"></span>
-                  <span class="ct-val ct-env-cell">
-                    <span class="ct-env-name">RunAsNonRoot</span>
-                    <span class="ct-env-sep">:</span>
-                    <span class="ct-env-value">{{ fmtMaybe(c.securityContext.runAsNonRoot) }}</span>
-                  </span>
-                </div>
-                <div class="ct-row ct-sub-row">
-                  <span class="ct-label"></span>
-                  <span class="ct-val ct-env-cell">
-                    <span class="ct-env-name">ReadOnlyFilesystem</span>
-                    <span class="ct-env-sep">:</span>
-                    <span class="ct-env-value">{{ fmtMaybe(c.securityContext.readOnlyFilesystem) }}</span>
-                  </span>
-                </div>
-                <div class="ct-row ct-sub-row ct-row-alt">
-                  <span class="ct-label"></span>
-                  <span class="ct-val ct-env-cell">
-                    <span class="ct-env-name">AllowPrivilegeEscalation</span>
-                    <span class="ct-env-sep">:</span>
-                    <span class="ct-env-value">{{ fmtMaybe(c.securityContext.allowPrivilegeEscalation) }}</span>
-                  </span>
-                </div>
-              </template>
-            </template>
 
-            <div class="ct-row">
-              <span class="ct-label">TerminationMessagePath</span>
-              <span class="ct-val">{{ c.terminationMessagePath || '—' }}</span>
+              <template v-if="!isContainerSectionCollapsed(c.name, 'mounts') && c.volumeMounts && c.volumeMounts.length">
+                <template v-for="(m, mi) in c.volumeMounts" :key="m.name + ':' + m.mountPath">
+                  <div :class="['ct-row', 'ct-sub-row', { 'ct-row-alt': (mi as number) % 2 === 0 }]">
+                    <span class="ct-label"></span>
+                    <span class="ct-val ct-mount-path">{{ m.mountPath }}</span>
+                  </div>
+                  <div :class="['ct-row', 'ct-sub-row', { 'ct-row-alt': (mi as number) % 2 === 0 }]">
+                    <span class="ct-label"></span>
+                    <span class="ct-val ct-mount-from">
+                      from {{ m.name }} ({{ m.readOnly ? 'ro' : 'rw' }})
+                      <span v-if="m.subPath" class="ct-mount-sub">subPath={{ m.subPath }}</span>
+                    </span>
+                  </div>
+                </template>
+              </template>
+
+              <div class="ct-row">
+                <span class="ct-label">Command</span>
+                <span class="ct-val">{{ formatCommand(c.command) }}</span>
+              </div>
+
+              <div class="ct-row ct-row-alt" v-if="c.args && c.args.length">
+                <span class="ct-label">Args</span>
+                <span class="ct-val">{{ formatCommand(c.args) }}</span>
+              </div>
+
+              <div class="ct-row" v-if="c.workingDir">
+                <span class="ct-label">WorkingDir</span>
+                <span class="ct-val">{{ c.workingDir }}</span>
+              </div>
+
+              <div :class="['ct-row', { 'ct-row-alt': !c.workingDir }]">
+                <span class="ct-label">Requests</span>
+                <span class="ct-val">
+                  CPU: {{ c.resources?.requestsCpu || '—' }}, Memory: {{ c.resources?.requestsMemory || '—' }}
+                </span>
+              </div>
+
+              <div class="ct-row ct-row-alt">
+                <span class="ct-label">Limits</span>
+                <span class="ct-val">
+                  CPU: {{ c.resources?.limitsCpu || '—' }}, Memory: {{ c.resources?.limitsMemory || '—' }}
+                </span>
+              </div>
+
+              <template v-if="c.probes">
+                <div class="ct-row ct-row-click" @click.stop="toggleContainerSection(c.name, 'probes')">
+                  <span class="ct-label">
+                    Probes
+                    <span class="ct-sec-toggle">{{ isContainerSectionCollapsed(c.name, 'probes') ? '›' : '×' }}</span>
+                  </span>
+                  <span class="ct-val" v-if="isContainerSectionCollapsed(c.name, 'probes')">Configured</span>
+                </div>
+                <template v-if="!isContainerSectionCollapsed(c.name, 'probes')">
+                  <div class="ct-row ct-sub-row">
+                    <span class="ct-label"></span>
+                    <span class="ct-val ct-env-cell">
+                      <span class="ct-env-name">Liveness</span>
+                      <span class="ct-env-sep">:</span>
+                      <span class="ct-env-value">{{ c.probes.liveness || '—' }}</span>
+                    </span>
+                  </div>
+                  <div class="ct-row ct-sub-row ct-row-alt">
+                    <span class="ct-label"></span>
+                    <span class="ct-val ct-env-cell">
+                      <span class="ct-env-name">Readiness</span>
+                      <span class="ct-env-sep">:</span>
+                      <span class="ct-env-value">{{ c.probes.readiness || '—' }}</span>
+                    </span>
+                  </div>
+                  <div class="ct-row ct-sub-row">
+                    <span class="ct-label"></span>
+                    <span class="ct-val ct-env-cell">
+                      <span class="ct-env-name">Startup</span>
+                      <span class="ct-env-sep">:</span>
+                      <span class="ct-env-value">{{ c.probes.startup || '—' }}</span>
+                    </span>
+                  </div>
+                </template>
+              </template>
+
+              <template v-if="c.securityContext">
+                <div class="ct-row ct-row-alt ct-row-click" @click.stop="toggleContainerSection(c.name, 'security')">
+                  <span class="ct-label">
+                    Security Context
+                    <span class="ct-sec-toggle">{{ isContainerSectionCollapsed(c.name, 'security') ? '›' : '×' }}</span>
+                  </span>
+                  <span class="ct-val" v-if="isContainerSectionCollapsed(c.name, 'security')">Configured</span>
+                </div>
+                <template v-if="!isContainerSectionCollapsed(c.name, 'security')">
+                  <div class="ct-row ct-sub-row">
+                    <span class="ct-label"></span>
+                    <span class="ct-val ct-env-cell">
+                      <span class="ct-env-name">RunAsUser</span>
+                      <span class="ct-env-sep">:</span>
+                      <span class="ct-env-value">{{ fmtMaybe(c.securityContext.runAsUser) }}</span>
+                    </span>
+                  </div>
+                  <div class="ct-row ct-sub-row ct-row-alt">
+                    <span class="ct-label"></span>
+                    <span class="ct-val ct-env-cell">
+                      <span class="ct-env-name">RunAsNonRoot</span>
+                      <span class="ct-env-sep">:</span>
+                      <span class="ct-env-value">{{ fmtMaybe(c.securityContext.runAsNonRoot) }}</span>
+                    </span>
+                  </div>
+                  <div class="ct-row ct-sub-row">
+                    <span class="ct-label"></span>
+                    <span class="ct-val ct-env-cell">
+                      <span class="ct-env-name">ReadOnlyFilesystem</span>
+                      <span class="ct-env-sep">:</span>
+                      <span class="ct-env-value">{{ fmtMaybe(c.securityContext.readOnlyFilesystem) }}</span>
+                    </span>
+                  </div>
+                  <div class="ct-row ct-sub-row ct-row-alt">
+                    <span class="ct-label"></span>
+                    <span class="ct-val ct-env-cell">
+                      <span class="ct-env-name">AllowPrivilegeEscalation</span>
+                      <span class="ct-env-sep">:</span>
+                      <span class="ct-env-value">{{ fmtMaybe(c.securityContext.allowPrivilegeEscalation) }}</span>
+                    </span>
+                  </div>
+                </template>
+              </template>
+
+              <div class="ct-row">
+                <span class="ct-label">TerminationMessagePath</span>
+                <span class="ct-val">{{ c.terminationMessagePath || '—' }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -467,7 +472,18 @@
     <template #events>
       <div class="empty-section">No events available</div>
     </template>
-  </K8sResourceDetailBase>
+    
+    <!-- Custom tabs slot -->
+    <template #tabs="{ resource, activeTab, setActiveTab }">
+      <button 
+        v-if="resource.containers && resource.containers.length > 0"
+        :class="['tab', { active: activeTab === 'containers' }]"
+        @click="setActiveTab('containers')"
+      >
+        Containers
+      </button>
+    </template>
+  </ResourceDetailsBase>
 </template>
 
 <script lang="ts" setup>
@@ -478,7 +494,7 @@ import type {
   ConditionInfo,
   VolumeInfo,
 } from '../../../types'
-import K8sResourceDetailBase from '../K8sResourceDetailBase.vue'
+import ResourceDetailsBase from '../ResourceDetailsBase.vue'
 import PodMetricsViewer from '../../metrics/PodMetricsViewer.vue'
 import ContainerMetricsViewer from '../../metrics/ContainerMetricsViewer.vue'
 import PodPortsSection from '../PodPortsSection.vue'
@@ -500,6 +516,7 @@ const props = defineProps<{
   portForwards?: any[]
   onStartPortForward?: (ns: string, podName: string, localPort: number, podPort: number) => Promise<void>
   onStopPortForward?: (id: string) => Promise<void>
+  events?: Record<string, (...args: any[]) => void>
 }>()
 
 const emit = defineEmits<{
@@ -512,6 +529,48 @@ const emit = defineEmits<{
   (e: 'edit'): void
   (e: 'open-resource', data: { kind: string; name: string; namespace?: string }): void
 }>()
+
+// Универсальная система событий - работает как с defineEmits, так и с props.events
+const emitOrCall = <
+  T extends keyof {
+    close: () => void
+    delete: () => void
+    attach: (data: { container: string; pod: any }) => void
+    terminal: (data: { container: string; pod: any }) => void
+    evict: () => void
+    logs: (data: { container: string; pod: any }) => void
+    edit: () => void
+    'open-resource': (data: { kind: string; name: string; namespace?: string }) => void
+  }
+>(
+  event: T,
+  ...args: T extends 'close'
+    ? []
+    : T extends 'delete'
+    ? []
+    : T extends 'attach'
+    ? [{ container: string; pod: any }]
+    : T extends 'terminal'
+    ? [{ container: string; pod: any }]
+    : T extends 'evict'
+    ? []
+    : T extends 'logs'
+    ? [{ container: string; pod: any }]
+    : T extends 'edit'
+    ? []
+    : T extends 'open-resource'
+    ? [{ kind: string; name: string; namespace?: string }]
+    : any[]
+) => {
+  // Если есть props.events, используем их (для globalDetailPanel)
+  if (props.events && props.events[event]) {
+    props.events[event](...args)
+    return
+  }
+  // Иначе используем emit (для прямого использования)
+  // @ts-ignore
+  emit(event, ...args)
+}
 
 // ═══════ Используем общий композабл для действий ═══════
 
@@ -613,15 +672,7 @@ function openControlledByResource() {
   openResource(kind, name, props.pod.namespace)
 }
 
-// ═══════ Custom tabs ═══════
-
-const customTabs = computed<DetailTab[]>(() => {
-  const tabs: DetailTab[] = []
-  if (props.pod.containers && props.pod.containers.length > 0) {
-    tabs.push({ id: 'containers', label: 'Containers' })
-  }
-  return tabs
-})
+// ═══════ Removed customTabs (using slots instead) ═══════
 
 // ═══════ Properties expand state ═══════
 
