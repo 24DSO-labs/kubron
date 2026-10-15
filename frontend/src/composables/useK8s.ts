@@ -1,50 +1,63 @@
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, type Ref } from 'vue'
 import {
   GetContexts, ConnectToContext, GetActiveContext,
-  GetNamespaces, GetPods, GetPodDetail, GetPodLogs, DeletePod,
-  GetDeployments, ScaleDeployment, RestartDeployment,
-  GetDeploymentRevisions, RollbackDeployment,
-  GetStatefulSets, GetReplicaSets, GetDaemonSets, GetJobs, GetCronJobs,
+  GetNamespaces, GetPods, GetPodLogs, DeletePod,
+  ScaleDeployment, RestartDeployment,
+  GetStatefulSets, GetJobs, GetCronJobs,
   GetServiceDetail, GetServices, GetIngresses,
   GetNodes, GetEvents,
-  GetConfigMaps, GetConfigMapDetail, GetSecrets,
+  GetSecrets,
   GetPersistentVolumes, GetPersistentVolumeClaims,
   GetClusterOverview, GetResourceYAML, ApplyYAML,
   ExecCommand,
   GetPodMetrics, GetNodeMetrics,
   StartPortForward, StopPortForward, ListPortForwards,
 } from '../../wailsjs/go/main/App'
-
-// For lazy-loaded functions (kept for optional runtime feature detection)
-const dynamicImportApp = async () => {
-  return await import('../../wailsjs/go/main/App')
-}
+import { callApp } from '../resources/wails'
+import { useNotifications } from './useNotifications'
 
 import type {
   ContextInfo, NamespaceInfo, PodInfo,
-  DeploymentInfo, StatefulSetInfo, ReplicaSetInfo, DaemonSetInfo,
+  StatefulSetInfo,
   JobInfo, CronJobInfo, ServiceInfo, IngressInfo,
-  NodeInfo, EventInfo, ConfigMapInfo, SecretInfo, ResourceQuotaInfo,
+  NodeInfo, EventInfo, SecretInfo, ResourceQuotaInfo,
   PVInfo, PVCInfo, OverviewInfo,
-  PodMetricsInfo, NodeMetricsInfo, RevisionInfo, PortForwardSession,
+  PodMetricsInfo, NodeMetricsInfo, PortForwardSession,
   ServiceDetail, StorageClassInfo,
 } from '../types'
 
-// --- State ---
+/*
+ * useK8s: состояние и загрузка данных для СТАРЫХ view.
+ *
+ * Ресурсы, перенесённые на новый каркас (src/resources/registry.ts), здесь больше не хранятся:
+ * их данные грузит resources/store.ts. refreshData() для таких view ничего не делает.
+ * Сейчас на каркасе: roles, rolebindings, clusterroles, clusterrolebindings, serviceaccounts,
+ * configmaps, namespaces, replicasets, daemonsets, deployments.
+ *
+ * Правила обработки ошибок:
+ *  - функции, у которых есть вызывающий с собственным catch, только бросают исключение;
+ *  - функции без такого вызывающего показывают тост сами (fail()).
+ *  Ref `error` остаётся только для useClusterConnection / usePodActions, которые пишут в него сами.
+ */
+
+// ─── Уведомления ───
+
+const notifications = useNotifications()
+const errText = (e: any): string => e?.message || String(e)
+const fail = (prefix: string, e: any) => notifications.notifyError(`${prefix}: ${errText(e)}`)
+
+// ─── State: списки ───
+
 const contexts = ref<ContextInfo[]>([])
-const namespaces = ref<NamespaceInfo[]>([])
+const namespaces = ref<NamespaceInfo[]>([]) // для выбора namespace в Sidebar
 const pods = ref<PodInfo[]>([])
-const deployments = ref<DeploymentInfo[]>([])
 const statefulsets = ref<StatefulSetInfo[]>([])
-const replicasets = ref<ReplicaSetInfo[]>([])
-const daemonsets = ref<DaemonSetInfo[]>([])
 const jobs = ref<JobInfo[]>([])
 const cronjobs = ref<CronJobInfo[]>([])
 const services = ref<ServiceInfo[]>([])
 const ingresses = ref<IngressInfo[]>([])
 const nodes = ref<NodeInfo[]>([])
 const events = ref<EventInfo[]>([])
-const configmaps = ref<ConfigMapInfo[]>([])
 const secrets = ref<SecretInfo[]>([])
 const resourcequotas = ref<ResourceQuotaInfo[]>([])
 const limitranges = ref<any[]>([])
@@ -56,11 +69,6 @@ const leases = ref<any[]>([])
 const endpoints = ref<any[]>([])
 const networkpolicies = ref<any[]>([])
 const ingressclasses = ref<any[]>([])
-const serviceaccounts = ref<any[]>([])
-const roles = ref<any[]>([])
-const rolebindings = ref<any[]>([])
-const clusterroles = ref<any[]>([])
-const clusterrolebindings = ref<any[]>([])
 const pvs = ref<PVInfo[]>([])
 const pvcs = ref<PVCInfo[]>([])
 const storageclasses = ref<StorageClassInfo[]>([])
@@ -68,11 +76,20 @@ const overview = ref<OverviewInfo | null>(null)
 
 const podMetrics = ref<PodMetricsInfo[]>([])
 const nodeMetrics = ref<NodeMetricsInfo[]>([])
-const revisions = ref<RevisionInfo[]>([])
 const portForwards = ref<PortForwardSession[]>([])
 
+/** Всё, что надо очистить при отключении от кластера */
+const clearableLists: Ref<any[]>[] = [
+  pods, statefulsets, jobs, cronjobs, services, ingresses, nodes, events, secrets,
+  resourcequotas, limitranges, hpa, pdb, priorityclasses, runtimeclasses, leases,
+  endpoints, networkpolicies, ingressclasses, pvs, pvcs, storageclasses, namespaces,
+  podMetrics, nodeMetrics, portForwards,
+]
+
+// ─── State: навигация и выбранное ───
+
 const activeContext = ref('')
-const selectedNamespace = ref('')
+const selectedNamespace = ref('') // '' = все namespaces
 const currentView = ref('overview')
 const search = ref('')
 const error = ref('')
@@ -86,36 +103,22 @@ const logLines = ref(100)
 const execCmd = ref('')
 const execOutput = ref('')
 
-const selectedConfigMap = ref<ConfigMapInfo | null>(null)
+const selectedService = ref<ServiceDetail | null>(null)
+
 const yamlContent = ref('')
 const yamlEditing = ref(false)
 const yamlEditKind = ref('')
 const yamlEditNs = ref('')
 const yamlEditName = ref('')
-const selectedServiceAccount = ref<any | null>(null)
 
-const selectedService = ref<ServiceDetail | null>(null)
-
-// Port forward form
+// Форма port-forward
 const pfLocalPort = ref(8080)
 const pfPodPort = ref(80)
 
-let autoRefreshTimer: any = null
-let currentRefreshView: string = ''
-let refreshAbortSignal: AbortController | null = null
-let isRefreshing = false
+// ─── Helpers ───
 
-let refreshTimeout: any = null
-function debouncedRefresh() {
-  if (refreshTimeout) clearTimeout(refreshTimeout)
-  refreshTimeout = setTimeout(async () => {
-    await refreshData()
-  }, 100)
-}
-
-// --- Helpers ---
 function statusClass(status: string): string {
-  switch (status.toLowerCase()) {
+  switch ((status ?? '').toLowerCase()) {
     case 'running': case 'ready': case 'bound': case 'complete': return 'status-running'
     case 'succeeded': case 'completed': case 'available': return 'status-completed'
     case 'pending': return 'status-pending'
@@ -129,511 +132,240 @@ function pct(a: number, b: number): string {
   return Math.round((a / b) * 100) + '%'
 }
 
-// --- Metrics Formatters ---
 function formatCpu(cpuStr: string | undefined): string {
   if (!cpuStr) return '—'
-  try {
-    const cpu = parseFloat(cpuStr)
-    return isNaN(cpu) ? '—' : cpu.toFixed(3)
-  } catch {
-    return '—'
-  }
+  const cpu = parseFloat(cpuStr)
+  return isNaN(cpu) ? '—' : cpu.toFixed(3)
 }
 
 function formatMemory(memStr: string | undefined): string {
   if (!memStr) return '—'
-  try {
-    const bytes = parseFloat(memStr)
-    if (isNaN(bytes)) return '—'
-    const mib = bytes / 1024 / 1024
-    return mib.toFixed(1) + 'MiB'
-  } catch {
-    return '—'
-  }
+  const bytes = parseFloat(memStr)
+  if (isNaN(bytes)) return '—'
+  return (bytes / 1024 / 1024).toFixed(1) + 'MiB'
 }
 
-function mergePodMetrics(pods: PodInfo[], metrics: PodMetricsInfo[]) {
-  return pods.map(pod => {
+function mergePodMetrics(list: PodInfo[], metrics: PodMetricsInfo[]) {
+  return list.map(pod => {
     const metric = metrics.find(m => m.name === pod.name && m.namespace === pod.namespace)
-    return {
-      ...pod,
-      cpu: formatCpu(metric?.totalCpu),
-      memory: formatMemory(metric?.totalMem)
-    }
+    return { ...pod, cpu: formatCpu(metric?.totalCpu), memory: formatMemory(metric?.totalMem) }
   })
 }
 
-// --- Filters ---
+// ─── Фильтрация по поиску ───
+
 function filterBySearch<T extends { name: string; namespace?: string }>(items: T[] | null | undefined): T[] {
   const arr = Array.isArray(items) ? items : []
   const s = search.value.toLowerCase()
   if (!s) return arr
   return arr.filter(x =>
     x.name.toLowerCase().includes(s) ||
-    (x.namespace && x.namespace.toLowerCase().includes(s))
+    (x.namespace && x.namespace.toLowerCase().includes(s)),
   )
 }
 
-const filteredPods = computed(() => filterBySearch(pods.value || []))
-const filteredDeployments = computed(() => filterBySearch(deployments.value || []))
-const filteredStatefulSets = computed(() => filterBySearch(statefulsets.value || []))
-const filteredReplicaSets = computed(() => filterBySearch(replicasets.value || []))
-const filteredDaemonSets = computed(() => filterBySearch(daemonsets.value || []))
-const filteredJobs = computed(() => filterBySearch(jobs.value || []))
-const filteredCronJobs = computed(() => filterBySearch(cronjobs.value || []))
-const filteredServices = computed(() => filterBySearch(services.value || []))
-const filteredIngresses = computed(() => filterBySearch(ingresses.value || []))
-const filteredConfigMaps = computed(() => filterBySearch(configmaps.value || []))
-const filteredSecrets = computed(() => filterBySearch(secrets.value || []))
-const filteredResourceQuotas = computed(() => filterBySearch(resourcequotas.value || []))
-const filteredPVCs = computed(() => filterBySearch(pvcs.value || []))
-const filteredLimitRanges = computed(() => filterBySearch(limitranges.value || []))
-const filteredHPA = computed(() => filterBySearch(hpa.value || []))
-const filteredPDB = computed(() => filterBySearch(pdb.value || []))
-const filteredPriorityClasses = computed(() => filterBySearch(priorityclasses.value || []))
-const filteredRuntimeClasses = computed(() => filterBySearch(runtimeclasses.value || []))
-const filteredLeases = computed(() => filterBySearch(leases.value || []))
-const filteredEndpoints = computed(() => filterBySearch(endpoints.value || []))
-const filteredNetworkPolicies = computed(() => filterBySearch(networkpolicies.value || []))
-const filteredIngressClasses = computed(() => filterBySearch(ingressclasses.value || []))
-const filteredStorageClasses = computed(() => filterBySearch(storageclasses.value || []))
-const filteredServiceAccounts = computed(() => filterBySearch(serviceaccounts.value || []))
-const filteredRoles = computed(() => filterBySearch(roles.value || []))
-const filteredRoleBindings = computed(() => filterBySearch(rolebindings.value || []))
-const filteredClusterRoles = computed(() => filterBySearch(clusterroles.value || []))
-const filteredClusterRoleBindings = computed(() => filterBySearch(clusterrolebindings.value || []))
+const filtered = <T extends { name: string; namespace?: string }>(src: Ref<T[]>) =>
+  computed(() => filterBySearch(src.value))
 
-async function openServiceAccountDetail(sa: any) {
-  try {
-    const app = await dynamicImportApp()
-    if ((app as any).GetServiceAccountDetail) {
-      selectedServiceAccount.value = await (app as any).GetServiceAccountDetail(sa.metadata.namespace, sa.metadata.name)
-    } else {
-      selectedServiceAccount.value = sa  // Fallback to list item if detail not available
-    }
-    selectedPod.value = null
-    selectedConfigMap.value = null
-    yamlContent.value = ''
-  } catch (e: any) {
-    error.value = 'Ошибка: ' + (e.message || e)
-  }
-}
+const filteredPods = filtered(pods)
+const filteredStatefulSets = filtered(statefulsets)
+const filteredJobs = filtered(jobs)
+const filteredCronJobs = filtered(cronjobs)
+const filteredServices = filtered(services)
+const filteredIngresses = filtered(ingresses)
+const filteredSecrets = filtered(secrets)
+const filteredResourceQuotas = filtered(resourcequotas)
+const filteredPVCs = filtered(pvcs)
+const filteredLimitRanges = filtered(limitranges)
+const filteredHPA = filtered(hpa)
+const filteredPDB = filtered(pdb)
+const filteredPriorityClasses = filtered(priorityclasses)
+const filteredRuntimeClasses = filtered(runtimeclasses)
+const filteredLeases = filtered(leases)
+const filteredEndpoints = filtered(endpoints)
+const filteredNetworkPolicies = filtered(networkpolicies)
+const filteredIngressClasses = filtered(ingressclasses)
+const filteredStorageClasses = filtered(storageclasses)
 
+// ─── Подключение (legacy; основной путь подключения идёт через useClusters) ───
 
-// --- Connection ---
 async function loadContexts() {
-  try { error.value = ''; contexts.value = await GetContexts() }
-  catch (e: any) { error.value = e.message || String(e) }
+  try { contexts.value = await GetContexts() }
+  catch (e) { fail('Ошибка загрузки контекстов', e) }
 }
 
 async function connect(name: string) {
   try {
-    error.value = ''; connecting.value = true
+    connecting.value = true
     await ConnectToContext(name)
     activeContext.value = await GetActiveContext()
     await loadNamespaces()
     currentView.value = 'overview'
     await refreshPortForwards()
     await refreshData()
-    startAutoRefresh()
-  } catch (e: any) { error.value = 'Ошибка подключения: ' + (e.message || e) }
-  finally { 
+  } catch (e) {
+    fail('Ошибка подключения', e)
+  } finally {
     await nextTick()
-    connecting.value = false 
+    connecting.value = false
   }
 }
 
 function disconnect() {
-  stopAutoRefresh()
   activeContext.value = ''
-  pods.value = []; deployments.value = []; statefulsets.value = []; replicasets.value = []
-  daemonsets.value = []; jobs.value = []; cronjobs.value = []
-  services.value = []; ingresses.value = []; nodes.value = []
-  events.value = []; configmaps.value = []; secrets.value = []
-  pvs.value = []; pvcs.value = []; namespaces.value = []
-  overview.value = null; selectedNamespace.value = ''
-  selectedPod.value = null; selectedConfigMap.value = null
-  yamlContent.value = ''; podMetrics.value = []; nodeMetrics.value = []
-  portForwards.value = []
-  nextTick()
+  for (const l of clearableLists) l.value = []
+  overview.value = null
+  selectedNamespace.value = ''
+  selectedPod.value = null
+  selectedService.value = null
+  yamlContent.value = ''
+  loadedViews.clear()
 }
 
 async function loadNamespaces() {
-  try {
-    namespaces.value = await GetNamespaces()
-    // Set default to 'all' (empty string for all namespaces) if no previous selection
-    if (!selectedNamespace.value || selectedNamespace.value === '') {
-      selectedNamespace.value = ''  // '' means all namespaces
-    }
-  }
-  catch (e: any) { error.value = 'Namespaces error: ' + (e.message || e) }
+  try { namespaces.value = await GetNamespaces() }
+  catch (e) { fail('Ошибка загрузки namespaces', e) }
 }
 
-// --- Navigation ---
+// ─── Загрузка данных текущего view ───
+
+/**
+ * Загрузчик принимает namespace и isCurrent(). Результат применяется, только если
+ * за время запроса не стартовал более свежий refresh: так медленный ответ
+ * для старого namespace не затирает новый.
+ */
+type Loader = (ns: string, isCurrent: () => boolean) => Promise<void>
+
+/** Загрузчик "положить массив в ref" (any: типы Wails-моделей и ../types не обязаны совпадать) */
+function list(
+  target: Ref<any[]>,
+  fetch: (ns: string) => Promise<any[] | null | undefined>,
+  after?: () => void,
+): Loader {
+  return async (ns, isCurrent) => {
+    const data = await fetch(ns)
+    if (!isCurrent()) return
+    target.value = Array.isArray(data) ? data : []
+    after?.()
+  }
+}
+
+/** Опциональные биндинги: если функции нет в Go или она упала, получаем пустой список */
+async function listOptional(fn: string, ...args: any[]): Promise<any[]> {
+  try {
+    const data = await callApp(fn, ...args)
+    return Array.isArray(data) ? data : []
+  } catch {
+    return []
+  }
+}
+const opt = (fn: string, namespaced = false) => (ns: string) =>
+  listOptional(fn, ...(namespaced ? [ns] : []))
+
+/**
+ * view -> как его грузить. Для view, которых здесь нет (новый каркас, settings),
+ * refreshData() ничего не делает.
+ */
+const loaders: Record<string, Loader> = {
+  overview: async (_ns, isCurrent) => {
+    const data = await GetClusterOverview()
+    if (isCurrent()) overview.value = data
+  },
+  pods: list(pods, ns => GetPods(ns), () => { loadPodMetrics() }),
+  statefulsets: list(statefulsets, ns => GetStatefulSets(ns)),
+  jobs: list(jobs, ns => GetJobs(ns)),
+  cronjobs: list(cronjobs, ns => GetCronJobs(ns)),
+  services: list(services, ns => GetServices(ns)),
+  ingresses: list(ingresses, ns => GetIngresses(ns)),
+  nodes: list(nodes, () => GetNodes(), () => { loadNodeMetrics() }),
+  events: list(events, ns => GetEvents(ns)),
+  secrets: list(secrets, ns => GetSecrets(ns)),
+  pv: list(pvs, () => GetPersistentVolumes()),
+  pvc: list(pvcs, ns => GetPersistentVolumeClaims(ns)),
+
+  // TODO: биндингов в Go пока нет
+  resourcequotas: list(resourcequotas, async () => []),
+  limitranges: list(limitranges, async () => []),
+  hpa: list(hpa, async () => []),
+  pdb: list(pdb, async () => []),
+
+  // Опциональные биндинги
+  priorityclasses: list(priorityclasses, opt('GetPriorityClasses')),
+  runtimeclasses: list(runtimeclasses, opt('GetRuntimeClasses')),
+  leases: list(leases, opt('GetLeases', true)),
+  endpoints: list(endpoints, opt('GetEndpoints', true)),
+  'network-policies': list(networkpolicies, opt('GetNetworkPolicies', true)),
+  ingressclasses: list(ingressclasses, opt('GetIngressClasses')),
+  storageclasses: list(storageclasses, opt('GetStorageClasses')),
+
+  portforwarding: async () => { await refreshPortForwards() },
+}
+
+let refreshSeq = 0
+/** view, данные которых уже загружались: для них обновление идёт "тихо", без лоадера */
+const loadedViews = new Set<string>()
+
+/**
+ * `loading` включается только при ПЕРВОЙ загрузке view. Дальше список остаётся на экране,
+ * пока приходит новый, поэтому таблица не размонтируется и не теряет скролл.
+ */
+async function refreshData() {
+  const view = currentView.value
+  // port forwards обновляем всегда, но отдельно, чтобы не блокировать остальное
+  if (view !== 'portforwarding') refreshPortForwards().catch(() => {})
+
+  const loader = loaders[view]
+  if (!loader) { loading.value = false; return }
+
+  const seq = ++refreshSeq
+  const isCurrent = () => seq === refreshSeq
+  loading.value = !loadedViews.has(view)
+
+  try {
+    await loader(selectedNamespace.value, isCurrent)
+    if (isCurrent()) loadedViews.add(view)
+  } catch (e) {
+    if (isCurrent()) fail('Ошибка', e)
+  } finally {
+    if (isCurrent()) loading.value = false
+  }
+}
+
+let refreshTimeout: ReturnType<typeof setTimeout> | null = null
+function debouncedRefresh() {
+  if (refreshTimeout) clearTimeout(refreshTimeout)
+  refreshTimeout = setTimeout(() => { refreshData() }, 100)
+}
+
+// Один раз на модуль (раньше watch создавался при каждом вызове useK8s()).
+// Условие activeContext сохранено как было; фактически refresh вызывают switchView и onNamespaceChange.
+watch([currentView, selectedNamespace], () => {
+  if (activeContext.value) debouncedRefresh()
+})
+
+// ─── Навигация ───
+
 function switchView(view: string) {
   search.value = ''
   selectedPod.value = null
-  selectedConfigMap.value = null
   selectedService.value = null
-  selectedServiceAccount.value = null
   yamlContent.value = ''
   execOutput.value = ''
   yamlEditing.value = false
-  // Cancel previous request
-  if (refreshAbortSignal) {
-    refreshAbortSignal.abort()
-    refreshAbortSignal = null
-  }
-  if (refreshTimeout) {
-    clearTimeout(refreshTimeout)
-    refreshTimeout = null
-  }
+  if (refreshTimeout) { clearTimeout(refreshTimeout); refreshTimeout = null }
   currentView.value = view
   debouncedRefresh()
 }
 
 function onNamespaceChange() {
-  // Refresh immediately on namespace change, no debounce
-  if (refreshTimeout) {
-    clearTimeout(refreshTimeout)
-    refreshTimeout = null
-  }
+  if (refreshTimeout) { clearTimeout(refreshTimeout); refreshTimeout = null }
   refreshData()
 }
 
-// --- Data Loading ---
-async function refreshData() {
-  // If already refreshing, abort the previous one
-  if (isRefreshing) {
-    if (refreshAbortSignal) {
-      refreshAbortSignal.abort()
-    }
-  }
-  isRefreshing = true
-  loading.value = true
-  const viewId = currentView.value
-  currentRefreshView = viewId
-  // Create a new AbortController for this request
-  refreshAbortSignal = new AbortController()
+// ─── Pod ───
 
-  // Always refresh port forwards (separately to avoid blocking other data)
-  refreshPortForwards().catch(() => {})
-
-  try {
-    const ns = selectedNamespace.value
-    switch (viewId) {
-      case 'overview':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          overview.value = await GetClusterOverview()
-        }
-        break
-      case 'pods':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          pods.value = await GetPods(ns)
-          loadPodMetrics()
-        }
-        break
-      case 'deployments':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          deployments.value = await GetDeployments(ns)
-        }
-        break
-      case 'statefulsets':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          statefulsets.value = await GetStatefulSets(ns)
-        }
-        break
-      case 'replicasets':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          replicasets.value = await GetReplicaSets(ns)
-        }
-        break
-      case 'daemonsets':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          daemonsets.value = await GetDaemonSets(ns)
-        }
-        break
-      case 'jobs':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          jobs.value = await GetJobs(ns)
-        }
-        break
-      case 'cronjobs':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          cronjobs.value = await GetCronJobs(ns)
-        }
-        break
-      case 'services':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          services.value = await GetServices(ns)
-        }
-        break
-      case 'ingresses':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          ingresses.value = await GetIngresses(ns)
-        }
-        break
-      case 'nodes':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          nodes.value = await GetNodes()
-          loadNodeMetrics()
-        }
-        break
-      case 'events':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          events.value = await GetEvents(ns)
-        }
-        break
-      case 'configmaps':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          configmaps.value = await GetConfigMaps(ns)
-        }
-        break
-      case 'secrets':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          secrets.value = await GetSecrets(ns)
-        }
-        break
-      case 'pv':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          pvs.value = await GetPersistentVolumes()
-        }
-        break
-      case 'pvc':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          pvcs.value = await GetPersistentVolumeClaims(ns)
-        }
-        break
-      case 'resourcequotas':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          // TBD when backend binding is added
-          resourcequotas.value = []
-        }
-        break
-      case 'limitranges':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          // TBD when backend binding is added
-          limitranges.value = []
-        }
-        break
-      case 'hpa':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          // TBD when backend binding is added
-          hpa.value = []
-        }
-        break
-      case 'pdb':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          // TBD when backend binding is added
-          pdb.value = []
-        }
-        break
-      case 'priorityclasses':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          try {
-            const app = await dynamicImportApp()
-            if ((app as any).GetPriorityClasses) {
-              priorityclasses.value = await (app as any).GetPriorityClasses()
-            } else {
-              priorityclasses.value = []
-            }
-          } catch {
-            priorityclasses.value = []
-          }
-        }
-        break
-      case 'runtimeclasses':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          try {
-            const app = await dynamicImportApp()
-            if ((app as any).GetRuntimeClasses) {
-              runtimeclasses.value = await (app as any).GetRuntimeClasses()
-            } else {
-              runtimeclasses.value = []
-            }
-          } catch {
-            runtimeclasses.value = []
-          }
-        }
-        break
-      case 'leases':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          try {
-            const app = await dynamicImportApp()
-            if ((app as any).GetLeases) {
-              leases.value = await (app as any).GetLeases(ns)
-            } else {
-              leases.value = []
-            }
-          } catch {
-            leases.value = []
-          }
-        }
-        break
-      case 'endpoints':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          try {
-            const app = await dynamicImportApp()
-            if ((app as any).GetEndpoints) {
-              endpoints.value = await (app as any).GetEndpoints(ns)
-            } else {
-              endpoints.value = []
-            }
-          } catch {
-            endpoints.value = []
-          }
-        }
-        break
-      case 'network-policies':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          try {
-            const app = await dynamicImportApp()
-            if ((app as any).GetNetworkPolicies) {
-              networkpolicies.value = await (app as any).GetNetworkPolicies(ns)
-            } else {
-              networkpolicies.value = []
-            }
-          } catch {
-            networkpolicies.value = []
-          }
-        }
-        break
-      case 'ingressclasses':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          try {
-            const app = await dynamicImportApp()
-            if ((app as any).GetIngressClasses) {
-              ingressclasses.value = await (app as any).GetIngressClasses()
-            } else {
-              ingressclasses.value = []
-            }
-          } catch {
-            ingressclasses.value = []
-          }
-        }
-        break
-      case 'storageclasses':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          try {
-            const app = await dynamicImportApp()
-            if ((app as any).GetStorageClasses) {
-              storageclasses.value = await (app as any).GetStorageClasses()
-            } else {
-              storageclasses.value = []
-            }
-          } catch {
-            storageclasses.value = []
-          }
-        }
-        break
-      case 'serviceaccounts':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          try {
-            const app = await dynamicImportApp()
-            if ((app as any).GetServiceAccounts) {
-              const data = await (app as any).GetServiceAccounts(ns)
-              serviceaccounts.value = Array.isArray(data) ? data : []
-            } else {
-              serviceaccounts.value = []
-            }
-          } catch {
-            serviceaccounts.value = []
-          }
-        }
-        break
-      case 'roles':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          try {
-            const app = await dynamicImportApp()
-            if ((app as any).GetRoles) {
-              const data = await (app as any).GetRoles(ns)
-              roles.value = Array.isArray(data) ? data : []
-            } else {
-              roles.value = []
-            }
-          } catch {
-            roles.value = []
-          }
-        }
-        break
-      case 'rolebindings':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          try {
-            const app = await dynamicImportApp()
-            if ((app as any).GetRoleBindings) {
-              const data = await (app as any).GetRoleBindings(ns)
-              rolebindings.value = Array.isArray(data) ? data : []
-            } else {
-              rolebindings.value = []
-            }
-          } catch {
-            rolebindings.value = []
-          }
-        }
-        break
-      case 'clusterroles':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          try {
-            const app = await dynamicImportApp()
-            if ((app as any).GetClusterRoles) {
-              const data = await (app as any).GetClusterRoles()
-              clusterroles.value = Array.isArray(data) ? data : []
-            } else {
-              clusterroles.value = []
-            }
-          } catch {
-            clusterroles.value = []
-          }
-        }
-        break
-      case 'clusterrolebindings':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          try {
-            const app = await dynamicImportApp()
-            if ((app as any).GetClusterRoleBindings) {
-              const data = await (app as any).GetClusterRoleBindings()
-              clusterrolebindings.value = Array.isArray(data) ? data : []
-            } else {
-              clusterrolebindings.value = []
-            }
-          } catch {
-            clusterrolebindings.value = []
-          }
-        }
-        break
-      case 'portforwarding':
-        if (currentRefreshView === viewId && !refreshAbortSignal.signal.aborted) {
-          await refreshPortForwards()
-        }
-        break
-    }
-  } catch (e: any) {
-    if (currentRefreshView === viewId && refreshAbortSignal && !refreshAbortSignal.signal.aborted) {
-      error.value = 'Ошибка: ' + (e.message || e)
-    }
-  } finally {
-    if (currentRefreshView === viewId) {
-      loading.value = false
-      isRefreshing = false
-    }
-  }
-}
-
-// --- Auto Refresh ---
-function startAutoRefresh() {
-  stopAutoRefresh()
-  // Auto-refresh disabled - handled by App.vue instead for better control
-  // autoRefreshTimer = setInterval(() => { refreshData() }, 15000)
-}
-function stopAutoRefresh() {
-  if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null }
-}
-
-// --- Pod Detail ---
 async function openPodDetail(pod: PodInfo) {
   try {
-    // Close other panels and reset selectedPod first
-    selectedConfigMap.value = null
     selectedService.value = null
     yamlContent.value = ''
     podLogs.value = ''
@@ -642,20 +374,15 @@ async function openPodDetail(pod: PodInfo) {
     yamlEditing.value = false
     selectedPod.value = null
 
-    // Wait for previous component to unmount
+    // Даём старой панели размонтироваться, иначе patch пересоздаёт её с мусором (оставлено как было)
     await nextTick()
-
-    // Use the pod directly as detail
-    const podDetail = { ...pod }
-    if (podDetail.containers && podDetail.containers.length > 0) {
-      logContainer.value = podDetail.containers[0].name
+    if (pod.containers && pod.containers.length > 0) {
+      logContainer.value = pod.containers[0].name
     }
-
-    // Wait again before setting new pod to reduce patch churn
     await nextTick()
-    selectedPod.value = podDetail
-  } catch (e: any) {
-    error.value = 'Ошибка при открытии pod: ' + (e.message || e)
+    selectedPod.value = { ...pod }
+  } catch (e) {
+    fail('Ошибка при открытии pod', e)
     selectedPod.value = null
   }
 }
@@ -666,27 +393,9 @@ async function loadLogs() {
     podLogs.value = '⏳ Загрузка...'
     podLogs.value = await GetPodLogs(
       selectedPod.value.namespace, selectedPod.value.name,
-      logContainer.value, logLines.value
+      logContainer.value, logLines.value,
     )
-  } catch (e: any) { podLogs.value = 'Ошибка: ' + (e.message || e) }
-}
-
-async function deletePod() {
-  if (!selectedPod.value) return
-  if (!confirm('Удалить pod ' + selectedPod.value.name + '?')) return
-  try {
-    await DeletePod(selectedPod.value.namespace, selectedPod.value.name)
-    selectedPod.value = null; await refreshData()
-  } catch (e: any) { error.value = 'Delete error: ' + (e.message || e) }
-}
-
-async function deletePodByName(ns: string, name: string) {
-  try {
-    await DeletePod(ns, name)
-  } catch (e: any) {
-    error.value = 'Ошибка удаления пода: ' + (e.message || e)
-    throw e
-  }
+  } catch (e) { podLogs.value = 'Ошибка: ' + errText(e) }
 }
 
 async function runExec() {
@@ -695,467 +404,194 @@ async function runExec() {
     execOutput.value = '⏳ Выполнение...'
     execOutput.value = await ExecCommand(
       selectedPod.value.namespace, selectedPod.value.name,
-      logContainer.value, execCmd.value
+      logContainer.value, execCmd.value,
     )
-  } catch (e: any) { execOutput.value = 'Ошибка: ' + (e.message || e) }
+  } catch (e) { execOutput.value = 'Ошибка: ' + errText(e) }
 }
 
-// --- Scale ---
-async function doScale(dep: DeploymentInfo, delta: number) {
-  const n = dep.replicas + delta
-  if (n < 0) return
-  try { await ScaleDeployment(dep.namespace, dep.name, n); await refreshData() }
-  catch (e: any) { error.value = 'Scale error: ' + (e.message || e) }
+/** Бросает исключение; тост и подтверждение делает вызывающий */
+async function deletePodByName(ns: string, name: string): Promise<void> {
+  await DeletePod(ns, name)
 }
 
-async function scaleDeployment(namespace: string, name: string, replicas: number) {
+// ─── Service ───
+
+async function openServiceDetail(svc: ServiceInfo) {
   try {
-    await ScaleDeployment(namespace, name, replicas)
-  } catch (e: any) {
-    error.value = 'Scale error: ' + (e.message || e)
-    throw e
-  }
+    selectedService.value = await GetServiceDetail(svc.namespace, svc.name) as any
+    selectedPod.value = null
+    yamlContent.value = ''
+  } catch (e) { fail('Ошибка', e) }
 }
 
-// --- Restart / Rollback ---
-async function restartDeployment(namespace: string, name: string) {
-  if (!confirm('Restart deployment ' + name + '?')) return
+async function forwardServicePort(namespace: string, service: string, port: number) {
   try {
-    await RestartDeployment(namespace, name)
-    error.value = ''
-    await refreshData()
-  } catch (e: any) { error.value = 'Restart error: ' + (e.message || e) }
+    await callApp('StartServicePortForward', namespace, service, port, port)
+    if (selectedService.value) {
+      selectedService.value = await GetServiceDetail(namespace, service) as any
+    }
+    await refreshPortForwards()
+  } catch (e) { fail('Ошибка port forward', e) }
 }
 
-async function loadRevisions(namespace: string, name: string) {
-  try {
-    revisions.value = await GetDeploymentRevisions(namespace, name)
-  } catch (e: any) { error.value = 'Revisions error: ' + (e.message || e) }
-}
+// ─── YAML ───
 
-async function rollbackDeployment(namespace: string, name: string, revision: number) {
-  if (!confirm('Rollback ' + name + ' to revision ' + revision + '?')) return
-  try {
-    await RollbackDeployment(namespace, name, revision)
-    revisions.value = []
-    await refreshData()
-  } catch (e: any) { error.value = 'Rollback error: ' + (e.message || e) }
-}
-
-// --- ConfigMap Detail ---
-async function openConfigMapDetail(cm: ConfigMapInfo) {
-  try {
-    selectedConfigMap.value = await GetConfigMapDetail(cm.namespace, cm.name) as any
-    selectedPod.value = null; yamlContent.value = ''; yamlEditing.value = false
-  } catch (e: any) { error.value = 'Ошибка: ' + (e.message || e) }
-}
-
-// --- YAML View / Edit ---
+/** Нужен usePodActions. Сам просмотр/редактирование YAML идёт через resourceActions.edit() */
 async function showYAML(kind: string, namespace: string, name: string) {
   try {
-    selectedPod.value = null; selectedConfigMap.value = null
+    selectedPod.value = null
     yamlContent.value = '⏳ Загрузка...'
     yamlEditing.value = false
     yamlEditKind.value = kind
     yamlEditNs.value = namespace
     yamlEditName.value = name
     yamlContent.value = await GetResourceYAML(namespace, kind, name, true)
-  } catch (e: any) { yamlContent.value = 'Ошибка: ' + (e.message || e) }
+  } catch (e) { yamlContent.value = 'Ошибка: ' + errText(e) }
 }
 
+/** Бросает исключение; тост и обновление списка делает вызывающий */
 async function applyYAML(content: string, kind: string, namespace: string, name: string) {
-  try {
-    await ApplyYAML(namespace, kind, name, content)
-    error.value = ''
-    await refreshData()
-  } catch (e: any) { error.value = 'Apply error: ' + (e.message || e) }
+  await ApplyYAML(namespace, kind, name, content)
 }
 
-// --- Metrics ---
+// ─── Метрики ───
+
 async function loadPodMetrics() {
-  try {
-    const metrics = await GetPodMetrics(selectedNamespace.value)
-    podMetrics.value = metrics || []
-  } catch (e: any) { 
-    podMetrics.value = [] 
-  }
+  try { podMetrics.value = (await GetPodMetrics(selectedNamespace.value)) || [] }
+  catch { podMetrics.value = [] }
 }
 
 async function loadNodeMetrics() {
-  try {
-    nodeMetrics.value = await GetNodeMetrics()
-  } catch (e: any) { nodeMetrics.value = [] }
+  try { nodeMetrics.value = await GetNodeMetrics() }
+  catch { nodeMetrics.value = [] }
 }
 
-// --- Port Forward ---
-async function startPortForward(namespace?: string, podName?: string, localPort?: number, podPort?: number) {
-  // Support both old and new calling conventions
-  const ns = namespace || selectedPod.value?.namespace
-  const pod = podName || selectedPod.value?.name
-  const lp = localPort !== undefined ? localPort : pfLocalPort.value
-  const pp = podPort !== undefined ? podPort : pfPodPort.value
-
-  if (!ns || !pod) return
-
-   try {
-    const result = await StartPortForward(ns, pod, lp, pp)
-    error.value = ''
-    
-    // Give the backend a moment to register the forward, then refresh
-    await new Promise(resolve => setTimeout(resolve, 500))
-    await refreshPortForwards()
-  } catch (e: any) { 
-    error.value = 'Port forward error: ' + (e.message || e) 
-    throw e
-  }
-}
+// ─── Port forward ───
 
 async function refreshPortForwards() {
   try {
     const data = await ListPortForwards()
     portForwards.value = Array.isArray(data) ? data : []
-  } catch (e: any) {
-    portForwards.value = []
-  }
+  } catch { portForwards.value = [] }
 }
 
-// --- Service Detail ---
-async function openServiceDetail(svc: ServiceInfo) {
-  try {
-    selectedService.value = await GetServiceDetail(svc.namespace, svc.name) as any
-    selectedPod.value = null
-    selectedConfigMap.value = null
-    yamlContent.value = ''
-  } catch (e: any) { error.value = 'Ошибка: ' + (e.message || e) }
-}
+async function startPortForward(namespace?: string, podName?: string, localPort?: number, podPort?: number) {
+  const ns = namespace || selectedPod.value?.namespace
+  const pod = podName || selectedPod.value?.name
+  const lp = localPort !== undefined ? localPort : pfLocalPort.value
+  const pp = podPort !== undefined ? podPort : pfPodPort.value
+  if (!ns || !pod) return
 
-async function forwardServicePort(namespace: string, service: string, port: number) {
   try {
-    const app = await dynamicImportApp()
-    if ((app as any).StartServicePortForward) {
-      await (app as any).StartServicePortForward(namespace, service, port, port)
-    } else if ((app as any).StartPortForward) {
-      // Fallback (if StartServicePortForward is not available)
-      await (app as any).StartPortForward(namespace, service, port, port)
-    }
-    if (selectedService.value) {
-      selectedService.value = await GetServiceDetail(namespace, service) as any
-    }
+    await StartPortForward(ns, pod, lp, pp)
+    await new Promise(resolve => setTimeout(resolve, 500)) // даём бэкенду зарегистрировать forward
     await refreshPortForwards()
-  } catch (e: any) { error.value = 'Port forward error: ' + (e.message || e) }
-}
-
-// --- Delete Deployment ---
-async function deleteDeploymentByName(ns: string, name: string) {
-  try {
-    const app = await dynamicImportApp()
-    if ((app as any).DeleteDeployment) {
-      await (app as any).DeleteDeployment(ns, name)
-    } else {
-      throw new Error('DeleteDeployment not available')
-    }
-  } catch (e: any) {
-    error.value = 'Ошибка удаления deployment: ' + (e.message || e)
-    throw e
+  } catch (e) {
+    fail('Ошибка port forward', e)
+    throw e // вызывающие панели могут сбросить своё состояние
   }
 }
 
-// --- Delete ServiceAccount ---
-async function deleteServiceAccount(ns: string, name: string) {
-  try {
-    const app = await dynamicImportApp()
-    if ((app as any).DeleteServiceAccount) {
-      await (app as any).DeleteServiceAccount(ns, name)
-    } else {
-      throw new Error('DeleteServiceAccount not available')
-    }
-  } catch (e: any) {
-    error.value = 'Ошибка удаления ServiceAccount: ' + (e.message || e)
-    throw e
-  }
-}
-
-// --- Delete Role ---
-async function deleteRole(ns: string, name: string) {
-  try {
-    const app = await dynamicImportApp()
-    if ((app as any).DeleteRole) {
-      await (app as any).DeleteRole(ns, name)
-    } else {
-      throw new Error('DeleteRole not available')
-    }
-  } catch (e: any) {
-    error.value = 'Ошибка удаления Role: ' + (e.message || e)
-    throw e
-  }
-}
-
-// --- Delete RoleBinding ---
-async function deleteRoleBinding(ns: string, name: string) {
-  try {
-    const app = await dynamicImportApp()
-    if ((app as any).DeleteRoleBinding) {
-      await (app as any).DeleteRoleBinding(ns, name)
-    } else {
-      throw new Error('DeleteRoleBinding not available')
-    }
-  } catch (e: any) {
-    error.value = 'Ошибка удаления RoleBinding: ' + (e.message || e)
-    throw e
-  }
-}
-
- // --- Delete ClusterRole ---
-async function deleteClusterRole(name: string) {
-  try {
-    const app = await dynamicImportApp()
-    if ((app as any).DeleteClusterRole) {
-      await (app as any).DeleteClusterRole(name)
-    } else {
-      throw new Error('DeleteClusterRole not available')
-    }
-  } catch (e: any) {
-    error.value = 'Ошибка удаления ClusterRole: ' + (e.message || e)
-    throw e
-  }
-}
-
-// --- Delete ClusterRoleBinding ---
-async function deleteClusterRoleBinding(name: string) {
-  try {
-    const app = await dynamicImportApp()
-    if ((app as any).DeleteClusterRoleBinding) {
-      await (app as any).DeleteClusterRoleBinding(name)
-    } else {
-      throw new Error('DeleteClusterRoleBinding not available')
-    }
-  } catch (e: any) {
-    error.value = 'Ошибка удаления ClusterRoleBinding: ' + (e.message || e)
-    throw e
-  }
-}
-
-// --- Delete Job ---
-async function deleteJob(ns: string, name: string) {
-  try {
-    const app = await dynamicImportApp()
-    if ((app as any).DeleteJob) {
-      await (app as any).DeleteJob(ns, name)
-    } else {
-      throw new Error('DeleteJob not available')
-    }
-  } catch (e: any) {
-    error.value = 'Ошибка удаления Job: ' + (e.message || e)
-    throw e
-  }
-}
-
-// --- Delete DaemonSet ---
-async function deleteDaemonSet(ns: string, name: string) {
-  try {
-    const app = await dynamicImportApp()
-    if ((app as any).DeleteDaemonSet) {
-      await (app as any).DeleteDaemonSet(ns, name)
-    } else {
-      throw new Error('DeleteDaemonSet not available')
-    }
-  } catch (e: any) {
-    error.value = 'Ошибка удаления DaemonSet: ' + (e.message || e)
-    throw e
-  }
-}
-
-// --- Retry Job ---
-async function retryJob(ns: string, name: string) {
-  try {
-    const app = await dynamicImportApp()
-    if ((app as any).RetryJob) {
-      await (app as any).RetryJob(ns, name)
-    } else {
-      throw new Error('RetryJob not available')
-    }
-  } catch (e: any) {
-    error.value = 'Ошибка retry Job: ' + (e.message || e)
-    throw e
-  }
-}
-
-// --- Export ---
-export function useK8s() {
-  // Watch for navigation changes
-  watch([currentView, selectedNamespace], () => {
-    if (activeContext.value) {
-      debouncedRefresh()
-    }
-  }, { immediate: false })
-
-  return {
-    // State
-    contexts, namespaces, pods, deployments, statefulsets, replicasets,
-    daemonsets, jobs, cronjobs, services, ingresses,
-    nodes, events, configmaps, secrets, pvs, pvcs, overview,
-    podMetrics, nodeMetrics, revisions, portForwards,
-    activeContext, selectedNamespace, currentView, search,
-    error, connecting, loading,
-    selectedPod, podLogs, logContainer, logLines,
-    execCmd, execOutput,
-    selectedConfigMap, yamlContent, yamlEditing,
-    yamlEditKind, yamlEditNs, yamlEditName,
-    pfLocalPort, pfPodPort,
-    selectedService,
-
-    // Filtered
-    filteredPods, filteredDeployments, filteredStatefulSets, filteredReplicaSets,
-    filteredDaemonSets, filteredJobs, filteredCronJobs,
-    filteredServices, filteredIngresses, filteredConfigMaps,
-    filteredSecrets, filteredResourceQuotas, filteredPVCs,
-    filteredLimitRanges, filteredHPA, filteredPDB,
-    filteredPriorityClasses, filteredRuntimeClasses, filteredLeases,
-    filteredEndpoints, filteredNetworkPolicies, filteredIngressClasses, filteredStorageClasses,
-    filteredServiceAccounts, filteredRoles, filteredRoleBindings, filteredClusterRoles, filteredClusterRoleBindings,
-
-    // Helpers
-    statusClass, pct, formatCpu, formatMemory, mergePodMetrics,
-
-    // Actions
-    loadContexts, connect, disconnect, loadNamespaces,
-    switchView, onNamespaceChange, refreshData,
-    openPodDetail, loadLogs, deletePod, deletePodByName,
-     runExec,
-    doScale, scaleDeployment, restartDeployment, loadRevisions, rollbackDeployment, deleteDeploymentByName, deleteServiceAccount, deleteRole, deleteRoleBinding, deleteClusterRole, deleteClusterRoleBinding, deleteJob, deleteDaemonSet, retryJob,
-    openConfigMapDetail, showYAML, applyYAML,
-    loadPodMetrics, loadNodeMetrics,
-    startPortForward, stopPortForward, refreshPortForwards,
-    openServiceAccountDetail,
-    openServiceDetail, forwardServicePort,
-    getPods: GetPods,
-    getNamespace, getNode, getServiceAccount, getReplicaSet, deleteReplicaSet,
-  }
-}
-
-// Add missing stopPortForward function
 async function stopPortForward(id: string) {
   try {
     await StopPortForward(id)
     await refreshPortForwards()
-  } catch (e: any) { error.value = 'Stop PF error: ' + (e.message || e) }
+  } catch (e) { fail('Ошибка остановки port forward', e) }
 }
 
-// --- Get Resource Details ---
-async function getNamespace(name: string) {
-  try {
-    const app = await dynamicImportApp()
-    if ((app as any).GetNamespaceDetail) {
-      const ns = await (app as any).GetNamespaceDetail(name)
-      return formatResourceDetail(ns)
-    }
-    // Fallback: get from list
-    const allNs = await GetNamespaces()
-    const found = allNs.find(n => n.name === name)
-    if (found) {
-      return formatResourceDetail(found)
-    }
-    throw new Error('Namespace not found')
-  } catch (e: any) {
-    error.value = 'Error loading Namespace: ' + (e.message || e)
-    throw e
-  }
-}
+// ─── Операции (бросают исключение; тост делает вызывающий) ───
 
-async function getNode(name: string) {
-  try {
-    const app = await dynamicImportApp()
-    if ((app as any).GetNodeDetail) {
-      const node = await (app as any).GetNodeDetail(name)
-      return formatResourceDetail(node)
-    }
-    // Fallback: get from list
-    const allNodes = await GetNodes()
-    const found = allNodes.find(n => n.name === name)
-    if (found) {
-      return formatResourceDetail(found)
-    }
-    throw new Error('Node not found')
-  } catch (e: any) {
-    error.value = 'Error loading Node: ' + (e.message || e)
-    throw e
-  }
-}
+const call = (fn: string, ...args: any[]) => callApp<void>(fn, ...args)
+
+const deleteJob = (ns: string, name: string) => call('DeleteJob', ns, name)
+const retryJob = (ns: string, name: string) => call('RetryJob', ns, name)
+
+// Нужны только старому useResourceActions.ts (удалите его вместе с этими строками).
+// Deployment и DaemonSet теперь описаны в resources/definitions.
+const scaleDeployment = (ns: string, name: string, replicas: number) => ScaleDeployment(ns, name, replicas)
+const restartDeployment = (ns: string, name: string) => RestartDeployment(ns, name)
+const deleteDeploymentByName = (ns: string, name: string) => call('DeleteDeployment', ns, name)
+const deleteDaemonSet = (ns: string, name: string) => call('DeleteDaemonSet', ns, name)
+const deleteServiceAccount = (ns: string, name: string) => call('DeleteServiceAccount', ns, name)
+const deleteRole = (ns: string, name: string) => call('DeleteRole', ns, name)
+const deleteRoleBinding = (ns: string, name: string) => call('DeleteRoleBinding', ns, name)
+const deleteClusterRole = (name: string) => call('DeleteClusterRole', name)
+const deleteClusterRoleBinding = (name: string) => call('DeleteClusterRoleBinding', name)
+
+// ─── Node (пока не на каркасе; бросает исключение) ───
 
 function formatResourceDetail(resource: any): any {
   if (!resource) return {}
-  
-  // Преобразуем объект в нужный формат для DetailPanel
   return {
     name: resource.name || resource.metadata?.name || '',
     namespace: resource.namespace || resource.metadata?.namespace || '',
     age: resource.age || '',
     created: resource.created || resource.createdTime || resource.metadata?.creationTimestamp || '',
-    ...resource
+    ...resource,
   }
 }
 
-async function getServiceAccount(namespace: string, name: string) {
+async function getNode(name: string) {
   try {
-    const app = await dynamicImportApp()
-    if ((app as any).GetServiceAccountDetail) {
-      const sa = await (app as any).GetServiceAccountDetail(namespace, name)
-      return formatResourceDetail(sa)
-    }
-    throw new Error('GetServiceAccountDetail not available')
-  } catch (e: any) {
-    error.value = 'Error loading ServiceAccount: ' + (e.message || e)
-    throw e
+    return formatResourceDetail(await callApp('GetNodeDetail', name))
+  } catch {
+    const found = (await GetNodes()).find((n: any) => n.name === name)
+    if (!found) throw new Error('Node not found')
+    return formatResourceDetail(found)
   }
 }
 
-async function getReplicaSet(namespace: string, name: string) {
-  try {
-    
-    // Загружаем YAML для ReplicaSet
-    const yaml = await GetResourceYAML(namespace, 'replicaset', name, true)
-    
-    // Преобразуем в объект для деталь панели
-    const rs: any = {
-      name,
-      namespace,
-      yaml
-    }
-    return formatResourceDetail(rs)
-  } catch (e: any) {
-    console.error('getReplicaSet error:', e)
-    error.value = 'Error loading ReplicaSet: ' + (e.message || e)
-    throw e
-  }
-}
+// ─── Export ───
 
-async function deleteReplicaSet(namespace: string, name: string) {
-  try {
-    const app = await dynamicImportApp()
-    if ((app as any).DeleteReplicaSet) {
-      await (app as any).DeleteReplicaSet(namespace, name)
-    } else {
-      throw new Error('DeleteReplicaSet not available')
-    }
-  } catch (e: any) {
-    error.value = 'Ошибка удаления ReplicaSet: ' + (e.message || e)
-    throw e
-  }
-}
+export function useK8s() {
+  return {
+    // State
+    contexts, namespaces, pods, statefulsets,
+    jobs, cronjobs, services, ingresses,
+    nodes, events, secrets, pvs, pvcs, overview,
+    podMetrics, nodeMetrics, portForwards,
+    activeContext, selectedNamespace, currentView, search,
+    error, connecting, loading,
+    selectedPod, podLogs, logContainer, logLines,
+    execCmd, execOutput,
+    selectedService,
+    yamlContent, yamlEditing, yamlEditKind, yamlEditNs, yamlEditName,
+    pfLocalPort, pfPodPort,
 
-async function getJobDetail(namespace: string, name: string) {
-  try {
-    // Получаем YAML и парсим его для получения полной информации
-    const yaml = await GetResourceYAML(namespace, 'job', name, true)
-    // YAML можно распарсить на бэкенде или использовать как есть
-    // Для сейчас возвращаем объект с yaml для отображения
-    return {
-      yaml,
-      name,
-      namespace
-    }
-  } catch (e: any) {
-    error.value = 'Error loading Job: ' + (e.message || e)
-    throw e
+    // Filtered
+    filteredPods, filteredStatefulSets, filteredJobs, filteredCronJobs,
+    filteredServices, filteredIngresses, filteredSecrets, filteredResourceQuotas, filteredPVCs,
+    filteredLimitRanges, filteredHPA, filteredPDB,
+    filteredPriorityClasses, filteredRuntimeClasses, filteredLeases,
+    filteredEndpoints, filteredNetworkPolicies, filteredIngressClasses, filteredStorageClasses,
+
+    // Helpers
+    statusClass, pct, formatCpu, formatMemory, mergePodMetrics,
+
+    // Connection / navigation / data
+    loadContexts, connect, disconnect, loadNamespaces,
+    switchView, onNamespaceChange, refreshData,
+
+    // Pod
+    openPodDetail, loadLogs, runExec, deletePodByName,
+    getPods: GetPods,
+
+    // Job
+    deleteJob, retryJob,
+
+    // Service / YAML
+    openServiceDetail, forwardServicePort,
+    showYAML, applyYAML,
+
+    // Metrics / port forward
+    loadPodMetrics, loadNodeMetrics,
+    startPortForward, stopPortForward, refreshPortForwards,
+
+    // Node
+    getNode,
+
+    // Совместимость со старым useResourceActions.ts
+    scaleDeployment, restartDeployment, deleteDeploymentByName, deleteDaemonSet,
+    deleteServiceAccount, deleteRole, deleteRoleBinding, deleteClusterRole, deleteClusterRoleBinding,
   }
 }

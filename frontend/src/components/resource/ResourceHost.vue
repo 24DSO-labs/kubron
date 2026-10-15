@@ -1,0 +1,102 @@
+<template>
+  <ResourceDetailPanel
+    v-if="def && detail"
+    :key="`${def.id}/${opened?.ns}/${opened?.name}`"
+    :def="def"
+    :resource="detail"
+    :ns="opened!.ns"
+    :name="opened!.name"
+    @close="resourceActions.closeDetail()"
+  />
+
+  <ScaleDeploymentDialog
+    v-if="scaleTarget"
+    :deployment="scaleTarget"
+    @close="resourceActions.cancelScale()"
+    @scale="resourceActions.confirmScale"
+  />
+
+  <ConfirmationDialog
+    v-model="confirmOpen"
+    :resource-type="pendingDelete?.kind ?? ''"
+    :resource-name="pendingDelete?.name ?? ''"
+    :namespace="pendingDelete?.ns ?? ''"
+    @confirm="resourceActions.confirmDelete()"
+    @cancel="resourceActions.cancelDelete()"
+  />
+</template>
+
+<script lang="ts" setup>
+/**
+ * Монтируется в App.vue один раз. Рисует единственную панель деталей, диалог масштабирования
+ * и диалог подтверждения удаления на всё приложение.
+ */
+import { computed, ref, shallowRef, watch } from 'vue'
+import ResourceDetailPanel from './ResourceDetailPanel.vue'
+import ConfirmationDialog from '../utils/ConfirmationDialog.vue'
+import ScaleDeploymentDialog from '../panels/ScaleDeploymentDialog.vue'
+import { getResourceById } from '../../resources/registry'
+import { findLoaded } from '../../resources/store'
+import { itemName, itemNs } from '../../resources/utils'
+import { opened, pendingDelete, scaleTarget, resourceActions } from '../../resources/actions'
+
+const def = computed(() => (opened.value ? getResourceById(opened.value.id) : undefined))
+const detail = shallowRef<any>(null)
+
+watch(
+  opened,
+  async o => {
+    detail.value = null
+    if (!o) return
+    const d = getResourceById(o.id)
+    if (!d) {
+      resourceActions.notifyError(`Неизвестный тип ресурса: ${o.id}`)
+      resourceActions.closeDetail()
+      return
+    }
+    const stale = () => opened.value !== o
+    let failure: any = null
+
+    // 1) сразу показываем то, что уже есть (элемент списка)
+    detail.value = o.item ?? findLoaded(d.view, o.ns, o.name) ?? null
+
+    // 2) api.get отдаёт более полные данные
+    if (d.api.get) {
+      try {
+        const fresh = await d.api.get(o.ns, o.name)
+        if (stale()) return
+        if (fresh) detail.value = fresh
+      } catch (e) {
+        failure = e
+      }
+    }
+
+    // 3) ресурс открыт по ссылке (по имени), а в кэше его нет: ищем в списке
+    if (!detail.value) {
+      try {
+        const items = await d.api.list(d.namespaced ? o.ns : '')
+        if (stale()) return
+        detail.value =
+          items?.find((x: any) => itemName(x) === o.name && (!d.namespaced || itemNs(x) === o.ns)) ?? null
+      } catch (e) {
+        failure = failure ?? e
+      }
+    }
+
+    if (stale()) return
+    if (!detail.value) {
+      resourceActions.notifyError(
+        failure
+          ? `${d.kind}: ${failure?.message || failure}`
+          : `${d.kind} "${o.name}" не найден`,
+      )
+      resourceActions.closeDetail()
+    }
+  },
+  { immediate: true },
+)
+
+// Модель диалога удаления синхронизируется с pendingDelete; чистят её только confirm/cancel
+const confirmOpen = ref(false)
+watch(pendingDelete, v => { confirmOpen.value = !!v })
+</script>
