@@ -21,21 +21,21 @@ export const viewRegistry: Record<string, ViewConfig> = {
     dataKey: 'filteredPods',
     hasSearch: true,
   },
-  deployments: {
-    component: lazyK8s('DeploymentsView'),
-    dataKey: 'filteredDeployments',
-    hasSearch: true,
-  },
+  // deployments: {
+  //   component: lazyK8s('DeploymentsView'),
+  //   dataKey: 'filteredDeployments',
+  //   hasSearch: true,
+  // },
   statefulsets: {
     component: lazyK8s('StatefulSetsView'),
     dataKey: 'filteredStatefulSets',
     hasSearch: true,
   },
-  daemonsets: {
-    component: lazyK8s('DaemonSetsView'),
-    dataKey: 'filteredDaemonSets',
-    hasSearch: true,
-  },
+  // daemonsets: {
+  //   component: lazyK8s('DaemonSetsView'),
+  //   dataKey: 'filteredDaemonSets',
+  //   hasSearch: true,
+  // },
   jobs: {
     component: lazyK8s('JobsView'),
     dataKey: 'filteredJobs',
@@ -46,11 +46,11 @@ export const viewRegistry: Record<string, ViewConfig> = {
     dataKey: 'filteredCronJobs',
     hasSearch: true,
   },
-  replicasets: {
-    component: lazyK8s('ReplicaSetsView'),
-    dataKey: 'filteredReplicaSets',
-    hasSearch: true,
-  },
+  // replicasets: {
+  //   component: lazyK8s('ReplicaSetsView'),
+  //   dataKey: 'filteredReplicaSets',
+  //   hasSearch: true,
+  // },
   services: {
     component: lazyK8s('ServicesView'),
     dataKey: 'filteredServices',
@@ -94,11 +94,11 @@ export const viewRegistry: Record<string, ViewConfig> = {
     dataKey: 'filteredStorageClasses',
     hasSearch: true,
   },
-  namespaces: {
-    component: lazyK8s('NamespacesView'),
-    dataKey: 'namespaces',
-    hasSearch: true,
-  },
+  // namespaces: {
+  //   component: lazyK8s('NamespacesView'),
+  //   dataKey: 'namespaces',
+  //   hasSearch: true,
+  // },
   nodes: {
     component: lazy('NodesView'),
     dataKey: 'nodes',
@@ -107,11 +107,11 @@ export const viewRegistry: Record<string, ViewConfig> = {
     component: lazy('EventsView'),
     dataKey: 'events',
   },
-  configmaps: {
-    component: lazyK8s('ConfigMapsView'),
-    dataKey: 'filteredConfigMaps',
-    hasSearch: true,
-  },
+  // configmaps: {
+  //   component: lazyK8s('ConfigMapsView'),
+  //   dataKey: 'filteredConfigMaps',
+  //   hasSearch: true,
+  // },
   secrets: {
     component: lazyK8s('SecretsView'),
     dataKey: 'filteredSecrets',
@@ -152,31 +152,31 @@ export const viewRegistry: Record<string, ViewConfig> = {
     dataKey: 'filteredLeases',
     hasSearch: true,
   },
-  serviceaccounts: {
-    component: lazyK8s('ServiceAccountsView'),
-    dataKey: 'filteredServiceAccounts',
-    hasSearch: true,
-  },
-  roles: {
-    component: lazyK8s('RolesView'),
-    dataKey: 'filteredRoles',
-    hasSearch: true,
-  },
-  rolebindings: {
-    component: lazyK8s('RoleBindingsView'),
-    dataKey: 'filteredRoleBindings',
-    hasSearch: true,
-  },
-  clusterroles: {
-    component: lazyK8s('ClusterRolesView'),
-    dataKey: 'filteredClusterRoles',
-    hasSearch: true,
-  },
-  clusterrolebindings: {
-    component: lazyK8s('ClusterRoleBindingsView'),
-    dataKey: 'filteredClusterRoleBindings',
-    hasSearch: true,
-  },
+  // serviceaccounts: {
+  //   component: lazyK8s('ServiceAccountsView'),
+  //   dataKey: 'filteredServiceAccounts',
+  //   hasSearch: true,
+  // },
+  // roles: {
+  //   component: lazyK8s('RolesView'),
+  //   dataKey: 'filteredRoles',
+  //   hasSearch: true,
+  // },
+  // rolebindings: {
+  //   component: lazyK8s('RoleBindingsView'),
+  //   dataKey: 'filteredRoleBindings',
+  //   hasSearch: true,
+  // },
+  // clusterroles: {
+  //   component: lazyK8s('ClusterRolesView'),
+  //   dataKey: 'filteredClusterRoles',
+  //   hasSearch: true,
+  // },
+  // clusterrolebindings: {
+  //   component: lazyK8s('ClusterRoleBindingsView'),
+  //   dataKey: 'filteredClusterRoleBindings',
+  //   hasSearch: true,
+  // },
   settings: {
     component: lazy('ClusterSettings'),
   },

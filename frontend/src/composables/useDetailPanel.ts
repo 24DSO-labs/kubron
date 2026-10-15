@@ -29,13 +29,13 @@ const detailPanelState = ref<DetailPanelState>({
 const resourcePanelNames: Record<string, string> = {
   job: 'JobDetailPanel',
   pod: 'PodDetailPanel',
-  deployment: 'DeploymentDetailPanel',
+  // deployment: 'DeploymentDetailPanel',
   service: 'ServiceDetailPanel',
-  daemonset: 'DaemonSetDetailPanel',
+  // daemonset: 'DaemonSetDetailPanel',
   statefulset: 'StatefulSetDetailPanel',
-  configmap: 'ConfigMapPanel',
+  // configmap: 'ConfigMapPanel',
   secret: 'SecretDetailPanel',
-  namespace: 'NamespaceDetailPanel',
+  // namespace: 'NamespaceDetailPanel',
   // ... можно добавить другие типы ресурсов
 }
 
