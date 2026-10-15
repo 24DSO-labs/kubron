@@ -4,7 +4,6 @@
     <header class="header">
       <div class="header-brand">
         <img src="./assets/images/logo.svg" alt="Kubron Logo" class="logo" />
-        <h1></h1>
       </div>
       <div v-if="activeClusterId" class="connection-info">
         <span class="active-cluster-icon">{{ activeClusterMeta?.icon }}</span>
@@ -28,7 +27,7 @@
         <button class="btn" @click="clusterConn.showAddCluster.value = true">➕ Добавить кластер</button>
       </div>
 
-      <!-- Не подключен но кластеры есть -->
+      <!-- Не подключен, но кластеры есть -->
       <div v-else-if="!activeClusterId && clusters.length > 0 && !clusterConn.connecting.value" class="welcome-screen">
         <h2>Выберите кластер</h2>
         <p>Кликните на иконку кластера слева для подключения</p>
@@ -40,120 +39,57 @@
           :clusterName="activeClusterMeta?.displayName" @navigate="onNavigate" @nsChange="onNsChange" />
 
         <main class="content">
-          <div v-if="loading" class="loading">⏳ Загрузка...</div>
+          <!-- Ресурсы нового каркаса (src/resources): список рисует ResourceList -->
+          <ResourceList v-if="activeResource" :key="`${activeClusterId}/${activeResource.view}`"
+            :def="activeResource" />
 
-          <component v-if="!loading && activeViewComponent" :is="activeViewComponent" v-bind="activeViewProps"
-            v-on="activeViewEvents" />
+          <!-- Остальные view (старый механизм) -->
+          <template v-else>
+            <div v-if="loading" class="loading">⏳ Загрузка...</div>
+            <component v-else-if="activeViewComponent" :is="activeViewComponent" v-bind="activeViewProps"
+              v-on="activeViewEvents" />
+          </template>
         </main>
       </template>
     </div>
-    
-    <!-- Universal Detail Panel -->
-    <component v-if="globalDetailPanel.detailPanelState.value.isOpen && globalDetailPanel.detailPanelState.value.component"
-      :is="globalDetailPanel.detailPanelState.value.component"
-      :resource="globalDetailPanel.detailPanelState.value.resource"
-      v-bind="globalDetailPanel.detailPanelState.value.props" v-on="globalDetailPanel.detailPanelState.value.events" />
 
-    <!-- Confirmation Dialog для удаления ресурсов из Detail Panel -->
-    <ConfirmationDialog
-      v-model="showDeleteResourceDialog"
-      :resource-type="deleteResourceMeta.type"
-      :resource-name="deleteResourceMeta.name"
-      :namespace="deleteResourceMeta.namespace"
-      @confirm="confirmDeleteResource"
-      @cancel="cancelDeleteResource" />
+    <!-- ═══ Панели нового каркаса: одна панель деталей и один диалог удаления ═══ -->
+    <ResourceHost />
 
-    <!-- Unified Tabbed Panel (Logs & YAML Editor) -->
-<TabbedPanel 
-  v-if="globalTabbedPanel.isOpen()" 
-  @close="globalTabbedPanel.closeAllTabs()"
-  @apply-yaml="applyYAMLTabbed" 
-/>
+    <!-- ═══ Универсальная панель из useDetailPanel (Jobs, StatefulSets, ...) ═══ -->
+    <component v-if="detailPanel.isOpen && detailPanel.component" :is="detailPanel.component"
+      :resource="detailPanel.resource" v-bind="detailPanel.props" v-on="detailPanel.events" />
 
-    <!-- Add Cluster Dialog -->
+    <!-- Подтверждение удаления для старых панелей и списков -->
+    <ConfirmationDialog v-model="deleteDialog" :resource-type="deleteMeta.type" :resource-name="deleteMeta.name"
+      :namespace="deleteMeta.namespace" @confirm="confirmDelete" @cancel="cancelDelete" />
+
+    <!-- Вкладки: Logs / YAML / Terminal -->
+    <TabbedPanel v-if="globalTabbedPanel.isOpen()" @close="globalTabbedPanel.closeAllTabs()"
+      @apply-yaml="applyYAMLTabbed" />
+
     <AddClusterDialog v-if="clusterConn.showAddCluster.value" @close="clusterConn.showAddCluster.value = false"
       @addFile="clusterConn.addFromFile" @addText="clusterConn.addFromText" />
 
-    <!-- Notifications -->
     <NotificationToast :notifications="notifications.notifications.value" @dismiss="notifications.dismiss" />
-  
 
+    <!-- ═══ Старые панели деталей (по мере миграции на src/resources будут исчезать) ═══ -->
 
-    <!-- Pod Detail Panel -->
     <PodDetailPanel v-if="selectedPod" :pod="selectedPod" :logs="podLogs" v-model:logContainer="logContainer"
       v-model:logLines="logLines" v-model:execCmd="execCmd" :execOutput="execOutput" :statusClass="statusClass"
       v-model:pfLocalPort="pfLocalPort" v-model:pfPodPort="pfPodPort" :portForwards="portForwards || []"
       :cluster-name="activeClusterId" :on-start-port-forward="startPortForward" :on-stop-port-forward="stopPortForward"
-      @close="selectedPod = null" @loadLogs="loadLogs" @runExec="runExec" @delete="podActions.removePod()"
-      @openTerminal="podActions.terminalOpen.value = true" @evict="podActions.evictPod()" @edit="onPodDetailEdit"
-      @attach="onPodDetailAttach" @terminal="onPodDetailTerminal" @logs="onPodDetailLogs"
-      @open-resource="onOpenResource" />
+      @close="selectedPod = null" @loadLogs="loadLogs" @runExec="runExec" @delete="onPodDelete(selectedPod)"
+      @openTerminal="openPodShell(selectedPod)" @evict="podActions.evictPod()"
+      @edit="editItem('pod', selectedPod)" @attach="onPodPanelAttach" @terminal="onPodPanelShell"
+      @logs="onPodPanelLogs" @open-resource="onOpenResource" />
 
-    <!-- Deployment Detail Panel -->
-    <DeploymentDetailPanel v-if="selectedDeployment" :deployment="selectedDeployment" @close="selectedDeployment = null"
-      @scale="onDeploymentScale" @restart="onDeploymentRestart" @logs="onDeploymentLogs" @edit="onDeploymentEdit"
-      @delete="onDeploymentDelete" @pod-selected="openPodDetailFromDeployment" @open-resource="onOpenResource"
-      @show-details="onDeploymentShowReplicaSet" />
-
-    <!-- Scale Deployment Dialog -->
-    <ScaleDeploymentDialog v-if="showScaleDialog && deploymentToScale" :deployment="deploymentToScale"
-      @close="showScaleDialog = false" @scale="onScaleDeployment" />
-
- 
-    <!-- Service Detail Panel -->
     <ServiceDetailPanel v-if="selectedService" :svc="selectedService" :portForwards="portForwards"
       @close="selectedService = null" @forward="forwardServicePort" @stopForward="stopPortForward" />
 
-    <!-- ConfigMap Panel -->
-    <ConfigMapPanel v-if="selectedConfigMap" :cm="selectedConfigMap" @close="selectedConfigMap = null" />
-
-    <!-- Namespace Detail Panel -->
-    <NamespaceDetailPanel v-if="selectedNamespaceDetail" :namespace="selectedNamespaceDetail"
-      @close="selectedNamespaceDetail = null" />
-
-    <!-- ServiceAccount Detail Panel -->
-    <!-- @ts-ignore -->
-    <ServiceAccountDetailPanel v-if="selectedServiceAccount" :account="selectedServiceAccount"
-      @close="selectedServiceAccount = null" @edit="onServiceAccountEdit" @delete="onServiceAccountDelete" />
-
-    <!-- ReplicaSet Detail Panel -->
-    <ReplicaSetDetailPanel v-if="selectedReplicaSet" :resource="selectedReplicaSet" @close="selectedReplicaSet = null"
-      @edit="() => { }" @delete="() => { }" />
-
-    <!-- DaemonSet Detail Panel -->
-    <DaemonSetDetailPanel v-if="selectedDaemonSet" :daemonset="selectedDaemonSet" :cluster-name="activeClusterId"
-      @close="selectedDaemonSet = null" @restart="onDaemonSetRestart" @logs="onDaemonSetLogs" @edit="onDaemonSetEdit"
-      @delete="onDaemonSetDelete" @pod-selected="openPodDetailFromDaemonSet" @open-resource="onOpenResource" />
-
-    <!-- Node Detail View -->
     <NodeDetailView v-if="selectedNode" :node="selectedNode" :status-class="statusClass" :cluster-name="activeClusterId"
-      @close="selectedNode = null" @edit="() => { }" />
+      @close="selectedNode = null" @edit="editItem('node', selectedNode)" />
 
-    <!-- Role Detail Panel -->
-    <RoleDetailPanel v-if="selectedRole" :role="selectedRole" @close="selectedRole = null"
-      @edit="() => onRoleEdit(selectedRole?.namespace, selectedRole?.name)"
-      @delete="() => onRoleDelete(selectedRole?.namespace, selectedRole?.name)" />
-
-    <!-- RoleBinding Detail Panel -->
-    <RoleBindingDetailPanel v-if="selectedRoleBinding" :binding="selectedRoleBinding"
-      @close="selectedRoleBinding = null"
-      @edit="() => onRoleBindingEdit(selectedRoleBinding.namespace, selectedRoleBinding.name)"
-      @delete="() => onRoleBindingDelete(selectedRoleBinding.namespace, selectedRoleBinding.name)" />
-
-    <!-- ClusterRole Detail Panel -->
-    <ClusterRoleDetailPanel v-if="selectedClusterRole" :role="selectedClusterRole" @close="selectedClusterRole = null"
-      @edit="() => onClusterRoleEdit('', selectedClusterRole.name)"
-      @delete="() => onClusterRoleDelete('', selectedClusterRole.name)" />
-
-    <!-- ClusterRoleBinding Detail Panel -->
-    <ClusterRoleBindingDetailPanel v-if="selectedClusterRoleBinding" :binding="selectedClusterRoleBinding"
-      @close="selectedClusterRoleBinding = null"
-      @edit="() => onClusterRoleBindingEdit('', selectedClusterRoleBinding.name)"
-      @delete="() => onClusterRoleBindingDelete('', selectedClusterRoleBinding.name)" />
-
-    
-
-    
     <!-- Connecting overlay -->
     <div v-if="clusterConn.connecting.value" class="overlay">
       <div class="spinner">⏳ Подключение...</div>
@@ -162,107 +98,67 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick, markRaw, shallowRef } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, provide } from 'vue'
 import { useK8s } from './composables/useK8s'
 import { useClusters } from './composables/useClusters'
 import { usePodActions } from './composables/usePodActions'
 import { useClusterConnection } from './composables/useClusterConnection'
 import { useNotifications } from './composables/useNotifications'
-import { useLogsPanel } from './composables/useLogsPanel'
 import { viewRegistry } from './composables/useViewRegistry'
 import { globalDetailPanel } from './composables/useDetailPanel'
 import { globalTabbedPanel } from './composables/useTabbedPanel'
-import { globalResourceActions } from './composables/useResourceActions'
+import { getResourceByView, getResourceById } from './resources/registry'
+import { resourceActions, registerOpener } from './resources/actions'
+import { clusterNameKey } from './resources/context'
+import { clearResourceStore, reloadActive } from './resources/store'
 import type { PodInfo } from './types'
 
 import ClusterBar from './components/ClusterBar.vue'
 import AddClusterDialog from './components/AddClusterDialog.vue'
 import Sidebar from './components/Sidebar.vue'
 import NotificationToast from './components/NotificationToast.vue'
-
-// Импортируем панели напрямую и оборачиваем в markRaw чтобы Vue не делал их реактивными
+import ResourceList from './components/resource/ResourceList.vue'
+import ResourceHost from './components/resource/ResourceHost.vue'
 import ConfirmationDialog from './components/utils/ConfirmationDialog.vue'
-import PodDetailPanelRaw from './components/panels/k8s_resource/PodDetailPanel.vue'
-import DeploymentDetailPanelRaw from './components/panels/k8s_resource/DeploymentDetailPanel.vue'
-import ScaleDeploymentDialogRaw from './components/panels/ScaleDeploymentDialog.vue'
-import ServiceDetailPanelRaw from './components/panels/k8s_resource/ServiceDetailPanel.vue'
-import ServiceAccountDetailPanelRaw from './components/panels/k8s_resource/ServiceAccountDetailPanel.vue'
-import RoleDetailPanelRaw from './components/panels/k8s_resource/RoleDetailPanel.vue'
-import RoleBindingDetailPanelRaw from './components/panels/k8s_resource/RoleBindingDetailPanel.vue'
-import ClusterRoleDetailPanelRaw from './components/panels/k8s_resource/ClusterRoleDetailPanel.vue'
-import ClusterRoleBindingDetailPanelRaw from './components/panels/k8s_resource/ClusterRoleBindingDetailPanel.vue'
-import ConfigMapPanelRaw from './components/panels/k8s_resource/ConfigMapPanel.vue'
-import TabbedPanelRaw from './components/utils/TabbedPanel.vue'
-import NamespaceDetailPanelRaw from './components/panels/k8s_resource/NamespaceDetailPanel.vue'
-import ReplicaSetDetailPanelRaw from './components/panels/k8s_resource/ReplicaSetDetailPanel.vue'
-import DaemonSetDetailPanelRaw from './components/panels/k8s_resource/DaemonSetDetailPanel.vue'
-import NodeDetailViewRaw from './components/views/NodeDetailView.vue'
+import TabbedPanel from './components/utils/TabbedPanel.vue'
+import PodDetailPanel from './components/panels/k8s_resource/PodDetailPanel.vue'
+import ServiceDetailPanel from './components/panels/k8s_resource/ServiceDetailPanel.vue'
+import NodeDetailView from './components/views/NodeDetailView.vue'
 
-// Оборачиваем в markRaw для предотвращения реактивности
-const PodDetailPanel = markRaw(PodDetailPanelRaw)
-const DeploymentDetailPanel = markRaw(DeploymentDetailPanelRaw)
-const ScaleDeploymentDialog = markRaw(ScaleDeploymentDialogRaw)
-const ServiceDetailPanel = markRaw(ServiceDetailPanelRaw)
-const ServiceAccountDetailPanel = markRaw(ServiceAccountDetailPanelRaw)
-const RoleDetailPanel = markRaw(RoleDetailPanelRaw)
-const RoleBindingDetailPanel = markRaw(RoleBindingDetailPanelRaw)
-const ClusterRoleDetailPanel = markRaw(ClusterRoleDetailPanelRaw)
-const ClusterRoleBindingDetailPanel = markRaw(ClusterRoleBindingDetailPanelRaw)
-const ConfigMapPanel = markRaw(ConfigMapPanelRaw)
-const TabbedPanel = markRaw(TabbedPanelRaw)
-const NamespaceDetailPanel = markRaw(NamespaceDetailPanelRaw)
-const ReplicaSetDetailPanel = markRaw(ReplicaSetDetailPanelRaw)
-const DaemonSetDetailPanel = markRaw(DaemonSetDetailPanelRaw)
-const NodeDetailView = markRaw(NodeDetailViewRaw)
-
-// ─── Composables ───
+// ═══════════════════════════════════════════════
+// Composables
+// ═══════════════════════════════════════════════
 
 const k8s = useK8s()
 const clustersApi = useClusters()
 const notifications = useNotifications()
-const logsPanel = useLogsPanel()
 
 const {
-  namespaces, overview, selectedNamespace,
-  currentView, search, error, loading,
-  selectedPod, podLogs, logContainer, logLines,
-  execCmd, execOutput, selectedConfigMap,
-  yamlContent, revisions, portForwards,
-  pfLocalPort, pfPodPort, selectedService,
-  podMetrics, nodeMetrics, pvs, nodes, events,
+  namespaces, overview, selectedNamespace, currentView, search, error, loading,
+  selectedPod, podLogs, logContainer, logLines, execCmd, execOutput,
+  selectedService, portForwards, pfLocalPort, pfPodPort,
+  nodeMetrics, pvs, nodes, events,
   statusClass, pct,
   switchView, onNamespaceChange, refreshData,
   openPodDetail, loadLogs, runExec,
-  doScale, restartDeployment, loadRevisions, rollbackDeployment,
-  openConfigMapDetail, showYAML, applyYAML,
+  openServiceDetail, forwardServicePort, showYAML,
   startPortForward, stopPortForward, refreshPortForwards,
-  openServiceDetail, forwardServicePort,
-  loadNamespaces, deletePodByName, deleteDeploymentByName,
-  getPods, filteredPods, filteredDeployments, filteredStatefulSets,
-  filteredDaemonSets, filteredJobs, filteredCronJobs,
-  filteredServices, filteredIngresses, filteredConfigMaps,
+  loadNamespaces, deletePodByName,
+  filteredPods, filteredStatefulSets,
+  filteredJobs, filteredCronJobs,
+  filteredServices, filteredIngresses,
   filteredSecrets, filteredResourceQuotas, filteredPVCs,
-  filteredReplicaSets, filteredLimitRanges, filteredHPA,
+  filteredLimitRanges, filteredHPA,
   filteredPDB, filteredPriorityClasses, filteredRuntimeClasses,
   filteredLeases, filteredEndpoints, filteredNetworkPolicies,
   filteredIngressClasses, filteredStorageClasses,
-  filteredServiceAccounts, filteredRoles, filteredRoleBindings,
-  filteredClusterRoles, filteredClusterRoleBindings,
 } = k8s
 
 const {
-  clusters,
-  activeClusterId,
-  loadClusters,
-  connectToCluster,
-  addClusterFromFile,
-  addClusterFromText,
-  deleteCluster,
-  updateCluster,
-  autoConnect,
+  clusters, activeClusterId,
+  loadClusters, connectToCluster, addClusterFromFile, addClusterFromText,
+  deleteCluster, updateCluster, autoConnect,
 } = clustersApi
-
-// ─── Cluster Connection ───
 
 const clusterConn = useClusterConnection({
   clusters,
@@ -281,11 +177,9 @@ const clusterConn = useClusterConnection({
   updateCluster,
   autoConnect,
 })
-
 const activeClusterMeta = clusterConn.activeClusterMeta
 
-// ─── Pod Actions ───
-
+// Из usePodActions используется только evictPod (всё остальное идёт через resourceActions)
 const podActions = usePodActions({
   selectedPod,
   logContainer,
@@ -295,435 +189,143 @@ const podActions = usePodActions({
   showYAML,
 })
 
-// ─── Local State ───
+const detailPanel = globalDetailPanel.detailPanelState
 
-const selectedNamespaceDetail = ref<any | null>(null)
-const selectedDeployment = ref<any | null>(null)
-const selectedServiceAccount = ref<any | null>(null)
-const selectedReplicaSet = ref<any | null>(null)
-const selectedRole = ref<any | null>(null)
-const selectedRoleBinding = ref<any | null>(null)
-const selectedClusterRole = ref<any | null>(null)
-const selectedClusterRoleBinding = ref<any | null>(null)
+// ═══════════════════════════════════════════════
+// Локальное состояние старых панелей
+// ═══════════════════════════════════════════════
+// Pod и Service лежат в useK8s (selectedPod, selectedService).
+
 const selectedNode = ref<any | null>(null)
-const selectedDaemonSet = ref<any | null>(null)
-const showScaleDialog = ref(false)
-const deploymentToScale = ref<any | null>(null)
-const revisionDepNs = ref({ ns: '', name: '' })
-const deploymentYamlEditorOpen = ref(false)
-const deploymentYamlEditMeta = ref({ namespace: '', name: '' })
-const deploymentLogsOpen = ref(false)
-const deploymentForLogs = ref<any | null>(null)
-const tabbedDeploymentLogsOpen = ref(false)
-const tabbedDeploymentLogsRef = ref<any>(null)
 
-// Состояние для диалога подтверждения удаления ресурса из Detail Panel
-const showDeleteResourceDialog = ref(false)
-const deleteResourceMeta = ref({ type: '', namespace: '', name: '' })
-let pendingDeleteAction: (() => void) | null = null
+// Для вкладок и секций нового каркаса (метрики и т.п.)
+provide(clusterNameKey, activeClusterId)
 
-// ─── Data map for dynamic component ───
-
-const dataMap = computed<Record<string, any>>(() => ({
-  filteredPods: filteredPods.value,
-  filteredDeployments: filteredDeployments.value,
-  filteredStatefulSets: filteredStatefulSets.value,
-  filteredDaemonSets: filteredDaemonSets.value,
-  filteredJobs: filteredJobs.value,
-  filteredCronJobs: filteredCronJobs.value,
-  filteredReplicaSets: filteredReplicaSets.value,
-  filteredServices: filteredServices.value,
-  filteredIngresses: filteredIngresses.value,
-  filteredEndpoints: filteredEndpoints.value,
-  filteredIngressClasses: filteredIngressClasses.value,
-  filteredNetworkPolicies: filteredNetworkPolicies.value,
-  filteredPVCs: filteredPVCs.value,
-  filteredStorageClasses: filteredStorageClasses.value,
-  filteredConfigMaps: filteredConfigMaps.value,
-  filteredSecrets: filteredSecrets.value,
-  filteredResourceQuotas: filteredResourceQuotas.value,
-  filteredLimitRanges: filteredLimitRanges.value,
-  filteredHPA: filteredHPA.value,
-  filteredPDB: filteredPDB.value,
-  filteredPriorityClasses: filteredPriorityClasses.value,
-  filteredRuntimeClasses: filteredRuntimeClasses.value,
-  filteredLeases: filteredLeases.value,
-  filteredServiceAccounts: filteredServiceAccounts.value,
-  filteredRoles: filteredRoles.value,
-  filteredRoleBindings: filteredRoleBindings.value,
-  filteredClusterRoles: filteredClusterRoles.value,
-  filteredClusterRoleBindings: filteredClusterRoleBindings.value,
-  portForwards: portForwards.value,
-  pvs: pvs.value,
-  nodes: nodes.value,
-  events: events.value,
-  namespaces: namespaces.value,
-}))
-
-// ─── Dynamic View Component ───
-
-const activeViewConfig = computed(() => viewRegistry[currentView.value] || null)
-
-const activeViewComponent = computed(() => activeViewConfig.value?.component || null)
-
-const activeViewProps = computed(() => {
-  const config = activeViewConfig.value
-  if (!config) return {}
-
-  const props: Record<string, any> = {}
-
-  // items
-  if (config.dataKey) {
-    props.items = dataMap.value[config.dataKey] || []
-  }
-
-  // search
-  if (config.hasSearch) {
-    props.search = search.value
-  }
-
-  // View-specific props
-  const view = currentView.value
-
-  if (view === 'overview') {
-    props.overview = overview.value
-    props.pct = pct               // ← передаём саму функцию
-    props.clusterName = activeClusterId.value
-  }
-
-  if (view === 'pods') {
-    props.statusClass = statusClass
-  }
-
-  if (view === 'jobs') {
-    props.statusClass = statusClass
-  }
-
-  if (view === 'pv' || view === 'pvc' || view === 'namespaces') {
-    props.statusClass = statusClass
-  }
-
-  if (view === 'nodes') {
-    props.metrics = nodeMetrics.value
-    props.statusClass = statusClass
-    props.clusterName = activeClusterId.value
-  }
-
-  if (view === 'settings') {
-    props.clusterName = activeClusterId.value
-  }
-
-  return props
-})
-
-const activeViewEvents = computed(() => {
-  const config = activeViewConfig.value
-  if (!config) return {}
-
-  const events: Record<string, (...args: any[]) => void> = {}
-  const view = currentView.value
-
-  // Общие события
-  events.refresh = refreshData
-
-  if (config.hasSearch) {
-    events.search = (v: string) => { search.value = v }
-  }
-
-  // View-specific события
-  if (view === 'overview') {
-    events.navigate = switchView
-  }
-
-  if (view === 'pods') {
-    events.select = openPodDetail
-    events.attachPod = (pod: any, container?: string) => {
-      console.log('[App] Событие attachPod', { pod, container })
-      if (container) {
-        podActions.openAttachWithContainer(container, pod)
-      } else {
-        podActions.openAttach(pod)
-      }
-    }
-    events.shell = (pod: any, container?: string) => {
-      console.log('[App] Событие shell', { pod, container })
-      if (container) {
-        podActions.openShellWithContainer(container, pod)
-      } else {
-        podActions.openShell(pod)
-      }
-    }
-    events.evict = podActions.evictPod
-    events.logs = (pod: any, container?: string) => {
-      console.log('[App] Событие logs', { pod, container })
-      if (container) {
-        podActions.openLogs(pod, container)
-      } else {
-        podActions.openLogs(pod)
-      }
-    }
-    events.edit = podActions.editPod
-    events.delete = podActions.removePod
-    // События из PodDetailPanel для TabbedPodActionsPanel
-    events.attach = (data: any) => {
-      console.log('[App] Событие attach', data)
-      if (data.pod) {
-        selectedPod.value = data.pod
-        podActions.openAttachWithContainer(data.container, data.pod)
-      }
-    }
-    events.terminal = (data: any) => {
-      console.log('[App] Событие terminal', data)
-      if (data.pod) {
-        selectedPod.value = data.pod
-        podActions.openShellWithContainer(data.container, data.pod)
-      }
-    }
-    events.openLogs = (data) => {
-      console.log('[App] Событие openLogs', data)
-      logsPanel.openLogs(data)
-    }
-    events['shell:open'] = (ns: string, podName: string, container: string) => {
-      console.log('[App] Событие shell:open', { ns, podName, container })
-      handleShellOpen(ns, podName, container)
-    }
-    events['attach:open'] = (ns: string, podName: string, container: string) => {
-      console.log('[App] Событие attach:open', { ns, podName, container })
-      handleAttachOpen(ns, podName, container)
-    }
-    events['logs:open'] = (ns: string, podName: string, container: string) => {
-      console.log('[App] Событие logs:open', { ns, podName, container })
-      handleLogsOpen(ns, podName, container)
-    }
-  }
-
-  if (view === 'deployments') {
-    events.select = (dep: any) => {
-      selectedDeployment.value = dep
-    }
-    events.scale = (dep: any) => {
-      deploymentToScale.value = dep
-      showScaleDialog.value = true
-    }
-    events.yaml = (ns: string, n: string) => showYAML('deployment', ns, n)
-    events.restart = (ns: string, n: string) => {
-      if (confirm(`Restart deployment ${n}?`)) {
-        restartDeployment(ns, n)
-      }
-    }
-    events.logs = (ns: string, n: string) => {
-      tabbedDeploymentLogsOpen.value = true
-      nextTick(() => {
-        if (tabbedDeploymentLogsRef.value) {
-          tabbedDeploymentLogsRef.value.setPendingDeployment({ namespace: ns, name: n })
-        }
-      })
-    }
-    events.edit = (ns: string, n: string) => {
-      podActions.yamlEditorOpen.value = true
-      podActions.yamlEditorMeta.value = { resourceType: 'deployment', resourceName: n, namespace: ns }
-      showYAML('deployment', ns, n)
-    }
-    events.delete = (ns: string, n: string) => {
-      if (confirm(`Delete deployment ${n}?`)) {
-        deleteDeploymentByName(ns, n)
-          .then(() => {
-            notifications.notifySuccess(`Deployment ${n} deleted`)
-            refreshData()
-          })
-          .catch((e: any) => {
-            notifications.notifyError(`Delete error: ${e.message || e}`)
-          })
-      }
-    }
-  }
-
-  if (view === 'services') {
-    events.select = openServiceDetail
-    events.yaml = (ns: string, n: string) => showYAML('service', ns, n)
-  }
-
-  if (view === 'configmaps') {
-    events.select = openConfigMapDetail
-    events.yaml = (ns: string, n: string) => showYAML('configmap', ns, n)
-  }
-
-  if (view === 'secrets') {
-    events.yaml = (ns: string, n: string) => showYAML('secret', ns, n)
-  }
-
-  if (view === 'nodes') {
-    events.yaml = (ns: string, n: string) => showYAML('node', ns, n)
-  }
-
-  if (view === 'namespaces') {
-    events.select = openNamespaceDetail
-  }
-
-  if (view === 'serviceaccounts') {
-    events.select = openServiceAccountDetail
-    events.yaml = async (ns: string, n: string) => {
-      try {
-        podActions.yamlEditorMeta.value = { resourceType: 'serviceaccount', resourceName: n, namespace: ns }
-        await showYAML('serviceaccount', ns, n)
-        podActions.yamlEditorOpen.value = true
-      } catch (e: any) {
-        notifications.notifyError(`Error loading YAML: ${e.message || e}`)
-      }
-    }
-    events.delete = (ns: string, n: string) => {
-      if (confirm(`Delete ServiceAccount ${n}?`)) {
-        k8s.deleteServiceAccount(ns, n)
-          .then(() => {
-            notifications.notifySuccess(`ServiceAccount ${n} deleted`)
-            refreshData()
-          })
-          .catch((e: any) => {
-            notifications.notifyError(`Delete error: ${e.message || e}`)
-          })
-      }
-    }
-  }
-
-  if (view === 'roles') {
-    events.select = (role: any) => { selectedRole.value = role }
-    events.edit = (ns: string, n: string) => onRoleEdit(ns, n)
-    events.yaml = (ns: string, n: string) => {
-      podActions.yamlEditorMeta.value = { resourceType: 'role', resourceName: n, namespace: ns }
-      showYAML('role', ns, n)
-        .then(() => {
-          podActions.yamlEditorOpen.value = true
-        })
-        .catch((e: any) => {
-          notifications.notifyError(`Error loading YAML: ${e.message || e}`)
-        })
-    }
-    events.delete = (ns: string, n: string) => {
-      if (confirm(`Delete Role ${n}?`)) {
-        k8s.deleteRole(ns, n)
-          .then(() => {
-            notifications.notifySuccess(`Role ${n} deleted`)
-            refreshData()
-          })
-          .catch((e: any) => {
-            notifications.notifyError(`Delete error: ${e.message || e}`)
-          })
-      }
-    }
-  }
-
-  if (view === 'rolebindings') {
-    events.select = (rb: any) => { selectedRoleBinding.value = rb }
-    events.edit = (ns: string, n: string) => onRoleBindingEdit(ns, n)
-    events.delete = (ns: string, n: string) => onRoleBindingDelete(ns, n)
-  }
-
-  if (view === 'clusterroles') {
-    events.select = (cr: any) => { selectedClusterRole.value = cr }
-    events.edit = (ns: string, n: string) => onClusterRoleEdit(ns, n)
-    events.delete = (ns: string, n: string) => onClusterRoleDelete(ns, n)
-  }
-
-  if (view === 'clusterrolebindings') {
-    events.select = (crb: any) => { selectedClusterRoleBinding.value = crb }
-    events.edit = (ns: string, n: string) => onClusterRoleBindingEdit(ns, n)
-    events.delete = (ns: string, n: string) => onClusterRoleBindingDelete('', n)
-  }
-
-  if (view === 'replicasets') {
-    events.select = (rs: any) => {
-      selectedReplicaSet.value = rs
-    }
-  }
-
-  if (view === 'daemonsets') {
-    events.select = (ds: any) => {
-      selectedDaemonSet.value = ds
-    }
-    events.restart = (ns: string, n: string) => {
-      if (confirm(`Restart daemonset ${n}?`)) {
-        restartDeployment(ns, n)
-      }
-    }
-    events.logs = (ns: string, n: string) => {
-      tabbedDeploymentLogsOpen.value = true
-      nextTick(() => {
-        if (tabbedDeploymentLogsRef.value) {
-          tabbedDeploymentLogsRef.value.setPendingDeployment({ namespace: ns, name: n })
-        }
-      })
-    }
-    events.edit = (ns: string, n: string) => {
-      podActions.yamlEditorOpen.value = true
-      podActions.yamlEditorMeta.value = { resourceType: 'daemonset', resourceName: n, namespace: ns }
-      showYAML('daemonset', ns, n)
-    }
-    events.delete = (ns: string, n: string) => {
-      if (confirm(`Delete daemonset ${n}?`)) {
-        deleteDeploymentByName(ns, n)
-          .then(() => {
-            notifications.notifySuccess(`DaemonSet ${n} deleted`)
-            refreshData()
-          })
-          .catch((e: any) => {
-            notifications.notifyError(`Delete error: ${e.message || e}`)
-          })
-      }
-    }
-  }
-
-  if (view === 'portforwarding') {
-    events.refresh = refreshPortForwards
-    events.stop = stopPortForward
-  }
-
-  return events
-})
-
-// ─── Handlers ───
-
-
-// Обработчики для TabbedPanel (shell/attach/logs)
-function handleShellOpen(namespace: string, pod: string, container: string) {
-  globalTabbedPanel.openTerminalTab('pod', pod, namespace, pod, container, 'shell')
-}
-
-function handleAttachOpen(namespace: string, pod: string, container: string) {
-  globalTabbedPanel.openTerminalTab('pod', pod, namespace, pod, container, 'attach')
-}
-
-function handleLogsOpen(namespace: string, resourceName: string, container: string) {
-  // Определяем тип ресурса из контекста (можно расширить)
-  // Пока используем 'pod' как default, но в будущем можно передавать тип ресурса
-  globalTabbedPanel.openLogsTab('pod', resourceName, namespace, [{ name: container }], container)
+function closeLegacyPanels() {
+  selectedPod.value = null
+  selectedService.value = null
+  selectedNode.value = null
 }
 
 function closeAllDetailPanels() {
-  selectedPod.value = null
-  selectedDeployment.value = null
-  selectedConfigMap.value = null
-  selectedService.value = null
-  selectedNamespaceDetail.value = null
-  selectedServiceAccount.value = null
-  selectedReplicaSet.value = null
-  selectedNode.value = null
-  selectedRole.value = null
-  selectedRoleBinding.value = null
-  selectedClusterRole.value = null
-  selectedClusterRoleBinding.value = null
-  showScaleDialog.value = false
-  tabbedDeploymentLogsOpen.value = false
-  revisions.value = []
+  closeLegacyPanels()
+  resourceActions.closeDetail()
 }
 
-async function onPodDetailEdit() {
-  if (!selectedPod.value) return
-  const ns = selectedPod.value.namespace
-  const name = selectedPod.value.name
-  podActions.yamlEditorMeta.value = { resourceType: 'pod', resourceName: name, namespace: ns }
-  await showYAML('pod', ns, name)
-  podActions.yamlEditorOpen.value = true
+// Смена кластера: сбросить кэш списков нового каркаса и закрыть панели.
+// ResourceList пересоздаётся сам (activeClusterId входит в его :key).
+watch(activeClusterId, () => {
+  clearResourceStore()
+  closeAllDetailPanels()
+})
+
+// ═══════════════════════════════════════════════
+// Обновление данных
+// ═══════════════════════════════════════════════
+
+/** После изменений: обновить и старый стор (если view старый), и новый (если открыт ResourceList) */
+const refreshAll = () => Promise.all([refreshData(), reloadActive()])
+
+// ═══════════════════════════════════════════════
+// Удаление с подтверждением (старые списки и панели)
+// ═══════════════════════════════════════════════
+
+const deleteDialog = ref(false)
+const deleteMeta = ref({ type: '', namespace: '', name: '' })
+let pendingDeleteRun: (() => Promise<void>) | null = null
+
+function askDelete(type: string, ns: string, name: string, run: () => Promise<void>) {
+  deleteMeta.value = { type, namespace: ns, name }
+  pendingDeleteRun = run
+  deleteDialog.value = true
 }
+
+async function confirmDelete() {
+  const run = pendingDeleteRun
+  const { type, name } = deleteMeta.value
+  pendingDeleteRun = null
+  deleteDialog.value = false
+  if (!run) return
+  try {
+    await run()
+    notifications.notifySuccess(`${type} "${name}" deleted`)
+    await refreshAll()
+  } catch (e: any) {
+    notifications.notifyError(`Delete error: ${e.message || e}`)
+  }
+}
+
+function cancelDelete() {
+  pendingDeleteRun = null
+  deleteDialog.value = false
+}
+
+/** Удаление для старых типов; типы нового каркаса делегируются resourceActions */
+const legacyDeleters: Record<string, (ns: string, name: string) => Promise<void>> = {
+  pod: k8s.deletePodByName,
+  job: k8s.deleteJob,
+}
+
+function requestDelete(type: string, ns: string, name: string, after?: () => void) {
+  const key = type.toLowerCase()
+  if (getResourceById(key)) return resourceActions.requestDelete(key, ns, name)
+  const remove = legacyDeleters[key]
+  if (!remove) return notifications.notifyError(`Удаление не поддерживается: ${type}`)
+  askDelete(type, ns, name, async () => {
+    await remove(ns, name)
+    after?.()
+  })
+}
+
+// Короткие обёртки для обработчиков панелей: item может быть null, пока панель закрывается
+const editItem = (kind: string, item: any) =>
+  item && resourceActions.edit(kind, item.namespace ?? '', item.name)
+const deleteItem = (kind: string, item: any, after: () => void) =>
+  item && requestDelete(kind, item.namespace ?? '', item.name, after)
+
+// ═══════════════════════════════════════════════
+// Pod: логи / shell / attach идут через одну точку (resourceActions → TabbedPanel)
+// ═══════════════════════════════════════════════
+
+const podContainer = (pod: any, container?: string) =>
+  container || pod?.containers?.[0]?.name || pod?.name || ''
+
+function openPodLogs(pod: any, container?: string) {
+  resourceActions.openLogs(pod.namespace, pod.name, pod.containers, podContainer(pod, container))
+}
+function openPodShell(pod: any, container?: string) {
+  void resourceActions.openShell(pod.namespace, pod.name, podContainer(pod, container))
+}
+function openPodAttach(pod: any, container?: string) {
+  void resourceActions.openAttach(pod.namespace, pod.name, podContainer(pod, container))
+}
+
+function onPodDelete(pod: any) {
+  if (!pod) return
+  requestDelete('pod', pod.namespace, pod.name, () => {
+    if (selectedPod.value?.name === pod.name) selectedPod.value = null
+  })
+}
+
+// События PodDetailPanel приходят как { pod, container }
+const onPodPanelAttach = (d: any) => d?.pod && openPodAttach(d.pod, d.container)
+const onPodPanelShell = (d: any) => d?.pod && openPodShell(d.pod, d.container)
+const onPodPanelLogs = (d: any) => d?.pod && openPodLogs(d.pod, d.container)
+
+function openPodFromList(pod: PodInfo) {
+  resourceActions.closeDetail()
+  openPodDetail(pod)
+}
+// Pod ещё не на каркасе: ссылки на pod из вкладок нового каркаса (PodsTab и т.п.) приходят сюда
+registerOpener('pod', async (ns, name, item) => {
+  const pod = item ?? (await k8s.getPods(ns)).find((p: any) => p.name === name)
+  if (!pod) return notifications.notifyError(`Pod ${ns}/${name} не найден`)
+  openPodFromList(pod as PodInfo)
+})
+
+// ═══════════════════════════════════════════════
+// Навигация и открытие ресурсов по ссылке
+// ═══════════════════════════════════════════════
 
 function onNavigate(view: string) {
   closeAllDetailPanels()
@@ -735,109 +337,26 @@ function onNsChange(ns: string) {
   onNamespaceChange()
 }
 
-function openNamespaceDetail(namespace: any) {
-  selectedNamespaceDetail.value = namespace
-}
-
-function openServiceAccountDetail(sa: any) {
-  selectedServiceAccount.value = sa
-}
-
-function openPodDetailFromDeployment(pod: PodInfo) {
-  selectedDeployment.value = null
-  openPodDetail(pod)
-}
-
-
-async function onShowRevisions(ns: string, name: string) {
-  revisionDepNs.value = { ns, name }
-  await loadRevisions(ns, name)
-}
-
-async function onRollback(rev: string | number) {
-  const revNum = typeof rev === 'string' ? parseInt(rev, 10) : rev
-  await rollbackDeployment(revisionDepNs.value.ns, revisionDepNs.value.name, revNum)
-}
-
-function onPodDetailAttach(data: any) {
-
-  if (data.pod) {
-    selectedPod.value = data.pod
-    podActions.openAttachWithContainer(data.container, data.pod)
-  }
-}
-
-function onPodDetailTerminal(data: any) {
-
-  if (data.pod) {
-    selectedPod.value = data.pod
-    podActions.openShellWithContainer(data.container, data.pod)
-  }
-}
-
-function onPodDetailLogs(data: any) {
-
-  if (data.pod) {
-    selectedPod.value = data.pod
-    podActions.openLogs(data.pod, data.container)
-  }
-}
-
+/** Переход к другому ресурсу из панели (Pod -> ReplicaSet, RoleBinding -> Role, ...) */
 async function onOpenResource(data: { kind: string; name: string; namespace?: string }) {
-  console.log('App.onOpenResource called with:', data)
-  let { kind, name, namespace } = data
+  let { kind, name } = data
+  const namespace = data.namespace ?? ''
 
-  // Если name содержит "/" (например "ReplicaSet/my-name"), распарсить
-  if (name.includes('/')) {
-    const parts = name.split('/')
-    if (parts.length === 2) {
-      kind = parts[0]
-      name = parts[1]
-    }
-  }
+  // Допускаем форму "ReplicaSet/my-name" в поле name
+  const parts = name.split('/')
+  if (parts.length === 2) [kind, name] = parts
 
+  closeLegacyPanels()
 
-  // Закрываем все открытые панели детей перед открытием нового ресурса
-  selectedPod.value = null
-  selectedDaemonSet.value = null
-  selectedDeployment.value = null
-  selectedReplicaSet.value = null
+  // Новый каркас: любой тип из resources/registry.ts открывается без доп. кода
+  const def = getResourceById(kind)
+  if (def) return resourceActions.open(def.id, namespace, name)
 
   try {
     switch (kind) {
-      case 'Namespace':
-        console.log('Opening Namespace:', name)
-        const ns = await k8s.getNamespace(name)
-        console.log('Namespace loaded:', ns)
-        selectedNamespaceDetail.value = ns
-        break
-
       case 'Node':
-        const node = await k8s.getNode(name)
-        selectedNode.value = node
+        selectedNode.value = await k8s.getNode(name)
         break
-
-      case 'ServiceAccount':
-        if (namespace) {
-          const sa = await k8s.getServiceAccount(namespace, name)
-          selectedServiceAccount.value = sa
-        }
-        break
-
-      case 'ReplicaSet':
-        if (namespace) {
-          try {
-            const rs = await k8s.getReplicaSet(namespace, name)
-            selectedReplicaSet.value = rs
-          } catch (e: any) {
-            console.error('Error loading ReplicaSet:', e)
-            throw e
-          }
-        } else {
-          console.warn('No namespace provided for ReplicaSet')
-        }
-        break
-
       default:
         notifications.notifyError(`Unknown resource type: ${kind}`)
     }
@@ -846,430 +365,184 @@ async function onOpenResource(data: { kind: string; name: string; namespace?: st
   }
 }
 
-async function onScaleDeployment(replicas: number) {
-  if (!deploymentToScale.value) return
-  try {
-    const ns = deploymentToScale.value.namespace
-    const name = deploymentToScale.value.name
-    const result = await k8s.scaleDeployment(ns, name, replicas)
-    notifications.notifySuccess(`Deployment ${name} scaled to ${replicas} replicas`)
-    showScaleDialog.value = false
-    await refreshData()
-  } catch (e: any) {
-    notifications.notifyError(`Scale error: ${e.message || e}`)
+// ═══════════════════════════════════════════════
+// Динамический view
+// ═══════════════════════════════════════════════
+
+const activeResource = computed(() => getResourceByView(currentView.value))
+
+const activeViewConfig = computed(() => viewRegistry[currentView.value] || null)
+const activeViewComponent = computed(() => activeViewConfig.value?.component || null)
+
+/** dataKey из viewRegistry -> источник данных. Вычисляется лениво: читается только нужный список */
+const dataSources: Record<string, { value: any }> = {
+  filteredPods, filteredStatefulSets,
+  filteredJobs, filteredCronJobs, filteredServices,
+  filteredIngresses, filteredEndpoints, filteredIngressClasses, filteredNetworkPolicies,
+  filteredPVCs, filteredStorageClasses, filteredSecrets,
+  filteredResourceQuotas, filteredLimitRanges, filteredHPA, filteredPDB,
+  filteredPriorityClasses, filteredRuntimeClasses, filteredLeases,
+  portForwards, pvs, nodes, events,
+}
+
+const activeViewProps = computed(() => {
+  const config = activeViewConfig.value
+  if (!config) return {}
+
+  const view = currentView.value
+  const props: Record<string, any> = {}
+
+  if (config.dataKey) props.items = dataSources[config.dataKey]?.value ?? []
+  if (config.hasSearch) props.search = search.value
+
+  if (view === 'overview') {
+    props.overview = overview.value
+    props.pct = pct
+    props.clusterName = activeClusterId.value
   }
-}
-
-function onDeploymentScale(dep: any) {
-  deploymentToScale.value = dep
-  showScaleDialog.value = true
-}
-
-function onDeploymentRestart(ns: string, name: string) {
-  if (confirm(`Restart deployment ${name}?`)) {
-    restartDeployment(ns, name)
+  if (['pods', 'jobs', 'pv', 'pvc', 'nodes'].includes(view)) {
+    props.statusClass = statusClass
   }
-}
-
-function onDeploymentLogs(ns: string, name: string) {
-  tabbedDeploymentLogsOpen.value = true
-  nextTick(() => {
-    if (tabbedDeploymentLogsRef.value) {
-      tabbedDeploymentLogsRef.value.setPendingDeployment({ namespace: ns, name: name })
-    }
-  })
-}
-
-async function onDeploymentEdit() {
-  if (!selectedDeployment.value) return
-  const ns = selectedDeployment.value.namespace
-  const name = selectedDeployment.value.name
-  podActions.yamlEditorMeta.value = { resourceType: 'deployment', resourceName: name, namespace: ns }
-  await showYAML('deployment', ns, name)
-  podActions.yamlEditorOpen.value = true
-}
-
-function onDeploymentDelete() {
-  if (!selectedDeployment.value) return
-  const ns = selectedDeployment.value.namespace
-  const name = selectedDeployment.value.name
-  if (confirm(`Delete deployment ${name}?`)) {
-    deleteDeploymentByName(ns, name)
-      .then(() => {
-        notifications.notifySuccess(`Deployment ${name} deleted`)
-        selectedDeployment.value = null
-        refreshData()
-      })
-      .catch((e: any) => {
-        notifications.notifyError(`Delete error: ${e.message || e}`)
-      })
+  if (view === 'nodes') {
+    props.metrics = nodeMetrics.value
+    props.clusterName = activeClusterId.value
   }
-}
-
-async function onDeploymentShowReplicaSet(revision: any) {
-  if (!selectedDeployment.value) return
-  try {
-    const ns = selectedDeployment.value.namespace
-    const rsName = revision.name
-    const rs = await k8s.getReplicaSet(ns, rsName)
-    selectedDeployment.value = null
-    selectedReplicaSet.value = rs
-  } catch (e: any) {
-    notifications.notifyError(`Failed to load ReplicaSet: ${e.message || e}`)
+  if (view === 'settings') {
+    props.clusterName = activeClusterId.value
   }
-}
-
-function openPodDetailFromDaemonSet(pod: PodInfo) {
-  selectedDaemonSet.value = null
-  openPodDetail(pod)
-}
-
-function onDaemonSetRestart(ns: string, name: string) {
-  if (confirm(`Restart daemonset ${name}?`)) {
-    restartDeployment(ns, name)
-  }
-}
-
-function onDaemonSetLogs(ns: string, name: string) {
-  tabbedDeploymentLogsOpen.value = true
-  nextTick(() => {
-    if (tabbedDeploymentLogsRef.value) {
-      tabbedDeploymentLogsRef.value.setPendingDeployment({ namespace: ns, name: name })
-    }
-  })
-}
-
-async function onDaemonSetEdit() {
-  if (!selectedDaemonSet.value) return
-  const ns = selectedDaemonSet.value.namespace
-  const name = selectedDaemonSet.value.name
-  podActions.yamlEditorMeta.value = { resourceType: 'daemonset', resourceName: name, namespace: ns }
-  await showYAML('daemonset', ns, name)
-  podActions.yamlEditorOpen.value = true
-}
-
-function onDaemonSetDelete() {
-  if (!selectedDaemonSet.value) return
-  const ns = selectedDaemonSet.value.namespace
-  const name = selectedDaemonSet.value.name
-  if (confirm(`Delete daemonset ${name}?`)) {
-    deleteDeploymentByName(ns, name)
-      .then(() => {
-        notifications.notifySuccess(`DaemonSet ${name} deleted`)
-        selectedDaemonSet.value = null
-        refreshData()
-      })
-      .catch((e: any) => {
-        notifications.notifyError(`Delete error: ${e.message || e}`)
-      })
-  }
-}
-
-async function onServiceAccountEdit() {
-  if (!selectedServiceAccount.value) return
-  const ns = selectedServiceAccount.value.namespace
-  const name = selectedServiceAccount.value.name
-
-  try {
-    podActions.yamlEditorMeta.value = { resourceType: 'serviceaccount', resourceName: name, namespace: ns }
-    await showYAML('serviceaccount', ns, name)
-    podActions.yamlEditorOpen.value = true
-  } catch (e: any) {
-    notifications.notifyError(`Error loading YAML: ${e.message || e}`)
-  }
-}
-
-function onServiceAccountDelete() {
-  if (!selectedServiceAccount.value) return
-  const ns = selectedServiceAccount.value.namespace
-  const name = selectedServiceAccount.value.name
-
-  if (confirm(`Delete ServiceAccount ${name}?`)) {
-    k8s.deleteServiceAccount(ns, name)
-      .then(() => {
-        notifications.notifySuccess(`ServiceAccount ${name} deleted`)
-        selectedServiceAccount.value = null
-        refreshData()
-      })
-      .catch((e: any) => {
-        notifications.notifyError(`Delete error: ${e.message || e}`)
-      })
-  }
-}
-
-function onServiceAccountNamespaceClick(ns: string | undefined) {
-  if (ns) {
-    selectedNamespace.value = ns
-    onNamespaceChange()
-  }
-}
-
-async function onRoleEdit(...args: any[]) {
-  const [nsOrEvent, nameParam] = args
-  const ns = typeof nsOrEvent === 'string' ? nsOrEvent : nsOrEvent?.namespace
-  const name = typeof nsOrEvent === 'string' ? nameParam : nsOrEvent?.name
-
-  try {
-    podActions.yamlEditorMeta.value = { resourceType: 'role', resourceName: name, namespace: ns }
-    await showYAML('role', ns, name)
-    podActions.yamlEditorOpen.value = true
-  } catch (e: any) {
-    notifications.notifyError(`Error loading YAML: ${e.message || e}`)
-  }
-}
-
-function onRoleDelete(...args: any[]) {
-  const [nsOrEvent, nameParam] = args
-  const ns = typeof nsOrEvent === 'string' ? nsOrEvent : nsOrEvent?.namespace
-  const name = typeof nsOrEvent === 'string' ? nameParam : nsOrEvent?.name
-
-  if (confirm(`Delete Role ${name}?`)) {
-    k8s.deleteRole(ns, name)
-      .then(() => {
-        notifications.notifySuccess(`Role ${name} deleted`)
-        selectedRole.value = null
-        refreshData()
-      })
-      .catch((e: any) => {
-        notifications.notifyError(`Delete error: ${e.message || e}`)
-      })
-  }
-}
-
-function onRoleNamespaceClick(ns: string | undefined) {
-  if (ns) {
-    selectedNamespace.value = ns
-    onNamespaceChange()
-  }
-}
-
-async function onRoleBindingEdit(...args: any[]) {
-  const [nsOrEvent, nameParam] = args
-  const ns = typeof nsOrEvent === 'string' ? nsOrEvent : nsOrEvent?.namespace
-  const name = typeof nsOrEvent === 'string' ? nameParam : nsOrEvent?.name
-
-  try {
-    podActions.yamlEditorMeta.value = { resourceType: 'rolebinding', resourceName: name, namespace: ns }
-    await showYAML('rolebinding', ns, name)
-    podActions.yamlEditorOpen.value = true
-  } catch (e: any) {
-    notifications.notifyError(`Error loading YAML: ${e.message || e}`)
-  }
-}
-
-function onRoleBindingDelete(...args: any[]) {
-  const [nsOrEvent, nameParam] = args
-  const ns = typeof nsOrEvent === 'string' ? nsOrEvent : nsOrEvent?.namespace
-  const name = typeof nsOrEvent === 'string' ? nameParam : nsOrEvent?.name
-
-  if (confirm(`Delete RoleBinding ${name}?`)) {
-    k8s.deleteRoleBinding(ns, name)
-      .then(() => {
-        notifications.notifySuccess(`RoleBinding ${name} deleted`)
-        selectedRoleBinding.value = null
-        refreshData()
-      })
-      .catch((e: any) => {
-        notifications.notifyError(`Delete error: ${e.message || e}`)
-      })
-  }
-}
-
-function onRoleBindingNamespaceClick(ns: string | undefined) {
-  if (ns) {
-    selectedNamespace.value = ns
-    onNamespaceChange()
-  }
-}
-
-async function onClusterRoleEdit(...args: any[]) {
-  const [nsOrEvent, nameParam] = args
-  const name = typeof nsOrEvent === 'string' ? nameParam : nsOrEvent?.name
-
-  try {
-    podActions.yamlEditorMeta.value = { resourceType: 'clusterrole', resourceName: name, namespace: '' }
-    await showYAML('clusterrole', '', name)
-    podActions.yamlEditorOpen.value = true
-  } catch (e: any) {
-    notifications.notifyError(`Error loading YAML: ${e.message || e}`)
-  }
-}
-
-function onClusterRoleDelete(...args: any[]) {
-  const name = typeof args[0] === 'string' ? args[1] : args[0]?.name
-
-  if (confirm(`Delete ClusterRole ${name}?`)) {
-    k8s.deleteClusterRole(name)
-      .then(() => {
-        notifications.notifySuccess(`ClusterRole ${name} deleted`)
-        selectedClusterRole.value = null
-        refreshData()
-      })
-      .catch((e: any) => {
-        notifications.notifyError(`Delete error: ${e.message || e}`)
-      })
-  }
-}
-
-async function onClusterRoleBindingEdit(...args: any[]) {
-  const [nsOrEvent, nameParam] = args
-  const name = typeof nsOrEvent === 'string' ? nameParam : nsOrEvent?.name
-
-  try {
-    podActions.yamlEditorMeta.value = { resourceType: 'clusterrolebinding', resourceName: name, namespace: '' }
-    await showYAML('clusterrolebinding', '', name)
-    podActions.yamlEditorOpen.value = true
-  } catch (e: any) {
-    notifications.notifyError(`Error loading YAML: ${e.message || e}`)
-  }
-}
-
-function onClusterRoleBindingDelete(...args: any[]) {
-  const [nsOrEvent, nameParam] = args
-  const name = typeof nsOrEvent === 'string' ? nameParam : nsOrEvent?.name
-
-  if (confirm(`Delete ClusterRoleBinding ${name}?`)) {
-    k8s.deleteClusterRoleBinding(name)
-      .then(() => {
-        notifications.notifySuccess(`ClusterRoleBinding ${name} deleted`)
-        selectedClusterRoleBinding.value = null
-        refreshData()
-      })
-      .catch((e: any) => {
-        notifications.notifyError(`Delete error: ${e.message || e}`)
-      })
-  }
-}
-
-// ─── Watch error → notifications ───
-
-watch(error, (val) => {
-  if (val) {
-    if (val.startsWith('Ошибка')) {
-      notifications.notifyError(val)
-    } else {
-      notifications.notifySuccess(val)
-    }
-    // Очищаем error после показа нотификации
-    setTimeout(() => { error.value = '' }, 100)
-  }
+  return props
 })
+
+/** Только yaml -> открыть YAML-вкладку */
+const yamlOnly = (kind: string) => ({
+  yaml: (ns: string, n: string) => resourceActions.edit(kind, ns, n),
+})
+
+/** Действия view -> обработчики. Это единственное место, где view связываются с логикой */
+const viewHandlers: Record<string, () => Record<string, (...args: any[]) => void>> = {
+  overview: () => ({ navigate: onNavigate }),
+
+  pods: () => ({
+    select: openPodFromList,
+    logs: openPodLogs,
+    shell: openPodShell,
+    attachPod: openPodAttach,
+    evict: podActions.evictPod,
+    edit: (pod: any) => resourceActions.edit('pod', pod.namespace, pod.name),
+    delete: onPodDelete,
+    // события PodDetailPanel, проброшенные через PodsView
+    attach: onPodPanelAttach,
+    terminal: onPodPanelShell,
+    openLogs: onPodPanelLogs,
+    'logs:open': (ns: string, pod: string, c: string) => resourceActions.openLogs(ns, pod, undefined, c),
+    'shell:open': (ns: string, pod: string, c: string) => void resourceActions.openShell(ns, pod, c),
+    'attach:open': (ns: string, pod: string, c: string) => void resourceActions.openAttach(ns, pod, c),
+  }),
+
+  services: () => ({ select: openServiceDetail, ...yamlOnly('service') }),
+  secrets: () => yamlOnly('secret'),
+  nodes: () => yamlOnly('node'),
+
+  portforwarding: () => ({ refresh: refreshPortForwards, stop: stopPortForward }),
+}
+
+const activeViewEvents = computed(() => {
+  const config = activeViewConfig.value
+  if (!config) return {}
+
+  const handlers: Record<string, (...args: any[]) => void> = { refresh: refreshData }
+  if (config.hasSearch) handlers.search = (v: string) => { search.value = v }
+
+  return { ...handlers, ...viewHandlers[currentView.value]?.() }
+})
+
+// ═══════════════════════════════════════════════
+// YAML из TabbedPanel
+// ═══════════════════════════════════════════════
 
 async function applyYAMLTabbed(tabId: string) {
   const tab = globalTabbedPanel.tabs.value.find(t => t.id === tabId)
-  if (tab && tab.type === 'yaml') {
-    try {
-      await k8s.applyYAML(tab.content, tab.resourceType, tab.namespace, tab.resourceName)
-      notifications.notifySuccess(`${tab.resourceType} ${tab.resourceName} updated`)
-      refreshData()
-    } catch (e: any) {
-      notifications.notifyError(`Apply error: ${e.message || e}`)
-    }
+  if (!tab || tab.type !== 'yaml') return
+  try {
+    await k8s.applyYAML(tab.content, tab.resourceType, tab.namespace, tab.resourceName)
+    notifications.notifySuccess(`${tab.resourceType} ${tab.resourceName} updated`)
+    await refreshAll()
+  } catch (e: any) {
+    notifications.notifyError(`Apply error: ${e.message || e}`)
   }
 }
 
-// ─── Init ───
+// ═══════════════════════════════════════════════
+// Глобальные события из useDetailPanel (kubron-*)
+// Временный мост: пока панели Jobs/StatefulSets и др. открываются через useDetailPanel,
+// они общаются с App через window. После их миграции на src/resources блок удаляется.
+// ═══════════════════════════════════════════════
 
-onMounted(() => clusterConn.initialize())
-
-// ─── Обработчики глобальных событий для Detail Panel ───
-// Используем универсальный обработчик из useResourceActions
-
-function confirmDeleteResource() {
-  if (pendingDeleteAction) {
-    pendingDeleteAction()
-  }
-  showDeleteResourceDialog.value = false
-  deleteResourceMeta.value = { type: '', namespace: '', name: '' }
+function onDeleteResourceEvent(e: Event) {
+  const { resourceType, namespace, name } = (e as CustomEvent).detail
+  requestDelete(resourceType, namespace, name)
 }
 
-function cancelDeleteResource() {
-  showDeleteResourceDialog.value = false
-  deleteResourceMeta.value = { type: '', namespace: '', name: '' }
-  pendingDeleteAction = null
-}
+function onContextActionEvent(e: Event) {
+  const { action, resourceType, resource } = (e as CustomEvent).detail
+  const ns = resource?.namespace || resource?.metadata?.namespace || ''
+  const name = resource?.name || resource?.metadata?.name
+  const pod = { namespace: ns, name, containers: resource?.containers }
 
-// Обработчик события удаления ресурса - использует универсальный обработчик
-function handleDeleteResource(event: CustomEvent) {
-  const { resourceType, namespace, name } = event.detail
-  deleteResourceMeta.value = { type: resourceType, namespace, name }
-  
-  // Устанавливаем функцию удаления через универсальный обработчик
-  pendingDeleteAction = async () => {
-    try {
-      await globalResourceActions.deleteResource(resourceType, namespace, name)
-    } catch (e: any) {
-      notifications.notifyError(`Delete error: ${e.message || e}`)
-    }
-  }
-  
-  // Показываем диалог подтверждения
-  showDeleteResourceDialog.value = true
-}
-
-// Обработчик контекстных действий из Detail Panel - использует универсальный обработчик
-function handleContextAction(event: CustomEvent) {
-  const { action, resourceType, resource } = event.detail
-  console.log('Handling context action from Detail Panel:', action, resourceType, resource)
-  
-  const ns = resource.namespace || resource.metadata?.namespace || ''
-  const name = resource.name || resource.metadata?.name
-  
-  // Обрабатываем действия через универсальный обработчик
   switch (action) {
-    case 'delete':
-      // Delete обрабатывается отдельно через handleDeleteResource
-      break
     case 'edit':
-      globalResourceActions.editResource(resourceType, ns, name)
-        .catch((e: any) => notifications.notifyError(`Edit error: ${e.message || e}`))
+      resourceActions.edit(resourceType, ns, name)
       break
     case 'shell':
-      if (resourceType === 'pod' && resource.containers?.length > 0) {
-        globalResourceActions.openShell(ns, name, resource.containers[0].name)
-      }
+      if (resourceType === 'pod') openPodShell(pod)
       break
     case 'attach':
-      if (resourceType === 'pod' && resource.containers?.length > 0) {
-        globalResourceActions.openAttach(ns, name, resource.containers[0].name)
-      }
+      if (resourceType === 'pod') openPodAttach(pod)
       break
     case 'logs':
-      if (resourceType === 'pod' && resource.containers?.length > 0) {
-        globalResourceActions.openLogs(ns, name, resource.containers[0].name)
-      }
+      if (resourceType === 'pod') openPodLogs(pod)
       break
     case 'evict':
-      if (resourceType === 'pod') {
-        globalResourceActions.evictPod(ns, name)
-      }
+      if (resourceType === 'pod') podActions.evictPod(resource)
       break
     case 'retry':
       if (resourceType === 'job') {
         k8s.retryJob(ns, name)
           .then(() => {
             notifications.notifySuccess(`Job ${name} retry initiated`)
-            refreshData()
+            return refreshAll()
           })
-          .catch((e: any) => {
-            notifications.notifyError(`Retry error: ${e.message || e}`)
-          })
+          .catch((err: any) => notifications.notifyError(`Retry error: ${err.message || err}`))
       }
       break
-    default:
-      console.log('Unhandled action:', action)
   }
 }
 
-// Регистрируем глобальные обработчики событий
+// ═══════════════════════════════════════════════
+// Ошибки из composables, которые пишут в ref `error`
+// (useClusterConnection, usePodActions). Остальной код использует notifications напрямую.
+// ═══════════════════════════════════════════════
+
+watch(error, (val) => {
+  if (!val) return
+  if (val.startsWith('Ошибка') || /error/i.test(val)) notifications.notifyError(val)
+  else notifications.notifySuccess(val)
+  error.value = ''
+})
+
+// ═══════════════════════════════════════════════
+// Init
+// ═══════════════════════════════════════════════
+
 onMounted(() => {
-  window.addEventListener('kubron-delete-resource', handleDeleteResource as EventListener)
-  window.addEventListener('kubron-context-action', handleContextAction as EventListener)
+  clusterConn.initialize()
+  window.addEventListener('kubron-delete-resource', onDeleteResourceEvent)
+  window.addEventListener('kubron-context-action', onContextActionEvent)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('kubron-delete-resource', handleDeleteResource as EventListener)
-  window.removeEventListener('kubron-context-action', handleContextAction as EventListener)
+  window.removeEventListener('kubron-delete-resource', onDeleteResourceEvent)
+  window.removeEventListener('kubron-context-action', onContextActionEvent)
 })
 </script>
 
