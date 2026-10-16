@@ -56,10 +56,6 @@
     <!-- ═══ Панели нового каркаса: одна панель деталей и один диалог удаления ═══ -->
     <ResourceHost />
 
-    <!-- Подтверждение удаления для старых панелей и списков -->
-    <ConfirmationDialog v-model="deleteDialog" :resource-type="deleteMeta.type" :resource-name="deleteMeta.name"
-      :namespace="deleteMeta.namespace" @confirm="confirmDelete" @cancel="cancelDelete" />
-
     <!-- Вкладки: Logs / YAML / Terminal -->
     <TabbedPanel v-if="globalTabbedPanel.isOpen()" @close="globalTabbedPanel.closeAllTabs()"
       @apply-yaml="applyYAMLTabbed" />
@@ -69,11 +65,6 @@
 
     <NotificationToast :notifications="notifications.notifications.value" @dismiss="notifications.dismiss" />
 
-    <!-- ═══ Старые панели деталей (по мере миграции на src/resources будут исчезать) ═══ -->
-
-    <NodeDetailView v-if="selectedNode" :node="selectedNode" :status-class="statusClass" :cluster-name="activeClusterId"
-      @close="selectedNode = null" @edit="editItem('node', selectedNode)" />
-
     <!-- Connecting overlay -->
     <div v-if="clusterConn.connecting.value" class="overlay">
       <div class="spinner">⏳ Подключение...</div>
@@ -82,7 +73,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, onUnmounted, watch, provide } from 'vue'
+import { computed, onMounted, watch, provide } from 'vue'
 import { useK8s } from './composables/useK8s'
 import { useClusters } from './composables/useClusters'
 import { useClusterConnection } from './composables/useClusterConnection'
@@ -90,7 +81,7 @@ import { useNotifications } from './composables/useNotifications'
 import { viewRegistry } from './composables/useViewRegistry'
 import { globalTabbedPanel } from './composables/useTabbedPanel'
 import { getResourceByView, getResourceById } from './resources/registry'
-import { resourceActions, registerOpener } from './resources/actions'
+import { resourceActions } from './resources/actions'
 import { clusterNameKey } from './resources/context'
 import { clearResourceStore, reloadActive } from './resources/store'
 
@@ -100,9 +91,7 @@ import Sidebar from './components/Sidebar.vue'
 import NotificationToast from './components/NotificationToast.vue'
 import ResourceList from './components/resource/ResourceList.vue'
 import ResourceHost from './components/resource/ResourceHost.vue'
-import ConfirmationDialog from './components/utils/ConfirmationDialog.vue'
 import TabbedPanel from './components/utils/TabbedPanel.vue'
-import NodeDetailView from './components/views/NodeDetailView.vue'
 
 // ═══════════════════════════════════════════════
 // Composables
@@ -113,21 +102,10 @@ const clustersApi = useClusters()
 const notifications = useNotifications()
 
 const {
-  namespaces, overview, selectedNamespace, currentView, search, error, loading,
-  portForwards,
-  nodeMetrics, pvs, nodes, events,
-  statusClass, pct,
+  namespaces, overview, selectedNamespace, currentView, error, loading,
+  pct,
   switchView, onNamespaceChange, refreshData,
-  showYAML,
-  startPortForward, stopPortForward, refreshPortForwards,
   loadNamespaces,
-  filteredCronJobs,
-  filteredIngresses,
-  filteredResourceQuotas, filteredPVCs,
-  filteredLimitRanges, filteredHPA,
-  filteredPDB, filteredPriorityClasses, filteredRuntimeClasses,
-  filteredLeases, filteredEndpoints, filteredNetworkPolicies,
-  filteredIngressClasses, filteredStorageClasses,
 } = k8s
 
 const {
@@ -156,20 +134,12 @@ const clusterConn = useClusterConnection({
 const activeClusterMeta = clusterConn.activeClusterMeta
 
 // ═══════════════════════════════════════════════
-// Локальное состояние старых панелей
+// Для вкладок и секций нового каркаса (метрики и т.п.)
 // ═══════════════════════════════════════════════
 
-const selectedNode = ref<any | null>(null)
-
-// Для вкладок и секций нового каркаса (метрики и т.п.)
 provide(clusterNameKey, activeClusterId)
 
-function closeLegacyPanels() {
-  selectedNode.value = null
-}
-
 function closeAllDetailPanels() {
-  closeLegacyPanels()
   resourceActions.closeDetail()
 }
 
@@ -188,69 +158,6 @@ watch(activeClusterId, () => {
 const refreshAll = () => Promise.all([refreshData(), reloadActive()])
 
 // ═══════════════════════════════════════════════
-// Удаление с подтверждением (старые списки и панели)
-// ═══════════════════════════════════════════════
-
-const deleteDialog = ref(false)
-const deleteMeta = ref({ type: '', namespace: '', name: '' })
-let pendingDeleteRun: (() => Promise<void>) | null = null
-
-function askDelete(type: string, ns: string, name: string, run: () => Promise<void>) {
-  deleteMeta.value = { type, namespace: ns, name }
-  pendingDeleteRun = run
-  deleteDialog.value = true
-}
-
-async function confirmDelete() {
-  const run = pendingDeleteRun
-  const { type, name } = deleteMeta.value
-  pendingDeleteRun = null
-  deleteDialog.value = false
-  if (!run) return
-  try {
-    await run()
-    notifications.notifySuccess(`${type} "${name}" deleted`)
-    await refreshAll()
-  } catch (e: any) {
-    notifications.notifyError(`Delete error: ${e.message || e}`)
-  }
-}
-
-function cancelDelete() {
-  pendingDeleteRun = null
-  deleteDialog.value = false
-}
-
-/** Удаление для старых типов; типы нового каркаса делегируются resourceActions */
-const legacyDeleters: Record<string, (ns: string, name: string) => Promise<void>> = {}
-
-function requestDelete(type: string, ns: string, name: string, after?: () => void) {
-  const key = type.toLowerCase()
-  if (getResourceById(key)) return resourceActions.requestDelete(key, ns, name)
-  const remove = legacyDeleters[key]
-  if (!remove) return notifications.notifyError(`Удаление не поддерживается: ${type}`)
-  askDelete(type, ns, name, async () => {
-    await remove(ns, name)
-    after?.()
-  })
-}
-
-// Короткие обёртки для обработчиков панелей: item может быть null, пока панель закрывается
-const editItem = (kind: string, item: any) =>
-  item && resourceActions.edit(kind, item.namespace ?? '', item.name)
-const deleteItem = (kind: string, item: any, after: () => void) =>
-  item && requestDelete(kind, item.namespace ?? '', item.name, after)
-
-// Node ещё не на каркасе: ссылки на node открывают старую панель
-registerOpener('node', async (_ns, name) => {
-  try {
-    selectedNode.value = await k8s.getNode(name)
-  } catch (e: any) {
-    notifications.notifyError(`Node ${name}: ${e.message || e}`)
-  }
-})
-
-// ═══════════════════════════════════════════════
 // Навигация и открытие ресурсов по ссылке
 // ═══════════════════════════════════════════════
 
@@ -265,7 +172,7 @@ function onNsChange(ns: string) {
 }
 
 /** Переход к другому ресурсу из панели (Pod -> ReplicaSet, RoleBinding -> Role, ...) */
-async function onOpenResource(data: { kind: string; name: string; namespace?: string }) {
+function onOpenResource(data: { kind: string; name: string; namespace?: string }) {
   let { kind, name } = data
   const namespace = data.namespace ?? ''
 
@@ -273,23 +180,13 @@ async function onOpenResource(data: { kind: string; name: string; namespace?: st
   const parts = name.split('/')
   if (parts.length === 2) [kind, name] = parts
 
-  closeLegacyPanels()
+  closeAllDetailPanels()
 
-  // Новый каркас: любой тип из resources/registry.ts открывается без доп. кода
+  // Любой тип из resources/registry.ts открывается без доп. кода
   const def = getResourceById(kind)
   if (def) return resourceActions.open(def.id, namespace, name)
 
-  try {
-    switch (kind) {
-      case 'Node':
-        selectedNode.value = await k8s.getNode(name)
-        break
-      default:
-        notifications.notifyError(`Unknown resource type: ${kind}`)
-    }
-  } catch (e: any) {
-    notifications.notifyError(`Failed to load ${kind}: ${e.message || e}`)
-  }
+  notifications.notifyError(`Unknown resource type: ${kind}`)
 }
 
 // ═══════════════════════════════════════════════
@@ -301,36 +198,13 @@ const activeResource = computed(() => getResourceByView(currentView.value))
 const activeViewConfig = computed(() => viewRegistry[currentView.value] || null)
 const activeViewComponent = computed(() => activeViewConfig.value?.component || null)
 
-/** dataKey из viewRegistry -> источник данных. Вычисляется лениво: читается только нужный список */
-const dataSources: Record<string, { value: any }> = {
-  filteredCronJobs,
-  filteredIngresses, filteredEndpoints, filteredIngressClasses, filteredNetworkPolicies,
-  filteredPVCs, filteredStorageClasses,
-  filteredResourceQuotas, filteredLimitRanges, filteredHPA, filteredPDB,
-  filteredPriorityClasses, filteredRuntimeClasses, filteredLeases,
-  portForwards, pvs, nodes, events,
-}
-
 const activeViewProps = computed(() => {
-  const config = activeViewConfig.value
-  if (!config) return {}
-
   const view = currentView.value
   const props: Record<string, any> = {}
-
-  if (config.dataKey) props.items = dataSources[config.dataKey]?.value ?? []
-  if (config.hasSearch) props.search = search.value
 
   if (view === 'overview') {
     props.overview = overview.value
     props.pct = pct
-    props.clusterName = activeClusterId.value
-  }
-  if (['pods', 'jobs', 'pv', 'pvc', 'nodes'].includes(view)) {
-    props.statusClass = statusClass
-  }
-  if (view === 'nodes') {
-    props.metrics = nodeMetrics.value
     props.clusterName = activeClusterId.value
   }
   if (view === 'settings') {
@@ -339,27 +213,15 @@ const activeViewProps = computed(() => {
   return props
 })
 
-/** Только yaml -> открыть YAML-вкладку */
-const yamlOnly = (kind: string) => ({
-  yaml: (ns: string, n: string) => resourceActions.edit(kind, ns, n),
-})
-
 /** Действия view -> обработчики. Это единственное место, где view связываются с логикой */
 const viewHandlers: Record<string, () => Record<string, (...args: any[]) => void>> = {
   overview: () => ({ navigate: onNavigate }),
-  nodes: () => yamlOnly('node'),
-  portforwarding: () => ({ refresh: refreshPortForwards, stop: stopPortForward }),
 }
 
-const activeViewEvents = computed(() => {
-  const config = activeViewConfig.value
-  if (!config) return {}
-
-  const handlers: Record<string, (...args: any[]) => void> = { refresh: refreshData }
-  if (config.hasSearch) handlers.search = (v: string) => { search.value = v }
-
-  return { ...handlers, ...viewHandlers[currentView.value]?.() }
-})
+const activeViewEvents = computed(() => ({
+  refresh: refreshData,
+  ...viewHandlers[currentView.value]?.(),
+}))
 
 // ═══════════════════════════════════════════════
 // YAML из TabbedPanel

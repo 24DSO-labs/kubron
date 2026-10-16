@@ -89,6 +89,12 @@ export interface ResourceDefinition<T = any> {
   /** Специфичные действия; Edit YAML и Delete добавляются автоматически */
   actions?: ActionDef<T>[]
 
+  /**
+   * Есть ли у ресурса YAML в кластере (Edit YAML).
+   * false — для сущностей вне k8s API: helm-релизы, port forward сессии.
+   */
+  editable?: boolean
+
   /** Вызывается после успешной загрузки списка (например, для метрик pod) */
   onLoaded?: (items: T[]) => void | Promise<void>
 

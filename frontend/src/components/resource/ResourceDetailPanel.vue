@@ -3,6 +3,8 @@
     :resource="base"
     :resource-icon="def.icon"
     :custom-tabs="tabList"
+    :show-edit="def.editable !== false"
+    :show-delete="!!def.api.remove"
     @close="$emit('close')"
     @edit="resourceActions.edit(def.id, ns, name)"
     @delete="resourceActions.requestDelete(def.id, ns, name)"

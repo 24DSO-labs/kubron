@@ -85,3 +85,15 @@ func (m *Manager) GetIngresses(namespace string) ([]IngressInfo, error) {
 	}
 	return items, nil
 }
+
+func (m *Manager) DeleteIngress(namespace, name string) error {
+conn, err := m.GetActiveConnection()
+if err != nil {
+return err
+}
+
+ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+defer cancel()
+
+return conn.Client.NetworkingV1().Ingresses(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}
