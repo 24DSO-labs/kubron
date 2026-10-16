@@ -54,7 +54,13 @@ export interface ActionDef<T = any> {
   danger?: boolean
   /** Видимость кнопки в шапке панели деталей */
   when?: (item: T) => boolean
-  run: (item: T, ctx: ActionContext) => void | Promise<void>
+  /**
+   * Действие над контейнером пода (attach/shell/logs): если у ресурса больше одного контейнера,
+   * панель показывает выпадающий список и передаёт выбранный контейнер третьим аргументом run.
+   * Контейнеры берутся из item.containers.
+   */
+  perContainer?: boolean
+  run: (item: T, ctx: ActionContext, container?: string) => void | Promise<void>
 }
 
 export interface TabDef {
@@ -95,8 +101,12 @@ export interface ResourceDefinition<T = any> {
    */
   editable?: boolean
 
-  /** Вызывается после успешной загрузки списка (например, для метрик pod) */
-  onLoaded?: (items: T[]) => void | Promise<void>
+  /**
+   * Вызывается после успешной загрузки списка (например, для метрик pod).
+   * Если вернуть массив, он заменит список в сторе: данные не мутируем на месте,
+   * иначе shallowRef не заметит изменений и таблица не перерисуется.
+   */
+  onLoaded?: (items: T[]) => void | T[] | Promise<void | T[]>
 
   api: {
     list: (ns: string) => Promise<T[]>

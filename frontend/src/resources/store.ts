@@ -26,7 +26,12 @@ export async function loadResource(def: ResourceDefinition): Promise<void> {
     const list = Array.isArray(data) ? data : []
     itemsByView.value = { ...itemsByView.value, [def.view]: list }
     if (def.onLoaded) {
-      try { await def.onLoaded(list) } catch { /* игнорируем ошибки onLoaded */ }
+      try {
+        const enriched = await def.onLoaded(list)
+        if (Array.isArray(enriched) && seqByView[def.view] === seq) {
+          itemsByView.value = { ...itemsByView.value, [def.view]: enriched }
+        }
+      } catch { /* игнорируем ошибки onLoaded */ }
     }
   } catch (e: any) {
     if (seqByView[def.view] !== seq) return
