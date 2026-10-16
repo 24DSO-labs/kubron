@@ -56,10 +56,6 @@
     <!-- ═══ Панели нового каркаса: одна панель деталей и один диалог удаления ═══ -->
     <ResourceHost />
 
-    <!-- ═══ Универсальная панель из useDetailPanel (Jobs, StatefulSets, ...) ═══ -->
-    <component v-if="detailPanel.isOpen && detailPanel.component" :is="detailPanel.component"
-      :resource="detailPanel.resource" v-bind="detailPanel.props" v-on="detailPanel.events" />
-
     <!-- Подтверждение удаления для старых панелей и списков -->
     <ConfirmationDialog v-model="deleteDialog" :resource-type="deleteMeta.type" :resource-name="deleteMeta.name"
       :namespace="deleteMeta.namespace" @confirm="confirmDelete" @cancel="cancelDelete" />
@@ -75,18 +71,6 @@
 
     <!-- ═══ Старые панели деталей (по мере миграции на src/resources будут исчезать) ═══ -->
 
-    <PodDetailPanel v-if="selectedPod" :pod="selectedPod" :logs="podLogs" v-model:logContainer="logContainer"
-      v-model:logLines="logLines" v-model:execCmd="execCmd" :execOutput="execOutput" :statusClass="statusClass"
-      v-model:pfLocalPort="pfLocalPort" v-model:pfPodPort="pfPodPort" :portForwards="portForwards || []"
-      :cluster-name="activeClusterId" :on-start-port-forward="startPortForward" :on-stop-port-forward="stopPortForward"
-      @close="selectedPod = null" @loadLogs="loadLogs" @runExec="runExec" @delete="onPodDelete(selectedPod)"
-      @openTerminal="openPodShell(selectedPod)" @evict="podActions.evictPod()"
-      @edit="editItem('pod', selectedPod)" @attach="onPodPanelAttach" @terminal="onPodPanelShell"
-      @logs="onPodPanelLogs" @open-resource="onOpenResource" />
-
-    <ServiceDetailPanel v-if="selectedService" :svc="selectedService" :portForwards="portForwards"
-      @close="selectedService = null" @forward="forwardServicePort" @stopForward="stopPortForward" />
-
     <NodeDetailView v-if="selectedNode" :node="selectedNode" :status-class="statusClass" :cluster-name="activeClusterId"
       @close="selectedNode = null" @edit="editItem('node', selectedNode)" />
 
@@ -101,17 +85,14 @@
 import { ref, computed, onMounted, onUnmounted, watch, provide } from 'vue'
 import { useK8s } from './composables/useK8s'
 import { useClusters } from './composables/useClusters'
-import { usePodActions } from './composables/usePodActions'
 import { useClusterConnection } from './composables/useClusterConnection'
 import { useNotifications } from './composables/useNotifications'
 import { viewRegistry } from './composables/useViewRegistry'
-import { globalDetailPanel } from './composables/useDetailPanel'
 import { globalTabbedPanel } from './composables/useTabbedPanel'
 import { getResourceByView, getResourceById } from './resources/registry'
 import { resourceActions, registerOpener } from './resources/actions'
 import { clusterNameKey } from './resources/context'
 import { clearResourceStore, reloadActive } from './resources/store'
-import type { PodInfo } from './types'
 
 import ClusterBar from './components/ClusterBar.vue'
 import AddClusterDialog from './components/AddClusterDialog.vue'
@@ -121,8 +102,6 @@ import ResourceList from './components/resource/ResourceList.vue'
 import ResourceHost from './components/resource/ResourceHost.vue'
 import ConfirmationDialog from './components/utils/ConfirmationDialog.vue'
 import TabbedPanel from './components/utils/TabbedPanel.vue'
-import PodDetailPanel from './components/panels/k8s_resource/PodDetailPanel.vue'
-import ServiceDetailPanel from './components/panels/k8s_resource/ServiceDetailPanel.vue'
 import NodeDetailView from './components/views/NodeDetailView.vue'
 
 // ═══════════════════════════════════════════════
@@ -135,19 +114,16 @@ const notifications = useNotifications()
 
 const {
   namespaces, overview, selectedNamespace, currentView, search, error, loading,
-  selectedPod, podLogs, logContainer, logLines, execCmd, execOutput,
-  selectedService, portForwards, pfLocalPort, pfPodPort,
+  portForwards,
   nodeMetrics, pvs, nodes, events,
   statusClass, pct,
   switchView, onNamespaceChange, refreshData,
-  openPodDetail, loadLogs, runExec,
-  openServiceDetail, forwardServicePort, showYAML,
+  showYAML,
   startPortForward, stopPortForward, refreshPortForwards,
-  loadNamespaces, deletePodByName,
-  filteredPods, filteredStatefulSets,
-  filteredJobs, filteredCronJobs,
-  filteredServices, filteredIngresses,
-  filteredSecrets, filteredResourceQuotas, filteredPVCs,
+  loadNamespaces,
+  filteredCronJobs,
+  filteredIngresses,
+  filteredResourceQuotas, filteredPVCs,
   filteredLimitRanges, filteredHPA,
   filteredPDB, filteredPriorityClasses, filteredRuntimeClasses,
   filteredLeases, filteredEndpoints, filteredNetworkPolicies,
@@ -179,22 +155,9 @@ const clusterConn = useClusterConnection({
 })
 const activeClusterMeta = clusterConn.activeClusterMeta
 
-// Из usePodActions используется только evictPod (всё остальное идёт через resourceActions)
-const podActions = usePodActions({
-  selectedPod,
-  logContainer,
-  error,
-  refreshData,
-  deletePodByName,
-  showYAML,
-})
-
-const detailPanel = globalDetailPanel.detailPanelState
-
 // ═══════════════════════════════════════════════
 // Локальное состояние старых панелей
 // ═══════════════════════════════════════════════
-// Pod и Service лежат в useK8s (selectedPod, selectedService).
 
 const selectedNode = ref<any | null>(null)
 
@@ -202,8 +165,6 @@ const selectedNode = ref<any | null>(null)
 provide(clusterNameKey, activeClusterId)
 
 function closeLegacyPanels() {
-  selectedPod.value = null
-  selectedService.value = null
   selectedNode.value = null
 }
 
@@ -261,10 +222,7 @@ function cancelDelete() {
 }
 
 /** Удаление для старых типов; типы нового каркаса делегируются resourceActions */
-const legacyDeleters: Record<string, (ns: string, name: string) => Promise<void>> = {
-  pod: k8s.deletePodByName,
-  job: k8s.deleteJob,
-}
+const legacyDeleters: Record<string, (ns: string, name: string) => Promise<void>> = {}
 
 function requestDelete(type: string, ns: string, name: string, after?: () => void) {
   const key = type.toLowerCase()
@@ -283,44 +241,13 @@ const editItem = (kind: string, item: any) =>
 const deleteItem = (kind: string, item: any, after: () => void) =>
   item && requestDelete(kind, item.namespace ?? '', item.name, after)
 
-// ═══════════════════════════════════════════════
-// Pod: логи / shell / attach идут через одну точку (resourceActions → TabbedPanel)
-// ═══════════════════════════════════════════════
-
-const podContainer = (pod: any, container?: string) =>
-  container || pod?.containers?.[0]?.name || pod?.name || ''
-
-function openPodLogs(pod: any, container?: string) {
-  resourceActions.openLogs(pod.namespace, pod.name, pod.containers, podContainer(pod, container))
-}
-function openPodShell(pod: any, container?: string) {
-  void resourceActions.openShell(pod.namespace, pod.name, podContainer(pod, container))
-}
-function openPodAttach(pod: any, container?: string) {
-  void resourceActions.openAttach(pod.namespace, pod.name, podContainer(pod, container))
-}
-
-function onPodDelete(pod: any) {
-  if (!pod) return
-  requestDelete('pod', pod.namespace, pod.name, () => {
-    if (selectedPod.value?.name === pod.name) selectedPod.value = null
-  })
-}
-
-// События PodDetailPanel приходят как { pod, container }
-const onPodPanelAttach = (d: any) => d?.pod && openPodAttach(d.pod, d.container)
-const onPodPanelShell = (d: any) => d?.pod && openPodShell(d.pod, d.container)
-const onPodPanelLogs = (d: any) => d?.pod && openPodLogs(d.pod, d.container)
-
-function openPodFromList(pod: PodInfo) {
-  resourceActions.closeDetail()
-  openPodDetail(pod)
-}
-// Pod ещё не на каркасе: ссылки на pod из вкладок нового каркаса (PodsTab и т.п.) приходят сюда
-registerOpener('pod', async (ns, name, item) => {
-  const pod = item ?? (await k8s.getPods(ns)).find((p: any) => p.name === name)
-  if (!pod) return notifications.notifyError(`Pod ${ns}/${name} не найден`)
-  openPodFromList(pod as PodInfo)
+// Node ещё не на каркасе: ссылки на node открывают старую панель
+registerOpener('node', async (_ns, name) => {
+  try {
+    selectedNode.value = await k8s.getNode(name)
+  } catch (e: any) {
+    notifications.notifyError(`Node ${name}: ${e.message || e}`)
+  }
 })
 
 // ═══════════════════════════════════════════════
@@ -376,10 +303,9 @@ const activeViewComponent = computed(() => activeViewConfig.value?.component || 
 
 /** dataKey из viewRegistry -> источник данных. Вычисляется лениво: читается только нужный список */
 const dataSources: Record<string, { value: any }> = {
-  filteredPods, filteredStatefulSets,
-  filteredJobs, filteredCronJobs, filteredServices,
+  filteredCronJobs,
   filteredIngresses, filteredEndpoints, filteredIngressClasses, filteredNetworkPolicies,
-  filteredPVCs, filteredStorageClasses, filteredSecrets,
+  filteredPVCs, filteredStorageClasses,
   filteredResourceQuotas, filteredLimitRanges, filteredHPA, filteredPDB,
   filteredPriorityClasses, filteredRuntimeClasses, filteredLeases,
   portForwards, pvs, nodes, events,
@@ -421,28 +347,7 @@ const yamlOnly = (kind: string) => ({
 /** Действия view -> обработчики. Это единственное место, где view связываются с логикой */
 const viewHandlers: Record<string, () => Record<string, (...args: any[]) => void>> = {
   overview: () => ({ navigate: onNavigate }),
-
-  pods: () => ({
-    select: openPodFromList,
-    logs: openPodLogs,
-    shell: openPodShell,
-    attachPod: openPodAttach,
-    evict: podActions.evictPod,
-    edit: (pod: any) => resourceActions.edit('pod', pod.namespace, pod.name),
-    delete: onPodDelete,
-    // события PodDetailPanel, проброшенные через PodsView
-    attach: onPodPanelAttach,
-    terminal: onPodPanelShell,
-    openLogs: onPodPanelLogs,
-    'logs:open': (ns: string, pod: string, c: string) => resourceActions.openLogs(ns, pod, undefined, c),
-    'shell:open': (ns: string, pod: string, c: string) => void resourceActions.openShell(ns, pod, c),
-    'attach:open': (ns: string, pod: string, c: string) => void resourceActions.openAttach(ns, pod, c),
-  }),
-
-  services: () => ({ select: openServiceDetail, ...yamlOnly('service') }),
-  secrets: () => yamlOnly('secret'),
   nodes: () => yamlOnly('node'),
-
   portforwarding: () => ({ refresh: refreshPortForwards, stop: stopPortForward }),
 }
 
@@ -473,54 +378,7 @@ async function applyYAMLTabbed(tabId: string) {
 }
 
 // ═══════════════════════════════════════════════
-// Глобальные события из useDetailPanel (kubron-*)
-// Временный мост: пока панели Jobs/StatefulSets и др. открываются через useDetailPanel,
-// они общаются с App через window. После их миграции на src/resources блок удаляется.
-// ═══════════════════════════════════════════════
-
-function onDeleteResourceEvent(e: Event) {
-  const { resourceType, namespace, name } = (e as CustomEvent).detail
-  requestDelete(resourceType, namespace, name)
-}
-
-function onContextActionEvent(e: Event) {
-  const { action, resourceType, resource } = (e as CustomEvent).detail
-  const ns = resource?.namespace || resource?.metadata?.namespace || ''
-  const name = resource?.name || resource?.metadata?.name
-  const pod = { namespace: ns, name, containers: resource?.containers }
-
-  switch (action) {
-    case 'edit':
-      resourceActions.edit(resourceType, ns, name)
-      break
-    case 'shell':
-      if (resourceType === 'pod') openPodShell(pod)
-      break
-    case 'attach':
-      if (resourceType === 'pod') openPodAttach(pod)
-      break
-    case 'logs':
-      if (resourceType === 'pod') openPodLogs(pod)
-      break
-    case 'evict':
-      if (resourceType === 'pod') podActions.evictPod(resource)
-      break
-    case 'retry':
-      if (resourceType === 'job') {
-        k8s.retryJob(ns, name)
-          .then(() => {
-            notifications.notifySuccess(`Job ${name} retry initiated`)
-            return refreshAll()
-          })
-          .catch((err: any) => notifications.notifyError(`Retry error: ${err.message || err}`))
-      }
-      break
-  }
-}
-
-// ═══════════════════════════════════════════════
 // Ошибки из composables, которые пишут в ref `error`
-// (useClusterConnection, usePodActions). Остальной код использует notifications напрямую.
 // ═══════════════════════════════════════════════
 
 watch(error, (val) => {
@@ -536,13 +394,6 @@ watch(error, (val) => {
 
 onMounted(() => {
   clusterConn.initialize()
-  window.addEventListener('kubron-delete-resource', onDeleteResourceEvent)
-  window.addEventListener('kubron-context-action', onContextActionEvent)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('kubron-delete-resource', onDeleteResourceEvent)
-  window.removeEventListener('kubron-context-action', onContextActionEvent)
 })
 </script>
 

@@ -10,17 +10,41 @@
   >
     <!-- Edit / Delete / Close рисует базовый компонент; здесь только специфичные действия -->
     <template #actions>
-      <button
-        v-for="a in visibleActions"
-        :key="a.id"
-        class="rd-action"
-        :class="{ danger: a.danger }"
-        :title="a.label"
-        @click="a.run(resource, resourceActions)"
-      >
-        <img v-if="a.icon" :src="a.icon" :alt="a.label" />
-        <template v-else>{{ a.label }}</template>
-      </button>
+      <template v-for="a in visibleActions" :key="a.id">
+        <!-- Действия с dropdown по контейнерам (attach/shell/logs) -->
+        <div v-if="containerActionIds.includes(a.id) && containers.length > 1" class="rd-action-group">
+          <button
+            class="rd-action"
+            :class="{ danger: a.danger }"
+            :title="a.label"
+            @click="toggleDropdown(a.id)"
+          >
+            <img v-if="a.icon" :src="a.icon" :alt="a.label" />
+            <template v-else>{{ a.label }}</template>
+          </button>
+          <div v-if="openDropdown === a.id" class="rd-action-dropdown">
+            <div
+              v-for="c in containers"
+              :key="c.name"
+              class="rd-dropdown-item"
+              @click="runContainerAction(a.id, c.name)"
+            >
+              {{ c.name }}
+            </div>
+          </div>
+        </div>
+        <!-- Обычное действие (1 контейнер или не контейнерное) -->
+        <button
+          v-else
+          class="rd-action"
+          :class="{ danger: a.danger }"
+          :title="a.label"
+          @click="a.run(resource, resourceActions)"
+        >
+          <img v-if="a.icon" :src="a.icon" :alt="a.label" />
+          <template v-else>{{ a.label }}</template>
+        </button>
+      </template>
     </template>
 
     <template #properties>
@@ -34,6 +58,16 @@
           <span class="rd-label">{{ p.label }}</span>
           <span v-if="p.badge" class="rd-value">
             <span class="rd-badge" :class="p.badge(resource)">{{ show(p.value(resource)) }}</span>
+          </span>
+          <span v-else-if="p.link" class="rd-value">
+            <a
+              v-if="p.link(resource)"
+              class="rd-link"
+              @click="resourceActions.open(p.link(resource)!.id, p.link(resource)!.ns, p.link(resource)!.name)"
+            >
+              {{ show(p.value(resource)) }}
+            </a>
+            <template v-else>{{ show(p.value(resource)) }}</template>
           </span>
           <span v-else class="rd-value">{{ show(p.value(resource)) }}</span>
         </div>
@@ -55,10 +89,10 @@
 
 <script lang="ts" setup>
 import './resource.css'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import K8sResourceDetailBase from '../panels/K8sResourceDetailBase.vue'
 import KeyValueSection from './sections/KeyValueSection.vue'
-import type { ResourceDefinition } from '../../resources/types'
+import type { ResourceDefinition, ActionContext } from '../../resources/types'
 import { resourceActions } from '../../resources/actions'
 import { itemName, itemNs } from '../../resources/utils'
 
@@ -105,5 +139,27 @@ function onOpen(p: { id: string; ns: string; name: string; item?: any }) {
 
 function onNamespaceClick(namespace: string) {
   resourceActions.open('namespace', '', namespace)
+}
+
+// ─── Per-container dropdown ───
+const containerActionIds = ['attach', 'shell', 'logs']
+const containers = computed(() => props.resource?.containers ?? [])
+const openDropdown = ref<string | null>(null)
+
+function toggleDropdown(id: string) {
+  openDropdown.value = openDropdown.value === id ? null : id
+}
+
+function runContainerAction(actionId: string, container: string) {
+  openDropdown.value = null
+  const ctx: ActionContext = resourceActions
+  switch (actionId) {
+    case 'attach':
+      return ctx.openAttach(props.ns, props.name, container)
+    case 'shell':
+      return ctx.openShell(props.ns, props.name, container)
+    case 'logs':
+      return ctx.openLogs(props.ns, props.name, [{ name: container }], container)
+  }
 }
 </script>

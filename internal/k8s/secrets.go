@@ -51,3 +51,13 @@ func (m *Manager) GetSecrets(namespace string) ([]SecretInfo, error) {
 
 	return secrets, nil
 }
+
+func (m *Manager) DeleteSecret(namespace, name string) error {
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return conn.Client.CoreV1().Secrets(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}

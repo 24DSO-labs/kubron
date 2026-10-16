@@ -23,7 +23,11 @@ export async function loadResource(def: ResourceDefinition): Promise<void> {
   try {
     const data = await def.api.list(ns)
     if (seqByView[def.view] !== seq) return // пришёл более свежий ответ
-    itemsByView.value = { ...itemsByView.value, [def.view]: Array.isArray(data) ? data : [] }
+    const list = Array.isArray(data) ? data : []
+    itemsByView.value = { ...itemsByView.value, [def.view]: list }
+    if (def.onLoaded) {
+      try { await def.onLoaded(list) } catch { /* игнорируем ошибки onLoaded */ }
+    }
   } catch (e: any) {
     if (seqByView[def.view] !== seq) return
     // первый запрос упал: показываем пустой список вместо вечного лоадера
