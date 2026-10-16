@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"strings"
 	"sync"
 	"time"
 
@@ -32,12 +31,6 @@ type TerminalSession struct {
 
 	mu     sync.Mutex
 	closed bool
-}
-
-type TerminalOutput struct {
-	Stdout   string `json:"stdout"`
-	Stderr   string `json:"stderr"`
-	ExitCode int    `json:"exitCode"`
 }
 
 type TerminalSessionManager struct {
@@ -136,97 +129,6 @@ func (m *Manager) StartTerminalSession(sessionID, namespace, pod, container, she
 		Pod:       pod,
 		Container: container,
 		Shell:     shell,
-		stdinW:    stdinW,
-		stdoutR:   stdoutR,
-		sizeChan:  sizeChan,
-		done:      done,
-		ctx:       ctx,
-		cancel:    cancel,
-		closed:    false,
-	}
-
-	if m.terminalSessions == nil {
-		m.terminalSessions = NewTerminalSessionManager()
-	}
-	m.terminalSessions.Add(session)
-
-	go func() {
-		executor.StreamWithContext(ctx, remotecommand.StreamOptions{
-			Stdin:             stdinR,
-			Stdout:            stdoutW,
-			Stderr:            stdoutW,
-			Tty:               true,
-			TerminalSizeQueue: sq,
-		})
-
-		stdoutW.Close()
-		stdinR.Close()
-
-		if m.terminalSessions != nil {
-			m.terminalSessions.Remove(sessionID)
-		}
-
-		select {
-		case <-done:
-		default:
-			close(done)
-		}
-	}()
-
-	return nil
-}
-
-// ─── StartAttachSession ────────────────────────────────────
-// Подключается к текущему процессу контейнера (attach), а не запускает новый shell
-
-func (m *Manager) StartAttachSession(sessionID, namespace, pod, container string, cols, rows uint16) error {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return err
-	}
-
-	req := conn.Client.CoreV1().RESTClient().Post().
-		Resource("pods").
-		Name(pod).
-		Namespace(namespace).
-		SubResource("attach").
-		VersionedParams(&corev1.PodAttachOptions{
-			Container: container,
-			Stdin:     true,
-			Stdout:    true,
-			Stderr:    true,
-			TTY:       true,
-		}, scheme.ParameterCodec)
-
-	executor, err := remotecommand.NewSPDYExecutor(conn.Config, "POST", req.URL())
-	if err != nil {
-		return fmt.Errorf("create attach executor: %w", err)
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	stdinR, stdinW := io.Pipe()
-	stdoutR, stdoutW := io.Pipe()
-
-	sizeChan := make(chan remotecommand.TerminalSize, 1)
-	done := make(chan struct{})
-
-	sizeChan <- remotecommand.TerminalSize{
-		Width:  cols,
-		Height: rows,
-	}
-
-	sq := &sizeQueue{
-		sizeChan: sizeChan,
-		done:     done,
-	}
-
-	session := &TerminalSession{
-		ID:        sessionID,
-		Namespace: namespace,
-		Pod:       pod,
-		Container: container,
-		Shell:     "attach",
 		stdinW:    stdinW,
 		stdoutR:   stdoutR,
 		sizeChan:  sizeChan,
@@ -400,80 +302,6 @@ func (m *Manager) DetectShell(namespace, pod, container string) (string, error) 
 	}
 
 	return "/bin/sh", nil
-}
-
-// ─── ExecTerminal ──────────────────────────────────────────
-
-func (m *Manager) ExecTerminal(namespace, pod, container, shell, command string) (*TerminalOutput, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
-
-	wrappedCmd := fmt.Sprintf(`%s 2>&1; echo ":::EXIT_CODE:::$?"`, command)
-
-	req := conn.Client.CoreV1().RESTClient().Post().
-		Resource("pods").
-		Name(pod).
-		Namespace(namespace).
-		SubResource("exec").
-		VersionedParams(&corev1.PodExecOptions{
-			Container: container,
-			Command:   []string{shell, "-c", wrappedCmd},
-			Stdout:    true,
-			Stderr:    true,
-		}, scheme.ParameterCodec)
-
-	exec, err := remotecommand.NewSPDYExecutor(conn.Config, "POST", req.URL())
-	if err != nil {
-		return nil, fmt.Errorf("create executor: %w", err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	var stdout, stderr bytes.Buffer
-	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
-		Stdout: &stdout,
-		Stderr: &stderr,
-	})
-
-	output := stdout.String()
-	exitCode := 0
-
-	if idx := strings.LastIndex(output, ":::EXIT_CODE:::"); idx >= 0 {
-		codeStr := strings.TrimSpace(output[idx+15:])
-		output = output[:idx]
-		fmt.Sscanf(codeStr, "%d", &exitCode)
-	}
-
-	if err != nil && exitCode == 0 {
-		exitCode = 1
-	}
-
-	return &TerminalOutput{
-		Stdout:   output,
-		Stderr:   stderr.String(),
-		ExitCode: exitCode,
-	}, nil
-}
-
-// ─── TabComplete ───────────────────────────────────────────
-
-func (m *Manager) TabComplete(namespace, pod, container, shell, partial string) ([]string, error) {
-	cmd := fmt.Sprintf(`compgen -f "%s" 2>/dev/null || ls -1 "%s"* 2>/dev/null`, partial, partial)
-	result, err := m.execRaw(namespace, pod, container, []string{shell, "-c", cmd})
-	if err != nil {
-		return nil, err
-	}
-
-	var completions []string
-	for _, line := range strings.Split(strings.TrimSpace(result), "\n") {
-		if line != "" {
-			completions = append(completions, line)
-		}
-	}
-	return completions, nil
 }
 
 // ─── execRaw ───────────────────────────────────────────────
