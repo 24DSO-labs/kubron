@@ -94,47 +94,6 @@ func (m *Manager) DeletePod(namespace, name string) error {
 	return conn.Client.CoreV1().Pods(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 }
 
-func (m *Manager) AttachPod(namespace, name, container string) error {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	pod, err := conn.Client.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("не удалось получить информацию о поде: %w", err)
-	}
-
-	containerFound := false
-	var containerStatus *corev1.ContainerStatus
-	for i, c := range pod.Spec.Containers {
-		if c.Name == container {
-			containerFound = true
-			if i < len(pod.Status.ContainerStatuses) {
-				containerStatus = &pod.Status.ContainerStatuses[i]
-			}
-			break
-		}
-	}
-
-	if !containerFound {
-		return fmt.Errorf("контейнер %s не найден в поде %s", container, name)
-	}
-
-	if pod.Status.Phase != corev1.PodRunning {
-		return fmt.Errorf("под не запущен (статус: %s)", pod.Status.Phase)
-	}
-
-	if containerStatus != nil && !containerStatus.Ready {
-		return fmt.Errorf("контейнер %s не готов (state: %v)", container, containerStatus.State)
-	}
-
-	return nil
-}
-
 func (m *Manager) EvictPod(namespace, name string) error {
 	conn, err := m.GetActiveConnection()
 	if err != nil {
