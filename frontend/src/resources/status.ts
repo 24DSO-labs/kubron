@@ -1,7 +1,7 @@
 /** Цвета и css-классы статусов: одно место для списков и панелей */
 
-const OK = ['running', 'ready', 'active', 'bound', 'succeeded', 'completed', 'complete', 'available', 'true']
-const WARN = ['pending', 'containercreating', 'podinitializing', 'terminating', 'progressing']
+const OK = ['running', 'ready', 'active', 'bound', 'succeeded', 'completed', 'complete', 'available', 'true', 'deployed']
+const WARN = ['pending', 'containercreating', 'podinitializing', 'terminating', 'progressing', 'pending-install', 'pending-upgrade', 'pending-rollback', 'pending-delete', 'uninstalling', 'superseded']
 const ERR = [
   'failed', 'error', 'crashloopbackoff', 'crashed', 'imagepullbackoff', 'errimagepull', 'evicted',
   'lost', 'false', 'replicafailure', 'progressdeadlineexceeded',

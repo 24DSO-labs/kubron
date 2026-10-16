@@ -7,7 +7,6 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"sigs.k8s.io/yaml"
@@ -64,11 +63,7 @@ func (m *Manager) applyDynamic(conn *ClusterConnection, ctx context.Context, nam
 		return fmt.Errorf("ошибка парсинга YAML: %w", err)
 	}
 
-	gvr := schema.GroupVersionResource{
-		Group:    "",
-		Version:  "v1",
-		Resource: kind + "s",
-	}
+	gvr := dynamicGVR(kind)
 
 	if namespace != "" {
 		_, err = dynClient.Resource(gvr).Namespace(namespace).Update(ctx, &obj, metav1.UpdateOptions{})

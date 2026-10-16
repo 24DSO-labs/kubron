@@ -8,12 +8,12 @@
         <slot name="actions" :resource="resource"></slot>
 
         <!-- Edit button -->
-        <button class="btn-action" @click="emit('edit')" title="Edit">
+        <button v-if="showEdit !== false" class="btn-action" @click="emit('edit')" title="Edit">
           <img :src="editIcon" alt="Edit" class="btn-icon"/>
         </button>
 
         <!-- Delete button -->
-        <button class="btn-action btn-danger" @click="emit('delete')" title="Delete resource">
+        <button v-if="showDelete !== false" class="btn-action btn-danger" @click="emit('delete')" title="Delete resource">
           <img :src="deleteIcon" alt="Delete" class="btn-icon"/>
         </button>
 
@@ -100,6 +100,10 @@ const props = defineProps<{
   resource: any
   resourceIcon?: string
   customTabs?: DetailTab[]
+  /** false — скрыть кнопку Edit (для нередактируемых сущностей: helm, port forward и т.п.) */
+  showEdit?: boolean
+  /** false — скрыть кнопку Delete */
+  showDelete?: boolean
 }>()
 
 const emit = defineEmits<{

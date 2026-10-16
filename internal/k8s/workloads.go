@@ -495,3 +495,15 @@ func (m *Manager) GetCronJobs(namespace string) ([]CronJobInfo, error) {
 	}
 	return items, nil
 }
+
+func (m *Manager) DeleteCronJob(namespace, name string) error {
+conn, err := m.GetActiveConnection()
+if err != nil {
+return err
+}
+
+ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+defer cancel()
+
+return conn.Client.BatchV1().CronJobs(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}

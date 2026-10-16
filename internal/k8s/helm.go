@@ -1,0 +1,234 @@
+package k8s
+
+import (
+	"bytes"
+	"compress/gzip"
+	"context"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"io"
+	"sort"
+	"strings"
+	"time"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+/*
+ * Helm v3 хранит релизы в secret-ах типа helm.sh/release.v1 (label owner=helm):
+ * data["release"] = base64(gzip(JSON релиза)). Читаем их напрямую через k8s API,
+ * без helm CLI и без внешних зависимостей.
+ */
+
+const helmSecretType = "helm.sh/release.v1"
+
+// HelmReleaseInfo — установленный helm-релиз (последняя ревизия)
+type HelmReleaseInfo struct {
+	Name         string `json:"name"`
+	Namespace    string `json:"namespace"`
+	Chart        string `json:"chart"`
+	ChartVersion string `json:"chartVersion"`
+	AppVersion   string `json:"appVersion"`
+	Revision     int    `json:"revision"`
+	Status       string `json:"status"`
+	Updated      string `json:"updated"`
+	Description  string `json:"description"`
+}
+
+// HelmChartInfo — агрегация установленных релизов по chart-у
+type HelmChartInfo struct {
+	Name        string `json:"name"`
+	Version     string `json:"version"`
+	AppVersion  string `json:"appVersion"`
+	Releases    int    `json:"releases"`
+	Namespaces  string `json:"namespaces"`
+	Updated     string `json:"updated"`
+	Description string `json:"description"`
+}
+
+// helmPayload — используемые поля JSON из секрета релиза
+type helmPayload struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	Version   int    `json:"version"`
+	Info      struct {
+		Status       string    `json:"status"`
+		Description  string    `json:"description"`
+		LastDeployed time.Time `json:"last_deployed"`
+	} `json:"info"`
+	Chart struct {
+		Metadata struct {
+			Name        string `json:"name"`
+			Version     string `json:"version"`
+			AppVersion  string `json:"appVersion"`
+			Description string `json:"description"`
+		} `json:"metadata"`
+	} `json:"chart"`
+}
+
+func decodeHelmSecret(sec *corev1.Secret) (helmPayload, error) {
+	var p helmPayload
+	raw, ok := sec.Data["release"]
+	if !ok {
+		return p, fmt.Errorf("secret %s/%s: нет поля release", sec.Namespace, sec.Name)
+	}
+	decoded, err := base64.StdEncoding.DecodeString(string(raw))
+	if err != nil {
+		return p, fmt.Errorf("secret %s/%s: %w", sec.Namespace, sec.Name, err)
+	}
+	gz, err := gzip.NewReader(bytes.NewReader(decoded))
+	if err != nil {
+		return p, fmt.Errorf("secret %s/%s: %w", sec.Namespace, sec.Name, err)
+	}
+	defer gz.Close()
+
+	jsonBytes, err := io.ReadAll(gz)
+	if err != nil {
+		return p, err
+	}
+	if err := json.Unmarshal(jsonBytes, &p); err != nil {
+		return p, err
+	}
+	return p, nil
+}
+
+func helmUpdated(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return formatAge(t)
+}
+
+// listHelmPayloads: последняя ревизия каждого релиза; superseded (старые ревизии) не входят
+func (m *Manager) listHelmPayloads() ([]helmPayload, error) {
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	list, err := conn.Client.CoreV1().Secrets("").List(ctx, metav1.ListOptions{
+		LabelSelector: "owner=helm",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	latest := make(map[string]helmPayload)
+	for i := range list.Items {
+		sec := &list.Items[i]
+		if string(sec.Type) != helmSecretType {
+			continue
+		}
+		p, err := decodeHelmSecret(sec)
+		if err != nil {
+			continue // битый секрет не должен ломать весь список
+		}
+		key := p.Namespace + "/" + p.Name
+		if prev, ok := latest[key]; !ok || p.Version > prev.Version {
+			latest[key] = p
+		}
+	}
+
+	payloads := make([]helmPayload, 0, len(latest))
+	for _, p := range latest {
+		if strings.EqualFold(p.Info.Status, "superseded") {
+			continue
+		}
+		payloads = append(payloads, p)
+	}
+	return payloads, nil
+}
+
+func (m *Manager) GetHelmReleases() ([]HelmReleaseInfo, error) {
+	payloads, err := m.listHelmPayloads()
+	if err != nil {
+		return nil, err
+	}
+
+	releases := make([]HelmReleaseInfo, 0, len(payloads))
+	for _, p := range payloads {
+		releases = append(releases, HelmReleaseInfo{
+			Name:         p.Name,
+			Namespace:    p.Namespace,
+			Chart:        p.Chart.Metadata.Name,
+			ChartVersion: p.Chart.Metadata.Version,
+			AppVersion:   p.Chart.Metadata.AppVersion,
+			Revision:     p.Version,
+			Status:       p.Info.Status,
+			Updated:      helmUpdated(p.Info.LastDeployed),
+			Description:  p.Info.Description,
+		})
+	}
+
+	sort.Slice(releases, func(i, j int) bool {
+		if releases[i].Namespace != releases[j].Namespace {
+			return releases[i].Namespace < releases[j].Namespace
+		}
+		return releases[i].Name < releases[j].Name
+	})
+	return releases, nil
+}
+
+func (m *Manager) GetHelmCharts() ([]HelmChartInfo, error) {
+	payloads, err := m.listHelmPayloads()
+	if err != nil {
+		return nil, err
+	}
+
+	type chartAgg struct {
+		info    HelmChartInfo
+		updated time.Time
+		nsSet   map[string]bool
+	}
+
+	charts := make(map[string]*chartAgg)
+	for _, p := range payloads {
+		name := p.Chart.Metadata.Name
+		if name == "" {
+			continue
+		}
+		agg, ok := charts[name]
+		if !ok {
+			agg = &chartAgg{
+				info: HelmChartInfo{
+					Name:        name,
+					Version:     p.Chart.Metadata.Version,
+					AppVersion:  p.Chart.Metadata.AppVersion,
+					Description: p.Chart.Metadata.Description,
+					Updated:     helmUpdated(p.Info.LastDeployed),
+				},
+				updated: p.Info.LastDeployed,
+				nsSet:   map[string]bool{},
+			}
+			charts[name] = agg
+		}
+		agg.info.Releases++
+		agg.nsSet[p.Namespace] = true
+		// версия chart-а — по самому свежему релизу
+		if p.Info.LastDeployed.After(agg.updated) {
+			agg.updated = p.Info.LastDeployed
+			agg.info.Version = p.Chart.Metadata.Version
+			agg.info.AppVersion = p.Chart.Metadata.AppVersion
+			agg.info.Updated = helmUpdated(p.Info.LastDeployed)
+		}
+	}
+
+	result := make([]HelmChartInfo, 0, len(charts))
+	for _, agg := range charts {
+		ns := make([]string, 0, len(agg.nsSet))
+		for n := range agg.nsSet {
+			ns = append(ns, n)
+		}
+		sort.Strings(ns)
+		agg.info.Namespaces = strings.Join(ns, ", ")
+		result = append(result, agg.info)
+	}
+
+	sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
+	return result, nil
+}

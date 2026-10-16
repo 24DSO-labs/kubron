@@ -234,6 +234,20 @@ func (a *App) GetNodes() ([]k8s.NodeInfo, error) {
 	return a.k8sMgr.GetNodes()
 }
 
+func (a *App) GetNodeDetail(name string) (*k8s.NodeDetail, error) {
+	return a.k8sMgr.GetNodeDetail(name)
+}
+
+// === Helm ===
+
+func (a *App) GetHelmReleases() ([]k8s.HelmReleaseInfo, error) {
+	return a.k8sMgr.GetHelmReleases()
+}
+
+func (a *App) GetHelmCharts() ([]k8s.HelmChartInfo, error) {
+	return a.k8sMgr.GetHelmCharts()
+}
+
 // === Events ===
 
 func (a *App) GetEvents(namespace string) ([]k8s.EventInfo, error) {
@@ -429,6 +443,66 @@ func (a *App) DeleteClusterRole(name string) error {
 
 func (a *App) DeleteClusterRoleBinding(name string) error {
 	return a.k8sMgr.DeleteClusterRoleBinding(name)
+}
+
+func (a *App) GetResourceQuotas(namespace string) ([]k8s.ResourceQuotaInfo, error) {
+	return a.k8sMgr.GetResourceQuotas(namespace)
+}
+
+func (a *App) DeleteCronJob(namespace, name string) error {
+	return a.k8sMgr.DeleteCronJob(namespace, name)
+}
+
+func (a *App) DeleteIngress(namespace, name string) error {
+	return a.k8sMgr.DeleteIngress(namespace, name)
+}
+
+func (a *App) DeleteIngressClass(name string) error {
+	return a.k8sMgr.DeleteIngressClass(name)
+}
+
+func (a *App) DeleteNetworkPolicy(namespace, name string) error {
+	return a.k8sMgr.DeleteNetworkPolicy(namespace, name)
+}
+
+func (a *App) DeletePersistentVolume(name string) error {
+	return a.k8sMgr.DeletePersistentVolume(name)
+}
+
+func (a *App) DeletePersistentVolumeClaim(namespace, name string) error {
+	return a.k8sMgr.DeletePersistentVolumeClaim(namespace, name)
+}
+
+func (a *App) DeleteStorageClass(name string) error {
+	return a.k8sMgr.DeleteStorageClass(name)
+}
+
+func (a *App) DeleteResourceQuota(namespace, name string) error {
+	return a.k8sMgr.DeleteResourceQuota(namespace, name)
+}
+
+func (a *App) DeleteLimitRange(namespace, name string) error {
+	return a.k8sMgr.DeleteLimitRange(namespace, name)
+}
+
+func (a *App) DeleteHPA(namespace, name string) error {
+	return a.k8sMgr.DeleteHPA(namespace, name)
+}
+
+func (a *App) DeletePDB(namespace, name string) error {
+	return a.k8sMgr.DeletePDB(namespace, name)
+}
+
+func (a *App) DeletePriorityClass(name string) error {
+	return a.k8sMgr.DeletePriorityClass(name)
+}
+
+func (a *App) DeleteRuntimeClass(name string) error {
+	return a.k8sMgr.DeleteRuntimeClass(name)
+}
+
+func (a *App) DeleteLease(namespace, name string) error {
+	return a.k8sMgr.DeleteLease(namespace, name)
 }
 
 // === YAML ===
