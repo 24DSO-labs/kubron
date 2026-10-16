@@ -45,15 +45,15 @@ func (m *Manager) GetNetworkPolicies(namespace string) ([]NetworkPolicyInfo, err
 
 	return networkPolicies, nil
 }
- 
+
 func (m *Manager) DeleteNetworkPolicy(namespace, name string) error {
-conn, err := m.GetActiveConnection()
-if err != nil {
-return err
-}
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return err
+	}
 
-ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 
-return conn.Client.NetworkingV1().NetworkPolicies(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+	return conn.Client.NetworkingV1().NetworkPolicies(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 }

@@ -474,11 +474,6 @@ export interface EndpointInfo {
   name: string
   addresses: string[]
 }
-export interface TerminalOutput {
-  stdout: string
-  stderr: string
-  exitCode: number
-}
 
 export interface ResourceQuotaInfo {
   name: string
