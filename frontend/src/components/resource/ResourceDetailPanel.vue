@@ -14,7 +14,7 @@
     <template #actions>
       <template v-for="a in visibleActions" :key="a.id">
         <!-- Действия с dropdown по контейнерам (attach/shell/logs) -->
-        <div v-if="containerActionIds.includes(a.id) && containers.length > 1" class="rd-action-group">
+        <div v-if="a.perContainer && containers.length > 1" class="rd-action-group" data-rd-dropdown>
           <button
             class="rd-action"
             :class="{ danger: a.danger }"
@@ -29,7 +29,7 @@
               v-for="c in containers"
               :key="c.name"
               class="rd-dropdown-item"
-              @click="runContainerAction(a.id, c.name)"
+              @click="runContainerAction(a, c.name)"
             >
               {{ c.name }}
             </div>
@@ -91,10 +91,10 @@
 
 <script lang="ts" setup>
 import './resource.css'
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import K8sResourceDetailBase from '../panels/K8sResourceDetailBase.vue'
 import KeyValueSection from './sections/KeyValueSection.vue'
-import type { ResourceDefinition, ActionContext } from '../../resources/types'
+import type { ActionDef, ResourceDefinition } from '../../resources/types'
 import { resourceActions } from '../../resources/actions'
 import { itemName, itemNs } from '../../resources/utils'
 
@@ -143,8 +143,7 @@ function onNamespaceClick(namespace: string) {
   resourceActions.open('namespace', '', namespace)
 }
 
-// ─── Per-container dropdown ───
-const containerActionIds = ['attach', 'shell', 'logs']
+// ─── Per-container dropdown (ActionDef.perContainer) ───
 const containers = computed(() => props.resource?.containers ?? [])
 const openDropdown = ref<string | null>(null)
 
@@ -152,16 +151,15 @@ function toggleDropdown(id: string) {
   openDropdown.value = openDropdown.value === id ? null : id
 }
 
-function runContainerAction(actionId: string, container: string) {
+function runContainerAction(a: ActionDef, container: string) {
   openDropdown.value = null
-  const ctx: ActionContext = resourceActions
-  switch (actionId) {
-    case 'attach':
-      return ctx.openAttach(props.ns, props.name, container)
-    case 'shell':
-      return ctx.openShell(props.ns, props.name, container)
-    case 'logs':
-      return ctx.openLogs(props.ns, props.name, [{ name: container }], container)
-  }
+  return a.run(props.resource, resourceActions, container)
 }
+
+// Закрывать список по клику вне него
+function closeDropdown(e: MouseEvent) {
+  if (!(e.target as Element | null)?.closest?.('[data-rd-dropdown]')) openDropdown.value = null
+}
+onMounted(() => document.addEventListener('click', closeDropdown))
+onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
 </script>

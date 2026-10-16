@@ -20,16 +20,6 @@ export const scaleTarget = shallowRef<any | null>(null)
 
 const errMsg = (e: any) => e?.message || String(e)
 
-/**
- * Типы, которые ещё не перенесены на каркас (например, pod), регистрируют свой "открыватель".
- * Тогда ссылки из секций (PodsTab и т.п.) работают через resourceActions.open().
- */
-type Opener = (ns: string, name: string, item?: any) => void
-const externalOpeners: Record<string, Opener> = {}
-export function registerOpener(id: string, fn: Opener) {
-  externalOpeners[id.toLowerCase()] = fn
-}
-
 export const resourceActions: ActionContext & {
   closeDetail(): void
   confirmDelete(): Promise<void>
@@ -38,10 +28,7 @@ export const resourceActions: ActionContext & {
   cancelScale(): void
 } = {
   open(id, ns, name, item) {
-    const key = id.toLowerCase()
-    const external = externalOpeners[key]
-    if (external && !getResourceById(key)) return external(ns, name, item)
-    opened.value = { id: key, ns, name, item }
+    opened.value = { id: id.toLowerCase(), ns, name, item }
   },
 
   closeDetail() {
