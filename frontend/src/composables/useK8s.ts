@@ -6,7 +6,7 @@ import {
   GetClusterOverview, GetResourceYAML, ApplyYAML,
   ExecCommand,
   GetPodMetrics,
-  StartPortForward, StopPortForward, ListPortForwards,
+  ListPortForwards,
 } from '../../wailsjs/go/main/App'
 import { callApp } from '../resources/wails'
 import { useNotifications } from './useNotifications'
@@ -256,25 +256,6 @@ async function refreshPortForwards() {
   } catch { portForwards.value = [] }
 }
 
-async function startPortForward(namespace: string, podName: string, localPort: number, podPort: number) {
-  if (!namespace || !podName) return
-  try {
-    await StartPortForward(namespace, podName, localPort, podPort)
-    await new Promise(resolve => setTimeout(resolve, 500))
-    await refreshPortForwards()
-  } catch (e) {
-    fail('Ошибка port forward', e)
-    throw e
-  }
-}
-
-async function stopPortForward(id: string) {
-  try {
-    await StopPortForward(id)
-    await refreshPortForwards()
-  } catch (e) { fail('Ошибка остановки port forward', e) }
-}
-
 // ─── Export ───
 
 export function useK8s() {
@@ -299,6 +280,6 @@ export function useK8s() {
 
     // Metrics / port forward
     loadPodMetrics,
-    startPortForward, stopPortForward, refreshPortForwards,
+    refreshPortForwards,
   }
 }

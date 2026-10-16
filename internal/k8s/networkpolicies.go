@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -46,19 +45,7 @@ func (m *Manager) GetNetworkPolicies(namespace string) ([]NetworkPolicyInfo, err
 
 	return networkPolicies, nil
 }
-
-func (m *Manager) GetNetworkPolicy(namespace, name string) (*networkingv1.NetworkPolicy, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	return conn.Client.NetworkingV1().NetworkPolicies(namespace).Get(ctx, name, metav1.GetOptions{})
-}
-
+ 
 func (m *Manager) DeleteNetworkPolicy(namespace, name string) error {
 conn, err := m.GetActiveConnection()
 if err != nil {

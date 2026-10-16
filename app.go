@@ -30,10 +30,6 @@ func (a *App) startup(ctx context.Context) {
 
 // === Kubron Cluster Management ===
 
-func (a *App) ListClusters() ([]k8s.ClusterMeta, error) {
-	return k8s.ListClusters()
-}
-
 func (a *App) GetClusterStatuses() []k8s.ClusterStatus {
 	return a.k8sMgr.GetClusterStatuses()
 }
@@ -134,10 +130,6 @@ func (a *App) GetPodLogs(namespace, name, container string, lines int64) (string
 
 func (a *App) DeletePod(namespace, name string) error {
 	return a.k8sMgr.DeletePod(namespace, name)
-}
-
-func (a *App) AttachPod(namespace, name, container string) error {
-	return a.k8sMgr.AttachPod(namespace, name, container)
 }
 
 func (a *App) EvictPod(namespace, name string) error {
