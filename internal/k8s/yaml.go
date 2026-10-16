@@ -365,17 +365,39 @@ func (m *Manager) GetResourceYAML(namespace, kind, name string, clean bool) (str
 	return string(yamlBytes), nil
 }
 
+// dynamicGVR возвращает GroupVersionResource для kind, не покрытых статическим switch.
+// Дефолт — core/v1 (resourcequotas, limitranges, events, endpoints).
+func dynamicGVR(kind string) schema.GroupVersionResource {
+	groups := map[string][2]string{
+		"horizontalpodautoscaler": {"autoscaling", "v2"},
+		"poddisruptionbudget":     {"policy", "v1"},
+		"priorityclass":           {"scheduling", "v1"},
+		"runtimeclass":            {"node", "v1"},
+		"lease":                   {"coordination", "v1"},
+	}
+	gv, ok := groups[kind]
+	if !ok {
+		gv = [2]string{"", "v1"}
+	}
+	return schema.GroupVersionResource{Group: gv[0], Version: gv[1], Resource: kind + "s"}
+}
+
+// dynamicAPIVersion — apiVersion для YAML, собираемого через dynamic client
+func dynamicAPIVersion(kind string) string {
+	gvr := dynamicGVR(kind)
+	if gvr.Group == "" {
+		return gvr.Version
+	}
+	return gvr.Group + "/" + gvr.Version
+}
+
 func (m *Manager) getDynamicYAML(conn *ClusterConnection, ctx context.Context, namespace, kind, name string, clean bool) (string, error) {
 	dynClient, err := dynamic.NewForConfig(conn.Config)
 	if err != nil {
 		return "", err
 	}
 
-	gvr := schema.GroupVersionResource{
-		Group:    "",
-		Version:  "v1",
-		Resource: kind + "s",
-	}
+	gvr := dynamicGVR(kind)
 
 	var obj interface{}
 	if namespace != "" {
@@ -405,12 +427,7 @@ func (m *Manager) getDynamicYAML(conn *ClusterConnection, ctx context.Context, n
 	ordered := make(map[string]interface{})
 
 	// Правильная apiVersion для разных типов ресурсов
-	switch kind {
-	case "role", "clusterrole", "rolebinding", "clusterrolebinding":
-		ordered["apiVersion"] = "rbac.authorization.k8s.io/v1"
-	default:
-		ordered["apiVersion"] = "v1"
-	}
+	ordered["apiVersion"] = dynamicAPIVersion(kind)
 
 	ordered["kind"] = getKindName(kind)
 

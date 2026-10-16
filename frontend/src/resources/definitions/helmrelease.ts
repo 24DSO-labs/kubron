@@ -1,0 +1,39 @@
+import { defineResource } from '../types'
+import { callApp } from '../wails'
+import { flatNameCol, flatNsCol } from './common'
+import { badgeClass, statusColor } from '../status'
+
+export const helmRelease = defineResource({
+  id: 'helmrelease',
+  kind: 'Helm Release',
+  view: 'helm-releases',
+  title: 'Helm Releases',
+  namespaced: false,
+  // helm-релиз — агрегат из secret-ов, не отдельный k8s-ресурс: без YAML и удаления
+  editable: false,
+
+  columns: [
+    flatNameCol,
+    flatNsCol,
+    { key: 'chart', label: 'Chart' },
+    { key: 'chartVersion', label: 'Chart Version' },
+    { key: 'appVersion', label: 'App Version' },
+    { key: 'revision', label: 'Revision' },
+    { key: 'status', label: 'Status', colorFn: r => statusColor(r.status) },
+    { key: 'updated', label: 'Updated' },
+  ],
+
+  properties: [
+    { label: 'Status', value: r => r.status, badge: r => badgeClass(r.status) },
+    { label: 'Chart', value: r => r.chart },
+    { label: 'Chart Version', value: r => r.chartVersion },
+    { label: 'App Version', value: r => r.appVersion },
+    { label: 'Revision', value: r => r.revision },
+    { label: 'Updated', value: r => r.updated },
+    { label: 'Description', value: r => r.description },
+  ],
+
+  api: {
+    list: () => callApp('GetHelmReleases'),
+  },
+})

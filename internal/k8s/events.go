@@ -9,6 +9,7 @@ import (
 )
 
 type EventInfo struct {
+	Name      string `json:"name"`
 	Type      string `json:"type"`
 	Reason    string `json:"reason"`
 	Message   string `json:"message"`
@@ -53,6 +54,7 @@ func (m *Manager) GetEvents(namespace string) ([]EventInfo, error) {
 		}
 
 		events = append(events, EventInfo{
+			Name:      ev.Name,
 			Type:      ev.Type,
 			Reason:    ev.Reason,
 			Message:   ev.Message,

@@ -14,6 +14,26 @@ import { service } from './definitions/service'
 import { secret } from './definitions/secret'
 import { job } from './definitions/job'
 import { statefulSet } from './definitions/statefulset'
+import { cronJob } from './definitions/cronjob'
+import { ingress } from './definitions/ingress'
+import { ingressClass } from './definitions/ingressclass'
+import { networkPolicy } from './definitions/networkpolicy'
+import { persistentVolume } from './definitions/pv'
+import { persistentVolumeClaim } from './definitions/pvc'
+import { storageClass } from './definitions/storageclass'
+import { resourceQuota } from './definitions/resourcequota'
+import { limitRange } from './definitions/limitrange'
+import { horizontalPodAutoscaler } from './definitions/hpa'
+import { podDisruptionBudget } from './definitions/pdb'
+import { priorityClass } from './definitions/priorityclass'
+import { runtimeClass } from './definitions/runtimeclass'
+import { lease } from './definitions/lease'
+import { endpoint } from './definitions/endpoint'
+import { event } from './definitions/event'
+import { node } from './definitions/node'
+import { portForward } from './definitions/portforward'
+import { helmRelease } from './definitions/helmrelease'
+import { helmChart } from './definitions/helmchart'
 
 /** Добавляя новый ресурс, достаточно дописать его сюда. */
 export const resources: ResourceDefinition[] = [
@@ -32,6 +52,26 @@ export const resources: ResourceDefinition[] = [
   secret,
   job,
   statefulSet,
+  cronJob,
+  ingress,
+  ingressClass,
+  networkPolicy,
+  persistentVolume,
+  persistentVolumeClaim,
+  storageClass,
+  resourceQuota,
+  limitRange,
+  horizontalPodAutoscaler,
+  podDisruptionBudget,
+  priorityClass,
+  runtimeClass,
+  lease,
+  endpoint,
+  event,
+  node,
+  portForward,
+  helmRelease,
+  helmChart,
 ]
 
 const byView = new Map(resources.map(r => [r.view, r]))

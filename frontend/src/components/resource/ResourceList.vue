@@ -33,7 +33,7 @@ const { items, initialLoading, reload, search } = useResourceList(() => props.de
 const menu = computed<MenuItemDef[]>(() => [
   { label: 'Show Details', action: 'select' },
   ...(props.def.actions ?? []).map(a => ({ label: a.label, action: a.id, danger: a.danger })),
-  { label: 'Edit', action: 'edit' },
+  ...(props.def.editable !== false ? [{ label: 'Edit', action: 'edit' }] : []),
   ...(props.def.api.remove ? [{ label: 'Delete', action: 'delete', danger: true }] : []),
 ])
 

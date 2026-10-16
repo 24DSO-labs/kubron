@@ -196,3 +196,39 @@ func joinShort(modes []string) string {
 	}
 	return result
 }
+
+func (m *Manager) DeletePersistentVolume(name string) error {
+conn, err := m.GetActiveConnection()
+if err != nil {
+return err
+}
+
+ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+defer cancel()
+
+return conn.Client.CoreV1().PersistentVolumes().Delete(ctx, name, metav1.DeleteOptions{})
+}
+
+func (m *Manager) DeletePersistentVolumeClaim(namespace, name string) error {
+conn, err := m.GetActiveConnection()
+if err != nil {
+return err
+}
+
+ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+defer cancel()
+
+return conn.Client.CoreV1().PersistentVolumeClaims(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}
+
+func (m *Manager) DeleteStorageClass(name string) error {
+conn, err := m.GetActiveConnection()
+if err != nil {
+return err
+}
+
+ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+defer cancel()
+
+return conn.Client.StorageV1().StorageClasses().Delete(ctx, name, metav1.DeleteOptions{})
+}

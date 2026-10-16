@@ -1,16 +1,11 @@
-import { ref, computed, watch, nextTick, type Ref } from 'vue'
+import { ref, watch, nextTick, type Ref } from 'vue'
 import {
   GetContexts, ConnectToContext, GetActiveContext,
   GetNamespaces, GetPods, GetPodLogs, DeletePod,
   ScaleDeployment, RestartDeployment,
-  GetStatefulSets, GetJobs, GetCronJobs,
-  GetServiceDetail, GetServices, GetIngresses,
-  GetNodes, GetEvents,
-  GetSecrets,
-  GetPersistentVolumes, GetPersistentVolumeClaims,
   GetClusterOverview, GetResourceYAML, ApplyYAML,
   ExecCommand,
-  GetPodMetrics, GetNodeMetrics,
+  GetPodMetrics,
   StartPortForward, StopPortForward, ListPortForwards,
 } from '../../wailsjs/go/main/App'
 import { callApp } from '../resources/wails'
@@ -18,12 +13,8 @@ import { useNotifications } from './useNotifications'
 
 import type {
   ContextInfo, NamespaceInfo, PodInfo,
-  StatefulSetInfo,
-  JobInfo, CronJobInfo, ServiceInfo, IngressInfo,
-  NodeInfo, EventInfo, SecretInfo, ResourceQuotaInfo,
-  PVInfo, PVCInfo, OverviewInfo,
-  PodMetricsInfo, NodeMetricsInfo, PortForwardSession,
-  ServiceDetail, StorageClassInfo,
+  OverviewInfo,
+  PodMetricsInfo, PortForwardSession,
 } from '../types'
 
 /*
@@ -31,8 +22,7 @@ import type {
  *
  * Ресурсы, перенесённые на новый каркас (src/resources/registry.ts), здесь больше не хранятся:
  * их данные грузит resources/store.ts. refreshData() для таких view ничего не делает.
- * Сейчас на каркасе: roles, rolebindings, clusterroles, clusterrolebindings, serviceaccounts,
- * configmaps, namespaces, replicasets, daemonsets, deployments.
+ * Сейчас на каркасе: все ресурсы из resources/registry.ts (включая nodes, helm, port forwarding).
  *
  * Правила обработки ошибок:
  *  - функции, у которых есть вызывающий с собственным catch, только бросают исключение;
@@ -50,35 +40,15 @@ const fail = (prefix: string, e: any) => notifications.notifyError(`${prefix}: $
 
 const contexts = ref<ContextInfo[]>([])
 const namespaces = ref<NamespaceInfo[]>([]) // для выбора namespace в Sidebar
-const cronjobs = ref<CronJobInfo[]>([])
-const ingresses = ref<IngressInfo[]>([])
-const nodes = ref<NodeInfo[]>([])
-const events = ref<EventInfo[]>([])
-const resourcequotas = ref<ResourceQuotaInfo[]>([])
-const limitranges = ref<any[]>([])
-const hpa = ref<any[]>([])
-const pdb = ref<any[]>([])
-const priorityclasses = ref<any[]>([])
-const runtimeclasses = ref<any[]>([])
-const leases = ref<any[]>([])
-const endpoints = ref<any[]>([])
-const networkpolicies = ref<any[]>([])
-const ingressclasses = ref<any[]>([])
-const pvs = ref<PVInfo[]>([])
-const pvcs = ref<PVCInfo[]>([])
-const storageclasses = ref<StorageClassInfo[]>([])
 const overview = ref<OverviewInfo | null>(null)
 
 const podMetrics = ref<PodMetricsInfo[]>([])
-const nodeMetrics = ref<NodeMetricsInfo[]>([])
 const portForwards = ref<PortForwardSession[]>([])
 
 /** Всё, что надо очистить при отключении от кластера */
 const clearableLists: Ref<any[]>[] = [
-  cronjobs, ingresses, nodes, events,
-  resourcequotas, limitranges, hpa, pdb, priorityclasses, runtimeclasses, leases,
-  endpoints, networkpolicies, ingressclasses, pvs, pvcs, storageclasses, namespaces,
-  podMetrics, nodeMetrics, portForwards,
+  namespaces,
+  podMetrics, portForwards,
 ]
 
 // ─── State: навигация и выбранное ───
@@ -135,34 +105,7 @@ function mergePodMetrics(list: PodInfo[], metrics: PodMetricsInfo[]) {
 }
 
 // ─── Фильтрация по поиску ───
-
-function filterBySearch<T extends { name: string; namespace?: string }>(items: T[] | null | undefined): T[] {
-  const arr = Array.isArray(items) ? items : []
-  const s = search.value.toLowerCase()
-  if (!s) return arr
-  return arr.filter(x =>
-    x.name.toLowerCase().includes(s) ||
-    (x.namespace && x.namespace.toLowerCase().includes(s)),
-  )
-}
-
-const filtered = <T extends { name: string; namespace?: string }>(src: Ref<T[]>) =>
-  computed(() => filterBySearch(src.value))
-
-const filteredCronJobs = filtered(cronjobs)
-const filteredIngresses = filtered(ingresses)
-const filteredResourceQuotas = filtered(resourcequotas)
-const filteredPVCs = filtered(pvcs)
-const filteredLimitRanges = filtered(limitranges)
-const filteredHPA = filtered(hpa)
-const filteredPDB = filtered(pdb)
-const filteredPriorityClasses = filtered(priorityclasses)
-const filteredRuntimeClasses = filtered(runtimeclasses)
-const filteredLeases = filtered(leases)
-const filteredEndpoints = filtered(endpoints)
-const filteredNetworkPolicies = filtered(networkpolicies)
-const filteredIngressClasses = filtered(ingressclasses)
-const filteredStorageClasses = filtered(storageclasses)
+// (списки нового каркаса фильтруются в resources/store.ts)
 
 // ─── Подключение (legacy; основной путь подключения идёт через useClusters) ───
 
@@ -211,32 +154,6 @@ async function loadNamespaces() {
  */
 type Loader = (ns: string, isCurrent: () => boolean) => Promise<void>
 
-/** Загрузчик "положить массив в ref" (any: типы Wails-моделей и ../types не обязаны совпадать) */
-function list(
-  target: Ref<any[]>,
-  fetch: (ns: string) => Promise<any[] | null | undefined>,
-  after?: () => void,
-): Loader {
-  return async (ns, isCurrent) => {
-    const data = await fetch(ns)
-    if (!isCurrent()) return
-    target.value = Array.isArray(data) ? data : []
-    after?.()
-  }
-}
-
-/** Опциональные биндинги: если функции нет в Go или она упала, получаем пустой список */
-async function listOptional(fn: string, ...args: any[]): Promise<any[]> {
-  try {
-    const data = await callApp(fn, ...args)
-    return Array.isArray(data) ? data : []
-  } catch {
-    return []
-  }
-}
-const opt = (fn: string, namespaced = false) => (ns: string) =>
-  listOptional(fn, ...(namespaced ? [ns] : []))
-
 /**
  * view -> как его грузить. Для view, которых здесь нет (новый каркас, settings),
  * refreshData() ничего не делает.
@@ -246,29 +163,6 @@ const loaders: Record<string, Loader> = {
     const data = await GetClusterOverview()
     if (isCurrent()) overview.value = data
   },
-  cronjobs: list(cronjobs, ns => GetCronJobs(ns)),
-  ingresses: list(ingresses, ns => GetIngresses(ns)),
-  nodes: list(nodes, () => GetNodes(), () => { loadNodeMetrics() }),
-  events: list(events, ns => GetEvents(ns)),
-  pv: list(pvs, () => GetPersistentVolumes()),
-  pvc: list(pvcs, ns => GetPersistentVolumeClaims(ns)),
-
-  // TODO: биндингов в Go пока нет
-  resourcequotas: list(resourcequotas, async () => []),
-  limitranges: list(limitranges, async () => []),
-  hpa: list(hpa, async () => []),
-  pdb: list(pdb, async () => []),
-
-  // Опциональные биндинги
-  priorityclasses: list(priorityclasses, opt('GetPriorityClasses')),
-  runtimeclasses: list(runtimeclasses, opt('GetRuntimeClasses')),
-  leases: list(leases, opt('GetLeases', true)),
-  endpoints: list(endpoints, opt('GetEndpoints', true)),
-  'network-policies': list(networkpolicies, opt('GetNetworkPolicies', true)),
-  ingressclasses: list(ingressclasses, opt('GetIngressClasses')),
-  storageclasses: list(storageclasses, opt('GetStorageClasses')),
-
-  portforwarding: async () => { await refreshPortForwards() },
 }
 
 let refreshSeq = 0
@@ -281,8 +175,6 @@ const loadedViews = new Set<string>()
  */
 async function refreshData() {
   const view = currentView.value
-  // port forwards обновляем всегда, но отдельно, чтобы не блокировать остальное
-  if (view !== 'portforwarding') refreshPortForwards().catch(() => {})
 
   const loader = loaders[view]
   if (!loader) { loading.value = false; return }
@@ -355,11 +247,6 @@ async function loadPodMetrics() {
   catch { podMetrics.value = [] }
 }
 
-async function loadNodeMetrics() {
-  try { nodeMetrics.value = await GetNodeMetrics() }
-  catch { nodeMetrics.value = [] }
-}
-
 // ─── Port forward ───
 
 async function refreshPortForwards() {
@@ -388,52 +275,17 @@ async function stopPortForward(id: string) {
   } catch (e) { fail('Ошибка остановки port forward', e) }
 }
 
-// ─── Операции (бросают исключение; тост делает вызывающий) ───
-
-const call = (fn: string, ...args: any[]) => callApp<void>(fn, ...args)
-
-// ─── Node (пока не на каркасе; бросает исключение) ───
-
-function formatResourceDetail(resource: any): any {
-  if (!resource) return {}
-  return {
-    name: resource.name || resource.metadata?.name || '',
-    namespace: resource.namespace || resource.metadata?.namespace || '',
-    age: resource.age || '',
-    created: resource.created || resource.createdTime || resource.metadata?.creationTimestamp || '',
-    ...resource,
-  }
-}
-
-async function getNode(name: string) {
-  try {
-    return formatResourceDetail(await callApp('GetNodeDetail', name))
-  } catch {
-    const found = (await GetNodes()).find((n: any) => n.name === name)
-    if (!found) throw new Error('Node not found')
-    return formatResourceDetail(found)
-  }
-}
-
 // ─── Export ───
 
 export function useK8s() {
   return {
     // State
     contexts, namespaces,
-    cronjobs, ingresses,
-    nodes, events, pvs, pvcs, overview,
-    podMetrics, nodeMetrics, portForwards,
+    overview,
+    podMetrics, portForwards,
     activeContext, selectedNamespace, currentView, search,
     error, connecting, loading,
     yamlContent, yamlEditing, yamlEditKind, yamlEditNs, yamlEditName,
-
-    // Filtered
-    filteredCronJobs,
-    filteredIngresses, filteredResourceQuotas, filteredPVCs,
-    filteredLimitRanges, filteredHPA, filteredPDB,
-    filteredPriorityClasses, filteredRuntimeClasses, filteredLeases,
-    filteredEndpoints, filteredNetworkPolicies, filteredIngressClasses, filteredStorageClasses,
 
     // Helpers
     statusClass, pct, formatCpu, formatMemory, mergePodMetrics,
@@ -446,10 +298,7 @@ export function useK8s() {
     showYAML, applyYAML,
 
     // Metrics / port forward
-    loadPodMetrics, loadNodeMetrics,
+    loadPodMetrics,
     startPortForward, stopPortForward, refreshPortForwards,
-
-    // Node
-    getNode,
   }
 }
