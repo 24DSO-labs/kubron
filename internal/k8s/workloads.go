@@ -59,6 +59,36 @@ func (m *Manager) GetStatefulSets(namespace string) ([]StatefulSetInfo, error) {
 	return items, nil
 }
 
+func (m *Manager) DeleteStatefulSet(namespace, name string) error {
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return conn.Client.AppsV1().StatefulSets(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}
+
+func (m *Manager) RestartStatefulSet(namespace, name string) error {
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	sts, err := conn.Client.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	if sts.Spec.Template.Annotations == nil {
+		sts.Spec.Template.Annotations = make(map[string]string)
+	}
+	sts.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.RFC3339)
+	_, err = conn.Client.AppsV1().StatefulSets(namespace).Update(ctx, sts, metav1.UpdateOptions{})
+	return err
+}
+
 // === DaemonSets ===
 
 type NodeAffinityInfo struct {

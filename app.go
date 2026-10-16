@@ -395,6 +395,22 @@ func (a *App) GetServiceAccountDetail(namespace, name string) (interface{}, erro
 	return a.k8sMgr.GetServiceAccountDetail(namespace, name)
 }
 
+func (a *App) DeleteService(namespace, name string) error {
+	return a.k8sMgr.DeleteService(namespace, name)
+}
+
+func (a *App) DeleteSecret(namespace, name string) error {
+	return a.k8sMgr.DeleteSecret(namespace, name)
+}
+
+func (a *App) DeleteStatefulSet(namespace, name string) error {
+	return a.k8sMgr.DeleteStatefulSet(namespace, name)
+}
+
+func (a *App) RestartStatefulSet(namespace, name string) error {
+	return a.k8sMgr.RestartStatefulSet(namespace, name)
+}
+
 func (a *App) DeleteServiceAccount(namespace, name string) error {
 	return a.k8sMgr.DeleteServiceAccount(namespace, name)
 }

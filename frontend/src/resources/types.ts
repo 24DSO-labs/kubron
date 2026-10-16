@@ -42,6 +42,8 @@ export interface PropertyDef<T = any> {
   value: (item: T) => string | number | null | undefined
   /** Показать значение бейджем: функция возвращает css-класс (см. resources/status.ts) */
   badge?: (item: T) => string
+  /** Ссылка на другой ресурс: 'pod', 'namespace', 'node' ... */
+  link?: (item: T) => { id: string; ns: string; name: string } | null | undefined
 }
 
 export interface ActionDef<T = any> {
@@ -86,6 +88,9 @@ export interface ResourceDefinition<T = any> {
   tabs?: TabDef[]
   /** Специфичные действия; Edit YAML и Delete добавляются автоматически */
   actions?: ActionDef<T>[]
+
+  /** Вызывается после успешной загрузки списка (например, для метрик pod) */
+  onLoaded?: (items: T[]) => void | Promise<void>
 
   api: {
     list: (ns: string) => Promise<T[]>

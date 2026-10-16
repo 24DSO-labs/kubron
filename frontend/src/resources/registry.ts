@@ -9,6 +9,11 @@ import { namespaceResource } from './definitions/namespace'
 import { replicaSet } from './definitions/replicaset'
 import { daemonSet } from './definitions/daemonset'
 import { deployment } from './definitions/deployment'
+import { pod } from './definitions/pod'
+import { service } from './definitions/service'
+import { secret } from './definitions/secret'
+import { job } from './definitions/job'
+import { statefulSet } from './definitions/statefulset'
 
 /** Добавляя новый ресурс, достаточно дописать его сюда. */
 export const resources: ResourceDefinition[] = [
@@ -22,6 +27,11 @@ export const resources: ResourceDefinition[] = [
   replicaSet,
   daemonSet,
   deployment,
+  pod,
+  service,
+  secret,
+  job,
+  statefulSet,
 ]
 
 const byView = new Map(resources.map(r => [r.view, r]))
