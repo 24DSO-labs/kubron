@@ -81,8 +81,9 @@ export const pod = defineResource({
       id: 'attach',
       label: 'Attach',
       icon: attachIcon,
-      run: (p, ctx) => {
-        const c = p.containers?.[0]?.name
+      perContainer: true,
+      run: (p, ctx, container) => {
+        const c = container ?? p.containers?.[0]?.name
         if (!c) return ctx.notifyError('No containers available')
         return ctx.openAttach(p.namespace, p.name, c)
       },
@@ -91,8 +92,9 @@ export const pod = defineResource({
       id: 'shell',
       label: 'Shell',
       icon: terminalIcon,
-      run: (p, ctx) => {
-        const c = p.containers?.[0]?.name
+      perContainer: true,
+      run: (p, ctx, container) => {
+        const c = container ?? p.containers?.[0]?.name
         if (!c) return ctx.notifyError('No containers available')
         return ctx.openShell(p.namespace, p.name, c)
       },
@@ -101,9 +103,10 @@ export const pod = defineResource({
       id: 'logs',
       label: 'Logs',
       icon: logsIcon,
-      run: (p, ctx) => {
+      perContainer: true,
+      run: (p, ctx, container) => {
         const containers = p.containers?.filter((c: any) => !c.isInit) ?? []
-        ctx.openLogs(p.namespace, p.name, containers, containers[0]?.name)
+        ctx.openLogs(p.namespace, p.name, containers, container ?? containers[0]?.name)
       },
     },
     {
@@ -121,11 +124,10 @@ export const pod = defineResource({
     },
   ],
 
+  // Список показывается сразу, метрики подмешиваются, когда придут
   onLoaded: async (items) => {
     await k8s.loadPodMetrics()
-    const merged = k8s.mergePodMetrics(items as any[], k8s.podMetrics.value)
-    // mergePodMetrics мутирует элементы items (добавляет cpu/memory)
-    Object.assign(items, merged)
+    return k8s.mergePodMetrics(items as any[], k8s.podMetrics.value)
   },
 
   api: {
