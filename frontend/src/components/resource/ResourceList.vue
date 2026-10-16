@@ -13,6 +13,7 @@
     @search="(v: string) => (search = v)"
     @select="(item: any) => open(item)"
     @context-action="onContextAction"
+    @open-logs="onOpenLogs"
   />
 </template>
 
@@ -46,6 +47,17 @@ function open(item: any) {
 function onContextAction(action: string, item: any) {
   const ns = itemNs(item)
   const name = itemName(item)
+
+  // Per-container actions от старого базового компонента: attach:<container>, shell:<container>
+  if (action.startsWith('attachPod:') || action.startsWith('attach:')) {
+    const container = action.split(':')[1]
+    return resourceActions.openAttach(ns, name, container)
+  }
+  if (action.startsWith('shell:')) {
+    const container = action.split(':')[1]
+    return resourceActions.openShell(ns, name, container)
+  }
+
   switch (action) {
     case 'select':
       return open(item)
@@ -62,6 +74,15 @@ function onContextAction(action: string, item: any) {
       return a.run(item, resourceActions)
     }
   }
+}
+
+function onOpenLogs(payload: { resource: any; selectedContainer: string; containers: { name: string }[] }) {
+  resourceActions.openLogs(
+    payload.resource.namespace,
+    payload.resource.name,
+    payload.containers,
+    payload.selectedContainer,
+  )
 }
 </script>
 

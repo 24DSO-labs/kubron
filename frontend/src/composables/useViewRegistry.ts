@@ -16,44 +16,9 @@ export const viewRegistry: Record<string, ViewConfig> = {
   overview: {
     component: lazy('OverviewView'),
   },
-  pods: {
-    component: lazyK8s('PodsView'),
-    dataKey: 'filteredPods',
-    hasSearch: true,
-  },
-  // deployments: {
-  //   component: lazyK8s('DeploymentsView'),
-  //   dataKey: 'filteredDeployments',
-  //   hasSearch: true,
-  // },
-  statefulsets: {
-    component: lazyK8s('StatefulSetsView'),
-    dataKey: 'filteredStatefulSets',
-    hasSearch: true,
-  },
-  // daemonsets: {
-  //   component: lazyK8s('DaemonSetsView'),
-  //   dataKey: 'filteredDaemonSets',
-  //   hasSearch: true,
-  // },
-  jobs: {
-    component: lazyK8s('JobsView'),
-    dataKey: 'filteredJobs',
-    hasSearch: true,
-  },
   cronjobs: {
     component: lazyK8s('CronJobsView'),
     dataKey: 'filteredCronJobs',
-    hasSearch: true,
-  },
-  // replicasets: {
-  //   component: lazyK8s('ReplicaSetsView'),
-  //   dataKey: 'filteredReplicaSets',
-  //   hasSearch: true,
-  // },
-  services: {
-    component: lazyK8s('ServicesView'),
-    dataKey: 'filteredServices',
     hasSearch: true,
   },
   ingresses: {
@@ -112,11 +77,6 @@ export const viewRegistry: Record<string, ViewConfig> = {
   //   dataKey: 'filteredConfigMaps',
   //   hasSearch: true,
   // },
-  secrets: {
-    component: lazyK8s('SecretsView'),
-    dataKey: 'filteredSecrets',
-    hasSearch: true,
-  },
   resourcequotas: {
     component: lazyK8s('ResourceQuotasView'),
     dataKey: 'filteredResourceQuotas',

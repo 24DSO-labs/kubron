@@ -1,0 +1,30 @@
+import { defineResource } from '../types'
+import { callApp } from '../wails'
+import { flatNameCol, flatNsCol, ageCol } from './common'
+import SecretDataSection from '../../components/resource/sections/SecretDataSection.vue'
+
+export const secret = defineResource({
+  id: 'secret',
+  kind: 'Secret',
+  view: 'secrets',
+  title: 'Secrets',
+  namespaced: true,
+
+  columns: [
+    flatNameCol,
+    flatNsCol,
+    { key: 'type', label: 'Type' },
+    { key: 'dataCount', label: 'Data' },
+    ageCol,
+  ],
+
+  properties: [
+    { label: 'Type', value: s => s.type },
+  ],
+  sections: [SecretDataSection],
+
+  api: {
+    list: ns => callApp('GetSecrets', ns),
+    remove: (ns, name) => callApp('DeleteSecret', ns, name),
+  },
+})

@@ -1,0 +1,44 @@
+<template>
+  <div class="pod-containers-cell">
+    <span
+      v-for="c in containers"
+      :key="c.name"
+      class="container-square"
+      :class="`sq-${c.color}`"
+      :title="c.name"
+    />
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { computed } from 'vue'
+
+const props = defineProps<{ item: any; col: any }>()
+
+const containers = computed(() => {
+  const list = props.item?.containers ?? []
+  return list.map((c: any) => {
+    let color = 'red'
+    if (c.isInit) color = 'gray'
+    else if (c.ready) color = 'green'
+    else if (c.state?.includes('wait') || c.state?.includes('Creat') || c.state?.includes('Pend') || c.state === 'waiting') color = 'yellow'
+    else if (c.state === 'terminated' || c.state?.includes('Complet')) color = 'gray'
+    return { name: c.name, color }
+  })
+})
+</script>
+
+<style scoped>
+.pod-containers-cell { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.container-square {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  cursor: help;
+}
+.sq-green { background-color: #4ade80; }
+.sq-red   { background-color: #ef4444; }
+.sq-yellow{ background-color: #facc15; }
+.sq-gray  { background-color: #868d8a; }
+</style>

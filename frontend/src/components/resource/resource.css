@@ -106,3 +106,32 @@
 .rd-action.danger { color: #ef4444; }
 .rd-action img { width: 24px; height: 24px; filter: invert(1); opacity: 0.85; transition: opacity 0.15s; }
 .rd-action:hover img { opacity: 1; }
+
+/* Action dropdown (per-container) */
+.rd-action-group { position: relative; display: inline-flex; }
+.rd-action-dropdown {
+  position: absolute; top: 100%; right: 0; margin-top: 4px;
+  background: #1e1f35; border: 1px solid #3b3d5c; border-radius: 4px;
+  min-width: 150px; z-index: 20; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.rd-dropdown-item { padding: 8px 12px; color: #d4d4d4; cursor: pointer; font-size: 0.875rem; transition: background 0.15s; }
+.rd-dropdown-item:hover { background: rgba(255,255,255,0.1); color: white; }
+.rd-dropdown-item:first-child { border-radius: 3px 3px 0 0; }
+.rd-dropdown-item:last-child { border-radius: 0 0 3px 3px; }
+
+/* Link в properties */
+.rd-link { color: #60a5fa; cursor: pointer; text-decoration: underline; }
+.rd-link:hover { color: #93c5fd; }
+
+/* Container squares (Pod list cell + legacy) */
+.container-square {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  cursor: help;
+}
+.square-green, .sq-green { background-color: #4ade80; }
+.square-red,   .sq-red   { background-color: #ef4444; }
+.square-yellow,.sq-yellow{ background-color: #facc15; }
+.square-gray,  .sq-gray  { background-color: #868d8a; }

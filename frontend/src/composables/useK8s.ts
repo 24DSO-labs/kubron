@@ -50,15 +50,10 @@ const fail = (prefix: string, e: any) => notifications.notifyError(`${prefix}: $
 
 const contexts = ref<ContextInfo[]>([])
 const namespaces = ref<NamespaceInfo[]>([]) // для выбора namespace в Sidebar
-const pods = ref<PodInfo[]>([])
-const statefulsets = ref<StatefulSetInfo[]>([])
-const jobs = ref<JobInfo[]>([])
 const cronjobs = ref<CronJobInfo[]>([])
-const services = ref<ServiceInfo[]>([])
 const ingresses = ref<IngressInfo[]>([])
 const nodes = ref<NodeInfo[]>([])
 const events = ref<EventInfo[]>([])
-const secrets = ref<SecretInfo[]>([])
 const resourcequotas = ref<ResourceQuotaInfo[]>([])
 const limitranges = ref<any[]>([])
 const hpa = ref<any[]>([])
@@ -80,7 +75,7 @@ const portForwards = ref<PortForwardSession[]>([])
 
 /** Всё, что надо очистить при отключении от кластера */
 const clearableLists: Ref<any[]>[] = [
-  pods, statefulsets, jobs, cronjobs, services, ingresses, nodes, events, secrets,
+  cronjobs, ingresses, nodes, events,
   resourcequotas, limitranges, hpa, pdb, priorityclasses, runtimeclasses, leases,
   endpoints, networkpolicies, ingressclasses, pvs, pvcs, storageclasses, namespaces,
   podMetrics, nodeMetrics, portForwards,
@@ -96,24 +91,11 @@ const error = ref('')
 const connecting = ref(false)
 const loading = ref(false)
 
-const selectedPod = ref<PodInfo | null>(null)
-const podLogs = ref('')
-const logContainer = ref('')
-const logLines = ref(100)
-const execCmd = ref('')
-const execOutput = ref('')
-
-const selectedService = ref<ServiceDetail | null>(null)
-
 const yamlContent = ref('')
 const yamlEditing = ref(false)
 const yamlEditKind = ref('')
 const yamlEditNs = ref('')
 const yamlEditName = ref('')
-
-// Форма port-forward
-const pfLocalPort = ref(8080)
-const pfPodPort = ref(80)
 
 // ─── Helpers ───
 
@@ -167,13 +149,8 @@ function filterBySearch<T extends { name: string; namespace?: string }>(items: T
 const filtered = <T extends { name: string; namespace?: string }>(src: Ref<T[]>) =>
   computed(() => filterBySearch(src.value))
 
-const filteredPods = filtered(pods)
-const filteredStatefulSets = filtered(statefulsets)
-const filteredJobs = filtered(jobs)
 const filteredCronJobs = filtered(cronjobs)
-const filteredServices = filtered(services)
 const filteredIngresses = filtered(ingresses)
-const filteredSecrets = filtered(secrets)
 const filteredResourceQuotas = filtered(resourcequotas)
 const filteredPVCs = filtered(pvcs)
 const filteredLimitRanges = filtered(limitranges)
@@ -216,8 +193,6 @@ function disconnect() {
   for (const l of clearableLists) l.value = []
   overview.value = null
   selectedNamespace.value = ''
-  selectedPod.value = null
-  selectedService.value = null
   yamlContent.value = ''
   loadedViews.clear()
 }
@@ -271,15 +246,10 @@ const loaders: Record<string, Loader> = {
     const data = await GetClusterOverview()
     if (isCurrent()) overview.value = data
   },
-  pods: list(pods, ns => GetPods(ns), () => { loadPodMetrics() }),
-  statefulsets: list(statefulsets, ns => GetStatefulSets(ns)),
-  jobs: list(jobs, ns => GetJobs(ns)),
   cronjobs: list(cronjobs, ns => GetCronJobs(ns)),
-  services: list(services, ns => GetServices(ns)),
   ingresses: list(ingresses, ns => GetIngresses(ns)),
   nodes: list(nodes, () => GetNodes(), () => { loadNodeMetrics() }),
   events: list(events, ns => GetEvents(ns)),
-  secrets: list(secrets, ns => GetSecrets(ns)),
   pv: list(pvs, () => GetPersistentVolumes()),
   pvc: list(pvcs, ns => GetPersistentVolumeClaims(ns)),
 
@@ -347,10 +317,7 @@ watch([currentView, selectedNamespace], () => {
 
 function switchView(view: string) {
   search.value = ''
-  selectedPod.value = null
-  selectedService.value = null
   yamlContent.value = ''
-  execOutput.value = ''
   yamlEditing.value = false
   if (refreshTimeout) { clearTimeout(refreshTimeout); refreshTimeout = null }
   currentView.value = view
@@ -362,84 +329,11 @@ function onNamespaceChange() {
   refreshData()
 }
 
-// ─── Pod ───
-
-async function openPodDetail(pod: PodInfo) {
-  try {
-    selectedService.value = null
-    yamlContent.value = ''
-    podLogs.value = ''
-    execOutput.value = ''
-    execCmd.value = ''
-    yamlEditing.value = false
-    selectedPod.value = null
-
-    // Даём старой панели размонтироваться, иначе patch пересоздаёт её с мусором (оставлено как было)
-    await nextTick()
-    if (pod.containers && pod.containers.length > 0) {
-      logContainer.value = pod.containers[0].name
-    }
-    await nextTick()
-    selectedPod.value = { ...pod }
-  } catch (e) {
-    fail('Ошибка при открытии pod', e)
-    selectedPod.value = null
-  }
-}
-
-async function loadLogs() {
-  if (!selectedPod.value) return
-  try {
-    podLogs.value = '⏳ Загрузка...'
-    podLogs.value = await GetPodLogs(
-      selectedPod.value.namespace, selectedPod.value.name,
-      logContainer.value, logLines.value,
-    )
-  } catch (e) { podLogs.value = 'Ошибка: ' + errText(e) }
-}
-
-async function runExec() {
-  if (!selectedPod.value || !execCmd.value) return
-  try {
-    execOutput.value = '⏳ Выполнение...'
-    execOutput.value = await ExecCommand(
-      selectedPod.value.namespace, selectedPod.value.name,
-      logContainer.value, execCmd.value,
-    )
-  } catch (e) { execOutput.value = 'Ошибка: ' + errText(e) }
-}
-
-/** Бросает исключение; тост и подтверждение делает вызывающий */
-async function deletePodByName(ns: string, name: string): Promise<void> {
-  await DeletePod(ns, name)
-}
-
-// ─── Service ───
-
-async function openServiceDetail(svc: ServiceInfo) {
-  try {
-    selectedService.value = await GetServiceDetail(svc.namespace, svc.name) as any
-    selectedPod.value = null
-    yamlContent.value = ''
-  } catch (e) { fail('Ошибка', e) }
-}
-
-async function forwardServicePort(namespace: string, service: string, port: number) {
-  try {
-    await callApp('StartServicePortForward', namespace, service, port, port)
-    if (selectedService.value) {
-      selectedService.value = await GetServiceDetail(namespace, service) as any
-    }
-    await refreshPortForwards()
-  } catch (e) { fail('Ошибка port forward', e) }
-}
-
 // ─── YAML ───
 
 /** Нужен usePodActions. Сам просмотр/редактирование YAML идёт через resourceActions.edit() */
 async function showYAML(kind: string, namespace: string, name: string) {
   try {
-    selectedPod.value = null
     yamlContent.value = '⏳ Загрузка...'
     yamlEditing.value = false
     yamlEditKind.value = kind
@@ -475,20 +369,15 @@ async function refreshPortForwards() {
   } catch { portForwards.value = [] }
 }
 
-async function startPortForward(namespace?: string, podName?: string, localPort?: number, podPort?: number) {
-  const ns = namespace || selectedPod.value?.namespace
-  const pod = podName || selectedPod.value?.name
-  const lp = localPort !== undefined ? localPort : pfLocalPort.value
-  const pp = podPort !== undefined ? podPort : pfPodPort.value
-  if (!ns || !pod) return
-
+async function startPortForward(namespace: string, podName: string, localPort: number, podPort: number) {
+  if (!namespace || !podName) return
   try {
-    await StartPortForward(ns, pod, lp, pp)
-    await new Promise(resolve => setTimeout(resolve, 500)) // даём бэкенду зарегистрировать forward
+    await StartPortForward(namespace, podName, localPort, podPort)
+    await new Promise(resolve => setTimeout(resolve, 500))
     await refreshPortForwards()
   } catch (e) {
     fail('Ошибка port forward', e)
-    throw e // вызывающие панели могут сбросить своё состояние
+    throw e
   }
 }
 
@@ -502,21 +391,6 @@ async function stopPortForward(id: string) {
 // ─── Операции (бросают исключение; тост делает вызывающий) ───
 
 const call = (fn: string, ...args: any[]) => callApp<void>(fn, ...args)
-
-const deleteJob = (ns: string, name: string) => call('DeleteJob', ns, name)
-const retryJob = (ns: string, name: string) => call('RetryJob', ns, name)
-
-// Нужны только старому useResourceActions.ts (удалите его вместе с этими строками).
-// Deployment и DaemonSet теперь описаны в resources/definitions.
-const scaleDeployment = (ns: string, name: string, replicas: number) => ScaleDeployment(ns, name, replicas)
-const restartDeployment = (ns: string, name: string) => RestartDeployment(ns, name)
-const deleteDeploymentByName = (ns: string, name: string) => call('DeleteDeployment', ns, name)
-const deleteDaemonSet = (ns: string, name: string) => call('DeleteDaemonSet', ns, name)
-const deleteServiceAccount = (ns: string, name: string) => call('DeleteServiceAccount', ns, name)
-const deleteRole = (ns: string, name: string) => call('DeleteRole', ns, name)
-const deleteRoleBinding = (ns: string, name: string) => call('DeleteRoleBinding', ns, name)
-const deleteClusterRole = (name: string) => call('DeleteClusterRole', name)
-const deleteClusterRoleBinding = (name: string) => call('DeleteClusterRoleBinding', name)
 
 // ─── Node (пока не на каркасе; бросает исключение) ───
 
@@ -546,21 +420,17 @@ async function getNode(name: string) {
 export function useK8s() {
   return {
     // State
-    contexts, namespaces, pods, statefulsets,
-    jobs, cronjobs, services, ingresses,
-    nodes, events, secrets, pvs, pvcs, overview,
+    contexts, namespaces,
+    cronjobs, ingresses,
+    nodes, events, pvs, pvcs, overview,
     podMetrics, nodeMetrics, portForwards,
     activeContext, selectedNamespace, currentView, search,
     error, connecting, loading,
-    selectedPod, podLogs, logContainer, logLines,
-    execCmd, execOutput,
-    selectedService,
     yamlContent, yamlEditing, yamlEditKind, yamlEditNs, yamlEditName,
-    pfLocalPort, pfPodPort,
 
     // Filtered
-    filteredPods, filteredStatefulSets, filteredJobs, filteredCronJobs,
-    filteredServices, filteredIngresses, filteredSecrets, filteredResourceQuotas, filteredPVCs,
+    filteredCronJobs,
+    filteredIngresses, filteredResourceQuotas, filteredPVCs,
     filteredLimitRanges, filteredHPA, filteredPDB,
     filteredPriorityClasses, filteredRuntimeClasses, filteredLeases,
     filteredEndpoints, filteredNetworkPolicies, filteredIngressClasses, filteredStorageClasses,
@@ -572,15 +442,7 @@ export function useK8s() {
     loadContexts, connect, disconnect, loadNamespaces,
     switchView, onNamespaceChange, refreshData,
 
-    // Pod
-    openPodDetail, loadLogs, runExec, deletePodByName,
-    getPods: GetPods,
-
-    // Job
-    deleteJob, retryJob,
-
-    // Service / YAML
-    openServiceDetail, forwardServicePort,
+    // YAML
     showYAML, applyYAML,
 
     // Metrics / port forward
@@ -589,9 +451,5 @@ export function useK8s() {
 
     // Node
     getNode,
-
-    // Совместимость со старым useResourceActions.ts
-    scaleDeployment, restartDeployment, deleteDeploymentByName, deleteDaemonSet,
-    deleteServiceAccount, deleteRole, deleteRoleBinding, deleteClusterRole, deleteClusterRoleBinding,
   }
 }
