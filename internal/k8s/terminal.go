@@ -86,19 +86,32 @@ func (m *Manager) StartTerminalSession(sessionID, namespace, pod, container, she
 		return err
 	}
 
+	// Пустой shell — режим attach к основному процессу контейнера.
+	attach := shell == ""
 	req := conn.Client.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(pod).
-		Namespace(namespace).
-		SubResource("exec").
-		VersionedParams(&corev1.PodExecOptions{
-			Container: container,
-			Command:   []string{shell},
-			Stdin:     true,
-			Stdout:    true,
-			Stderr:    true,
-			TTY:       true,
-		}, scheme.ParameterCodec)
+		Namespace(namespace)
+	if attach {
+		req = req.SubResource("attach").
+			VersionedParams(&corev1.PodAttachOptions{
+				Container: container,
+				Stdin:     true,
+				Stdout:    true,
+				Stderr:    true,
+				TTY:       true,
+			}, scheme.ParameterCodec)
+	} else {
+		req = req.SubResource("exec").
+			VersionedParams(&corev1.PodExecOptions{
+				Container: container,
+				Command:   []string{shell},
+				Stdin:     true,
+				Stdout:    true,
+				Stderr:    true,
+				TTY:       true,
+			}, scheme.ParameterCodec)
+	}
 
 	executor, err := remotecommand.NewSPDYExecutor(conn.Config, "POST", req.URL())
 	if err != nil {
@@ -123,12 +136,16 @@ func (m *Manager) StartTerminalSession(sessionID, namespace, pod, container, she
 		done:     done,
 	}
 
+	shellLabel := shell
+	if attach {
+		shellLabel = "attach"
+	}
 	session := &TerminalSession{
 		ID:        sessionID,
 		Namespace: namespace,
 		Pod:       pod,
 		Container: container,
-		Shell:     shell,
+		Shell:     shellLabel,
 		stdinW:    stdinW,
 		stdoutR:   stdoutR,
 		sizeChan:  sizeChan,
