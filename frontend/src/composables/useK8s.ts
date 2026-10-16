@@ -1,18 +1,14 @@
-import { ref, watch, nextTick, type Ref } from 'vue'
+import { ref, type Ref } from 'vue'
 import {
-  GetContexts, ConnectToContext, GetActiveContext,
-  GetNamespaces, GetPods, GetPodLogs, DeletePod,
-  ScaleDeployment, RestartDeployment,
-  GetClusterOverview, GetResourceYAML, ApplyYAML,
-  ExecCommand,
+  GetNamespaces,
+  GetClusterOverview, ApplyYAML,
   GetPodMetrics,
   ListPortForwards,
 } from '../../wailsjs/go/main/App'
-import { callApp } from '../resources/wails'
 import { useNotifications } from './useNotifications'
 
 import type {
-  ContextInfo, NamespaceInfo, PodInfo,
+  NamespaceInfo, PodInfo,
   OverviewInfo,
   PodMetricsInfo, PortForwardSession,
 } from '../types'
@@ -27,7 +23,7 @@ import type {
  * Правила обработки ошибок:
  *  - функции, у которых есть вызывающий с собственным catch, только бросают исключение;
  *  - функции без такого вызывающего показывают тост сами (fail()).
- *  Ref `error` остаётся только для useClusterConnection / usePodActions, которые пишут в него сами.
+ *  Ref `error` остаётся для useClusterConnection, который пишет в него сам.
  */
 
 // ─── Уведомления ───
@@ -38,7 +34,6 @@ const fail = (prefix: string, e: any) => notifications.notifyError(`${prefix}: $
 
 // ─── State: списки ───
 
-const contexts = ref<ContextInfo[]>([])
 const namespaces = ref<NamespaceInfo[]>([]) // для выбора namespace в Sidebar
 const overview = ref<OverviewInfo | null>(null)
 
@@ -53,31 +48,13 @@ const clearableLists: Ref<any[]>[] = [
 
 // ─── State: навигация и выбранное ───
 
-const activeContext = ref('')
 const selectedNamespace = ref('') // '' = все namespaces
 const currentView = ref('overview')
 const search = ref('')
 const error = ref('')
-const connecting = ref(false)
 const loading = ref(false)
 
-const yamlContent = ref('')
-const yamlEditing = ref(false)
-const yamlEditKind = ref('')
-const yamlEditNs = ref('')
-const yamlEditName = ref('')
-
 // ─── Helpers ───
-
-function statusClass(status: string): string {
-  switch ((status ?? '').toLowerCase()) {
-    case 'running': case 'ready': case 'bound': case 'complete': return 'status-running'
-    case 'succeeded': case 'completed': case 'available': return 'status-completed'
-    case 'pending': return 'status-pending'
-    case 'failed': case 'error': case 'crashloopbackoff': case 'lost': return 'status-error'
-    default: return 'status-unknown'
-  }
-}
 
 function pct(a: number, b: number): string {
   if (b === 0) return '0%'
@@ -107,36 +84,10 @@ function mergePodMetrics(list: PodInfo[], metrics: PodMetricsInfo[]) {
 // ─── Фильтрация по поиску ───
 // (списки нового каркаса фильтруются в resources/store.ts)
 
-// ─── Подключение (legacy; основной путь подключения идёт через useClusters) ───
-
-async function loadContexts() {
-  try { contexts.value = await GetContexts() }
-  catch (e) { fail('Ошибка загрузки контекстов', e) }
-}
-
-async function connect(name: string) {
-  try {
-    connecting.value = true
-    await ConnectToContext(name)
-    activeContext.value = await GetActiveContext()
-    await loadNamespaces()
-    currentView.value = 'overview'
-    await refreshPortForwards()
-    await refreshData()
-  } catch (e) {
-    fail('Ошибка подключения', e)
-  } finally {
-    await nextTick()
-    connecting.value = false
-  }
-}
-
 function disconnect() {
-  activeContext.value = ''
   for (const l of clearableLists) l.value = []
   overview.value = null
   selectedNamespace.value = ''
-  yamlContent.value = ''
   loadedViews.clear()
 }
 
@@ -199,18 +150,10 @@ function debouncedRefresh() {
   refreshTimeout = setTimeout(() => { refreshData() }, 100)
 }
 
-// Один раз на модуль (раньше watch создавался при каждом вызове useK8s()).
-// Условие activeContext сохранено как было; фактически refresh вызывают switchView и onNamespaceChange.
-watch([currentView, selectedNamespace], () => {
-  if (activeContext.value) debouncedRefresh()
-})
-
 // ─── Навигация ───
 
 function switchView(view: string) {
   search.value = ''
-  yamlContent.value = ''
-  yamlEditing.value = false
   if (refreshTimeout) { clearTimeout(refreshTimeout); refreshTimeout = null }
   currentView.value = view
   debouncedRefresh()
@@ -222,18 +165,6 @@ function onNamespaceChange() {
 }
 
 // ─── YAML ───
-
-/** Нужен usePodActions. Сам просмотр/редактирование YAML идёт через resourceActions.edit() */
-async function showYAML(kind: string, namespace: string, name: string) {
-  try {
-    yamlContent.value = '⏳ Загрузка...'
-    yamlEditing.value = false
-    yamlEditKind.value = kind
-    yamlEditNs.value = namespace
-    yamlEditName.value = name
-    yamlContent.value = await GetResourceYAML(namespace, kind, name, true)
-  } catch (e) { yamlContent.value = 'Ошибка: ' + errText(e) }
-}
 
 /** Бросает исключение; тост и обновление списка делает вызывающий */
 async function applyYAML(content: string, kind: string, namespace: string, name: string) {
@@ -261,22 +192,21 @@ async function refreshPortForwards() {
 export function useK8s() {
   return {
     // State
-    contexts, namespaces,
+    namespaces,
     overview,
     podMetrics, portForwards,
-    activeContext, selectedNamespace, currentView, search,
-    error, connecting, loading,
-    yamlContent, yamlEditing, yamlEditKind, yamlEditNs, yamlEditName,
+    selectedNamespace, currentView, search,
+    error, loading,
 
     // Helpers
-    statusClass, pct, formatCpu, formatMemory, mergePodMetrics,
+    pct, formatCpu, formatMemory, mergePodMetrics,
 
     // Connection / navigation / data
-    loadContexts, connect, disconnect, loadNamespaces,
+    disconnect, loadNamespaces,
     switchView, onNamespaceChange, refreshData,
 
     // YAML
-    showYAML, applyYAML,
+    applyYAML,
 
     // Metrics / port forward
     loadPodMetrics,

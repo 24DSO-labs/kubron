@@ -191,20 +191,6 @@
         </div>
       </div>
 
-      <!-- Custom Resources -->
-      <div class="nav-group">
-        <div class="nav-group-header" @click="toggle('crd')">
-          <span class="nav-arrow" :class="{ open: expanded.crd }">›</span>
-          <span class="nav-group-icon"></span>
-          <span class="nav-group-title">Custom Resources</span>
-        </div>
-        <div v-show="expanded.crd" class="nav-group-items">
-          <div :class="['nav-item', { active: currentView === 'crds' }]" @click="emit('navigate', 'crds')">
-            <span class="nav-icon"></span> Definitions
-          </div>
-        </div>
-      </div>
-
        <!-- Settings -->
       <div class="nav-separator"></div>
       <div :class="['nav-item', { active: currentView === 'settings' }]" @click="emit('navigate', 'settings')">
@@ -261,7 +247,6 @@ const expanded = reactive({
   storage: false,
   helm: false,
   access: false,
-  crd: false,
 })
 
 function toggle(group: keyof typeof expanded) {
