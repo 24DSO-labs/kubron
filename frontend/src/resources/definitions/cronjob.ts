@@ -1,8 +1,9 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 
-export const cronJob = defineResource({
+export const cronJob = defineResource<k8s.CronJobInfo>({
   id: 'cronjob',
   kind: 'CronJob',
   view: 'cronjobs',

@@ -20,6 +20,9 @@ type StatefulSetInfo struct {
 	Age           string   `json:"age"`
 	Images        []string `json:"images"`
 	ServiceName   string   `json:"serviceName"`
+
+	Selector map[string]string `json:"selector"`
+	Strategy string            `json:"strategy"`
 }
 
 func (m *Manager) GetStatefulSets(namespace string) ([]StatefulSetInfo, error) {
@@ -46,6 +49,10 @@ func (m *Manager) GetStatefulSets(namespace string) ([]StatefulSetInfo, error) {
 		if s.Spec.Replicas != nil {
 			replicas = *s.Spec.Replicas
 		}
+		var selector map[string]string
+		if s.Spec.Selector != nil {
+			selector = s.Spec.Selector.MatchLabels
+		}
 		items = append(items, StatefulSetInfo{
 			Name:          s.Name,
 			Namespace:     s.Namespace,
@@ -54,6 +61,8 @@ func (m *Manager) GetStatefulSets(namespace string) ([]StatefulSetInfo, error) {
 			Age:           formatAge(s.CreationTimestamp.Time),
 			Images:        images,
 			ServiceName:   s.Spec.ServiceName,
+			Selector:      selector,
+			Strategy:      string(s.Spec.UpdateStrategy.Type),
 		})
 	}
 	return items, nil

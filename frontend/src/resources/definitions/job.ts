@@ -1,4 +1,5 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 import { badgeClass, statusColor } from '../status'
@@ -16,7 +17,7 @@ function jobStatus(j: any): string {
   return 'Running'
 }
 
-export const job = defineResource({
+export const job = defineResource<k8s.JobInfo>({
   id: 'job',
   kind: 'Job',
   view: 'jobs',

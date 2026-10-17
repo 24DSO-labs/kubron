@@ -1,4 +1,5 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 import restartIcon from '../../assets/icons/restart.svg'
@@ -9,7 +10,7 @@ import TolerationsSection from '../../components/resource/sections/TolerationsSe
 import NodeAffinitySection from '../../components/resource/sections/NodeAffinitySection.vue'
 import PodsTab from '../../components/resource/sections/PodsTab.vue'
 
-export const daemonSet = defineResource({
+export const daemonSet = defineResource<k8s.DaemonSetInfo>({
   id: 'daemonset',
   kind: 'DaemonSet',
   view: 'daemonsets',

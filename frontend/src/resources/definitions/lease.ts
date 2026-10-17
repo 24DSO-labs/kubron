@@ -1,8 +1,9 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 
-export const lease = defineResource({
+export const lease = defineResource<k8s.LeaseInfo>({
   id: 'lease',
   kind: 'Lease',
   view: 'leases',

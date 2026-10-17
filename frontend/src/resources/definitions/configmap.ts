@@ -1,9 +1,10 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 import ConfigMapDataSection from '../../components/resource/sections/ConfigMapDataSection.vue'
 
-export const configMap = defineResource({
+export const configMap = defineResource<k8s.ConfigMapInfo, k8s.ConfigMapInfo>({
   id: 'configmap',
   kind: 'ConfigMap',
   view: 'configmaps',

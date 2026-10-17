@@ -1,8 +1,9 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, ageCol } from './common'
 
-export const priorityClass = defineResource({
+export const priorityClass = defineResource<k8s.PriorityClassInfo>({
   id: 'priorityclass',
   kind: 'PriorityClass',
   view: 'priorityclasses',

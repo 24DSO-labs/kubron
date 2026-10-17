@@ -1,4 +1,5 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, ageCol } from './common'
 import { badgeClass, statusColor } from '../status'
@@ -6,7 +7,7 @@ import NodeMetricsSection from '../../components/resource/sections/NodeMetricsSe
 import ConditionsSection from '../../components/resource/sections/ConditionsSection.vue'
 import NodeTaintsSection from '../../components/resource/sections/NodeTaintsSection.vue'
 
-export const node = defineResource({
+export const node = defineResource<k8s.NodeInfo, k8s.NodeDetail>({
   id: 'node',
   kind: 'Node',
   view: 'nodes',

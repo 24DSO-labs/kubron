@@ -1,4 +1,5 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 import { badgeClass, statusColor } from '../status'
@@ -31,7 +32,7 @@ function replicasSummary(d: any): string {
   return `${desired} desired, ${d.updatedReplicas ?? 0} updated, ${desired} total, ${ready} available, ${Math.max(0, desired - ready)} unavailable`
 }
 
-export const deployment = defineResource({
+export const deployment = defineResource<k8s.DeploymentInfo>({
   id: 'deployment',
   kind: 'Deployment',
   view: 'deployments',
