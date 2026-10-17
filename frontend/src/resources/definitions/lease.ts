@@ -8,6 +8,7 @@ export const lease = defineResource({
   view: 'leases',
   title: 'Leases',
   namespaced: true,
+  nav: { group: 'config', label: 'Leases' },
 
   columns: [
     flatNameCol,

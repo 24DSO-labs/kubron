@@ -8,6 +8,7 @@ export const endpoint = defineResource({
   view: 'endpoints',
   title: 'Endpoints',
   namespaced: true,
+  nav: { group: 'network', label: 'Endpoints' },
 
   columns: [
     flatNameCol,

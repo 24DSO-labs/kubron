@@ -12,6 +12,7 @@ export const node = defineResource({
   view: 'nodes',
   title: 'Nodes',
   namespaced: false,
+  nav: { label: 'Nodes' },
 
   columns: [
     flatNameCol,

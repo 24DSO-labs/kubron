@@ -8,6 +8,7 @@ export const runtimeClass = defineResource({
   view: 'runtimeclasses',
   title: 'RuntimeClasses',
   namespaced: false,
+  nav: { group: 'config', label: 'Runtime Classes' },
 
   columns: [
     flatNameCol,
