@@ -41,12 +41,12 @@ func promQueryPodMemTop() string {
 
 func promQueryPodCPUByNs(namespace string) string {
 	if namespace == "" {
-		return "sum by (pod, namespace, container) (rate(container_cpu_usage_seconds_total{container!=" +
-			string('"') + string('"') + "}[5m])) * 1000"
+		return `sum by (pod, namespace) (rate(container_cpu_usage_seconds_total{container!="", container!="POD"}[5m])) * 1000`
 	}
-	return "sum by (pod, namespace, container) (rate(container_cpu_usage_seconds_total{container!=" +
-		string('"') + string('"') + ",namespace=" +
-		string('"') + namespace + string('"') + "}[5m])) * 1000"
+	return fmt.Sprintf(
+		`sum by (pod, namespace) (rate(container_cpu_usage_seconds_total{container!="", container!="POD", namespace="%s"}[5m])) * 1000`,
+		namespace,
+	)
 }
 
 func promQueryPodMemByNs(namespace string) string {

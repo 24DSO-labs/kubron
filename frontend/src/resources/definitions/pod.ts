@@ -54,17 +54,15 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
     flatNameCol,
     { ...flatNsCol, link: (p: any) => p.namespace ? { id: 'namespace', ns: '', name: p.namespace } : null },
     {
-      key: 'cpu',
-      label: 'CPU',
-      className: 'mono metric-cell',
-      formatter: (p: any) => k8s.formatCpu(p.cpu),
-    },
-    {
-      key: 'memory',
-      label: 'MEMORY',
-      className: 'mono metric-cell',
-      formatter: (p: any) => k8s.formatMemory(p.memory),
-    },
+  key: 'cpu', label: 'CPU', className: 'mono metric-cell',
+  animated: true, width: 100,
+  formatter: (p: any) => k8s.formatCpu(p.cpu),
+},
+{
+  key: 'memory', label: 'MEMORY', className: 'mono metric-cell',
+  animated: true, width: 110,
+  formatter: (p: any) => k8s.formatMemory(p.memory),
+},
     {
       key: 'containers',
       label: 'CONTAINERS',

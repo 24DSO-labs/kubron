@@ -56,8 +56,10 @@ const loading = ref(false)
 
 function formatCpu(cpuStr: string | undefined): string {
   if (!cpuStr) return '—'
-  const cpu = parseFloat(cpuStr)
-  return isNaN(cpu) ? '—' : cpu.toFixed(3)
+  const m = parseFloat(cpuStr)   // millicores
+  if (isNaN(m)) return '—'
+  if (m >= 1000) return (m / 1000).toFixed(2)   // ядра
+  return m.toFixed(1) + 'm'
 }
 
 function formatMemory(memStr: string | undefined): string {
@@ -165,7 +167,7 @@ async function applyYAML(content: string, kind: string, namespace: string, name:
 
 async function loadPodMetrics() {
   try { podMetrics.value = (await GetPodMetrics(selectedNamespace.value)) || [] }
-  catch { podMetrics.value = [] }
+  catch { /* оставляем прошлые значения, чтобы таблица не мигала */ }
 }
 
 // ─── Port forward ───
