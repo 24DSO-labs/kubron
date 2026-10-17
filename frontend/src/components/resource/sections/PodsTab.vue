@@ -3,7 +3,7 @@
     <table class="rd-table">
       <thead>
         <tr>
-          <th>Name</th><th>Node</th><th>Namespace</th><th>Ready</th><th>CPU</th><th>Memory</th><th>Status</th>
+          <th>Name</th><th>Node</th><th>Namespace</th><th>Controller</th><th>Ready</th><th>CPU</th><th>Memory</th><th>Status</th>
         </tr>
       </thead>
       <tbody>
@@ -16,6 +16,7 @@
           <td class="rd-link">{{ p.name }}</td>
           <td>{{ p.node || '—' }}</td>
           <td class="rd-muted">{{ p.namespace }}</td>
+          <td class="rd-muted">{{ p.controlledBy || '—' }}</td>
           <td class="rd-mono">{{ p.ready }}</td>
           <td class="rd-mono">{{ formatCpu(metrics[p.name]?.totalCpu) }}</td>
           <td class="rd-mono">{{ formatMemory(metrics[p.name]?.totalMem) }}</td>
