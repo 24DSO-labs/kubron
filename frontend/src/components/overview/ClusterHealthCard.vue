@@ -3,20 +3,20 @@
     <h2 class="ov-card-title">Cluster health</h2>
 
     <div class="health-body">
-      <div class="ring" :class="`tone-${tone}`" role="img" :aria-label="`Health score ${health.score} of 100`">
+      <div class="health-ring" :class="`tone-${tone}`" role="img" :aria-label="`Health score ${health.score} of 100`">
         <svg viewBox="0 0 100 100" aria-hidden="true">
-          <circle class="ring-track" cx="50" cy="50" :r="RADIUS" />
+          <circle class="health-ring-track" cx="50" cy="50" :r="RADIUS" />
           <circle
-            class="ring-value"
+            class="health-ring-value"
             cx="50" cy="50" :r="RADIUS"
             :stroke-dasharray="CIRCUMFERENCE"
             :stroke-dashoffset="offset"
             transform="rotate(-90 50 50)"
           />
         </svg>
-        <div class="ring-label">
-          <span class="ring-score">{{ health.score }}</span>
-          <span class="ring-status">{{ health.status }}</span>
+        <div class="health-ring-label">
+          <span class="health-ring-score">{{ health.score }}</span>
+          <span class="health-ring-status">{{ health.status }}</span>
         </div>
       </div>
 
@@ -67,20 +67,25 @@ const tone = computed(() => {
   min-height: 0;
 }
 
-.ring { position: relative; width: 132px; height: 132px; flex-shrink: 0; }
-.ring svg { width: 100%; height: 100%; display: block; }
-.ring-track { fill: none; stroke: var(--ov-border); stroke-width: 8; }
-.ring-value {
+.health-ring {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  flex-shrink: 0;
+}
+.health-ring svg { width: 100%; height: 100%; display: block; }
+.health-ring-track { fill: none; stroke: var(--ov-border); stroke-width: 8; }
+.health-ring-value {
   fill: none;
   stroke: var(--ov-ok);
   stroke-width: 8;
   stroke-linecap: round;
   transition: stroke-dashoffset 0.6s ease, stroke 0.3s;
 }
-.tone-warn .ring-value { stroke: var(--ov-warn); }
-.tone-danger .ring-value { stroke: var(--ov-danger); }
+.tone-warn .health-ring-value { stroke: var(--ov-warn); }
+.tone-danger .health-ring-value { stroke: var(--ov-danger); }
 
-.ring-label {
+.health-ring-label {
   position: absolute;
   inset: 0;
   display: flex;
@@ -88,8 +93,8 @@ const tone = computed(() => {
   align-items: center;
   justify-content: center;
 }
-.ring-score { font-size: 34px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
-.ring-status { margin-top: 4px; font-size: 12px; color: var(--ov-muted); }
+.health-ring-score { font-size: 34px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.health-ring-status { margin-top: 4px; font-size: 12px; color: var(--ov-muted); }
 
 .components { list-style: none; flex: 1 1 150px; min-width: 0; display: flex; flex-direction: column; gap: 9px; }
 .components li { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; }
