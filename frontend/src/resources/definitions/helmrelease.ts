@@ -9,6 +9,7 @@ export const helmRelease = defineResource({
   view: 'helm-releases',
   title: 'Helm Releases',
   namespaced: false,
+  nav: { group: 'helm', label: 'Releases' },
   // helm-релиз — агрегат из secret-ов, не отдельный k8s-ресурс: без YAML и удаления
   editable: false,
 

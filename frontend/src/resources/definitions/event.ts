@@ -9,6 +9,7 @@ export const event = defineResource({
   view: 'events',
   title: 'Events',
   namespaced: true,
+  nav: { label: 'Events' },
 
   columns: [
     flatNameCol,

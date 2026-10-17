@@ -37,28 +37,18 @@ import { helmChart } from './definitions/helmchart'
 
 /** Добавляя новый ресурс, достаточно дописать его сюда. */
 export const resources: ResourceDefinition[] = [
-  role,
-  roleBinding,
-  clusterRole,
-  clusterRoleBinding,
-  serviceAccount,
-  configMap,
-  namespaceResource,
-  replicaSet,
-  daemonSet,
-  deployment,
+  // Порядок задаёт порядок пунктов внутри групп бокового меню (см. navigation.ts)
+  // workloads
   pod,
-  service,
-  secret,
-  job,
+  deployment,
+  daemonSet,
   statefulSet,
+  replicaSet,
+  job,
   cronJob,
-  ingress,
-  ingressClass,
-  networkPolicy,
-  persistentVolume,
-  persistentVolumeClaim,
-  storageClass,
+  // config
+  configMap,
+  secret,
   resourceQuota,
   limitRange,
   horizontalPodAutoscaler,
@@ -66,12 +56,30 @@ export const resources: ResourceDefinition[] = [
   priorityClass,
   runtimeClass,
   lease,
+  // network
+  service,
   endpoint,
-  event,
-  node,
+  ingress,
+  ingressClass,
+  networkPolicy,
   portForward,
+  // storage
+  persistentVolume,
+  persistentVolumeClaim,
+  storageClass,
+  // helm
   helmRelease,
   helmChart,
+  // access control
+  serviceAccount,
+  role,
+  roleBinding,
+  clusterRole,
+  clusterRoleBinding,
+  // верхний уровень
+  node,
+  event,
+  namespaceResource,
 ]
 
 const byView = new Map(resources.map(r => [r.view, r]))

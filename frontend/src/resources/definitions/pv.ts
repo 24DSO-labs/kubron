@@ -9,6 +9,7 @@ export const persistentVolume = defineResource({
   view: 'pv',
   title: 'PersistentVolumes',
   namespaced: false,
+  nav: { group: 'storage', label: 'Persistent Volumes' },
 
   columns: [
     flatNameCol,

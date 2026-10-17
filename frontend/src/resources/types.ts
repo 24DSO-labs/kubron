@@ -10,6 +10,16 @@ export interface ColumnDef {
   colorFn?: (item: any) => string // цвет значения
 }
 
+/** Группы бокового меню; заголовки и порядок — в resources/navigation.ts */
+export type NavGroupId = 'workloads' | 'config' | 'network' | 'storage' | 'helm' | 'access'
+
+/** Пункт бокового меню. Без `nav` ресурс в меню не показывается */
+export interface ResourceNav {
+  /** Без group пункт стоит на верхнем уровне */
+  group?: NavGroupId
+  label: string
+}
+
 export interface MenuItemDef {
   label: string
   action: string
@@ -81,6 +91,8 @@ export interface ResourceDefinition<T = any> {
   title: string
   icon?: string
   namespaced: boolean
+  /** Пункт в Sidebar; порядок внутри группы — порядок в resources/registry.ts */
+  nav?: ResourceNav
 
   columns: ColumnDef[]
   /**

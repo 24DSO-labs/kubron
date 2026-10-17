@@ -8,6 +8,7 @@ export const priorityClass = defineResource({
   view: 'priorityclasses',
   title: 'PriorityClasses',
   namespaced: false,
+  nav: { group: 'config', label: 'Priority Classes' },
 
   columns: [
     flatNameCol,

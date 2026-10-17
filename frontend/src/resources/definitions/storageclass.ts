@@ -8,6 +8,7 @@ export const storageClass = defineResource({
   view: 'storageclasses',
   title: 'StorageClasses',
   namespaced: false,
+  nav: { group: 'storage', label: 'Storage Classes' },
 
   columns: [
     flatNameCol,
