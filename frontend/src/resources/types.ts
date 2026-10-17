@@ -71,6 +71,8 @@ export interface PropertyDef<T = any> {
   badge?: (item: T) => string
   /** Ссылка на другой ресурс: 'pod', 'namespace', 'node' ... */
   link?: (item: T) => { id: string; ns: string; name: string } | null | undefined
+  /** Текст ссылки (если отличается от value). value рендерится как обычный текст, linkLabel — как ссылка */
+  linkLabel?: (item: T) => string | null | undefined
 }
 
 export interface ActionDef<T = any> {

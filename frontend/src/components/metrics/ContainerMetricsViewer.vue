@@ -232,9 +232,7 @@ const currentMetricConfig = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-top: 8px;
   width: 100%;
-  grid-column: 1 / -1;
 }
 
 .metrics-selector {
