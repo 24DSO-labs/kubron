@@ -52,7 +52,7 @@ const sorted = computed(() =>
 async function load() {
   loading.value = true
   try {
-    revisions.value = (await callApp<any[]>('GetDeploymentRevisions', namespace.value, name.value)) ?? []
+    revisions.value = (await callApp('GetDeploymentRevisions', namespace.value, name.value)) ?? []
   } catch (e: any) {
     revisions.value = []
     notifications.notifyError(`Ревизии: ${e?.message || e}`)
