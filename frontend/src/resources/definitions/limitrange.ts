@@ -10,6 +10,7 @@ export const limitRange = defineResource<k8s.LimitRangeInfo>({
   title: 'LimitRanges',
   namespaced: true,
   nav: { group: 'config', label: 'Limit Ranges' },
+  icon: 'configmap',
 
   columns: [
     flatNameCol,

@@ -10,6 +10,7 @@ export const runtimeClass = defineResource<k8s.RuntimeClassInfo>({
   title: 'RuntimeClasses',
   namespaced: false,
   nav: { group: 'config', label: 'Runtime Classes' },
+  icon: 'configmap',
 
   columns: [
     flatNameCol,

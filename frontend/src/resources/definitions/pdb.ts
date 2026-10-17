@@ -10,6 +10,7 @@ export const podDisruptionBudget = defineResource<k8s.PDBInfo>({
   title: 'PodDisruptionBudgets',
   namespaced: true,
   nav: { group: 'config', label: 'Pod Disruption Budgets' },
+  icon: 'configmap',
 
   columns: [
     flatNameCol,

@@ -22,10 +22,10 @@ const NAV_ORDER: string[] = [
   'helm', 'access',
 ]
 
-export interface NavItem { view: string; label: string }
+export interface NavItem { view: string; label: string; icon?: string }
 export type NavEntry =
-  | { type: 'item'; view: string; label: string }
-  | { type: 'group'; id: NavGroupId; title: string; items: NavItem[] }
+  | { type: 'item'; view: string; label: string; icon?: string }
+  | { type: 'group'; id: NavGroupId; title: string; icon?: string; items: NavItem[] }
 
 const isGroup = (id: string): id is NavGroupId => id in NAV_GROUPS
 
@@ -37,19 +37,32 @@ export function buildNav(): NavEntry[] {
     if (isGroup(id)) {
       const items = resources
         .filter(r => r.nav?.group === id)
-        .map(r => ({ view: r.view, label: r.nav!.label }))
-      if (items.length) entries.push({ type: 'group', id, title: NAV_GROUPS[id].title, items })
+        .map(r => ({ view: r.view, label: r.nav!.label, icon: r.icon }))
+      if (items.length) entries.push({ type: 'group', id, title: NAV_GROUPS[id].title, icon: groupIcon(id), items })
     } else {
       const r = resources.find(x => x.view === id && x.nav && !x.nav.group)
-      if (r) entries.push({ type: 'item', view: r.view, label: r.nav!.label })
+      if (r) entries.push({ type: 'item', view: r.view, label: r.nav!.label, icon: r.icon })
     }
   }
 
   // Ресурс с nav, которого нет в NAV_ORDER (новая верхнеуровневая запись), не теряем: в конец
   for (const r of resources) {
     if (r.nav && !r.nav.group && !NAV_ORDER.includes(r.view)) {
-      entries.push({ type: 'item', view: r.view, label: r.nav.label })
+      entries.push({ type: 'item', view: r.view, label: r.nav.label, icon: r.icon })
     }
   }
   return entries
+}
+
+/** Иконки для групп бокового меню */
+function groupIcon(id: NavGroupId): string {
+  switch (id) {
+    case 'workloads': return 'service'
+    case 'config': return 'configmap'
+    case 'network': return 'ingress'
+    case 'storage': return 'pvc'
+    case 'helm': return 'documentation'
+    case 'access': return 'service-account'
+    default: return ''
+  }
 }

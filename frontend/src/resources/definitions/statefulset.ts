@@ -4,8 +4,7 @@ import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 import { formatMap } from '../utils'
 import { badgeClass, statusColor } from '../status'
-import restartIcon from '../../assets/icons/restart.svg'
-import logsIcon from '../../assets/icons/logs.svg'
+
 import ImagesSection from '../../components/resource/sections/ImagesSection.vue'
 import PodsTab from '../../components/resource/sections/PodsTab.vue'
 
@@ -59,7 +58,7 @@ export const statefulSet = defineResource<k8s.StatefulSetInfo>({
     {
       id: 'restart',
       label: 'Restart',
-      icon: restartIcon,
+      icon: 'restart',
       run: async (s, ctx) => {
         if (!(await ctx.confirm(`Restart statefulset ${s.name}?`))) return
         return ctx.perform(
@@ -71,7 +70,7 @@ export const statefulSet = defineResource<k8s.StatefulSetInfo>({
     {
       id: 'logs',
       label: 'View logs',
-      icon: logsIcon,
+      icon: 'logs',
       run: (s, ctx) => ctx.openResourceLogs('statefulset', s.namespace, s.name),
     },
   ],

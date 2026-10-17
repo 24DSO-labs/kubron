@@ -22,7 +22,7 @@
             :title="a.label"
             @click="toggleDropdown(a.id)"
           >
-            <img v-if="a.icon" :src="a.icon" :alt="a.label" />
+            <K8sIcon v-if="a.icon" :name="a.icon" :alt="a.label" size="lg" :danger="a.danger" />
             <template v-else>{{ a.label }}</template>
           </button>
           <div v-if="openDropdown === a.id" class="rd-action-dropdown">
@@ -44,7 +44,7 @@
           :title="a.label"
           @click="a.run(resource, resourceActions)"
         >
-          <img v-if="a.icon" :src="a.icon" :alt="a.label" />
+          <K8sIcon v-if="a.icon" :name="a.icon" :alt="a.label" size="lg" :danger="a.danger" />
           <template v-else>{{ a.label }}</template>
         </button>
       </template>
@@ -94,6 +94,7 @@
 import './resource.css'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import K8sResourceDetailBase from '../panels/K8sResourceDetailBase.vue'
+import K8sIcon from '../icons/K8sIcon.vue'
 import KeyValueSection from './sections/KeyValueSection.vue'
 import type { ActionDef, ResourceDefinition } from '../../resources/types'
 import { resourceActions } from '../../resources/actions'

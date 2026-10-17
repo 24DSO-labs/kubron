@@ -3,7 +3,7 @@ import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 import { badgeClass, statusColor } from '../status'
-import restartIcon from '../../assets/icons/restart.svg'
+
 import JobSpecSection from '../../components/resource/sections/JobSpecSection.vue'
 import ImagesSection from '../../components/resource/sections/ImagesSection.vue'
 import ConditionsSection from '../../components/resource/sections/ConditionsSection.vue'
@@ -48,7 +48,7 @@ export const job = defineResource<k8s.JobInfo>({
     {
       id: 'retry',
       label: 'Retry',
-      icon: restartIcon,
+      icon: 'restart',
       run: (j, ctx) =>
         ctx.perform(
           () => callApp('RetryJob', j.namespace, j.name),
