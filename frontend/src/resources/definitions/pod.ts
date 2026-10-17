@@ -4,6 +4,7 @@ import { callApp } from '../wails'
 import { useK8s } from '../../composables/useK8s'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 import { badgeClass, statusColor } from '../status'
+import { containersOf } from '../utils'
 import attachIcon from '../../assets/icons/attach.svg'
 import terminalIcon from '../../assets/icons/terminal.svg'
 import logsIcon from '../../assets/icons/logs.svg'
@@ -85,7 +86,7 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
       icon: attachIcon,
       perContainer: true,
       run: (p, ctx, container) => {
-        const c = container ?? p.containers?.[0]?.name
+        const c = container ?? containersOf(p)[0]?.name
         if (!c) return ctx.notifyError('No containers available')
         return ctx.openAttach(p.namespace, p.name, c)
       },
@@ -96,7 +97,7 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
       icon: terminalIcon,
       perContainer: true,
       run: (p, ctx, container) => {
-        const c = container ?? p.containers?.[0]?.name
+        const c = container ?? containersOf(p)[0]?.name
         if (!c) return ctx.notifyError('No containers available')
         return ctx.openShell(p.namespace, p.name, c)
       },
@@ -107,7 +108,7 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
       icon: logsIcon,
       perContainer: true,
       run: (p, ctx, container) => {
-        const containers = p.containers?.filter((c: any) => !c.isInit) ?? []
+        const containers = containersOf(p)
         ctx.openLogs(p.namespace, p.name, containers, container ?? containers[0]?.name)
       },
     },
