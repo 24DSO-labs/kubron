@@ -14,7 +14,8 @@ export const portForward = defineResource<models.PortForwardSession>({
   title: 'Port Forwarding',
   namespaced: false,
   nav: { group: 'network', label: 'Port Forwarding' },
-  // локальные сессии приложения, не ресурс k8s: без YAML и удаления
+  
+  autoRefresh: true,// локальные сессии приложения, не ресурс k8s: без YAML и удаления
   editable: false,
 
   columns: [

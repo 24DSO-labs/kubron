@@ -14,6 +14,17 @@
         <tr v-for="item in items" :key="itemKey(item)" class="clickable-row" @click="emit('select', item)" @contextmenu.prevent="openMenuAt(item, $event)">
           <td v-for="col in columns" :key="col.key" :class="col.className">
             <component :is="col.component" v-if="col.component" :item="item" :col="col" />
+            <span v-else-if="col.link" :style="cellStyle(col, item)">
+              <template v-if="col.link(item)">
+                <a
+                  class="rd-link"
+                  @click.stop="emit('open', col.link(item)!)"
+                >
+                  {{ col.linkLabel ? (col.linkLabel(item) ?? cellValue(col, item)) : cellValue(col, item) }}
+                </a>
+              </template>
+              <template v-else>{{ cellValue(col, item) }}</template>
+            </span>
             <span v-else :style="cellStyle(col, item)">{{ cellValue(col, item) }}</span>
           </td>
           <td @click.stop>
@@ -58,6 +69,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import ContentHeader from '../ContentHeader.vue'
 import type { ColumnDef, MenuItemDef } from '../../resources/types'
+import './resource.css'
 
 const props = defineProps<{
   items: any[]
@@ -74,6 +86,8 @@ const emit = defineEmits<{
   (e: 'refresh'): void
   (e: 'search', val: string): void
   (e: 'select', item: any): void
+  /** Переход к другому ресурсу по ссылке в ячейке */
+  (e: 'open', data: { id: string; ns: string; name: string }): void
   /** arg — выбранный элемент подменю (имя контейнера) */
   (e: 'action', action: string, item: any, arg?: string): void
 }>()
