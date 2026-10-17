@@ -1,406 +1,146 @@
 <template>
-  <div class="flex-1 overflow-auto bg-gray-900">
-    <ContentHeader title="Overview" icon="" />
-    <div class="p-6">
-   
-
-      <!-- Overview Cards for Cluster Overview (above charts) -->
-      <div class="overview-grid mb-6" v-if="clusterOverview">
-        <div class="overview-card">
-          <div class="card-icon"></div>
-          <div class="card-info">
-            <div class="card-value">{{ clusterOverview.readyNodes }}/{{ clusterOverview.totalNodes }}</div>
-            <div class="card-label">Nodes Ready</div>
-          </div>
-        </div>
-        <div class="overview-card">
-          <div class="card-icon"></div>
-          <div class="card-info">
-            <div class="card-value">{{ clusterOverview.runningPods }}/{{ clusterOverview.totalPods }}</div>
-            <div class="card-label">Pods Running</div>
-          </div>
-        </div>
-        <div class="overview-card">
-          <div class="card-icon"></div>
-          <div class="card-info">
-            <div class="card-value">{{ clusterOverview.readyDeployments }}/{{ clusterOverview.totalDeployments }}</div>
-            <div class="card-label">Deployments Ready</div>
-          </div>
-        </div>
-        <div class="overview-card">
-          <div class="card-icon"></div>
-          <div class="card-info">
-            <div class="card-value">{{ clusterOverview.totalServices }}</div>
-            <div class="card-label">Services</div>
-          </div>
-        </div>
-        <div class="overview-card">
-          <div class="card-icon"></div>
-          <div class="card-info">
-            <div class="card-value">{{ clusterOverview.totalNamespaces }}</div>
-            <div class="card-label">Namespaces</div>
-          </div>
-        </div>
-        <div class="overview-card">
-          <div class="card-icon"></div>
-          <div class="card-info">
-            <div class="card-value">{{ clusterOverview.warningEvents }}/{{ clusterOverview.totalEvents }}</div>
-            <div class="card-label">Warning Events</div>
-          </div>
-        </div>
+  <div class="ov">
+    <header class="ov-header">
+      <h1>Overview</h1>
+      <div class="ov-header-right">
+        <span v-if="data && error" class="ov-stale" :title="error">Update failed, showing last data</span>
+        <span v-else-if="updatedAt" class="ov-updated">Updated {{ updatedAt.toLocaleTimeString() }}</span>
+        <button type="button" class="ov-btn" :disabled="refreshing" @click="refresh">
+          {{ refreshing ? 'Refreshing…' : 'Refresh' }}
+        </button>
       </div>
+    </header>
 
-      <!-- Dropdown для выбора Master/Worker nodes -->
-      <div class="mb-6 flex items-center gap-4 bg-gray-800 rounded-lg shadow p-4 border border-gray-700">
-        <div class="flex items-center gap-2">
-          <label class="text-sm font-semibold text-gray-200">Select Nodes:</label>
-          <select
-            v-model="selectedNodeRole"
-            @change="loadNodeMetrics"
-            class="px-4 py-2 border border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-white"
-          >
-            <option value="">Cluster Overview</option>
-            <option value="master">Master Nodes</option>
-            <option value="worker">Worker Nodes</option>
-          </select>
-        </div>
+    <p v-if="loading && !data" class="ov-state">Loading cluster data…</p>
 
-        <div class="flex items-center gap-2 ml-auto">
-          <span class="text-sm text-gray-300">Time Range:</span>
-          <select
-            v-model="selectedTimeRange"
-            class="px-4 py-2 border border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-white"
-          >
-            <option value="1h">1h</option>
-            <option value="6h">6h</option>
-            <option value="24h">24h</option>
-            <option value="7d">7d</option>
-          </select>
-        </div>
-      </div>
-
-      <div v-if="!selectedNodeRole">
-        <ClusterMetricsPanel :clusterName="clusterName" @update:snapshot="onSnapshotUpdate" />
-      </div>
-
-      <div v-else>
-        <div v-if="loading" class="bg-gray-800 rounded-lg shadow p-6 text-center border border-gray-700">
-          <p class="text-gray-300">Loading metrics...</p>
-        </div>
-        <div v-else-if="error" class="bg-gray-800 rounded-lg shadow p-6 text-center border border-red-700">
-          <p class="text-red-400">{{ error }}</p>
-        </div>
-        <template v-else-if="nodeMetrics">
-          <!-- Layout: Chart on left, Cards on right in a row -->
-          <div class="space-y-6">
-            <!-- Chart section -->
-            <div class="bg-gray-800 rounded-lg shadow p-6 border border-gray-700">
-              <h3 class="text-lg font-semibold text-white mb-4">Memory Usage Over Time</h3>
-              <div class="h-80 bg-gray-900 rounded flex items-center justify-center">
-                <p class="text-gray-400">Time series chart</p>
-              </div>
-            </div>
-            
-            <!-- Cards section in a row -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <DonutCard title="CPU" :usage="nodeMetrics.cpu?.usage || 0" :requests="nodeMetrics.cpu?.requests || 0" :limits="nodeMetrics.cpu?.limits || 0" :allocatable="nodeMetrics.cpu?.allocatable || 0" :capacity="nodeMetrics.cpu?.capacity || 0" unit="cores" />
-              <DonutCard title="Memory" :usage="nodeMetrics.memory?.usage || 0" :requests="nodeMetrics.memory?.requests || 0" :limits="nodeMetrics.memory?.limits || 0" :allocatable="nodeMetrics.memory?.allocatable || 0" :capacity="nodeMetrics.memory?.capacity || 0" unit="GB" />
-              <DonutCard title="Pods" :usage="nodeMetrics.pods?.usage || 0" :requests="nodeMetrics.pods?.requests || 0" :limits="nodeMetrics.pods?.limits || 0" :allocatable="nodeMetrics.pods?.allocatable || 0" :capacity="nodeMetrics.pods?.capacity || 0" unit="count" />
-            </div>
-          </div>
-        </template>
-        <div v-else class="bg-gray-800 rounded-lg shadow p-6 text-center border border-gray-700">
-          <p class="text-gray-300">No metrics available</p>
-        </div>
-      </div>
-
-         
+    <div v-else-if="!data" class="ov-state ov-state-error">
+      <p>Failed to load cluster overview</p>
+      <p class="ov-state-detail">{{ error }}</p>
+      <button type="button" class="ov-btn ov-btn-primary" @click="refresh">Retry</button>
     </div>
-      <div class="mb-6 bg-gray-800 rounded-lg border border-gray-700">
-        <!-- Header -->
-        <div class="p-5 border-b border-gray-700">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-lg bg-purple-900/50 flex items-center justify-center">
-                <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <div>
-                <h2 class="text-base font-medium text-white">Стек метрик</h2>
-                <p class="text-sm text-gray-400">Prometheus + Node Exporter + Kube State Metrics</p>
-              </div>
-            </div>
-            <MetricsStatusBadge v-if="status" :status="status.status" />
-          </div>
-        </div>
 
-        <div class="p-5">
-          <!-- NOT INSTALLED -->
-          <div v-if="currentState === 'not_installed'">
-            <p class="text-sm text-gray-400 mb-4">
-              Установите стек метрик Kubron для включения мониторинга кластера с графиками CPU, памяти и сети. Создаёт пространство имён
-              <code class="text-gray-300 bg-gray-700 px-1.5 py-0.5 rounded text-xs">kubron-metrics</code>.
-            </p>
-
-            <div class="bg-gray-900/50 rounded-lg p-4 mb-5">
-              <h4 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Компоненты</h4>
-              <div class="space-y-2.5">
-                <div v-for="c in componentsList" :key="c.name" class="flex items-center gap-2.5 text-sm">
-                  <span class="w-2 h-2 rounded-full" :class="c.dotColor"></span>
-                  <span class="text-gray-300 font-medium">{{ c.name }}</span>
-                  <span class="text-gray-600 text-xs">— {{ c.desc }}</span>
-                </div>
-              </div>
-            </div>
-
-            <button @click="handleInstall" :disabled="metricsLoading" class="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 active:from-blue-700 active:to-blue-800 disabled:from-blue-800 disabled:to-blue-800 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-xl hover:scale-105 flex items-center gap-2">
-              <svg v-if="metricsLoading" class="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"/>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-              </svg>
-              {{ metricsLoading ? 'Установка...' : 'Установить стек метрик' }}
-            </button>
-          </div>
-
-          <!-- INSTALLING -->
-          <div v-else-if="currentState === 'installing'">
-            <div class="flex items-center gap-3">
-              <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
-              <p class="text-sm text-gray-300">Установка стека метрик... Это может занять несколько минут.</p>
-            </div>
-          </div>
-
-          <!-- INSTALLED -->
-          <div v-else-if="currentState === 'installed'">
-            <p class="text-sm text-gray-400 mb-4">Стек метрик работает. Данные мониторинга собираются.</p>
-
-            <!-- Running components -->
-            <div v-if="status?.components" class="bg-gray-900/50 rounded-lg p-4 mb-5">
-              <h4 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Работающие компоненты</h4>
-              <div class="space-y-2.5">
-                <div v-for="(comp, name) in status.components" :key="name" class="flex items-center justify-between text-sm">
-                  <div class="flex items-center gap-2.5">
-                    <span :class="['w-2 h-2 rounded-full', comp.ready ? 'bg-green-400' : 'bg-yellow-400 animate-pulse']"></span>
-                    <span class="text-gray-300">{{ fmtName(name as string) }}</span>
-                  </div>
-                  <span class="text-gray-500 text-xs">{{ comp.availableReplicas }}/{{ comp.replicas }} готово</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Uninstall -->
-            <div class="pt-4 border-t border-gray-700">
-              <div class="flex items-center justify-between">
-                <div>
-                  <p class="text-sm text-gray-300">Удалить стек метрик</p>
-                  <p class="text-xs text-gray-500 mt-0.5">Удаляет пространство имён kubron-metrics и все данные</p>
-                </div>
-                <div v-if="!showConfirm">
-                  <button @click="showConfirm = true" class="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 text-sm font-medium rounded-lg border border-red-500/50 hover:border-red-500 transition-all duration-200">
-                    Удалить
-                  </button>
-                </div>
-                <div v-else class="flex items-center gap-2">
-                  <button @click="showConfirm = false" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white text-sm font-medium rounded-lg transition-all duration-200">
-                    Отмена
-                  </button>
-                  <button @click="handleUninstall" :disabled="metricsLoading" class="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 active:from-red-700 active:to-red-800 disabled:from-red-800 disabled:to-red-800 text-white text-sm font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:cursor-not-allowed">
-                    Подтвердить удаление
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- DEGRADED -->
-          <div v-else-if="currentState === 'degraded'">
-            <div class="bg-yellow-900/20 border border-yellow-700/50 rounded-lg p-4 mb-4">
-              <div class="flex items-start gap-2">
-                <svg class="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-                </svg>
-                <div>
-                  <p class="text-sm text-yellow-300 font-medium">Стек метрик неработоспособен</p>
-                  <p class="text-xs text-yellow-400/70 mt-1">{{ status?.message }}</p>
-                </div>
-              </div>
-            </div>
-
-            <div v-if="status?.components" class="bg-gray-900/50 rounded-lg p-4 mb-4">
-              <div class="space-y-2.5">
-                <div v-for="(comp, name) in status.components" :key="name" class="flex items-center justify-between text-sm">
-                  <div class="flex items-center gap-2.5">
-                    <span :class="['w-2 h-2 rounded-full', comp.ready ? 'bg-green-400' : 'bg-red-400']"></span>
-                    <span class="text-gray-300">{{ fmtName(name as string) }}</span>
-                  </div>
-                  <span :class="['text-xs', comp.ready ? 'text-gray-500' : 'text-red-400']">{{ comp.availableReplicas }}/{{ comp.replicas }} готово</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="flex items-center gap-2">
-              <button @click="fetchStatus" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white text-sm font-medium rounded-lg transition-all duration-200">
-                Обновить
-              </button>
-              <button @click="handleReinstall" :disabled="metricsLoading" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 active:from-blue-700 active:to-blue-800 disabled:from-blue-800 disabled:to-blue-800 text-white text-sm font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:cursor-not-allowed">
-                Переустановить
-              </button>
-              <button @click="showConfirm = true" class="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 text-sm font-medium rounded-lg border border-red-500/50 hover:border-red-500 transition-all duration-200">
-                Удалить
-              </button>
-            </div>
-
-            <div v-if="showConfirm" class="mt-4 flex items-center gap-2 bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-              <span class="text-sm text-gray-300 font-medium">Вы уверены?</span>
-              <button @click="showConfirm = false" class="ml-auto px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white text-sm font-medium rounded-lg transition-all duration-200">
-                Отмена
-              </button>
-              <button @click="handleUninstall" :disabled="metricsLoading" class="px-3 py-1.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 active:from-red-700 active:to-red-800 disabled:from-red-800 disabled:to-red-800 text-white text-sm font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:cursor-not-allowed">
-                Подтвердить
-              </button>
-            </div>
-          </div>
-
-          <!-- Error -->
-          <div v-if="metricsError" class="mt-4 bg-red-900/20 border border-red-700/50 rounded-lg p-3">
-            <p class="text-sm text-red-400">{{ metricsError }}</p>
-          </div>
-        </div>
+    <template v-else>
+      <div class="ov-stats">
+        <StatCard
+          v-for="s in stats"
+          :key="s.title"
+          :title="s.title"
+          :value="s.value"
+          :sub="s.sub"
+          :tone="s.tone"
+          @select="emit('navigate', s.view)"
+        />
       </div>
+
+      <div class="ov-row ov-row-3">
+        <ClusterHealthCard :health="data.health" />
+        <ResourceUsageCard :cluster-name="clusterName" @open-settings="emit('navigate', 'settings')" />
+        <RecentEventsCard :events="data.recentEvents" @view-all="emit('navigate', 'events')" />
+      </div>
+
+      <div class="ov-row ov-row-main">
+        <WorkloadsCard :workloads="data.workloads" @open="openWorkload" />
+        <ShortcutsCard @navigate="view => emit('navigate', view)" />
+      </div>
+    </template>
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import ContentHeader from '../ContentHeader.vue'
-import ClusterMetricsPanel from '../metrics/ClusterMetricsPanel.vue'
-import DonutCard from '../metrics/DonutCard.vue'
-import MetricsStatusBadge from '../metrics/MetricsStatusBadge.vue'
-import { useMetrics, useMetricsStatus } from '../../composables/useMetrics'
-import type { NodeMetricsByRole } from '../../types/metrics'
+<script lang="ts" setup>
+import { computed, toRef } from 'vue'
+import StatCard from '../overview/StatCard.vue'
+import ClusterHealthCard from '../overview/ClusterHealthCard.vue'
+import ResourceUsageCard from '../overview/ResourceUsageCard.vue'
+import RecentEventsCard from '../overview/RecentEventsCard.vue'
+import WorkloadsCard from '../overview/WorkloadsCard.vue'
+import ShortcutsCard from '../overview/ShortcutsCard.vue'
+import { useOverview } from '../../composables/useOverview'
+import { resourceActions } from '../../resources/actions'
+import type { WorkloadSummary } from '../../types/overview'
+import '../overview/overview.css'
 
-interface Props {
-  clusterName?: string
-}
+const props = withDefaults(defineProps<{ clusterName?: string }>(), { clusterName: '' })
+const emit = defineEmits<{ (e: 'navigate', view: string): void }>()
 
-const props = withDefaults(defineProps<Props>(), {
-  clusterName: '',
+const { data, loading, refreshing, error, updatedAt, refresh } = useOverview(toRef(props, 'clusterName'))
+
+type Tone = 'ok' | 'warn' | 'danger'
+
+const stats = computed(() => {
+  const o = data.value
+  if (!o) return []
+
+  const podExtra = [
+    o.failedPods > 0 ? `Failed: ${o.failedPods}` : '',
+    o.pendingPods > 0 ? `Pending: ${o.pendingPods}` : '',
+  ].filter(Boolean)
+
+  const nodesTone: Tone = o.totalNodes > 0 && o.readyNodes === 0 ? 'danger' : o.readyNodes < o.totalNodes ? 'warn' : 'ok'
+  const podsTone: Tone = o.failedPods > 0 ? 'danger' : o.pendingPods > 0 ? 'warn' : 'ok'
+
+  return [
+    { title: 'Nodes', value: o.totalNodes, sub: `Ready: ${o.readyNodes}`, tone: nodesTone, view: 'nodes' },
+    {
+      title: 'Pods',
+      value: o.totalPods,
+      sub: [`Running: ${o.runningPods}`, ...podExtra].join(' · '),
+      tone: podsTone,
+      view: 'pods',
+    },
+    {
+      title: 'Deployments',
+      value: o.totalDeployments,
+      sub: `Ready: ${o.readyDeployments}`,
+      tone: (o.readyDeployments < o.totalDeployments ? 'warn' : 'ok') as Tone,
+      view: 'deployments',
+    },
+    {
+      title: 'Namespaces',
+      value: o.totalNamespaces,
+      sub: o.activeNamespaces === o.totalNamespaces ? 'Active' : `Active: ${o.activeNamespaces}`,
+      tone: (o.activeNamespaces < o.totalNamespaces ? 'warn' : 'ok') as Tone,
+      view: 'namespaces',
+    },
+    {
+      title: 'Events',
+      value: o.warningEvents,
+      sub: o.warningEvents > 0 ? 'Warning' : 'No warnings',
+      tone: (o.warningEvents > 0 ? 'warn' : 'ok') as Tone,
+      view: 'events',
+    },
+  ]
 })
 
-const { getNodeMetricsByRole } = useMetrics()
-const {
-  status,
-  loading: metricsLoading,
-  error: metricsError,
-  fetchStatus,
-  install,
-  uninstall,
-} = useMetricsStatus(props.clusterName)
-
-const selectedNodeRole = ref('')
-const selectedTimeRange = ref('1h')
-const nodeMetrics = ref<NodeMetricsByRole | null>(null)
-const loading = ref(false)
-const error = ref('')
-const showConfirm = ref(false)
-
-const currentState = computed(() => {
-  if (!status.value) return 'not_installed'
-  return status.value.status
-})
-
-const componentsList = [
-  { name: 'Prometheus', desc: 'сбор и хранение метрик', dotColor: 'bg-orange-400' },
-  { name: 'Node Exporter', desc: 'метрики оборудования и ОС', dotColor: 'bg-green-400' },
-  { name: 'Kube State Metrics', desc: 'метрики объектов Kubernetes', dotColor: 'bg-blue-400' },
-]
-
-function fmtName(raw: string): string {
-  return raw
-    .replace(/-/g, ' ')
-    .replace(/\b\w/g, c => c.toUpperCase())
-}
-
-async function handleInstall() {
-  await install()
-}
-
-async function handleUninstall() {
-  showConfirm.value = false
-  await uninstall()
-}
-
-async function handleReinstall() {
-  await uninstall()
-  await install()
-}
-
-interface ClusterOverviewMetrics {
-  cpuUsage?: number
-  memoryUsage?: number
-  podCount?: number
-}
-
-const clusterSnapshot = ref<any>(null)
-const clusterOverview = ref<any>(null)
-
-const onSnapshotUpdate = (snapshot: any) => {
-  clusterSnapshot.value = snapshot
-}
-
-const loadClusterOverview = async () => {
-  try {
-    const { GetClusterOverview } = await import('../../../wailsjs/go/main/App')
-    const overview = await GetClusterOverview()
-    clusterOverview.value = overview
-  } catch (err) {
-    console.error('Error loading cluster overview:', err)
-  }
-}
-
-onMounted(() => {
-  loadClusterOverview()
-  fetchStatus()
-  // Refresh every 10 seconds
-  setInterval(loadClusterOverview, 10000)
-  setInterval(fetchStatus, 10000)
-})
-
-// Computed percentages for gauge cards
-const cpuPercent = computed(() => {
-  if (!nodeMetrics.value?.cpu || nodeMetrics.value.cpu.capacity === 0) return 0
-  return Math.round((nodeMetrics.value.cpu.usage / nodeMetrics.value.cpu.capacity) * 100)
-})
-
-const memoryPercent = computed(() => {
-  if (!nodeMetrics.value?.memory || nodeMetrics.value.memory.capacity === 0) return 0
-  return Math.round((nodeMetrics.value.memory.usage / nodeMetrics.value.memory.capacity) * 100)
-})
-
-const podsPercent = computed(() => {
-  if (!nodeMetrics.value?.pods || nodeMetrics.value.pods.capacity === 0) return 0
-  return Math.round((nodeMetrics.value.pods.usage / nodeMetrics.value.pods.capacity) * 100)
-})
-
-const loadNodeMetrics = async () => {
-  if (!selectedNodeRole.value) {
-    nodeMetrics.value = null
-    error.value = ''
-    return
-  }
-  loading.value = true
-  error.value = ''
-  try {
-    const metrics = await getNodeMetricsByRole(selectedNodeRole.value as 'master' | 'worker')
-    nodeMetrics.value = metrics as unknown as NodeMetricsByRole
-    
-  } catch (err: any) {
-    error.value = err.message || 'Failed to load metrics'
-    console.error('Error loading metrics:', err)
-    nodeMetrics.value = null
-  } finally {
-    loading.value = false
-  }
+function openWorkload(w: WorkloadSummary) {
+  resourceActions.open(w.kind.toLowerCase(), w.namespace, w.name)
 }
 </script>
+
+<style scoped>
+.ov-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.ov-header h1 { font-size: 20px; font-weight: 600; margin: 0; }
+.ov-header-right { display: flex; align-items: center; gap: 12px; }
+.ov-updated { font-size: 12px; color: var(--ov-muted); }
+.ov-stale { font-size: 12px; color: var(--ov-warn); }
+
+.ov-state { padding: 60px 0; text-align: center; font-size: 14px; color: var(--ov-muted); }
+.ov-state-error { color: var(--ov-text); }
+.ov-state-error p { margin-bottom: 8px; }
+.ov-state-detail { font-size: 12px; color: var(--ov-muted); }
+.ov-state-error .ov-btn { margin-top: 8px; }
+
+.ov-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.ov-row { display: grid; gap: 14px; margin-bottom: 14px; }
+.ov-row-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ov-row-main { grid-template-columns: minmax(0, 1fr) 260px; margin-bottom: 0; }
+
+/* Адаптация по ширине самого экрана, а не окна: боковые панели съедают место */
+@container (max-width: 900px) {
+  .ov-row-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* последняя карточка занимает всю строку, чтобы не оставалось пустой ячейки */
+  .ov-row-3 > :last-child { grid-column: 1 / -1; }
+}
+@container (max-width: 700px) {
+  .ov-row-3, .ov-row-main { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
