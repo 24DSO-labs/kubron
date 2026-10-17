@@ -1,9 +1,10 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 import { badgeClass, statusColor } from '../status'
 
-export const event = defineResource({
+export const event = defineResource<k8s.EventInfo>({
   id: 'event',
   kind: 'Event',
   view: 'events',

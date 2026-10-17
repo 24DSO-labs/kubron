@@ -1,6 +1,8 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
+import { formatMap } from '../utils'
 import { badgeClass, statusColor } from '../status'
 import restartIcon from '../../assets/icons/restart.svg'
 import logsIcon from '../../assets/icons/logs.svg'
@@ -15,7 +17,7 @@ function stsStatus(s: any): string {
   return 'Pending'
 }
 
-export const statefulSet = defineResource({
+export const statefulSet = defineResource<k8s.StatefulSetInfo>({
   id: 'statefulset',
   kind: 'StatefulSet',
   view: 'statefulsets',
@@ -43,7 +45,7 @@ export const statefulSet = defineResource({
   ],
 
   properties: [
-    { label: 'Selector', value: s => s.selector },
+    { label: 'Selector', value: s => formatMap(s.selector) },
     { label: 'Replicas', value: s => `${s.replicas ?? 0} / ${s.readyReplicas ?? 0}` },
     { label: 'Strategy Type', value: s => s.strategy || 'RollingUpdate' },
     { label: 'Status', value: stsStatus, badge: s => badgeClass(stsStatus(s)) },

@@ -1,8 +1,9 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, ageCol } from './common'
 
-export const runtimeClass = defineResource({
+export const runtimeClass = defineResource<k8s.RuntimeClassInfo>({
   id: 'runtimeclass',
   kind: 'RuntimeClass',
   view: 'runtimeclasses',

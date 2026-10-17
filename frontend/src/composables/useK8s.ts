@@ -8,7 +8,7 @@ import {
 import { useNotifications } from './useNotifications'
 
 import type {
-  NamespaceInfo, PodInfo,
+  NamespaceInfo,
   OverviewInfo,
   PodMetricsInfo, PortForwardSession,
 } from '../types'
@@ -74,7 +74,10 @@ function formatMemory(memStr: string | undefined): string {
   return (bytes / 1024 / 1024).toFixed(1) + 'MiB'
 }
 
-function mergePodMetrics(list: PodInfo[], metrics: PodMetricsInfo[]) {
+function mergePodMetrics<P extends { name: string; namespace: string }>(
+  list: P[],
+  metrics: PodMetricsInfo[],
+): (P & { cpu: string; memory: string })[] {
   return list.map(pod => {
     const metric = metrics.find(m => m.name === pod.name && m.namespace === pod.namespace)
     return { ...pod, cpu: formatCpu(metric?.totalCpu), memory: formatMemory(metric?.totalMem) }

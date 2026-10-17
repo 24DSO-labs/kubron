@@ -1,4 +1,5 @@
 import { defineResource } from '../types'
+import type { k8s as models } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { useK8s } from '../../composables/useK8s'
 import { flatNameCol, flatNsCol, ageCol } from './common'
@@ -20,7 +21,7 @@ function podStatus(p: any): string {
   return p.status || 'Unknown'
 }
 
-export const pod = defineResource({
+export const pod = defineResource<models.PodInfo, models.PodDetail>({
   id: 'pod',
   kind: 'Pod',
   view: 'pods',
@@ -128,7 +129,7 @@ export const pod = defineResource({
   // Список показывается сразу, метрики подмешиваются, когда придут
   onLoaded: async (items) => {
     await k8s.loadPodMetrics()
-    return k8s.mergePodMetrics(items as any[], k8s.podMetrics.value)
+    return k8s.mergePodMetrics(items, k8s.podMetrics.value)
   },
 
   api: {

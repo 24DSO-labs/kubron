@@ -1,9 +1,10 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, ageCol } from './common'
 import { badgeClass, statusColor } from '../status'
 
-export const namespaceResource = defineResource({
+export const namespaceResource = defineResource<k8s.NamespaceInfo>({
   id: 'namespace',
   kind: 'Namespace',
   view: 'namespaces',

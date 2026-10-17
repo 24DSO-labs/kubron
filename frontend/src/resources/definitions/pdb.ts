@@ -1,8 +1,9 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 
-export const podDisruptionBudget = defineResource({
+export const podDisruptionBudget = defineResource<k8s.PDBInfo>({
   id: 'poddisruptionbudget',
   kind: 'PDB',
   view: 'pdb',

@@ -1,9 +1,10 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol } from './common'
 import { badgeClass, statusColor } from '../status'
 
-export const helmRelease = defineResource({
+export const helmRelease = defineResource<k8s.HelmReleaseInfo>({
   id: 'helmrelease',
   kind: 'Helm Release',
   view: 'helm-releases',
