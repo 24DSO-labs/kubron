@@ -9,6 +9,7 @@ export const serviceAccount = defineResource({
   title: 'Service Accounts',
   icon: '👤',
   namespaced: true,
+  nav: { group: 'access', label: 'Service Accounts' },
   columns: [nameCol, nsCol, ageCol],
   // TODO: сверить поля с ServiceAccountDetailPanel (secrets / imagePullSecrets)
   properties: [

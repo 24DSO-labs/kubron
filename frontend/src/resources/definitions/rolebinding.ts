@@ -10,6 +10,7 @@ export const roleBinding = defineResource({
   title: 'Role Bindings',
   icon: '🔗',
   namespaced: true,
+  nav: { group: 'access', label: 'Role Bindings' },
   columns: [nameCol, nsCol, ageCol],
   sections: [BindingSection],
   api: {

@@ -10,6 +10,7 @@ export const role = defineResource({
   title: 'Roles',
   icon: '🔑',
   namespaced: true,
+  nav: { group: 'access', label: 'Roles' },
   columns: [nameCol, nsCol, ageCol],
   properties: [{ label: 'Rules', value: r => r.rules?.length ?? 0 }],
   sections: [RulesSection],

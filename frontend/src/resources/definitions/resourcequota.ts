@@ -8,6 +8,7 @@ export const resourceQuota = defineResource({
   view: 'resourcequotas',
   title: 'ResourceQuotas',
   namespaced: true,
+  nav: { group: 'config', label: 'Resource Quotas' },
 
   columns: [
     flatNameCol,

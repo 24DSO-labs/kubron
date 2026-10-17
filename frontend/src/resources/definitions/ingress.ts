@@ -8,6 +8,7 @@ export const ingress = defineResource({
   view: 'ingresses',
   title: 'Ingresses',
   namespaced: true,
+  nav: { group: 'network', label: 'Ingresses' },
 
   columns: [
     flatNameCol,

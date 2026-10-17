@@ -8,6 +8,7 @@ export const limitRange = defineResource({
   view: 'limitranges',
   title: 'LimitRanges',
   namespaced: true,
+  nav: { group: 'config', label: 'Limit Ranges' },
 
   columns: [
     flatNameCol,

@@ -21,6 +21,7 @@ export const statefulSet = defineResource({
   view: 'statefulsets',
   title: 'StatefulSets',
   namespaced: true,
+  nav: { group: 'workloads', label: 'Stateful Sets' },
 
   columns: [
     flatNameCol,

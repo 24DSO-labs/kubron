@@ -9,6 +9,7 @@ export const secret = defineResource({
   view: 'secrets',
   title: 'Secrets',
   namespaced: true,
+  nav: { group: 'config', label: 'Secrets' },
 
   columns: [
     flatNameCol,

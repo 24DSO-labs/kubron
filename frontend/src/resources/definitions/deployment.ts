@@ -37,6 +37,7 @@ export const deployment = defineResource({
   view: 'deployments',
   title: 'Deployments',
   namespaced: true,
+  nav: { group: 'workloads', label: 'Deployments' },
 
   columns: [
     flatNameCol,

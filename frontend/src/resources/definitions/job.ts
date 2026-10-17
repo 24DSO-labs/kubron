@@ -22,6 +22,7 @@ export const job = defineResource({
   view: 'jobs',
   title: 'Jobs',
   namespaced: true,
+  nav: { group: 'workloads', label: 'Jobs' },
 
   columns: [
     flatNameCol,

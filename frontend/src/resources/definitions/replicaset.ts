@@ -10,6 +10,7 @@ export const replicaSet = defineResource({
   view: 'replicasets',
   title: 'ReplicaSets',
   namespaced: true,
+  nav: { group: 'workloads', label: 'Replica Sets' },
 
   columns: [
     flatNameCol,
