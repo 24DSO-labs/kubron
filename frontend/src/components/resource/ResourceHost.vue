@@ -76,7 +76,8 @@ watch(
       try {
         const fresh = await d.api.get(o.ns, o.name)
         if (stale()) return
-        if (fresh) detail.value = fresh
+        // get может вернуть лишь часть полей (PodDetail): дополняем элемент списка, а не заменяем его
+        if (fresh) detail.value = { ...(detail.value ?? {}), ...fresh }
       } catch (e) {
         failure = e
       }

@@ -1,8 +1,9 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 
-export const limitRange = defineResource({
+export const limitRange = defineResource<k8s.LimitRangeInfo>({
   id: 'limitrange',
   kind: 'LimitRange',
   view: 'limitranges',

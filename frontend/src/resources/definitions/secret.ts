@@ -1,9 +1,10 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 import SecretDataSection from '../../components/resource/sections/SecretDataSection.vue'
 
-export const secret = defineResource({
+export const secret = defineResource<k8s.SecretInfo>({
   id: 'secret',
   kind: 'Secret',
   view: 'secrets',

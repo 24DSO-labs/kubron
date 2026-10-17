@@ -1,4 +1,5 @@
 import { watch } from 'vue'
+import type { k8s as models } from '../../../wailsjs/go/models'
 import { defineResource } from '../types'
 import { callApp } from '../wails'
 import { useK8s } from '../../composables/useK8s'
@@ -8,7 +9,7 @@ import { badgeClass, statusColor } from '../status'
 
 const k8s = useK8s()
 
-export const portForward = defineResource({
+export const portForward = defineResource<models.PortForwardSession>({
   id: 'portforward',
   kind: 'Port Forward',
   view: 'portforwarding',

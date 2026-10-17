@@ -1,8 +1,9 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, ageCol } from './common'
 
-export const ingressClass = defineResource({
+export const ingressClass = defineResource<k8s.IngressClassInfo>({
   id: 'ingressclass',
   kind: 'IngressClass',
   view: 'ingressclasses',

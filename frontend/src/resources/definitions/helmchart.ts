@@ -1,8 +1,9 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol } from './common'
 
-export const helmChart = defineResource({
+export const helmChart = defineResource<k8s.HelmChartInfo>({
   id: 'helmchart',
   kind: 'Helm Chart',
   view: 'helm-charts',

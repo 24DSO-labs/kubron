@@ -1,8 +1,9 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 
-export const networkPolicy = defineResource({
+export const networkPolicy = defineResource<k8s.NetworkPolicyInfo>({
   id: 'networkpolicy',
   kind: 'NetworkPolicy',
   view: 'network-policies',

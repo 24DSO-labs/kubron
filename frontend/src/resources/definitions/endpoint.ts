@@ -1,8 +1,9 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 
-export const endpoint = defineResource({
+export const endpoint = defineResource<k8s.EndpointListInfo>({
   id: 'endpoint',
   kind: 'Endpoint',
   view: 'endpoints',
