@@ -133,11 +133,15 @@ const iconStyle = computed(() => {
   vertical-align: middle;
   flex-shrink: 0;
   transition: opacity 0.15s;
+  /* Все иконки белые по умолчанию */
+  filter: invert(1);
+  opacity: 0.9;
 }
 .icon-sm { width: 16px; height: 16px; }
 .icon-md { width: 20px; height: 20px; }
 .icon-lg { width: 24px; height: 24px; }
 .icon-danger {
   filter: invert(31%) sepia(91%) saturate(6000%) hue-rotate(350deg) brightness(95%) contrast(90%);
+  opacity: 1;
 }
 </style>

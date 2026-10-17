@@ -18,11 +18,10 @@
         <div v-if="a.perContainer && containers.length > 1" class="rd-action-group" data-rd-dropdown>
           <button
             class="rd-action"
-            :class="{ danger: a.danger }"
             :title="a.label"
             @click="toggleDropdown(a.id)"
           >
-            <K8sIcon v-if="a.icon" :name="a.icon" :alt="a.label" size="lg" :danger="a.danger" />
+            <K8sIcon v-if="a.icon" :name="a.icon" :alt="a.label" size="sm" />
             <template v-else>{{ a.label }}</template>
           </button>
           <div v-if="openDropdown === a.id" class="rd-action-dropdown">
@@ -40,11 +39,10 @@
         <button
           v-else
           class="rd-action"
-          :class="{ danger: a.danger }"
           :title="a.label"
           @click="a.run(resource, resourceActions)"
         >
-          <K8sIcon v-if="a.icon" :name="a.icon" :alt="a.label" size="lg" :danger="a.danger" />
+          <K8sIcon v-if="a.icon" :name="a.icon" :alt="a.label" size="sm"/>
           <template v-else>{{ a.label }}</template>
         </button>
       </template>
