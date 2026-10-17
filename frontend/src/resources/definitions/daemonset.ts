@@ -17,6 +17,8 @@ export const daemonSet = defineResource<k8s.DaemonSetInfo>({
   namespaced: true,
   nav: { group: 'workloads', label: 'Daemon Sets' },
 
+  
+  autoRefresh: true,
   columns: [
     flatNameCol,
     flatNsCol,

@@ -10,7 +10,8 @@ export const storageClass = defineResource<k8s.StorageClassInfo>({
   title: 'StorageClasses',
   namespaced: false,
   nav: { group: 'storage', label: 'Storage Classes' },
-  icon: 'storage-class',
+  
+  autoRefresh: true,icon: 'storage-class',
 
   columns: [
     flatNameCol,

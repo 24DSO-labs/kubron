@@ -38,6 +38,8 @@ export const deployment = defineResource<k8s.DeploymentInfo>({
   namespaced: true,
   nav: { group: 'workloads', label: 'Deployments' },
 
+  
+  autoRefresh: true,
   columns: [
     flatNameCol,
     flatNsCol,

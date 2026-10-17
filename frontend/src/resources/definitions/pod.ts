@@ -19,6 +19,28 @@ function podStatus(p: any): string {
   return p.status || 'Unknown'
 }
 
+/** Маппинг kind -> resource id для ссылок */
+const kindToId: Record<string, string> = {
+  ReplicaSet: 'replicaset',
+  StatefulSet: 'statefulset',
+  DaemonSet: 'daemonset',
+  Job: 'job',
+  CronJob: 'cronjob',
+  Deployment: 'deployment',
+  Node: 'node',
+  Service: 'service',
+}
+
+function controlledByLink(p: any): { id: string; ns: string; name: string } | null {
+  const cb = p.controlledBy
+  if (!cb) return null
+  const [kind, name] = cb.split('/')
+  if (!kind || !name) return null
+  const id = kindToId[kind]
+  if (!id) return null
+  return { id, ns: p.namespace, name }
+}
+
 export const pod = defineResource<models.PodInfo, models.PodDetail>({
   id: 'pod',
   kind: 'Pod',
@@ -26,10 +48,11 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
   title: 'Pods',
   namespaced: true,
   nav: { group: 'workloads', label: 'Pods' },
+  autoRefresh: true,
 
   columns: [
     flatNameCol,
-    flatNsCol,
+    { ...flatNsCol, link: (p: any) => p.namespace ? { id: 'namespace', ns: '', name: p.namespace } : null },
     {
       key: 'cpu',
       label: 'CPU',
@@ -56,12 +79,13 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
     },
     { key: 'restarts', label: 'RESTARTS' },
     ageCol,
-    { key: 'node', label: 'NODE' },
+    { key: 'node', label: 'NODE', link: (p: any) => p.node ? { id: 'node', ns: '', name: p.node } : null },
     {
       key: 'controlledBy',
       label: 'Controller',
       className: 'ns-label',
       formatter: (p: any) => p.controlledBy?.split('/')[0] || '—',
+      link: controlledByLink,
     },
     
     { key: 'qos', label: 'QOS' },
@@ -80,7 +104,7 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
         const cb = p.controlledBy
         if (!cb) return null
         const [kind] = cb.split('/')
-        const hasLink = kind && ['ReplicaSet', 'StatefulSet', 'DaemonSet', 'Job', 'CronJob', 'Deployment', 'Service'].includes(kind)
+        const hasLink = kind && kindToId[kind]
         return hasLink ? kind + ' ' : cb
       },
       linkLabel: p => {
@@ -89,25 +113,7 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
         const [, name] = cb.split('/')
         return name || null
       },
-      link: p => {
-        const cb = p.controlledBy
-        if (!cb) return null
-        const [kind, name] = cb.split('/')
-        if (!kind || !name) return null
-        const idMap: Record<string, string> = {
-          ReplicaSet: 'replicaset',
-          StatefulSet: 'statefulset',
-          DaemonSet: 'daemonset',
-          Job: 'job',
-          CronJob: 'cronjob',
-          Deployment: 'deployment',
-          Node: 'node',
-          Service: 'service',
-        }
-        const id = idMap[kind]
-        if (!id) return null
-        return { id, ns: p.namespace, name }
-      },
+      link: controlledByLink,
     },
     { label: 'Service Account', value: p => p.serviceAccount, link: p => p.serviceAccount ? { id: 'serviceaccount', ns: p.namespace, name: p.serviceAccount } : null },
     { label: 'QoS', value: p => p.qos },

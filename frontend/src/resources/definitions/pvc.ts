@@ -12,6 +12,8 @@ export const persistentVolumeClaim = defineResource<k8s.PVCInfo>({
   namespaced: true,
   nav: { group: 'storage', label: 'Persistent Volume Claims' },
 
+  
+  autoRefresh: true,
   columns: [
     flatNameCol,
     flatNsCol,

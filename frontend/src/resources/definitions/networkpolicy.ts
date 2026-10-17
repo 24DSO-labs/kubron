@@ -10,7 +10,8 @@ export const networkPolicy = defineResource<k8s.NetworkPolicyInfo>({
   title: 'NetworkPolicies',
   namespaced: true,
   nav: { group: 'network', label: 'Network Policies' },
-  icon: 'network-policy',
+  
+  autoRefresh: true,icon: 'network-policy',
 
   columns: [
     flatNameCol,
