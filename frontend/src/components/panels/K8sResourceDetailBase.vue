@@ -9,17 +9,17 @@
 
         <!-- Edit button -->
         <button v-if="showEdit !== false" class="btn-action" @click="emit('edit')" title="Edit">
-          <K8sIcon name="edit" alt="Edit" size="lg" />
+          <K8sIcon name="edit" alt="Edit" size="sm" />
         </button>
 
         <!-- Delete button -->
-        <button v-if="showDelete !== false" class="btn-action btn-danger" @click="emit('delete')" title="Delete resource">
-          <K8sIcon name="delete" alt="Delete" size="lg" danger />
+        <button v-if="showDelete !== false" class="btn-action" @click="emit('delete')" title="Delete resource">
+          <K8sIcon name="delete" alt="Delete" size="sm" />
         </button>
 
         <!-- Close button -->
-        <button class="btn-close" @click="emit('close')" title="Close">
-          <K8sIcon name="close" alt="Close" size="lg" />
+        <button class="btn-action" @click="emit('close')" title="Close">
+          <K8sIcon name="close" alt="Close" size="sm" />
         </button>
       </div>
     </div>
@@ -351,9 +351,7 @@ function formatAgeAbsolute(created: string): string {
 }
 
 .btn-action :deep(.k8s-icon) {
-  filter: invert(1);
   opacity: 0.85;
-  transition: opacity 0.15s;
 }
 
 .btn-action:hover :deep(.k8s-icon) {
