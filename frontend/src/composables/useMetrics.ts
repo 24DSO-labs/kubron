@@ -189,22 +189,3 @@ export function usePrometheusRange(clusterName: string) {
 
   return { queryRange }
 }
-
-// Get Node Metrics by Role
-export const useMetrics = () => {
-  const getNodeMetricsByRole = async (role: 'master' | 'worker') => {
-    try {
-      // Use wails binding to call backend method
-      const { GetNodeMetricsByRole } = await import('../../wailsjs/go/main/App')
-      const data = await GetNodeMetricsByRole(role)
-      return data
-    } catch (error) {
-      console.error(`Error fetching ${role} node metrics:`, error)
-      throw error
-    }
-  }
-
-  return {
-    getNodeMetricsByRole,
-  }
-}
