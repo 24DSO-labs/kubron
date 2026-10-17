@@ -8,6 +8,7 @@ export const ingressClass = defineResource({
   view: 'ingressclasses',
   title: 'IngressClasses',
   namespaced: false,
+  nav: { group: 'network', label: 'Ingress Classes' },
 
   columns: [
     flatNameCol,

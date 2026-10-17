@@ -14,6 +14,7 @@ export const portForward = defineResource({
   view: 'portforwarding',
   title: 'Port Forwarding',
   namespaced: false,
+  nav: { group: 'network', label: 'Port Forwarding' },
   // локальные сессии приложения, не ресурс k8s: без YAML и удаления
   editable: false,
 

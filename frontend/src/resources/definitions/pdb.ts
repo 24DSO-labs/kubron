@@ -8,6 +8,7 @@ export const podDisruptionBudget = defineResource({
   view: 'pdb',
   title: 'PodDisruptionBudgets',
   namespaced: true,
+  nav: { group: 'config', label: 'Pod Disruption Budgets' },
 
   columns: [
     flatNameCol,

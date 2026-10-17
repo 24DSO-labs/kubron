@@ -8,6 +8,7 @@ export const networkPolicy = defineResource({
   view: 'network-policies',
   title: 'NetworkPolicies',
   namespaced: true,
+  nav: { group: 'network', label: 'Network Policies' },
 
   columns: [
     flatNameCol,

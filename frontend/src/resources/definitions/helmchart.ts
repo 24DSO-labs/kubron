@@ -8,6 +8,7 @@ export const helmChart = defineResource({
   view: 'helm-charts',
   title: 'Helm Charts',
   namespaced: false,
+  nav: { group: 'helm', label: 'Charts' },
   // агрегация установленных релизов по chart-у: без YAML и удаления
   editable: false,
 

@@ -10,6 +10,7 @@ export const namespaceResource = defineResource({
   title: 'Namespaces',
   icon: '📂',
   namespaced: false,
+  nav: { label: 'Namespaces' },
 
   columns: [
     flatNameCol,

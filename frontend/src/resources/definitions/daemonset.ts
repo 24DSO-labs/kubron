@@ -15,6 +15,7 @@ export const daemonSet = defineResource({
   view: 'daemonsets',
   title: 'DaemonSets',
   namespaced: true,
+  nav: { group: 'workloads', label: 'Daemon Sets' },
 
   columns: [
     flatNameCol,

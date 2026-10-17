@@ -10,6 +10,7 @@ export const clusterRoleBinding = defineResource({
   title: 'Cluster Role Bindings',
   icon: '🔗',
   namespaced: false,
+  nav: { group: 'access', label: 'Cluster Role Bindings' },
   columns: [nameCol, ageCol],
   sections: [BindingSection],
   api: {

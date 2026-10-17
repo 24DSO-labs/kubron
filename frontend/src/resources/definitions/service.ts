@@ -10,6 +10,7 @@ export const service = defineResource({
   view: 'services',
   title: 'Services',
   namespaced: true,
+  nav: { group: 'network', label: 'Services' },
 
   columns: [
     flatNameCol,

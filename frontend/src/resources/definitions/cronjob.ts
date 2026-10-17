@@ -8,6 +8,7 @@ export const cronJob = defineResource({
   view: 'cronjobs',
   title: 'CronJobs',
   namespaced: true,
+  nav: { group: 'workloads', label: 'Cron Jobs' },
 
   columns: [
     flatNameCol,

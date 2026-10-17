@@ -26,6 +26,7 @@ export const pod = defineResource({
   view: 'pods',
   title: 'Pods',
   namespaced: true,
+  nav: { group: 'workloads', label: 'Pods' },
 
   columns: [
     flatNameCol,

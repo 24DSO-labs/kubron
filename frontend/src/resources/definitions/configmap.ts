@@ -10,6 +10,7 @@ export const configMap = defineResource({
   title: 'ConfigMaps',
   icon: '📄',
   namespaced: true,
+  nav: { group: 'config', label: 'Config Maps' },
 
   columns: [flatNameCol, flatNsCol, { key: 'dataCount', label: 'Data' }, ageCol],
 

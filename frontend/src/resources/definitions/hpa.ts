@@ -8,6 +8,7 @@ export const horizontalPodAutoscaler = defineResource({
   view: 'hpa',
   title: 'HorizontalPodAutoscalers',
   namespaced: true,
+  nav: { group: 'config', label: 'HPA' },
 
   columns: [
     flatNameCol,
