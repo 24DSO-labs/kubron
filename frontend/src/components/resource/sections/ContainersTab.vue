@@ -7,68 +7,127 @@
         <span class="ct-image">{{ c.image }}</span>
         <span class="ct-arrow" :class="{ open: !collapsed.has(c.name) }">›</span>
       </div>
+
       <div v-if="!collapsed.has(c.name)" class="ct-body">
+        <!-- Metrics -->
         <div v-if="clusterName" class="rd-block">
-          <div class="rd-block-head" @click="toggleMetrics(c.name)">
+          <div class="rd-block-head" @click="flip(metricsOpen, c.name)">
             <span>Metrics</span>
-            <span class="rd-arrow" :class="{ open: !metricsCollapsed.has(c.name) }">›</span>
+            <span class="rd-arrow" :class="{ open: metricsOpen[c.name] }">›</span>
           </div>
-          <div v-if="!metricsCollapsed.has(c.name)" class="rd-block-body">
-            <ContainerMetricsViewer :cluster-name="clusterName" :namespace="resource.namespace" :pod-name="resource.name" :container-name="c.name" />
+          <div v-if="metricsOpen[c.name]" class="rd-block-body">
+            <ContainerMetricsViewer
+              :cluster-name="clusterName"
+              :namespace="resource.namespace"
+              :pod-name="resource.name"
+              :container-name="c.name"
+            />
           </div>
         </div>
-        <div class="rd-row"><span class="rd-label">Status</span><span class="rd-value"><span class="rd-badge" :class="badgeClass(c.state)">{{ c.state || '—' }}</span></span></div>
-        <div class="rd-row"><span class="rd-label">Image</span><span class="rd-value">{{ c.image || '—' }}</span></div>
-        <div class="rd-row"><span class="rd-label">ImagePullPolicy</span><span class="rd-value">{{ c.imagePullPolicy || '—' }}</span></div>
+
+        <!-- Status -->
+        <div class="rd-row">
+          <span class="rd-label">Status</span>
+          <span class="rd-value" :class="statusTextClass(c)">{{ statusText(c) }}</span>
+        </div>
+
+        <!-- Image -->
+        <div class="rd-row">
+          <span class="rd-label">Image</span>
+          <span class="rd-value"><span v-if="c.image" class="ct-chip">{{ c.image }}</span><template v-else>—</template></span>
+        </div>
+
+        <!-- ImagePullPolicy -->
+        <div class="rd-row">
+          <span class="rd-label">ImagePullPolicy</span>
+          <span class="rd-value">{{ c.imagePullPolicy || '—' }}</span>
+        </div>
+
+        <!-- Ports -->
         <div v-if="c.ports?.length" class="rd-row">
           <span class="rd-label">Ports</span>
-          <div class="rd-value">
-            <div v-for="p in c.ports" :key="p.containerPort" class="ct-port">
-              <a class="rd-link" href="#" @click.prevent>{{ p.name ? p.name + ': ' : '' }}{{ p.containerPort }}/{{ p.protocol || 'TCP' }}</a>
-              <PortForwardControl :namespace="resource.namespace" :resource-name="resource.name" :port="p.containerPort" resource-type="pod" />
+          <div class="rd-value ct-ports">
+            <div v-for="p in c.ports" :key="p.containerPort + '/' + p.protocol" class="ct-port">
+              <a class="rd-link" href="#" @click.prevent>
+                {{ p.name ? p.name + ': ' : '' }}{{ p.containerPort }}/{{ p.protocol || 'TCP' }}
+              </a>
+              <PortForwardControl
+                :namespace="resource.namespace"
+                :resource-name="resource.name"
+                :port="p.containerPort"
+                resource-type="pod"
+              />
             </div>
           </div>
         </div>
-        <div v-if="c.environment?.length" class="rd-block">
-          <div class="rd-block-head" @click="toggleEnv(c.name)">
-            <span>Environment</span>
-            <K8sIcon :name="envCollapsed.has(c.name) ? 'view' : 'view-off'" size="sm" />
-          </div>
-          <div v-if="!envCollapsed.has(c.name)" class="rd-block-body">
-            <div v-for="e in c.environment" :key="e.name" class="ct-env">
-              <span class="ct-env-name">{{ e.name }}</span>
-              <span class="ct-env-sep">:</span>
-              <template v-if="isSecret(e.value)">
-                <span class="ct-env-value ct-env-secret">{{ maskSecret(e.value) }}</span>
-                <button
-                  class="ct-env-eye"
-                  :title="envRevealed[e.name] ? 'Hide' : 'Reveal'"
-                  @click.stop="envRevealed[e.name] = !envRevealed[e.name]"
-                >
-                  <K8sIcon :name="envRevealed[e.name] ? 'view-off' : 'view'" size="sm" />
-                </button>
-                <span v-if="envRevealed[e.name]" class="ct-env-value">{{ e.value }}</span>
-              </template>
-              <span v-else class="ct-env-value">{{ e.value || '—' }}</span>
+
+<!-- Environment -->
+<div class="rd-row rd-click" @click="flip(envOpen, c.name)">
+  <span class="rd-label">Environment<span class="rd-arrow" :class="{ open: envOpen[c.name] }">›</span></span>
+  <span class="rd-value">{{ envList(c).length }} Environmental Variables</span>
+
+  <div v-if="envOpen[c.name]" class="rd-wide ct-env-box" @click.stop>
+    <div v-if="!envList(c).length" class="rd-muted ct-env-empty">—</div>
+    <div v-for="e in sortedEnv(c)" :key="e.name" class="ct-env">
+  <span class="ct-env-name" :title="e.name">{{ e.name }}</span>
+
+  <div class="ct-env-val">
+    <template v-if="refOf(e.value)">
+      <span class="ct-ref-badge" :class="'ct-ref-' + refOf(e.value)!.kind">{{ refOf(e.value)!.kind }}</span>
+
+      <span v-if="envKey(c, e) in secretValues" class="ct-env-plain">{{ secretValues[envKey(c, e)] || '(пусто)' }}</span>
+      <span v-else class="ct-ref-text">
+        <template v-if="refOf(e.value)!.key">
+          {{ refOf(e.value)!.name }}<span class="ct-ref-arrow"> → </span>{{ refOf(e.value)!.key }}
+        </template>
+        <template v-else>{{ refOf(e.value)!.name }}</template>
+      </span>
+    </template>
+    <span v-else class="ct-env-plain">{{ e.value || '—' }}</span>
+
+    <div v-if="secretErrors[envKey(c, e)]" class="ct-env-err">{{ secretErrors[envKey(c, e)] }}</div>
+  </div>
+
+  <div class="ct-env-act">
+    <button
+      v-if="refOf(e.value)?.kind === 'secret'"
+      class="ct-env-eye"
+      :disabled="secretLoading[envKey(c, e)]"
+      :title="envKey(c, e) in secretValues ? 'Hide' : 'Reveal'"
+      @click.stop="toggleSecret(c, e)"
+    >
+      <K8sIcon :name="envKey(c, e) in secretValues ? 'view-off' : 'view'" size="sm" />
+    </button>
+  </div>
+</div>
+  </div>
+</div>
+
+        <!-- Mounts -->
+        <div class="rd-row rd-click" @click="flip(mountsClosed, c.name)">
+          <span class="rd-label">Mounts<span class="rd-arrow" :class="{ open: !mountsClosed[c.name] }">›</span></span>
+          <span v-if="mountsClosed[c.name]" class="rd-value">{{ mountList(c).length }} Mounts</span>
+          <div v-else class="rd-value ct-mounts" @click.stop>
+            <div v-if="!mountList(c).length" class="rd-muted">—</div>
+            <div v-for="m in mountList(c)" :key="m.mountPath + m.name" class="ct-mount">
+              <span class="ct-chip ct-chip-block">{{ m.mountPath }}</span>
+              <span class="ct-mount-from">
+                from {{ m.name }}<template v-if="m.subPath"> ({{ m.subPath }})</template>
+                ({{ m.readOnly ? 'ro' : 'rw' }})
+              </span>
             </div>
           </div>
         </div>
-        <div v-if="c.mounts?.length" class="rd-block">
-          <div class="rd-block-head" @click="toggleMounts(c.name)">
-            <span>Mounts</span>
-            <K8sIcon :name="mountsCollapsed.has(c.name) ? 'close' : 'close'" size="sm" />
-          </div>
-          <div v-if="!mountsCollapsed.has(c.name)" class="rd-block-body">
-            <div v-for="m in c.mounts" :key="m.name" class="ct-mount">
-              <span class="ct-mount-path">{{ m.mountPath }}</span>
-              <span class="ct-mount-from">from {{ m.name }} <span v-if="m.readOnly" class="ct-mount-ro">(ro)</span><span v-else class="ct-mount-ro">(rw)</span></span>
-            </div>
-          </div>
+
+        <!-- Requests / Limits -->
+        <div class="rd-row">
+          <span class="rd-label">Requests</span>
+          <span class="rd-value">{{ fmtRes(c, 'requests') }}</span>
         </div>
-        <div class="rd-row"><span class="rd-label">Resources</span><span class="rd-value">{{ fmtRes(c.resources?.requests) }}</span></div>
-        <div class="rd-row"><span class="rd-label">Limits</span><span class="rd-value">{{ fmtRes(c.resources?.limits) }}</span></div>
-        <div v-if="c.resources?.requests" class="rd-row"><span class="rd-label">Requests</span><span class="rd-value">{{ fmtRes(c.resources.requests) }}</span></div>
-        <div v-if="c.resources?.limits" class="rd-row"><span class="rd-label">Limits</span><span class="rd-value">{{ fmtRes(c.resources.limits) }}</span></div>
+        <div class="rd-row">
+          <span class="rd-label">Limits</span>
+          <span class="rd-value">{{ fmtRes(c, 'limits') }}</span>
+        </div>
       </div>
     </div>
   </div>
@@ -80,16 +139,19 @@ import { clusterNameKey } from '../../../resources/context'
 import ContainerMetricsViewer from '../../metrics/ContainerMetricsViewer.vue'
 import K8sIcon from '../../icons/K8sIcon.vue'
 import PortForwardControl from './PortForwardControl.vue'
-import { badgeClass } from '../../../resources/status'
+import { callApp } from '../../../resources/wails'
+import { useNotifications } from '../../../composables/useNotifications'
 
 const props = defineProps<{ resource: any }>()
 const clusterName = inject(clusterNameKey, ref(undefined))
-const containers = computed(() => props.resource?.containers ?? [])
+const containers = computed<any[]>(() => props.resource?.containers ?? [])
+
+// Состояния раскрытия: metrics/env свёрнуты по умолчанию, mounts раскрыт
 const collapsed = ref<Set<string>>(new Set())
-const metricsCollapsed = ref<Set<string>>(new Set(containers.value.map((c: any) => c.name)))
-const envCollapsed = ref<Set<string>>(new Set(containers.value.map((c: any) => c.name)))
-const mountsCollapsed = ref<Set<string>>(new Set(containers.value.map((c: any) => c.name)))
-const envRevealed = reactive<Record<string, boolean>>({})
+const metricsOpen = reactive<Record<string, boolean>>({})
+const envOpen = reactive<Record<string, boolean>>({})
+const mountsClosed = reactive<Record<string, boolean>>({})
+// const envRevealed = reactive<Record<string, boolean>>({})
 
 function toggle(name: string) {
   const s = new Set(collapsed.value)
@@ -97,74 +159,166 @@ function toggle(name: string) {
   else s.add(name)
   collapsed.value = s
 }
-
-function toggleMetrics(name: string) {
-  const s = new Set(metricsCollapsed.value)
-  if (s.has(name)) s.delete(name)
-  else s.add(name)
-  metricsCollapsed.value = s
+function flip(rec: Record<string, boolean>, key: string) {
+  rec[key] = !rec[key]
 }
 
-function toggleEnv(name: string) {
-  const s = new Set(envCollapsed.value)
-  if (s.has(name)) s.delete(name)
-  else s.add(name)
-  envCollapsed.value = s
+// Go отдаёт env и volumeMounts (а не environment / mounts)
+const envList = (c: any): { name: string; value: string }[] => c.env ?? c.environment ?? []
+const mountList = (c: any): any[] => c.volumeMounts ?? c.mounts ?? []
+
+const isRef = (v: string) => typeof v === 'string' && v.startsWith('secret(')
+
+/** "configmap(name/key)" -> { kind, name, key } */
+function refOf(v: string): { kind: string; name: string; key: string } | null {
+  const m = typeof v === 'string' ? v.match(/^(secret|configmap|field|resource)\((.*)\)$/) : null
+  if (!m) return null
+  const i = m[2].indexOf('/')
+  return i < 0
+    ? { kind: m[1], name: m[2], key: '' }
+    : { kind: m[1], name: m[2].slice(0, i), key: m[2].slice(i + 1) }
 }
 
-function toggleMounts(name: string) {
-  const s = new Set(mountsCollapsed.value)
-  if (s.has(name)) s.delete(name)
-  else s.add(name)
-  mountsCollapsed.value = s
+const sortedEnv = (c: any) => [...envList(c)].sort((a, b) => a.name.localeCompare(b.name))
+
+const notifications = useNotifications()
+const secretValues = reactive<Record<string, string>>({}) // загруженные значения
+const secretLoading = reactive<Record<string, boolean>>({})
+
+const envKey = (c: any, e: { name: string }) => `${c.name}/${e.name}`
+
+const secretErrors = reactive<Record<string, string>>({})
+
+async function toggleSecret(c: any, e: { name: string; value: string }) {
+  const k = envKey(c, e)
+  if (k in secretValues) { delete secretValues[k]; return } // скрыть
+  if (secretLoading[k]) return
+
+  const ref = refOf(e.value)
+  if (!ref || ref.kind !== 'secret' || !ref.key) return
+
+  secretLoading[k] = true
+  delete secretErrors[k]
+  try {
+    const v = await callApp('GetSecretValue', props.resource.namespace, ref.name, ref.key)
+    secretValues[k] = v ?? ''
+  } catch (err: any) {
+    console.error('GetSecretValue failed:', err)
+    secretErrors[k] = err?.message || String(err)
+  } finally {
+    secretLoading[k] = false
+  }
 }
 
-function isSecret(value: string): boolean {
-  return typeof value === 'string' && value.startsWith('secret(')
-}
+// function maskRef(v: string): string {
+//   const m = v.match(/^secret\(([^)]+)\)$/)
+//   return m ? `secret(${m[1].split('/')[0]})` : 'secret(???)'
+// }
 
-function maskSecret(value: string): string {
-  const match = value.match(/^secret\(([^)]+)\)$/)
-  return match ? `secret(${match[1].split('/')[0]})` : 'secret(???)'
+function statusText(c: any): string {
+  const state = c.state || 'unknown'
+  return c.ready ? `${state}, ready` : state
 }
 function statusClass(c: any): string {
   if (c.state === 'running' && c.ready) return 'ct-ok'
   if (c.state === 'running') return 'ct-warn'
-  if (['CrashLoopBackOff','Error','OOMKilled'].includes(c.state)) return 'ct-err'
+  if (['CrashLoopBackOff', 'Error', 'OOMKilled'].includes(c.state)) return 'ct-err'
   return 'ct-neutral'
 }
-function fmtRes(r: Record<string,string> | null | undefined): string {
-  if (!r || typeof r !== 'object') return '—'
-  const entries = Object.entries(r)
-  return entries.length ? entries.map(([k,v])=>`${k}: ${v}`).join(', ') : '—'
+function statusTextClass(c: any): string {
+  return 'ct-text-' + statusClass(c).slice(3)
+}
+
+// resources: { requestsCpu, requestsMemory, limitsCpu, limitsMemory }
+function fmtRes(c: any, kind: 'requests' | 'limits'): string {
+  const r = c.resources
+  if (!r) return '—'
+  const cpu = kind === 'requests' ? r.requestsCpu : r.limitsCpu
+  const mem = kind === 'requests' ? r.requestsMemory : r.limitsMemory
+  const parts: string[] = []
+  if (cpu) parts.push(`CPU: ${cpu}`)
+  if (mem) parts.push(`Memory: ${mem}`)
+  return parts.length ? parts.join(', ') : '—'
 }
 </script>
 
 <style scoped>
 .ct-block { margin-bottom: 12px; border: 1px solid #2a2b40; border-radius: 6px; overflow: hidden; background: #1a1b2e; }
-.ct-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; user-select: none; font-weight: 600; }
-.ct-head:hover { background: rgba(255,255,255,0.02); }
+.ct-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; cursor: pointer; user-select: none;
+  font-weight: 600; font-size: 0.95rem; color: #d4d4d4;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
+}
+.ct-head:hover {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.1) 100%);
+}
 .ct-status { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .ct-ok { background: #4ade80; } .ct-warn { background: #facc15; } .ct-err { background: #ef4444; } .ct-neutral { background: #868d8a; }
+.ct-text-ok { color: #4ade80; } .ct-text-warn { color: #facc15; } .ct-text-err { color: #ef4444; } .ct-text-neutral { color: #868d8a; }
 .ct-name { color: #d4d4d4; }
 .ct-image { color: #868d8a; font-size: 0.8rem; font-weight: 400; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ct-arrow { margin-left: auto; transition: transform 0.2s; color: #868d8a; } .ct-arrow.open { transform: rotate(90deg); }
-.ct-body { padding: 12px 14px; border-top: 1px solid #2a2b40; display: flex; flex-direction: column; }
-.ct-port { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; } .ct-port-name { color: #868d8a; font-size: 0.8rem; }
-.ct-env { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 0.85rem; }
-.ct-env-name { color: #d4d4d4; font-weight: 500; min-width: 0; }
-.ct-env-sep { color: #6b6d8a; }
-.ct-env-value { color: #e5e7eb; word-break: break-all; }
-.ct-env-secret { color: #fbbf24; }
+.ct-body { padding: 16px; border-top: 1px solid #2a2b40; display: flex; flex-direction: column; }
+.ct-body > .rd-block { margin-top: 8px; }
+
+.ct-chip {
+  display: inline-block; padding: 3px 8px; background: #1a1b2e; border-radius: 3px;
+  font-family: 'Courier New', monospace; font-size: 0.8rem; color: #d4d4d4; word-break: break-all;
+}
+.ct-chip-block { display: block; }
+
+.ct-ports { display: flex; flex-direction: column; gap: 6px; }
+.ct-port { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+.ct-env-box {
+  margin-top: 8px; max-height: 340px; overflow-y: auto;
+  background: #1a1b2e; border: 1px solid #2a2b40; border-radius: 6px;
+}
+.ct-env-box::-webkit-scrollbar { width: 6px; }
+.ct-env-box::-webkit-scrollbar-track { background: transparent; }
+.ct-env-box::-webkit-scrollbar-thumb { background: #3e3f5e; border-radius: 3px; }
+.ct-env-box::-webkit-scrollbar-thumb:hover { background: #4e4f6e; }
+.ct-env-empty { padding: 10px 12px; }
+
+.ct-env:last-child { border-bottom: none; }
+.ct-env:hover { background: rgba(255,255,255,0.02); }
+
+.ct-env-plain { color: #e5e7eb; font-family: 'Courier New', monospace; overflow-wrap: anywhere; }
+.ct-env {
+  display: grid; grid-template-columns: minmax(130px, 38%) minmax(0, 1fr) 26px; gap: 10px;
+  padding: 7px 12px; border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 0.82rem; align-items: start;
+}
+.ct-env-name {
+  color: #60a5fa; font-family: 'Courier New', monospace; font-weight: 600;
+  overflow-wrap: break-word; word-break: break-word; min-width: 0;
+}
+.ct-env-val { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.ct-env-act { display: flex; justify-content: flex-end; }
+.ct-env-err { flex-basis: 100%; color: #f87171; font-size: 0.75rem; }
+
+.ct-ref-badge {
+  flex-shrink: 0; padding: 1px 6px; border-radius: 3px;
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.ct-ref-configmap { color: #60a5fa; background: rgba(96,165,250,0.14); }
+.ct-ref-secret    { color: #fbbf24; background: rgba(251,191,36,0.14); }
+.ct-ref-field, .ct-ref-resource { color: #a78bfa; background: rgba(167,139,250,0.14); }
+
+.ct-ref-text { color: #9ca0b8; overflow-wrap: anywhere; min-width: 0; }
+.ct-ref-arrow { color: #6b6d8a; }
+
 .ct-env-eye {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 22px; height: 22px; padding: 0; margin: 0;
+  width: 22px; height: 22px; padding: 0; flex-shrink: 0;
   background: transparent; border: none; border-radius: 3px;
   cursor: pointer; color: #868d8a; transition: all 0.15s;
 }
 .ct-env-eye:hover { background: rgba(255,255,255,0.08); color: #d4d4d4; }
-.ct-mount { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; font-size: 0.85rem; }
-.ct-mount-path { color: #e5e7eb; }
-.ct-mount-from { color: #868d8a; font-size: 0.8rem; }
-.ct-mount-ro { color: #facc15; font-size: 0.75rem; }
+.ct-env-eye:disabled { opacity: 0.5; cursor: wait; }
+
+.ct-mounts { display: flex; flex-direction: column; gap: 6px; }
+.ct-mount { display: flex; flex-direction: column; gap: 4px; }
+.ct-mount-from { color: #d4d4d4; font-size: 0.875rem; }
 </style>
