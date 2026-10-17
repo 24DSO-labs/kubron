@@ -17,21 +17,20 @@ import (
 func findManifestPath() string {
 	candidates := []string{
 		filepath.Join("manifests", MetricsManifest),
-		filepath.Join("backend", "manifests", MetricsManifest),
 	}
 	if ex, err := os.Executable(); err == nil {
 		candidates = append(candidates, filepath.Join(filepath.Dir(ex), "manifests", MetricsManifest))
 	}
 	if _, f, _, ok := runtime.Caller(0); ok {
 		srcDir := filepath.Dir(f)
-		candidates = append(candidates, filepath.Join(srcDir, "..", "..", "backend", "manifests", MetricsManifest))
+		candidates = append(candidates, filepath.Join(srcDir, "..", "..", "manifests", MetricsManifest))
 	}
 	for _, p := range candidates {
 		if _, err := os.Stat(p); err == nil {
 			return p
 		}
 	}
-	return filepath.Join("backend", "manifests", MetricsManifest)
+	return filepath.Join("manifests", MetricsManifest)
 }
 
 func loadManifestData() ([]byte, error) {
