@@ -194,6 +194,18 @@ func (a *App) DeleteDaemonSet(namespace, name string) error {
 	return a.k8sMgr.DeleteDaemonSet(namespace, name)
 }
 
+func (a *App) RestartDaemonSet(namespace, name string) error {
+	return a.k8sMgr.RestartDaemonSet(namespace, name)
+}
+
+func (a *App) DeleteReplicaSet(namespace, name string) error {
+	return a.k8sMgr.DeleteReplicaSet(namespace, name)
+}
+
+func (a *App) DeleteConfigMap(namespace, name string) error {
+	return a.k8sMgr.DeleteConfigMap(namespace, name)
+}
+
 func (a *App) RetryJob(namespace, name string) error {
 	return a.k8sMgr.RetryJob(namespace, name)
 }

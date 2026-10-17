@@ -379,6 +379,27 @@ func (m *Manager) DeleteDaemonSet(namespace, daemonSetName string) error {
 	return conn.Client.AppsV1().DaemonSets(namespace).Delete(ctx, daemonSetName, metav1.DeleteOptions{})
 }
 
+// RestartDaemonSet триггерит rolling restart: меняет аннотацию в шаблоне пода (как kubectl rollout restart)
+func (m *Manager) RestartDaemonSet(namespace, name string) error {
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	ds, err := conn.Client.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	if ds.Spec.Template.Annotations == nil {
+		ds.Spec.Template.Annotations = make(map[string]string)
+	}
+	ds.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.RFC3339)
+	_, err = conn.Client.AppsV1().DaemonSets(namespace).Update(ctx, ds, metav1.UpdateOptions{})
+	return err
+}
+
 // RetryJob creates a new job from an existing job configuration
 func (m *Manager) RetryJob(namespace, jobName string) error {
 	conn, err := m.GetActiveConnection()
@@ -470,13 +491,13 @@ func (m *Manager) GetCronJobs(namespace string) ([]CronJobInfo, error) {
 }
 
 func (m *Manager) DeleteCronJob(namespace, name string) error {
-conn, err := m.GetActiveConnection()
-if err != nil {
-return err
-}
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return err
+	}
 
-ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 
-return conn.Client.BatchV1().CronJobs(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+	return conn.Client.BatchV1().CronJobs(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 }
