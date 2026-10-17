@@ -1,7 +1,7 @@
 import { ref, type Ref } from 'vue'
 import {
   GetNamespaces,
-  GetClusterOverview, ApplyYAML,
+  ApplyYAML,
   GetPodMetrics,
   ListPortForwards,
 } from '../../wailsjs/go/main/App'
@@ -9,7 +9,6 @@ import { useNotifications } from './useNotifications'
 
 import type {
   NamespaceInfo,
-  OverviewInfo,
   PodMetricsInfo, PortForwardSession,
 } from '../types'
 
@@ -35,7 +34,6 @@ const fail = (prefix: string, e: any) => notifications.notifyError(`${prefix}: $
 // ─── State: списки ───
 
 const namespaces = ref<NamespaceInfo[]>([]) // для выбора namespace в Sidebar
-const overview = ref<OverviewInfo | null>(null)
 
 const podMetrics = ref<PodMetricsInfo[]>([])
 const portForwards = ref<PortForwardSession[]>([])
@@ -55,11 +53,6 @@ const error = ref('')
 const loading = ref(false)
 
 // ─── Helpers ───
-
-function pct(a: number, b: number): string {
-  if (b === 0) return '0%'
-  return Math.round((a / b) * 100) + '%'
-}
 
 function formatCpu(cpuStr: string | undefined): string {
   if (!cpuStr) return '—'
@@ -89,7 +82,6 @@ function mergePodMetrics<P extends { name: string; namespace: string }>(
 
 function disconnect() {
   for (const l of clearableLists) l.value = []
-  overview.value = null
   selectedNamespace.value = ''
   loadedViews.clear()
 }
@@ -112,12 +104,7 @@ type Loader = (ns: string, isCurrent: () => boolean) => Promise<void>
  * view -> как его грузить. Для view, которых здесь нет (новый каркас, settings),
  * refreshData() ничего не делает.
  */
-const loaders: Record<string, Loader> = {
-  overview: async (_ns, isCurrent) => {
-    const data = await GetClusterOverview()
-    if (isCurrent()) overview.value = data
-  },
-}
+const loaders: Record<string, Loader> = {}
 
 let refreshSeq = 0
 /** view, данные которых уже загружались: для них обновление идёт "тихо", без лоадера */
@@ -200,13 +187,12 @@ export function useK8s() {
   return {
     // State
     namespaces,
-    overview,
     podMetrics, portForwards,
     selectedNamespace, currentView, search,
     error, loading,
 
     // Helpers
-    pct, formatCpu, formatMemory, mergePodMetrics,
+    formatCpu, formatMemory, mergePodMetrics,
 
     // Connection / navigation / data
     disconnect, loadNamespaces,

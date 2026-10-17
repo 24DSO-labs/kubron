@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+// ClusterMetricsSnapshot — текущая загрузка кластера по данным Prometheus.
+// CPU в ядрах, память в байтах; Percent считается от суммарной ёмкости нод, на которых работает node-exporter.
 type ClusterMetricsSnapshot struct {
 	CPUPercent     float64 `json:"cpuPercent"`
 	CPUUsage       float64 `json:"cpuUsage"`
@@ -13,41 +15,36 @@ type ClusterMetricsSnapshot struct {
 	MemoryPercent  float64 `json:"memoryPercent"`
 	MemoryUsage    float64 `json:"memoryUsage"`
 	MemoryCapacity float64 `json:"memoryCapacity"`
-	PodPercent     float64 `json:"podPercent"`
-	PodCount       float64 `json:"podCount"`
-	PodCapacity    float64 `json:"podCapacity"`
 }
 
 func (m *Manager) GetClusterMetricsSnapshot() (*ClusterMetricsSnapshot, error) {
 	snapshot := &ClusterMetricsSnapshot{}
 
-	// Get CPU metrics
-	cpuResult, err := m.QueryPrometheus(promQueryNodeCPU())
-	if err == nil && cpuResult != nil {
-		cpuValue := parsePrometheusResult(cpuResult)
-		snapshot.CPUPercent = cpuValue
-		snapshot.CPUUsage = cpuValue
+	// Агрегаты считает сам Prometheus: суммирование по нодам на стороне клиента
+	// давало бы проценты больше 100 на многонодовых кластерах.
+	snapshot.CPUUsage = m.promScalar(promQueryClusterCPUUsedCores())
+	snapshot.CPUCapacity = m.promScalar(promQueryClusterCPUTotalCores())
+	if snapshot.CPUCapacity > 0 {
+		snapshot.CPUPercent = snapshot.CPUUsage / snapshot.CPUCapacity * 100
 	}
 
-	// Get Memory metrics
-	memResult, err := m.QueryPrometheus(promQueryNodeMem())
-	if err == nil && memResult != nil {
-		memValue := parsePrometheusResult(memResult)
-		snapshot.MemoryPercent = memValue
-		snapshot.MemoryUsage = memValue
-	}
-
-	// Get pod count from cluster overview
-	overview, err := m.GetClusterOverview()
-	if err == nil && overview != nil {
-		snapshot.PodCount = float64(overview.RunningPods)
-		snapshot.PodCapacity = float64(overview.TotalPods)
-		if overview.TotalPods > 0 {
-			snapshot.PodPercent = (float64(overview.RunningPods) / float64(overview.TotalPods)) * 100
-		}
+	snapshot.MemoryCapacity = m.promScalar(promQueryClusterMemTotalBytes())
+	if snapshot.MemoryCapacity > 0 {
+		available := m.promScalar(promQueryClusterMemAvailableBytes())
+		snapshot.MemoryUsage = snapshot.MemoryCapacity - available
+		snapshot.MemoryPercent = snapshot.MemoryUsage / snapshot.MemoryCapacity * 100
 	}
 
 	return snapshot, nil
+}
+
+// promScalar выполняет instant-запрос и возвращает число; при любой ошибке — 0
+func (m *Manager) promScalar(query string) float64 {
+	result, err := m.QueryPrometheus(query)
+	if err != nil || result == nil {
+		return 0
+	}
+	return parsePrometheusResult(result)
 }
 
 func parsePrometheusResult(result *PromQueryResult) float64 {
