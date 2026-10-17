@@ -38,8 +38,8 @@ export interface ActionContext {
   openAttach(ns: string, pod: string, container: string): Promise<void>
   /** Открыть диалог масштабирования Deployment */
   requestScale(item: any): void
-  /** Подтверждение (пока window.confirm; заменить на общий диалог в одном месте) */
-  confirm(message: string): boolean
+  /** Диалог подтверждения (рисует ResourceHost). Резолвится true по «Подтвердить», false по отмене */
+  confirm(message: string): Promise<boolean>
   /** try/catch + тосты + обновление списка. Бросать исключение внутри fn безопасно */
   perform(fn: () => Promise<unknown>, successMessage?: string): Promise<void>
   reload(): Promise<void>

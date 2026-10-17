@@ -45,9 +45,8 @@ export const daemonSet = defineResource({
       id: 'restart',
       label: 'Restart',
       icon: restartIcon,
-      run: (d, ctx) => {
-        if (!ctx.confirm(`Restart daemonset ${d.name}?`)) return
-        // Нужен Go-метод RestartDaemonSet (annotation kubectl.kubernetes.io/restartedAt)
+      run: async (d, ctx) => {
+        if (!(await ctx.confirm(`Restart daemonset ${d.name}?`))) return
         return ctx.perform(
           () => callApp('RestartDaemonSet', d.namespace, d.name),
           `DaemonSet ${d.name}: restart initiated`,

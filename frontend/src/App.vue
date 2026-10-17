@@ -84,6 +84,7 @@ import { getResourceByView, getResourceById } from './resources/registry'
 import { resourceActions } from './resources/actions'
 import { clusterNameKey } from './resources/context'
 import { clearResourceStore, reloadActive } from './resources/store'
+import { answerConfirm } from './resources/confirm'
 
 import ClusterBar from './components/ClusterBar.vue'
 import AddClusterDialog from './components/AddClusterDialog.vue'
@@ -147,6 +148,7 @@ function closeAllDetailPanels() {
 // ResourceList пересоздаётся сам (activeClusterId входит в его :key).
 watch(activeClusterId, () => {
   clearResourceStore()
+  answerConfirm(false) // висящий диалог подтверждения относился к старому кластеру
   closeAllDetailPanels()
 })
 

@@ -115,8 +115,8 @@ export const pod = defineResource({
       label: 'Evict',
       icon: evictIcon,
       danger: true,
-      run: (p, ctx) => {
-        if (!ctx.confirm(`Evict pod ${p.name}?`)) return
+      run: async (p, ctx) => {
+        if (!(await ctx.confirm(`Evict pod ${p.name}?`))) return
         return ctx.perform(
           () => callApp('EvictPod', p.namespace, p.name),
           `Pod ${p.name} evicted`,
