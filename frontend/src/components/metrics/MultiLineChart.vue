@@ -1,17 +1,15 @@
 <template>
-  <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
-    <div class="flex items-center justify-between mb-3">
-      <h3 class="text-sm font-medium text-gray-300">{{ title }}</h3>
-      <div class="flex items-center gap-1">
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h3 class="chart-card-title">{{ title }}</h3>
+      <div class="chart-range-buttons">
         <button
           v-for="range in timeRanges"
           :key="range.value"
           @click="selectedRange = range.value"
           :class="[
-            'px-2 py-0.5 text-xs rounded transition-colors',
-            selectedRange === range.value
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+            'chart-range-btn',
+            selectedRange === range.value ? 'active' : 'inactive'
           ]"
         >
           {{ range.label }}
@@ -19,34 +17,34 @@
       </div>
     </div>
 
-    <div v-if="loading && !hasData" class="flex items-center justify-center h-48">
-      <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+    <div v-if="loading && !hasData" class="chart-loading">
+      <div class="chart-spinner"></div>
     </div>
 
-    <div v-else-if="error && !hasData" class="flex items-center justify-center h-48">
-      <p class="text-red-400 text-sm">{{ error }}</p>
+    <div v-else-if="error && !hasData" class="chart-error">
+      <p class="chart-error-text">{{ error }}</p>
     </div>
 
-    <div v-else-if="!hasData" class="flex items-center justify-center h-48">
-      <p class="text-gray-500 text-sm">No data available</p>
+    <div v-else-if="!hasData" class="chart-no-data">
+      <p class="chart-no-data-text">No data available</p>
     </div>
 
-    <div v-else class="h-48 relative">
-      <div v-if="loading" class="absolute top-0 right-0 z-10">
-        <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-500"></div>
+    <div v-else class="chart-canvas-wrapper">
+      <div v-if="loading" class="chart-canvas-loading">
+        <div class="chart-spinner small"></div>
       </div>
       <Line :data="chartData" :options="chartOptions" />
     </div>
 
     <!-- Legend -->
-    <div v-if="hasData && series.length > 1" class="mt-3 flex flex-wrap gap-3">
+    <div v-if="hasData && series.length > 1" class="chart-legend">
       <div
         v-for="(s, i) in series"
         :key="s.label"
-        class="flex items-center gap-1.5 text-xs text-gray-400"
+        class="chart-legend-item"
       >
         <span
-          class="w-2.5 h-2.5 rounded-full"
+          class="chart-legend-dot"
           :style="{ backgroundColor: seriesColors[i] }"
         ></span>
         {{ s.label }}
