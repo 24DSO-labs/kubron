@@ -27,6 +27,10 @@ export interface ColumnDef<T = any> {
   link?: (item: T) => { id: string; ns: string; name: string } | null | undefined
   /** Текст ссылки (если отличается от formatter/value) */
   linkLabel?: (item: T) => string | null | undefined
+  /** Значение меняется «барабаном» (для метрик) */
+  animated?: boolean
+  /** Начальная ширина в px (иначе замеряется по содержимому) */
+  width?: number
 }
 
 /** Группы бокового меню; заголовки и порядок — в resources/navigation.ts */
@@ -153,6 +157,12 @@ export interface ResourceDefinition<T = any, D = {}> {
    * список будет периодически перезагружаться.
    */
   autoRefresh?: boolean
+
+  /** Значение меняется «барабаном» (для метрик) */
+  animated?: boolean
+  
+  /** Начальная ширина в px (иначе замеряется по содержимому) */
+  width?: number
 
   /**
    * Вызывается после успешной загрузки списка (например, для метрик pod).

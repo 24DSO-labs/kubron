@@ -21,29 +21,33 @@ let activeDef: ResourceDefinition | null = null
 export async function loadResource(def: ResourceDefinition): Promise<void> {
   const seq = (seqByView[def.view] = (seqByView[def.view] ?? 0) + 1)
   const ns = def.namespaced ? k8s.selectedNamespace.value : ''
+  const publish = (list: readonly any[]) => {
+    itemsByView.value = { ...itemsByView.value, [def.view]: list }
+  }
   try {
     const data = await def.api.list(ns)
-    if (seqByView[def.view] !== seq) return // пришёл более свежий ответ
+    if (seqByView[def.view] !== seq) return
     const list = Array.isArray(data) ? data : []
-    itemsByView.value = { ...itemsByView.value, [def.view]: list }
+    let result: readonly any[] = list
+
     if (def.onLoaded) {
+      // первый раз показываем сразу, дальше ждём метрики и публикуем один раз
+      if (!(def.view in itemsByView.value)) publish(list)
       try {
         const enriched = await def.onLoaded(list)
-        if (Array.isArray(enriched) && seqByView[def.view] === seq) {
-          itemsByView.value = { ...itemsByView.value, [def.view]: enriched }
-        }
+        if (Array.isArray(enriched)) result = enriched
       } catch { /* игнорируем ошибки onLoaded */ }
+      if (seqByView[def.view] !== seq) return
     }
+    publish(result)
   } catch (e: any) {
     if (seqByView[def.view] !== seq) return
-    // первый запрос упал: показываем пустой список вместо вечного лоадера
     if (!(def.view in itemsByView.value)) {
       itemsByView.value = { ...itemsByView.value, [def.view]: [] }
     }
     notifications.notifyError(`${def.title}: ${e?.message || e}`)
   }
 }
-
 /** Перезагрузить список, который сейчас на экране (после apply YAML, delete и т.п.) */
 export async function reloadActive(): Promise<void> {
   if (activeDef) await loadResource(activeDef)

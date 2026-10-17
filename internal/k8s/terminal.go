@@ -9,6 +9,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
 )
@@ -92,14 +93,28 @@ func (m *Manager) StartTerminalSession(sessionID, namespace, pod, container, she
 		Resource("pods").
 		Name(pod).
 		Namespace(namespace)
+
+	tty, stdin := true, true // для exec
 	if attach {
+		tty, stdin = false, false
+		ctxP, cancelP := context.WithTimeout(context.Background(), 10*time.Second)
+		p, perr := conn.Client.CoreV1().Pods(namespace).Get(ctxP, pod, metav1.GetOptions{})
+		cancelP()
+		if perr != nil {
+			return perr
+		}
+		for _, c := range p.Spec.Containers {
+			if c.Name == container {
+				tty, stdin = c.TTY, c.Stdin
+			}
+		}
 		req = req.SubResource("attach").
 			VersionedParams(&corev1.PodAttachOptions{
 				Container: container,
-				Stdin:     true,
+				Stdin:     stdin,
 				Stdout:    true,
-				Stderr:    true,
-				TTY:       true,
+				Stderr:    !tty, // при TTY stderr объединён с stdout
+				TTY:       tty,
 			}, scheme.ParameterCodec)
 	} else {
 		req = req.SubResource("exec").
@@ -161,13 +176,21 @@ func (m *Manager) StartTerminalSession(sessionID, namespace, pod, container, she
 	m.terminalSessions.Add(session)
 
 	go func() {
-		executor.StreamWithContext(ctx, remotecommand.StreamOptions{
-			Stdin:             stdinR,
+		opts := remotecommand.StreamOptions{
 			Stdout:            stdoutW,
-			Stderr:            stdoutW,
-			Tty:               true,
+			Tty:               tty,
 			TerminalSizeQueue: sq,
-		})
+		}
+		if stdin {
+			opts.Stdin = stdinR
+		}
+		if !tty {
+			opts.Stderr = stdoutW
+		}
+
+		if err := executor.StreamWithContext(ctx, opts); err != nil && ctx.Err() == nil {
+			fmt.Fprintf(stdoutW, "\r\n[stream error: %v]\r\n", err)
+		}
 
 		stdoutW.Close()
 		stdinR.Close()
