@@ -2,7 +2,7 @@
   <div class="detail-panel">
     <!-- Header with title and action menu -->
     <div class="detail-header">
-      <h3>{{ resourceIcon }}</h3>
+      <span class="rd-label">{{ resourceType }}</span> 
       <div class="detail-actions-bar">
         <!-- Custom action menu items (slot or prop-based) -->
         <slot name="actions" :resource="resource"></slot>
@@ -99,6 +99,7 @@ interface DetailTab {
 const props = defineProps<{
   resource: any
   resourceIcon?: string
+  resourceType?: string
   customTabs?: DetailTab[]
   /** false — скрыть кнопку Edit (для нередактируемых сущностей: helm, port forward и т.п.) */
   showEdit?: boolean
@@ -186,6 +187,25 @@ function formatAgeAbsolute(created: string): string {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.resource-type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 4px;
+  background: #2a2b40;
+  border: 1px solid #35365a;
+  color: #868d8a;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  line-height: 1.4;
+  flex-shrink: 0;
 }
 
 .detail-actions-bar {
