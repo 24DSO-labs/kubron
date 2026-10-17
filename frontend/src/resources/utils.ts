@@ -12,6 +12,11 @@ export function formatMap(m?: Record<string, string> | null): string {
   return m ? Object.entries(m).map(([k, v]) => `${k}=${v}`).join(', ') : ''
 }
 
+/** Обычные (не init) контейнеры пода: их предлагаем в attach/shell/logs */
+export function containersOf(item: any): { name: string }[] {
+  return ((item?.containers ?? []) as { name: string; isInit?: boolean }[]).filter(c => !c.isInit)
+}
+
 export function matchesSearch(item: any, search: string): boolean {
   const s = search.trim().toLowerCase()
   if (!s) return true
