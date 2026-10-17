@@ -25,7 +25,7 @@
       </tbody>
     </table>
   </div>
-  <div v-else class="rd-empty">{{ loading ? '⏳ Загрузка...' : 'No pods available' }}</div>
+  <div v-else class="rd-empty">{{ loading ? 'Загрузка...' : 'No pods available' }}</div>
 </template>
 
 <script lang="ts" setup>

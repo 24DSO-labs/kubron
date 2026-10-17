@@ -16,6 +16,7 @@ import cloneIcon from '../../assets/icons/clone.svg'
 import editIcon from '../../assets/icons/edit.svg'
 import deleteIcon from '../../assets/icons/delete.svg'
 import viewIcon from '../../assets/icons/view.svg'
+import viewOffIcon from '../../assets/icons/view-off.svg'
 import refreshIcon from '../../assets/icons/refresh.svg'
 import exportIcon from '../../assets/icons/export.svg'
 import playIcon from '../../assets/icons/play.svg'
@@ -76,7 +77,7 @@ import wrapLinesIcon from '../../assets/icons/wrap-lines.svg'
 
 const ICON_MAP: Record<string, string> = {
   create: createIcon, clone: cloneIcon, edit: editIcon,
-  delete: deleteIcon, view: viewIcon, refresh: refreshIcon,
+  delete: deleteIcon, view: viewIcon, 'view-off': viewOffIcon, refresh: refreshIcon,
   export: exportIcon, play: playIcon, start: playIcon,
   stop: stopIcon, restart: restartIcon, pause: pauseIcon,
   resume: playIcon, recreate: restartIcon, rollback: rollbackIcon,
