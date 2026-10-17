@@ -3,17 +3,42 @@
     <div v-if="menu" class="menu-overlay" @click="hideMenu" @contextmenu.prevent="hideMenu"></div>
     <ContentHeader :icon="icon" :title="title" :count="items.length" :search="search" showSearch @refresh="emit('refresh')" @search="v => emit('search', v)" />
 
-    <table v-if="items.length > 0" class="table">
-      <thead>
-        <tr>
-          <th v-for="col in columns" :key="col.key">{{ col.label }}</th>
-          <th></th>
-        </tr>
-      </thead>
+    <table
+  v-if="items.length > 0"
+  ref="tableRef"
+  class="table"
+  :class="{ 'table-fixed': fixed }"
+  :style="fixed ? { width: totalWidth + 'px' } : undefined"
+>
+  <colgroup v-if="fixed">
+  <col v-for="col in columns" :key="col.key" :style="{ width: widths[col.key] + 'px' }" />
+  <col :style="{ width: ACTION_COL + 'px' }" />
+</colgroup>
+<thead>
+  <tr>
+    <th v-for="col in columns" :key="col.key" :data-col="col.key">
+      {{ col.label }}
+      <span
+        class="col-resizer"
+        :class="{ active: resizingKey === col.key }"
+        title="Двойной клик — сбросить ширину"
+        @pointerdown.prevent.stop="startResize(col.key, $event)"
+        @pointermove="onDrag"
+        @pointerup="stopDrag"
+        @pointercancel="stopDrag"
+        @dblclick.stop="resetWidths"
+      ></span>
+    </th>
+    <th></th>
+  </tr>
+</thead>
       <tbody>
         <tr v-for="item in items" :key="itemKey(item)" class="clickable-row" @click="emit('select', item)" @contextmenu.prevent="openMenuAt(item, $event)">
           <td v-for="col in columns" :key="col.key" :class="col.className">
             <component :is="col.component" v-if="col.component" :item="item" :col="col" />
+<span v-else-if="col.animated" :style="cellStyle(col, item)">
+  <RollingValue :value="String(cellValue(col, item))" />
+</span>
             <span v-else-if="col.link" :style="cellStyle(col, item)">
               <template v-if="col.link(item)">
                 <a
@@ -66,10 +91,12 @@
  * Таблица ресурсов с контекстным меню. Ничего не знает о конкретных действиях:
  * пункты и подменю приходят из menuFor(item), выбранный пункт уходит событием action.
  */
-import { ref, onMounted, onUnmounted } from 'vue'
+
 import ContentHeader from '../ContentHeader.vue'
 import type { ColumnDef, MenuItemDef } from '../../resources/types'
 import './resource.css'
+import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import RollingValue from './RollingValue.vue'
 
 const props = defineProps<{
   items: any[]
@@ -91,6 +118,90 @@ const emit = defineEmits<{
   /** arg — выбранный элемент подменю (имя контейнера) */
   (e: 'action', action: string, item: any, arg?: string): void
 }>()
+
+
+
+
+// ─── Ширина колонок ───
+const MIN_COL = 50
+const ACTION_COL = 56
+const storageKey = () => `kubron:colwidths:${props.title}`
+
+const tableRef = ref<HTMLTableElement | null>(null)
+const widths = reactive<Record<string, number>>({})
+const fixed = ref(false)
+const resizingKey = ref<string | null>(null)
+
+const totalWidth = computed(() =>
+  props.columns.reduce((s, c) => s + (widths[c.key] ?? MIN_COL), ACTION_COL),
+)
+
+function loadSaved() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey()) || 'null')
+    if (saved && props.columns.every(c => typeof saved[c.key] === 'number')) {
+      Object.assign(widths, saved)
+      fixed.value = true
+    }
+  } catch { /* ignore */ }
+}
+function saveWidths() {
+  try { localStorage.setItem(storageKey(), JSON.stringify(widths)) } catch { /* ignore */ }
+}
+
+/** Замеряем ширины в авто-раскладке и фиксируем; таблица не выходит за ширину контейнера */
+async function freeze() {
+  await nextTick()
+  const table = tableRef.value
+  const ths = table?.querySelectorAll<HTMLElement>('th[data-col]')
+  if (!table || !ths?.length) return
+  ths.forEach(th => {
+    const key = th.dataset.col!
+    const def = props.columns.find(c => c.key === key)
+    widths[key] = def?.width ?? Math.max(MIN_COL, Math.ceil(th.getBoundingClientRect().width))
+  })
+
+  const avail = table.parentElement?.clientWidth ?? 0
+  const excess = totalWidth.value - avail
+  if (avail && excess > 0) {
+    const widest = props.columns.reduce((a, c) => (widths[c.key] > widths[a.key] ? c : a))
+    widths[widest.key] = Math.max(MIN_COL, widths[widest.key] - excess)
+  }
+  fixed.value = true
+}
+
+function resetWidths() {
+  try { localStorage.removeItem(storageKey()) } catch { /* ignore */ }
+  fixed.value = false
+  freeze()
+}
+
+let drag: { key: string; startX: number; startW: number } | null = null
+
+function startResize(key: string, e: PointerEvent) {
+  if (!fixed.value) return
+  ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  drag = { key, startX: e.clientX, startW: widths[key] }
+  resizingKey.value = key
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+}
+function onDrag(e: PointerEvent) {
+  if (!drag) return
+  widths[drag.key] = Math.max(MIN_COL, drag.startW + e.clientX - drag.startX)
+}
+function stopDrag() {
+  if (!drag) return
+  drag = null
+  resizingKey.value = null
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+  saveWidths()
+}
+
+loadSaved()
+onMounted(() => { if (props.items.length && !fixed.value) freeze() })
+watch(() => props.items.length, n => { if (n > 0 && !fixed.value) freeze() })
 
 // ─── Ячейки ───
 
@@ -279,4 +390,19 @@ function choose(action: string, arg?: string) {
 }
 
 td { text-align: left; }
+
+.table-fixed { table-layout: fixed; }
+.table-fixed th, .table-fixed td {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.col-resizer {
+  position: absolute; top: 0; bottom: 0; right: 0; width: 8px;
+  cursor: col-resize; touch-action: none;
+}
+.col-resizer::after {
+  content: ''; position: absolute; top: 25%; bottom: 25%; right: 3px; width: 1px;
+  background: #45475a;
+}
+.col-resizer:hover, .col-resizer.active { background: rgba(137, 180, 250, 0.35); }
+.col-resizer:hover::after, .col-resizer.active::after { background: #89b4fa; }
 </style>
