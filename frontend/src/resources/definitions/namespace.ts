@@ -22,8 +22,7 @@ export const namespaceResource = defineResource({
 
   api: {
     list: () => callApp('GetNamespaces'),
-    // GetNamespaceDetail необязателен: без него панель показывает элемент списка
-    get: (_ns, name) => callApp('GetNamespaceDetail', name),
+    // get нет: панель показывает элемент списка (отдельного GetNamespaceDetail в Go нет)
     // remove намеренно нет: удаление namespace не поддерживалось и раньше
   },
 })
