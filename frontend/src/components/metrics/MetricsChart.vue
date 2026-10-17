@@ -1,13 +1,11 @@
 <template>
-  <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
-    <div class="flex items-center justify-between mb-3">
-      <h3 class="text-sm font-medium text-gray-300">{{ title }}</h3>
-      <div class="flex items-center gap-1">
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h3 class="chart-card-title">{{ title }}</h3>
+      <div class="chart-range-buttons">
         <button v-for="range in timeRanges" :key="range.value" @click="selectedRange = range.value" :class="[
-          'px-2 py-0.5 text-xs rounded transition-colors',
-          selectedRange === range.value
-            ? 'bg-blue-600 text-white'
-            : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+          'chart-range-btn',
+          selectedRange === range.value ? 'active' : 'inactive'
         ]">
           {{ range.label }}
         </button>
@@ -15,43 +13,43 @@
     </div>
 
     <!-- Loading -->
-    <div v-if="loading && !dataPoints.length" class="flex items-center justify-center h-48">
-      <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+    <div v-if="loading && !dataPoints.length" class="chart-loading">
+      <div class="chart-spinner"></div>
     </div>
 
     <!-- Error -->
-    <div v-else-if="error && !dataPoints.length" class="flex items-center justify-center h-48">
-      <div class="text-center">
-        <svg class="w-8 h-8 text-red-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div v-else-if="error && !dataPoints.length" class="chart-error">
+      <div class="chart-error-content">
+        <svg class="chart-error-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <p class="text-red-400 text-sm">{{ error }}</p>
-        <button @click="loadData" class="mt-2 text-xs text-blue-400 hover:text-blue-300">
+        <p class="chart-error-text">{{ error }}</p>
+        <button @click="loadData" class="chart-retry-btn">
           Retry
         </button>
       </div>
     </div>
 
     <!-- No data -->
-    <div v-else-if="!dataPoints.length" class="flex items-center justify-center h-48">
-      <p class="text-gray-500 text-sm">No data available</p>
+    <div v-else-if="!dataPoints.length" class="chart-no-data">
+      <p class="chart-no-data-text">No data available</p>
     </div>
 
     <!-- Chart -->
-    <div v-else class="h-44 relative">
-      <div v-if="loading" class="absolute top-0 right-0 z-10">
-        <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-500"></div>
+    <div v-else class="chart-canvas-wrapper">
+      <div v-if="loading" class="chart-canvas-loading">
+        <div class="chart-spinner small"></div>
       </div>
       <Line :data="chartData" :options="chartOptions" />
     </div>
 
     <!-- Current value -->
-    <div v-if="currentValue !== null" class="mt-2 flex items-baseline justify-between">
-      <span class="text-xs text-gray-500">Current</span>
+    <div v-if="currentValue !== null" class="chart-current-value-row">
+      <span class="chart-current-label">Current</span>
       <div>
-        <span class="text-xl font-bold text-white">{{ formattedCurrentValue }}</span>
-        <span v-if="unit" class="text-xs text-gray-400 ml-1">{{ unit }}</span>
+        <span class="chart-current-value">{{ formattedCurrentValue }}</span>
+        <span v-if="unit" class="chart-current-unit">{{ unit }}</span>
       </div>
     </div>
   </div>
