@@ -1,29 +1,29 @@
 <template>
-  <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700/50 p-5 shadow-lg">
-    <div class="flex items-start justify-between mb-3">
-      <h3 class="text-sm font-semibold text-gray-300">{{ title }}</h3>
-      <span class="text-xs font-medium px-2 py-1 rounded bg-gray-700/50 text-gray-300">
+  <div class="gauge-card">
+    <div class="gauge-card-header">
+      <h3 class="gauge-card-title">{{ title }}</h3>
+      <span class="gauge-card-percent-badge">
         {{ percent.toFixed(1) }}%
       </span>
     </div>
 
     <!-- Gauge bar -->
-    <div class="mb-3">
-      <div class="h-2 bg-gray-700 rounded-full overflow-hidden">
+    <div class="gauge-card-bar-container">
+      <div class="gauge-card-bar-track">
         <div
-          class="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all duration-300"
+          class="gauge-card-bar-fill"
           :style="{ width: Math.min(Math.max(percent, 0), 100) + '%' }"
         ></div>
       </div>
     </div>
 
     <!-- Values -->
-    <div class="flex items-end justify-between">
+    <div class="gauge-card-values">
       <div>
-        <p class="text-2xl font-bold text-white">
+        <p class="gauge-card-value-main">
           {{ formatValue(used) }}
         </p>
-        <p class="text-xs text-gray-500 mt-0.5">
+        <p class="gauge-card-value-sub">
           of {{ formatValue(total) }} {{ unit }}
         </p>
       </div>

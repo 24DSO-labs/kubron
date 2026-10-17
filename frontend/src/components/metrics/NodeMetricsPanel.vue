@@ -1,7 +1,7 @@
 <template>
   <div v-if="metricsAvailable">
     <!-- Gauges -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div class="metrics-grid-3">
       <GaugeCard
         title="CPU"
         :percent="nodeData?.cpuPercent ?? 0"
@@ -26,7 +26,7 @@
     </div>
 
     <!-- Charts -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="metrics-grid-2">
       <MetricsChart
         title="CPU Usage"
         unit="%"
