@@ -16,6 +16,16 @@
     @scale="resourceActions.confirmScale"
   />
 
+  <!-- Подтверждение действий (ctx.confirm): Restart, Evict, Rollback ... -->
+  <ConfirmationDialog
+    :model-value="!!pendingConfirm"
+    resource-type=""
+    resource-name=""
+    :title="pendingConfirm?.message"
+    @confirm="answerConfirm(true)"
+    @cancel="answerConfirm(false)"
+  />
+
   <ConfirmationDialog
     v-model="confirmOpen"
     :resource-type="pendingDelete?.kind ?? ''"
@@ -29,7 +39,7 @@
 <script lang="ts" setup>
 /**
  * Монтируется в App.vue один раз. Рисует единственную панель деталей, диалог масштабирования
- * и диалог подтверждения удаления на всё приложение.
+ * и диалоги подтверждения (удаление и ctx.confirm) на всё приложение.
  */
 import { computed, ref, shallowRef, watch } from 'vue'
 import ResourceDetailPanel from './ResourceDetailPanel.vue'
@@ -39,6 +49,7 @@ import { getResourceById } from '../../resources/registry'
 import { findLoaded } from '../../resources/store'
 import { itemName, itemNs } from '../../resources/utils'
 import { opened, pendingDelete, scaleTarget, resourceActions } from '../../resources/actions'
+import { pendingConfirm, answerConfirm } from '../../resources/confirm'
 
 const def = computed(() => (opened.value ? getResourceById(opened.value.id) : undefined))
 const detail = shallowRef<any>(null)

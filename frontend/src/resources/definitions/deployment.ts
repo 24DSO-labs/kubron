@@ -78,8 +78,8 @@ export const deployment = defineResource({
       id: 'restart',
       label: 'Restart',
       icon: restartIcon,
-      run: (d, ctx) => {
-        if (!ctx.confirm(`Restart deployment ${d.name}?`)) return
+      run: async (d, ctx) => {
+        if (!(await ctx.confirm(`Restart deployment ${d.name}?`))) return
         return ctx.perform(
           () => callApp('RestartDeployment', d.namespace, d.name),
           `Deployment ${d.name}: restart initiated`,

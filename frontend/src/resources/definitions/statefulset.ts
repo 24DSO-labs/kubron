@@ -58,8 +58,8 @@ export const statefulSet = defineResource({
       id: 'restart',
       label: 'Restart',
       icon: restartIcon,
-      run: (s, ctx) => {
-        if (!ctx.confirm(`Restart statefulset ${s.name}?`)) return
+      run: async (s, ctx) => {
+        if (!(await ctx.confirm(`Restart statefulset ${s.name}?`))) return
         return ctx.perform(
           () => callApp('RestartStatefulSet', s.namespace, s.name),
           `StatefulSet ${s.name}: restart initiated`,
