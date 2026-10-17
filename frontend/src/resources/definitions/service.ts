@@ -13,7 +13,8 @@ export const service = defineResource<k8s.ServiceInfo, k8s.ServiceDetail>({
   title: 'Services',
   namespaced: true,
   nav: { group: 'network', label: 'Services' },
-  icon: 'service',
+  
+  autoRefresh: true,icon: 'service',
 
   columns: [
     flatNameCol,

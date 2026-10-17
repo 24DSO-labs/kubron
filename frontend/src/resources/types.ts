@@ -23,6 +23,10 @@ export interface ColumnDef<T = any> {
   component?: Component // кастомная ячейка (props: item, col)
   formatter?: (item: T) => string // вычисляемое значение
   colorFn?: (item: T) => string // цвет значения
+  /** Ссылка на другой ресурс (как в PropertyDef) */
+  link?: (item: T) => { id: string; ns: string; name: string } | null | undefined
+  /** Текст ссылки (если отличается от formatter/value) */
+  linkLabel?: (item: T) => string | null | undefined
 }
 
 /** Группы бокового меню; заголовки и порядок — в resources/navigation.ts */
@@ -143,6 +147,12 @@ export interface ResourceDefinition<T = any, D = {}> {
    * Функция читает ref'ы: `refreshOn: () => k8s.portForwards.value`.
    */
   refreshOn?: () => unknown
+
+  /**
+   * Авто-обновление списка: если true и в настройках включён интервал,
+   * список будет периодически перезагружаться.
+   */
+  autoRefresh?: boolean
 
   /**
    * Вызывается после успешной загрузки списка (например, для метрик pod).

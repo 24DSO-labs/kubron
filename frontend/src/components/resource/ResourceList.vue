@@ -13,6 +13,7 @@
     @refresh="reload"
     @search="(v: string) => (search = v)"
     @select="(item: any) => open(item)"
+    @open="onOpen"
     @action="onAction"
   />
 </template>
@@ -55,6 +56,10 @@ const itemKey = (item: any) => `${itemNs(item)}/${itemName(item)}`
 
 function open(item: any) {
   resourceActions.open(props.def.id, itemNs(item), itemName(item), item)
+}
+
+function onOpen(data: { id: string; ns: string; name: string }) {
+  resourceActions.open(data.id, data.ns, data.name)
 }
 
 function onAction(action: string, item: any, container?: string) {

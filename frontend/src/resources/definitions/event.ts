@@ -11,7 +11,8 @@ export const event = defineResource<k8s.EventInfo>({
   title: 'Events',
   namespaced: true,
   nav: { label: 'Events' },
-  icon: 'events',
+  
+  autoRefresh: true,icon: 'events',
 
   columns: [
     flatNameCol,

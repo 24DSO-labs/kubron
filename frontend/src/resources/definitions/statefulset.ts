@@ -24,6 +24,8 @@ export const statefulSet = defineResource<k8s.StatefulSetInfo>({
   namespaced: true,
   nav: { group: 'workloads', label: 'Stateful Sets' },
 
+  
+  autoRefresh: true,
   columns: [
     flatNameCol,
     flatNsCol,

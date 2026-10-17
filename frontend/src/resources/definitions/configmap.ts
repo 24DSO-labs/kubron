@@ -13,6 +13,8 @@ export const configMap = defineResource<k8s.ConfigMapInfo, k8s.ConfigMapInfo>({
   namespaced: true,
   nav: { group: 'config', label: 'Config Maps' },
 
+  
+  autoRefresh: true,
   columns: [flatNameCol, flatNsCol, { key: 'dataCount', label: 'Data' }, ageCol],
 
   properties: [{ label: 'Keys', value: c => c.dataCount }],

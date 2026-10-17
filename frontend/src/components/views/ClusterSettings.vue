@@ -1,7 +1,61 @@
 <template>
-  <div class="p-6 max-w-4xl">
+  <div class="p-6 max-w-4xl space-y-6">
     <h1 class="text-xl font-semibold text-white mb-6">Настройки кластера</h1>
 
+    <!-- App Settings -->
+    <div class="bg-gray-800 rounded-lg border border-gray-700">
+      <div class="p-5 border-b border-gray-700">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-blue-900/50 flex items-center justify-center">
+            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-base font-medium text-white">Авто-обновление</h2>
+            <p class="text-sm text-gray-400">Периодическое обновление списков ресурсов</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-5">
+        <div class="flex items-center gap-4">
+          <div class="flex-1">
+            <label class="block text-sm font-medium text-gray-300 mb-2">
+              Интервал обновления
+            </label>
+            <div class="flex items-center gap-3">
+              <input
+                v-model.number="refreshInterval"
+                type="number"
+                min="0"
+                max="300"
+                class="w-24 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm
+                       focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                placeholder="10"
+              />
+              <span class="text-sm text-gray-400">секунд</span>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">
+              0 — авто-обновление отключено. Списки обновляются только вручную.
+            </p>
+          </div>
+          <button
+            @click="saveRefreshSettings"
+            :disabled="!settingsLoaded"
+            class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600
+                   active:from-blue-700 active:to-blue-800 disabled:from-gray-700 disabled:to-gray-700
+                   disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg
+                   transition-all duration-200 shadow-md hover:shadow-lg"
+          >
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Metrics Stack -->
     <div class="bg-gray-800 rounded-lg border border-gray-700">
       <!-- Header -->
       <div class="p-5 border-b border-gray-700">
@@ -208,6 +262,7 @@
 import { ref, computed, onMounted } from 'vue'
 import MetricsStatusBadge from '../metrics/MetricsStatusBadge.vue'
 import { useMetricsStatus } from '../../composables/useMetrics'
+import { useAppSettings } from '../../composables/useAppSettings'
 
 const props = defineProps<{
   clusterName: string
@@ -221,6 +276,10 @@ const {
   install,
   uninstall,
 } = useMetricsStatus(props.clusterName)
+
+const appSettings = useAppSettings()
+const refreshInterval = ref(10)
+const settingsLoaded = ref(false)
 
 const showConfirm = ref(false)
 
@@ -255,7 +314,16 @@ async function handleReinstall() {
   await install()
 }
 
-onMounted(() => {
+async function saveRefreshSettings() {
+  await appSettings.saveSettings({
+    autoRefreshInterval: refreshInterval.value,
+  })
+}
+
+onMounted(async () => {
   fetchStatus()
+  await appSettings.loadSettings()
+  refreshInterval.value = appSettings.settings.value.autoRefreshInterval || 10
+  settingsLoaded.value = true
 })
 </script>

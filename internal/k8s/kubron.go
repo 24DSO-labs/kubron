@@ -11,8 +11,9 @@ import (
 )
 
 type KubronConfig struct {
-	LastActiveCluster string `json:"lastActiveCluster"`
-	Theme             string `json:"theme"`
+	LastActiveCluster    string `json:"lastActiveCluster"`
+	Theme                string `json:"theme"`
+	AutoRefreshInterval  int    `json:"autoRefreshInterval"`  // секунды, 0 = выключено
 }
 
 type ClusterMeta struct {

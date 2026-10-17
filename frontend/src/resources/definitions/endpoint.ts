@@ -10,7 +10,8 @@ export const endpoint = defineResource<k8s.EndpointListInfo>({
   title: 'Endpoints',
   namespaced: true,
   nav: { group: 'network', label: 'Endpoints' },
-  icon: 'endpoint',
+  
+  autoRefresh: true,icon: 'endpoint',
 
   columns: [
     flatNameCol,

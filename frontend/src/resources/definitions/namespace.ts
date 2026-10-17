@@ -13,6 +13,8 @@ export const namespaceResource = defineResource<k8s.NamespaceInfo>({
   namespaced: false,
   nav: { label: 'Namespaces' },
 
+  
+  autoRefresh: true,
   columns: [
     flatNameCol,
     { key: 'status', label: 'Status', colorFn: n => statusColor(n.status) },
