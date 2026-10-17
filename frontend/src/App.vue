@@ -104,8 +104,7 @@ const clustersApi = useClusters()
 const notifications = useNotifications()
 
 const {
-  namespaces, overview, selectedNamespace, currentView, error, loading,
-  pct,
+  namespaces, selectedNamespace, currentView, error, loading,
   switchView, onNamespaceChange, refreshData,
   loadNamespaces,
 } = k8s
@@ -206,8 +205,6 @@ const activeViewProps = computed(() => {
   const props: Record<string, any> = {}
 
   if (view === 'overview') {
-    props.overview = overview.value
-    props.pct = pct
     props.clusterName = activeClusterId.value
   }
   if (view === 'settings') {

@@ -235,26 +235,6 @@ body {
 }
 .paths-cell { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
 
-/* Overview */
-.overview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
-.overview-card {
-  background: #313244; border-radius: 12px; padding: 20px;
-  display: flex; flex-direction: column; gap: 8px;
-  border: 1px solid #45475a; transition: all 0.2s;
-}
-.overview-card:hover { border-color: #89b4fa; transform: translateY(-2px); }
-.card-warning { border-color: #f9e2af; }
-.card-alert { border-color: #f9e2af; background: rgba(249,226,175,0.1); }
-.card-danger { border-color: #f38ba8; background: rgba(243,139,168,0.1); }
-.card-icon { font-size: 28px; }
-.card-info { display: flex; flex-direction: column; }
-.card-value { font-size: 28px; font-weight: 700; color: #cdd6f4; }
-.card-label { font-size: 13px; color: #a6adc8; }
-.card-bar { height: 6px; background: #45475a; border-radius: 3px; margin-top: 4px; }
-.bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
-.bar-green { background: #a6e3a1; }
-.bar-blue { background: #89b4fa; }
-
 /* Detail Panel */
 .detail-panel {
   position: fixed; right: 0; top: 44px; bottom: 0; width: 550px;
@@ -792,16 +772,6 @@ svg {
   max-width: 100%;
   height: auto;
 }
-
-.overview-card {
-  border-color: #45475a;
-}
-.overview-card:hover {
-  border-color: #89b4fa;
-}
-
-/* Master/Worker Overview Cards */
-.bar-purple { background: #b6a3f4; }
 
 /* Status Dot */
 .status-dot {
