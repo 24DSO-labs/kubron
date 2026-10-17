@@ -1,13 +1,28 @@
 import type { Component } from 'vue'
 
+/**
+ * Wails генерирует классы с методами (convertValues), а по сети приходят обычные JSON-объекты.
+ * Item<T> оставляет только данные, поэтому `{ ...pod, cpu }` остаётся совместимым с типом.
+ * Для T = any (ресурсы без модели: Role, ClusterRole ...) остаётся any.
+ */
+export type Item<T> = 0 extends 1 & T
+  ? any
+  : { [K in keyof T as T[K] extends (...a: any[]) => any ? never : K]: T[K] }
+
+/**
+ * Элемент в панели деталей: поля элемента списка (T) плюс то, что добавляет api.get (D).
+ * Из контекстного меню действие получает элемент списка, поэтому поля D необязательные.
+ */
+export type PanelItem<T, D> = Item<T> & Partial<Item<D>>
+
 /** Колонка списка: повторяет Column из K8sResourceListBase_old */
-export interface ColumnDef {
+export interface ColumnDef<T = any> {
   key: string // dotted-path: 'metadata.name'
   label: string
   className?: string
   component?: Component // кастомная ячейка (props: item, col)
-  formatter?: (item: any) => string // вычисляемое значение
-  colorFn?: (item: any) => string // цвет значения
+  formatter?: (item: T) => string // вычисляемое значение
+  colorFn?: (item: T) => string // цвет значения
 }
 
 /** Группы бокового меню; заголовки и порядок — в resources/navigation.ts */
@@ -80,7 +95,12 @@ export interface TabDef {
   component: Component
 }
 
-export interface ResourceDefinition<T = any> {
+/**
+ * T — элемент списка (api.list), D — что добавляет api.get (панель деталей).
+ * Типы берём из wailsjs: defineResource<k8s.PodInfo, k8s.PodDetail>(...).
+ * Без параметров (T = any) проверки типов нет.
+ */
+export interface ResourceDefinition<T = any, D = {}> {
   /** lowercase-тип; он же `kind` для GetResourceYAML: 'role', 'pod' ... */
   id: string
   /** Отображаемое имя типа: 'Role' */
@@ -94,18 +114,18 @@ export interface ResourceDefinition<T = any> {
   /** Пункт в Sidebar; порядок внутри группы — порядок в resources/registry.ts */
   nav?: ResourceNav
 
-  columns: ColumnDef[]
+  columns: ColumnDef<Item<T>>[]
   /**
    * Панель деталей, вкладка Properties. Порядок:
    * headSections -> Labels -> Annotations -> properties -> sections
    */
   headSections?: Component[]
-  properties?: PropertyDef<T>[]
+  properties?: PropertyDef<PanelItem<T, D>>[]
   sections?: Component[]
   /** Дополнительные вкладки панели (кроме Properties и Events) */
   tabs?: TabDef[]
   /** Специфичные действия; Edit YAML и Delete добавляются автоматически */
-  actions?: ActionDef<T>[]
+  actions?: ActionDef<PanelItem<T, D>>[]
 
   /**
    * Есть ли у ресурса YAML в кластере (Edit YAML).
@@ -118,14 +138,14 @@ export interface ResourceDefinition<T = any> {
    * Если вернуть массив, он заменит список в сторе: данные не мутируем на месте,
    * иначе shallowRef не заметит изменений и таблица не перерисуется.
    */
-  onLoaded?: (items: T[]) => void | T[] | Promise<void | T[]>
+  onLoaded?: (items: Item<T>[]) => void | Item<T>[] | Promise<void | Item<T>[]>
 
   api: {
     list: (ns: string) => Promise<T[]>
     /** Свежие данные при открытии панели (богаче, чем элемент списка) */
-    get?: (ns: string, name: string) => Promise<T>
+    get?: (ns: string, name: string) => Promise<D>
     remove?: (ns: string, name: string) => Promise<void>
   }
 }
 
-export const defineResource = <T = any>(d: ResourceDefinition<T>) => d
+export const defineResource = <T = any, D = {}>(d: ResourceDefinition<T, D>) => d

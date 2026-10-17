@@ -1,10 +1,12 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
+import { formatMap } from '../utils'
 import ServicePortsSection from '../../components/resource/sections/ServicePortsSection.vue'
 import EndpointsSection from '../../components/resource/sections/EndpointsSection.vue'
 
-export const service = defineResource({
+export const service = defineResource<k8s.ServiceInfo, k8s.ServiceDetail>({
   id: 'service',
   kind: 'Service',
   view: 'services',
@@ -28,7 +30,7 @@ export const service = defineResource({
     { label: 'IP Families', value: s => s.ipFamilies },
     { label: 'IP Family Policy', value: s => s.ipFamilyPolicy },
     { label: 'Type', value: s => s.type },
-    { label: 'Selector', value: s => s.selector },
+    { label: 'Selector', value: s => formatMap(s.selector) },
   ],
   sections: [ServicePortsSection, EndpointsSection],
 

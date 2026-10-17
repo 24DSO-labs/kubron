@@ -1,10 +1,11 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 import ImagesSection from '../../components/resource/sections/ImagesSection.vue'
 import PodsTab from '../../components/resource/sections/PodsTab.vue'
 
-export const replicaSet = defineResource({
+export const replicaSet = defineResource<k8s.ReplicaSetInfo>({
   id: 'replicaset',
   kind: 'ReplicaSet',
   view: 'replicasets',

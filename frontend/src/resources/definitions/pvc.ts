@@ -1,9 +1,10 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 import { badgeClass, statusColor } from '../status'
 
-export const persistentVolumeClaim = defineResource({
+export const persistentVolumeClaim = defineResource<k8s.PVCInfo>({
   id: 'persistentvolumeclaim',
   kind: 'PersistentVolumeClaim',
   view: 'pvc',

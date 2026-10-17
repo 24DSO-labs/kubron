@@ -1,8 +1,9 @@
 import { defineResource } from '../types'
+import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, ageCol } from './common'
 
-export const storageClass = defineResource({
+export const storageClass = defineResource<k8s.StorageClassInfo>({
   id: 'storageclass',
   kind: 'StorageClass',
   view: 'storageclasses',
