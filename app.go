@@ -3,6 +3,7 @@ package main
 import (
 	"analog/internal/k8s"
 	"context"
+	"net"
 	"time"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -585,6 +586,19 @@ func (a *App) StopPortForward(id string) error {
 
 func (a *App) ListPortForwards() []k8s.PortForwardSession {
 	return a.pfMgr.ListPortForwards()
+}
+
+func (a *App) GetFreePort() (int, error) {
+	l, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return 0, err
+	}
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port, nil
+}
+
+func (a *App) OpenBrowserURL(url string) {
+	wailsRuntime.BrowserOpenURL(a.ctx, url)
 }
 
 // === Terminal ===
