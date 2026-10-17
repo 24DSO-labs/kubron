@@ -389,21 +389,6 @@ export interface PVCInfo {
   age: string
 }
 
-export interface OverviewInfo {
-  totalNodes: number
-  readyNodes: number
-  totalPods: number
-  runningPods: number
-  pendingPods: number
-  failedPods: number
-  totalDeployments: number
-  readyDeployments: number
-  totalServices: number
-  totalNamespaces: number
-  totalEvents: number
-  warningEvents: number
-}
-
 export interface PodMetricsInfo {
   name: string
   namespace: string

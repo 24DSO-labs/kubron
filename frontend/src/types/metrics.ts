@@ -13,9 +13,6 @@ export interface ClusterMetricsSnapshot {
   memoryPercent: number
   memoryUsage: number
   memoryCapacity: number
-  podPercent: number
-  podCount: number
-  podCapacity: number
 }
 
 export interface NodeMetricSnapshot {
@@ -66,21 +63,6 @@ export interface PrometheusData {
 export interface PrometheusResult {
   metric: Record<string, string>
   values: Array<[number, string]>
-}
-
-export interface ResourceMetric {
-  usage: number
-  requests: number
-  limits: number
-  allocatable: number
-  capacity: number
-}
-
-export interface NodeMetricsByRole {
-  role: string
-  cpu: ResourceMetric
-  memory: ResourceMetric
-  pods: ResourceMetric
 }
 
 export type TimeSeriesDataPoint = [number, number]

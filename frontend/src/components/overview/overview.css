@@ -1,0 +1,74 @@
+/*
+ * Главный экран (Overview): цветовые токены и общие классы блоков.
+ * Все классы с префиксом ov-, токены объявлены на .ov и наследуются карточками.
+ */
+.ov {
+  --ov-bg: #12141f;
+  --ov-card: #1a1d2e;
+  --ov-card-hover: #20243a;
+  --ov-border: #2a2f47;
+  --ov-border-soft: #22263b;
+  --ov-text: #e6e8f5;
+  --ov-muted: #8b91ad;
+  --ov-accent: #8b5cf6;
+  --ov-accent-hover: #7c4ae8;
+  --ov-ok: #4ade80;
+  --ov-warn: #fbbf24;
+  --ov-danger: #f87171;
+
+  container-type: inline-size;
+  min-height: 100%;
+  padding: 20px;
+  background: var(--ov-bg);
+  border-radius: 14px;
+  color: var(--ov-text);
+  text-align: left;
+}
+
+.ov-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 18px;
+  background: var(--ov-card);
+  border: 1px solid var(--ov-border);
+  border-radius: 12px;
+  color: var(--ov-text);
+}
+
+.ov-card-title {
+  margin: 0 0 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ov-text);
+}
+
+.ov-btn {
+  padding: 7px 14px;
+  background: var(--ov-card-hover);
+  border: 1px solid var(--ov-border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ov-text);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ov-btn:hover:not(:disabled) { border-color: var(--ov-accent); }
+.ov-btn:disabled { opacity: 0.6; cursor: default; }
+.ov-btn-primary { background: var(--ov-accent); border-color: var(--ov-accent); color: #fff; }
+.ov-btn-primary:hover:not(:disabled) { background: var(--ov-accent-hover); }
+
+.ov-input {
+  padding: 7px 10px;
+  background: var(--ov-bg);
+  border: 1px solid var(--ov-border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ov-text);
+}
+.ov-input::placeholder { color: var(--ov-muted); }
+.ov-input:focus { outline: none; border-color: var(--ov-accent); }
+.ov-input option { background: var(--ov-card); }

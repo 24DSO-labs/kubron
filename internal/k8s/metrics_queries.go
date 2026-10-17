@@ -11,6 +11,24 @@ func promQueryNodeMem() string {
 	return "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100"
 }
 
+// Агрегаты по всему кластеру (одно значение): используются на главном экране
+
+func promQueryClusterCPUUsedCores() string {
+	return `sum(rate(node_cpu_seconds_total{mode!="idle"}[5m]))`
+}
+
+func promQueryClusterCPUTotalCores() string {
+	return `count(node_cpu_seconds_total{mode="idle"})`
+}
+
+func promQueryClusterMemTotalBytes() string {
+	return `sum(node_memory_MemTotal_bytes)`
+}
+
+func promQueryClusterMemAvailableBytes() string {
+	return `sum(node_memory_MemAvailable_bytes)`
+}
+
 func promQueryPodCPUTop() string {
 	return "topk(10, sum by (pod, namespace) (rate(container_cpu_usage_seconds_total{container!=" +
 		string('"') + string('"') + "}[5m])) * 1000)"
