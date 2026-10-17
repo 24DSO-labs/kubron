@@ -15,7 +15,7 @@ export type Item<T> = 0 extends 1 & T
  */
 export type PanelItem<T, D> = Item<T> & Partial<Item<D>>
 
-/** Колонка списка: повторяет Column из K8sResourceListBase_old */
+/** Колонка списка */
 export interface ColumnDef<T = any> {
   key: string // dotted-path: 'metadata.name'
   label: string
@@ -39,6 +39,8 @@ export interface MenuItemDef {
   label: string
   action: string
   danger?: boolean
+  /** Подменю (например, контейнеры пода); выбранный arg попадёт в ActionDef.run третьим аргументом */
+  submenu?: { label: string; arg: string }[]
 }
 
 /** Единая точка действий. Реализация: resources/actions.ts */

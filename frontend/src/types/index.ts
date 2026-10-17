@@ -656,22 +656,3 @@ export interface ClusterRoleBinding {
     namespace?: string
   }>
 }
-
-export interface Column {
-  key: string
-  label: string
-  className?: string
-  component?: any
-  formatter?: (item: any) => string
-  colorFn?: (item: any) => string
-}
-
-export interface ContextMenuItem {
-  label: string
-  action?: string
-  danger?: boolean
-  show?: boolean
-  submenu?: ContextMenuItem[]
-  handler?: (item: any) => void
-  key?: string
-}
