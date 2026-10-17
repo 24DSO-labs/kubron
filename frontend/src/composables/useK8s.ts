@@ -184,10 +184,14 @@ async function loadPodMetrics() {
 // ─── Port forward ───
 
 async function refreshPortForwards() {
+  let next: PortForwardSession[]
   try {
     const data = await ListPortForwards()
-    portForwards.value = Array.isArray(data) ? data : []
-  } catch { portForwards.value = [] }
+    next = Array.isArray(data) ? data : []
+  } catch { next = [] }
+  // Не трогаем ref, если ничего не изменилось: иначе refreshOn списка port forward
+  // перезагружает список, тот снова вызывает refresh, и так по кругу
+  if (JSON.stringify(next) !== JSON.stringify(portForwards.value)) portForwards.value = next
 }
 
 // ─── Export ───
