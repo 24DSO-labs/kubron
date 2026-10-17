@@ -5,6 +5,7 @@
     :items="items"
     :search="search"
     :title="def.title"
+    :icon="def.icon"
     :empty-message="`Нет ${def.title}`"
     :columns="def.columns"
     :menu-for="menuFor"

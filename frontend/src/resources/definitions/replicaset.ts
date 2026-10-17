@@ -12,6 +12,7 @@ export const replicaSet = defineResource<k8s.ReplicaSetInfo>({
   title: 'ReplicaSets',
   namespaced: true,
   nav: { group: 'workloads', label: 'Replica Sets' },
+  icon: 'service',
 
   columns: [
     flatNameCol,

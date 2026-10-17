@@ -9,17 +9,17 @@
 
         <!-- Edit button -->
         <button v-if="showEdit !== false" class="btn-action" @click="emit('edit')" title="Edit">
-          <img :src="editIcon" alt="Edit" class="btn-icon"/>
+          <K8sIcon name="edit" alt="Edit" size="lg" />
         </button>
 
         <!-- Delete button -->
         <button v-if="showDelete !== false" class="btn-action btn-danger" @click="emit('delete')" title="Delete resource">
-          <img :src="deleteIcon" alt="Delete" class="btn-icon"/>
+          <K8sIcon name="delete" alt="Delete" size="lg" danger />
         </button>
 
         <!-- Close button -->
         <button class="btn-close" @click="emit('close')" title="Close">
-          <img :src="closeIcon" alt="Close" class="icon-close"/>
+          <K8sIcon name="close" alt="Close" size="lg" />
         </button>
       </div>
     </div>
@@ -31,7 +31,7 @@
         <div class="name-with-copy">
           {{ resource.name }}
           <button class="btn-copy" @click="copyToClipboard(resource.name)" title="Copy name">
-            <img :src="copyIcon" alt="Copy" class="icon-inline"/>
+            <K8sIcon name="copy" alt="Copy" size="sm" />
           </button>
         </div>
       </div>
@@ -86,10 +86,7 @@
 
 <script lang="ts" setup>
 import { ref, computed } from 'vue'
-import editIcon from '../../assets/icons/edit.svg'
-import deleteIcon from '../../assets/icons/delete.svg'
-import closeIcon from '../../assets/icons/close.svg'
-import copyIcon from '../../assets/icons/copy.svg'
+import K8sIcon from '../icons/K8sIcon.vue'
 
 interface DetailTab {
   id: string
@@ -353,12 +350,22 @@ function formatAgeAbsolute(created: string): string {
   opacity: 1;
 }
 
-.btn-action.btn-danger .btn-icon {
+.btn-action :deep(.k8s-icon) {
   filter: invert(1);
+  opacity: 0.85;
+  transition: opacity 0.15s;
+}
+
+.btn-action:hover :deep(.k8s-icon) {
+  opacity: 1;
+}
+
+.btn-action.btn-danger :deep(.k8s-icon) {
+  filter: invert(31%) sepia(91%) saturate(6000%) hue-rotate(350deg) brightness(95%) contrast(90%);
   opacity: 0.9;
 }
 
-.btn-action.btn-danger:hover .btn-icon {
+.btn-action.btn-danger:hover :deep(.k8s-icon) {
   opacity: 1;
 }
 

@@ -2,8 +2,7 @@ import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
-import restartIcon from '../../assets/icons/restart.svg'
-import logsIcon from '../../assets/icons/logs.svg'
+
 import DaemonSetMetricsSection from '../../components/resource/sections/DaemonSetMetricsSection.vue'
 import ImagesSection from '../../components/resource/sections/ImagesSection.vue'
 import TolerationsSection from '../../components/resource/sections/TolerationsSection.vue'
@@ -45,7 +44,7 @@ export const daemonSet = defineResource<k8s.DaemonSetInfo>({
     {
       id: 'restart',
       label: 'Restart',
-      icon: restartIcon,
+      icon: 'restart',
       run: async (d, ctx) => {
         if (!(await ctx.confirm(`Restart daemonset ${d.name}?`))) return
         return ctx.perform(
@@ -54,7 +53,7 @@ export const daemonSet = defineResource<k8s.DaemonSetInfo>({
         )
       },
     },
-    { id: 'logs', label: 'View logs', icon: logsIcon, run: (d, ctx) => ctx.openResourceLogs('daemonset', d.namespace, d.name) },
+    { id: 'logs', label: 'View logs', icon: 'logs', run: (d, ctx) => ctx.openResourceLogs('daemonset', d.namespace, d.name) },
   ],
 
   api: {

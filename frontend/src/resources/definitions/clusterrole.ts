@@ -8,7 +8,7 @@ export const clusterRole = defineResource({
   kind: 'ClusterRole',
   view: 'clusterroles',
   title: 'Cluster Roles',
-  icon: '🔑',
+  icon: 'cluster-role',
   namespaced: false,
   nav: { group: 'access', label: 'Cluster Roles' },
   columns: [nameCol, ageCol],

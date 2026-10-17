@@ -10,6 +10,7 @@ export const helmChart = defineResource<k8s.HelmChartInfo>({
   title: 'Helm Charts',
   namespaced: false,
   nav: { group: 'helm', label: 'Charts' },
+  icon: 'documentation',
   // агрегация установленных релизов по chart-у: без YAML и удаления
   editable: false,
 
