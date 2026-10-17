@@ -14,6 +14,7 @@ export const node = defineResource<k8s.NodeInfo, k8s.NodeDetail>({
   title: 'Nodes',
   namespaced: false,
   nav: { label: 'Nodes' },
+  icon: 'service',
 
   columns: [
     flatNameCol,
