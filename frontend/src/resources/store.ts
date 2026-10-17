@@ -87,6 +87,9 @@ export function useResourceList(getDef: () => ResourceDefinition) {
     },
   )
 
+  // Внешние изменения данных (def.refreshOn); watch живёт, пока смонтирован список этого ресурса
+  watch(() => getDef().refreshOn?.(), () => reload())
+
   const search = computed({
     get: () => k8s.search.value,
     set: (v: string) => {

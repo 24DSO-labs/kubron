@@ -1,9 +1,7 @@
-import { watch } from 'vue'
 import type { k8s as models } from '../../../wailsjs/go/models'
 import { defineResource } from '../types'
 import { callApp } from '../wails'
 import { useK8s } from '../../composables/useK8s'
-import { reloadActive } from '../store'
 import { flatNsCol } from './common'
 import { badgeClass, statusColor } from '../status'
 
@@ -41,16 +39,17 @@ export const portForward = defineResource<models.PortForwardSession>({
       id: 'stop',
       label: 'Stop',
       danger: true,
+      // perform() сам перезагрузит список, а list обновит сессии
       run: (pf, ctx) =>
         ctx.perform(
-          async () => {
-            await callApp('StopPortForward', pf.id)
-            await k8s.refreshPortForwards()
-          },
+          () => callApp('StopPortForward', pf.id),
           `Port forward :${pf.localPort} → ${pf.pod}:${pf.podPort} остановлен`,
         ),
     },
   ],
+
+  // Сессии запускают и из панелей pod/service: список обновляется сам
+  refreshOn: () => k8s.portForwards.value,
 
   api: {
     // Список сессий живёт в useK8s (локальное состояние, не k8s API)
@@ -59,9 +58,4 @@ export const portForward = defineResource<models.PortForwardSession>({
       return [...k8s.portForwards.value]
     },
   },
-})
-
-// Сессии меняются из других мест (панель pod): обновляем открытый список
-watch(k8s.portForwards, () => {
-  if (k8s.currentView.value === 'portforwarding') reloadActive()
 })
