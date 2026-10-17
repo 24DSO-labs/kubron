@@ -5,28 +5,43 @@
       <button class="pf-btn-stop" @click="stop">Stop</button>
     </div>
     <template v-else>
-      <button class="pf-btn" @click="showModal = true">Forward...</button>
+      <button class="pf-btn" @click="openModal">Forward...</button>
     </template>
 
     <div v-if="showModal" class="pf-modal-overlay" @click="showModal = false">
       <div class="pf-modal" @click.stop>
         <div class="pf-modal-head">
-          <span>Port Forward</span>
+          <span>Port Forwarding for {{ resourceType }} {{ resourceName }}</span>
           <button class="pf-close" @click="showModal = false">✕</button>
         </div>
         <div class="pf-modal-body">
           <div class="pf-row">
-            <label>Target port</label>
-            <span class="pf-target">{{ port }}</span>
+            <label class="pf-row-label">Local port to forward from:</label>
+            <div class="pf-port-input-wrap">
+              <input
+                ref="portInputRef"
+                v-model="localPortInput"
+                type="text"
+                class="pf-input"
+                :placeholder="isRandom ? 'Random' : ''"
+                @focus="onPortFocus"
+                @blur="onPortBlur"
+                @keyup.enter="start"
+              />
+            </div>
           </div>
-          <div class="pf-row">
-            <label>Local port</label>
-            <input v-model.number="localPort" type="number" min="1" max="65535" class="pf-input" @keyup.enter="start" />
-          </div>
+          <label class="pf-check">
+            <input v-model="useHttps" type="checkbox" />
+            <span>https</span>
+          </label>
+          <label class="pf-check">
+            <input v-model="openInBrowser" type="checkbox" />
+            <span>Open in Browser</span>
+          </label>
         </div>
         <div class="pf-modal-foot">
           <button class="pf-btn-secondary" @click="showModal = false">Cancel</button>
-          <button class="pf-btn-primary" @click="start" :disabled="loading">{{ loading ? '...' : 'Forward' }}</button>
+          <button class="pf-btn-primary" @click="start" :disabled="loading">{{ loading ? '...' : 'Start' }}</button>
         </div>
       </div>
     </div>
@@ -37,6 +52,8 @@
 import { ref, computed } from 'vue'
 import { useK8s } from '../../../composables/useK8s'
 import { callApp } from '../../../resources/wails'
+import { BrowserOpenURL } from '../../../../wailsjs/runtime/runtime'
+import { GetFreePort } from '../../../../wailsjs/go/main/App'
 
 const props = defineProps<{
   namespace: string
@@ -47,7 +64,10 @@ const props = defineProps<{
 
 const k8s = useK8s()
 const showModal = ref(false)
-const localPort = ref(props.port + 10000)
+const localPortInput = ref('')
+const isRandom = ref(true)
+const useHttps = ref(false)
+const openInBrowser = ref(true)
 const loading = ref(false)
 
 const active = computed(() => {
@@ -59,16 +79,52 @@ const active = computed(() => {
   )
 })
 
+function openModal() {
+  showModal.value = true
+  isRandom.value = true
+  localPortInput.value = ''
+  useHttps.value = false
+  openInBrowser.value = true
+}
+
+function onPortFocus() {
+  if (isRandom.value) {
+    localPortInput.value = ''
+    isRandom.value = false
+  }
+}
+
+function onPortBlur() {
+  const val = parseInt(localPortInput.value.trim(), 10)
+  if (!val || isNaN(val)) {
+    isRandom.value = true
+    localPortInput.value = ''
+  }
+}
+
 async function start() {
   loading.value = true
   try {
-    if (props.resourceType === 'pod') {
-      await callApp('StartPortForward', props.namespace, props.resourceName, localPort.value, props.port)
+    let localPort: number
+    const inputVal = parseInt(localPortInput.value.trim(), 10)
+    if (inputVal && !isNaN(inputVal)) {
+      localPort = inputVal
     } else {
-      await callApp('StartServicePortForward', props.namespace, props.resourceName, localPort.value, props.port)
+      localPort = await GetFreePort()
+    }
+
+    if (props.resourceType === 'pod') {
+      await callApp('StartPortForward', props.namespace, props.resourceName, localPort, props.port)
+    } else {
+      await callApp('StartServicePortForward', props.namespace, props.resourceName, localPort, props.port)
     }
     await k8s.refreshPortForwards()
     showModal.value = false
+
+    if (openInBrowser.value) {
+      const protocol = useHttps.value ? 'https' : 'http'
+      BrowserOpenURL(`${protocol}://localhost:${localPort}`)
+    }
   } catch (e: any) {
     alert('Port forward error: ' + (e?.message || e))
   } finally {
@@ -97,18 +153,23 @@ async function stop() {
 .pf-btn-stop:hover { background: rgba(239,68,68,0.2); }
 
 .pf-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-.pf-modal { background: #1e1f35; border: 1px solid #3b3d5c; border-radius: 8px; width: 90%; max-width: 320px; overflow: hidden; }
-.pf-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #2a2b40; font-weight: 600; }
+.pf-modal { background: #1e1f35; border: 1px solid #3b3d5c; border-radius: 8px; width: 90%; max-width: 420px; overflow: hidden; }
+.pf-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid #2a2b40; font-weight: 600; font-size: 0.95rem; }
 .pf-close { background: transparent; border: none; color: #9ca0b8; cursor: pointer; font-size: 1rem; }
-.pf-modal-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-.pf-row { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 12px; }
-.pf-row label { color: #9ca0b8; font-size: 0.85rem; font-weight: 500; }
-.pf-target { color: #60a5fa; font-weight: 600; font-family: monospace; }
+.pf-close:hover { color: #d4d4d4; }
+.pf-modal-body { padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.pf-row { display: flex; align-items: center; gap: 12px; }
+.pf-row-label { color: #9ca0b8; font-size: 0.85rem; font-weight: 500; white-space: nowrap; }
+.pf-port-input-wrap { flex: 1; }
 .pf-input { padding: 6px 10px; background: #1a1b2e; border: 1px solid #3b3d5c; border-radius: 4px; color: white; font-size: 0.9rem; width: 100%; }
 .pf-input:focus { outline: none; border-color: #3b82f6; }
-.pf-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid #2a2b40; }
-.pf-btn-secondary { padding: 6px 12px; background: transparent; border: 1px solid #3b3d5c; border-radius: 4px; color: #9ca0b8; cursor: pointer; font-size: 0.85rem; }
-.pf-btn-primary { padding: 6px 12px; background: #3b82f6; border: none; border-radius: 4px; color: white; cursor: pointer; font-size: 0.85rem; }
+.pf-input::placeholder { color: #6b7280; font-style: italic; }
+.pf-check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem; color: #d4d4d4; }
+.pf-check input[type="checkbox"] { width: 16px; height: 16px; accent-color: #3b82f6; cursor: pointer; }
+.pf-modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 18px; border-top: 1px solid #2a2b40; }
+.pf-btn-secondary { padding: 7px 16px; background: #45475a; border: none; border-radius: 6px; color: #cdd6f4; cursor: pointer; font-size: 0.85rem; }
+.pf-btn-secondary:hover { background: #585b70; }
+.pf-btn-primary { padding: 7px 16px; background: #3b82f6; border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 0.85rem; }
 .pf-btn-primary:hover:not(:disabled) { background: #2563eb; }
 .pf-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 </style>
