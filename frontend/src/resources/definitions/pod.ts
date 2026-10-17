@@ -72,10 +72,44 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
     { label: 'Status', value: p => podStatus(p), badge: p => badgeClass(podStatus(p)) },
     { label: 'Ready', value: p => p.ready },
     { label: 'Restarts', value: p => p.restarts },
-    { label: 'Node', value: p => p.node },
+    { label: 'Node', value: p => p.node, link: p => p.node ? { id: 'node', ns: '', name: p.node } : null },
     { label: 'IP', value: p => p.ip },
-    { label: 'Controlled By', value: p => p.controlledBy },
-    { label: 'Service Account', value: p => p.serviceAccount },
+    {
+      label: 'Controlled By',
+      value: p => {
+        const cb = p.controlledBy
+        if (!cb) return null
+        const [kind] = cb.split('/')
+        const hasLink = kind && ['ReplicaSet', 'StatefulSet', 'DaemonSet', 'Job', 'CronJob', 'Deployment', 'Service'].includes(kind)
+        return hasLink ? kind + ' ' : cb
+      },
+      linkLabel: p => {
+        const cb = p.controlledBy
+        if (!cb) return null
+        const [, name] = cb.split('/')
+        return name || null
+      },
+      link: p => {
+        const cb = p.controlledBy
+        if (!cb) return null
+        const [kind, name] = cb.split('/')
+        if (!kind || !name) return null
+        const idMap: Record<string, string> = {
+          ReplicaSet: 'replicaset',
+          StatefulSet: 'statefulset',
+          DaemonSet: 'daemonset',
+          Job: 'job',
+          CronJob: 'cronjob',
+          Deployment: 'deployment',
+          Node: 'node',
+          Service: 'service',
+        }
+        const id = idMap[kind]
+        if (!id) return null
+        return { id, ns: p.namespace, name }
+      },
+    },
+    { label: 'Service Account', value: p => p.serviceAccount, link: p => p.serviceAccount ? { id: 'serviceaccount', ns: p.namespace, name: p.serviceAccount } : null },
     { label: 'QoS', value: p => p.qos },
   ],
   sections: [PodVolumesSection, TolerationsSection, ConditionsSection],

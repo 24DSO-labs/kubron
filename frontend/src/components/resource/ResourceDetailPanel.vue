@@ -61,13 +61,24 @@
             <span class="rd-badge" :class="p.badge(resource)">{{ show(p.value(resource)) }}</span>
           </span>
           <span v-else-if="p.link" class="rd-value">
-            <a
-              v-if="p.link(resource)"
-              class="rd-link"
-              @click="resourceActions.open(p.link(resource)!.id, p.link(resource)!.ns, p.link(resource)!.name)"
-            >
-              {{ show(p.value(resource)) }}
-            </a>
+            <template v-if="p.link(resource)">
+              <template v-if="p.linkLabel">
+                {{ show(p.value(resource)) }}
+                <a
+                  class="rd-link"
+                  @click="resourceActions.open(p.link(resource)!.id, p.link(resource)!.ns, p.link(resource)!.name)"
+                >
+                  {{ show(p.linkLabel(resource)) }}
+                </a>
+              </template>
+              <a
+                v-else
+                class="rd-link"
+                @click="resourceActions.open(p.link(resource)!.id, p.link(resource)!.ns, p.link(resource)!.name)"
+              >
+                {{ show(p.value(resource)) }}
+              </a>
+            </template>
             <template v-else>{{ show(p.value(resource)) }}</template>
           </span>
           <span v-else class="rd-value">{{ show(p.value(resource)) }}</span>

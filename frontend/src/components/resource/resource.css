@@ -52,6 +52,10 @@
 
 /* Таблицы (поды, ревизии, tolerations) */
 .rd-table-wrap { width: 100%; overflow-x: auto; }
+.rd-table-wrap::-webkit-scrollbar { height: 6px; }
+.rd-table-wrap::-webkit-scrollbar-track { background: transparent; }
+.rd-table-wrap::-webkit-scrollbar-thumb { background: #3e3f5e; border-radius: 3px; }
+.rd-table-wrap::-webkit-scrollbar-thumb:hover { background: #4e4f6e; }
 .rd-table { width: 100%; border-collapse: collapse; background: #1a1b2e; color: #d4d4d4; font-size: 0.9rem; }
 .rd-table th {
   padding: 10px 12px; text-align: left; font-weight: 600; white-space: nowrap; text-transform: uppercase;
