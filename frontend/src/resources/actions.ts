@@ -5,6 +5,7 @@ import { useNotifications } from '../composables/useNotifications'
 import { getResourceById } from './registry'
 import { reloadActive } from './store'
 import { callApp } from './wails'
+import { askConfirm } from './confirm'
 import type { ActionContext } from './types'
 
 const notifications = useNotifications()
@@ -34,6 +35,7 @@ export const resourceActions: ActionContext & {
   closeDetail() {
     opened.value = null
   },
+
 
   async edit(id, ns, name) {
     try {
@@ -108,8 +110,8 @@ export const resourceActions: ActionContext & {
     scaleTarget.value = null
   },
 
-  // TODO: заменить на общий диалог подтверждения; window.confirm в Wails работает не на всех ОС
-  confirm: message => window.confirm(message),
+  // Свой диалог вместо window.confirm: в Wails нативный confirm работает не на всех ОС
+  confirm: askConfirm,
 
   async perform(fn, successMessage) {
     try {

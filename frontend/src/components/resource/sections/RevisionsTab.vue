@@ -30,6 +30,7 @@
 import { ref, computed, watch } from 'vue'
 import { callApp } from '../../../resources/wails'
 import { reloadActive } from '../../../resources/store'
+import { askConfirm } from '../../../resources/confirm'
 import { useNotifications } from '../../../composables/useNotifications'
 import { itemName, itemNs } from '../../../resources/utils'
 
@@ -62,8 +63,7 @@ async function load() {
 }
 
 async function rollback(revision: string | number) {
-  // TODO: заменить на общий диалог подтверждения
-  if (!window.confirm(`Rollback ${name.value} to revision ${revision}?`)) return
+  if (!(await askConfirm(`Rollback ${name.value} to revision ${revision}?`))) return
   try {
     await callApp('RollbackDeployment', namespace.value, name.value, parseInt(String(revision), 10))
     notifications.notifySuccess(`${name.value}: rollback to revision ${revision} started`)
