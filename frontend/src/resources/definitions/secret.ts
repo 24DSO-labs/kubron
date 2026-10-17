@@ -11,7 +11,8 @@ export const secret = defineResource<k8s.SecretInfo>({
   title: 'Secrets',
   namespaced: true,
   nav: { group: 'config', label: 'Secrets' },
-  icon: 'secret',
+  
+  autoRefresh: true,icon: 'secret',
 
   columns: [
     flatNameCol,

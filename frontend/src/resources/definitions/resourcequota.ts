@@ -10,7 +10,8 @@ export const resourceQuota = defineResource<k8s.ResourceQuotaInfo>({
   title: 'ResourceQuotas',
   namespaced: true,
   nav: { group: 'config', label: 'Resource Quotas' },
-  icon: 'configmap',
+  
+  autoRefresh: true,icon: 'configmap',
 
   columns: [
     flatNameCol,

@@ -85,6 +85,14 @@ func (a *App) GetLastActiveCluster() string {
 	return config.LastActiveCluster
 }
 
+func (a *App) GetAppSettings() (*k8s.KubronConfig, error) {
+	return k8s.LoadKubronConfig()
+}
+
+func (a *App) SaveAppSettings(settings *k8s.KubronConfig) error {
+	return k8s.SaveKubronConfig(settings)
+}
+
 // === Контексты ===
 
 func (a *App) GetContexts() ([]k8s.ContextInfo, error) {

@@ -25,6 +25,8 @@ export const job = defineResource<k8s.JobInfo>({
   namespaced: true,
   nav: { group: 'workloads', label: 'Jobs' },
 
+  
+  autoRefresh: true,
   columns: [
     flatNameCol,
     flatNsCol,

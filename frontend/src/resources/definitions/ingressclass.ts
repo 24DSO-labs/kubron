@@ -10,7 +10,8 @@ export const ingressClass = defineResource<k8s.IngressClassInfo>({
   title: 'IngressClasses',
   namespaced: false,
   nav: { group: 'network', label: 'Ingress Classes' },
-  icon: 'ingress',
+  
+  autoRefresh: true,icon: 'ingress',
 
   columns: [
     flatNameCol,

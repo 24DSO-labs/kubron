@@ -1,6 +1,7 @@
 import { shallowRef, ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useK8s } from '../composables/useK8s'
 import { useNotifications } from '../composables/useNotifications'
+import { useAppSettings } from '../composables/useAppSettings'
 import type { ResourceDefinition } from './types'
 import { matchesSearch } from './utils'
 
@@ -72,12 +73,36 @@ export function useResourceList(getDef: () => ResourceDefinition) {
 
   const reload = () => loadResource(getDef())
 
+  // Авто-обновление
+  const appSettings = useAppSettings()
+  let refreshTimer: ReturnType<typeof setInterval> | null = null
+
+  function startAutoRefresh() {
+    stopAutoRefresh()
+    const def = getDef()
+    if (!def.autoRefresh) return
+    const intervalMs = appSettings.getRefreshIntervalMs()
+    if (intervalMs <= 0) return
+    refreshTimer = setInterval(() => {
+      loadResource(def)
+    }, intervalMs)
+  }
+
+  function stopAutoRefresh() {
+    if (refreshTimer) {
+      clearInterval(refreshTimer)
+      refreshTimer = null
+    }
+  }
+
   onMounted(() => {
     activeDef = getDef()
     reload()
+    startAutoRefresh()
   })
   onUnmounted(() => {
     if (activeDef === getDef()) activeDef = null
+    stopAutoRefresh()
   })
 
   watch(

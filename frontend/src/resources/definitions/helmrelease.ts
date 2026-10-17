@@ -11,7 +11,8 @@ export const helmRelease = defineResource<k8s.HelmReleaseInfo>({
   title: 'Helm Releases',
   namespaced: false,
   nav: { group: 'helm', label: 'Releases' },
-  icon: 'documentation',
+  
+  autoRefresh: true,icon: 'documentation',
   // helm-релиз — агрегат из secret-ов, не отдельный k8s-ресурс: без YAML и удаления
   editable: false,
 

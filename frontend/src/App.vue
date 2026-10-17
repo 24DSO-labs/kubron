@@ -78,6 +78,7 @@ import { useK8s } from './composables/useK8s'
 import { useClusters } from './composables/useClusters'
 import { useClusterConnection } from './composables/useClusterConnection'
 import { useNotifications } from './composables/useNotifications'
+import { useAppSettings } from './composables/useAppSettings'
 import { viewRegistry } from './composables/useViewRegistry'
 import { globalTabbedPanel } from './composables/useTabbedPanel'
 import { getResourceByView, getResourceById } from './resources/registry'
@@ -256,7 +257,10 @@ watch(error, (val) => {
 // Init
 // ═══════════════════════════════════════════════
 
+const appSettings = useAppSettings()
+
 onMounted(() => {
+  appSettings.loadSettings()
   clusterConn.initialize()
 })
 </script>
