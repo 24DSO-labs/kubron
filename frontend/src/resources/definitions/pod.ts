@@ -60,6 +60,13 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
     { key: 'restarts', label: 'RESTARTS' },
     ageCol,
     { key: 'node', label: 'NODE' },
+    {
+      key: 'controlledBy',
+      label: 'Controller',
+      className: 'ns-label',
+      formatter: (p: any) => p.controlledBy?.split('/')[0] || '—',
+    },
+    
     { key: 'qos', label: 'QOS' },
   ],
 

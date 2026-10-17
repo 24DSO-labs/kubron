@@ -2,6 +2,7 @@
   <K8sResourceDetailBase
     :resource="base"
     :resource-icon="def.icon"
+    :resource-type="def.kind"
     :custom-tabs="tabList"
     :show-edit="def.editable !== false"
     :show-delete="!!def.api.remove"

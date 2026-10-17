@@ -9,7 +9,7 @@ export const namespaceResource = defineResource<k8s.NamespaceInfo>({
   kind: 'Namespace',
   view: 'namespaces',
   title: 'Namespaces',
-  icon: '📂',
+  icon: '',
   namespaced: false,
   nav: { label: 'Namespaces' },
 
