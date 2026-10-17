@@ -5,10 +5,7 @@ import { useK8s } from '../../composables/useK8s'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 import { badgeClass, statusColor } from '../status'
 import { containersOf } from '../utils'
-import attachIcon from '../../assets/icons/attach.svg'
-import terminalIcon from '../../assets/icons/terminal.svg'
-import logsIcon from '../../assets/icons/logs.svg'
-import evictIcon from '../../assets/icons/evict.svg'
+
 import PodContainersCell from '../../components/resource/sections/PodContainersCell.vue'
 import PodMetricsSection from '../../components/resource/sections/PodMetricsSection.vue'
 import PodVolumesSection from '../../components/resource/sections/PodVolumesSection.vue'
@@ -90,7 +87,7 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
     {
       id: 'attach',
       label: 'Attach',
-      icon: attachIcon,
+      icon: 'attach',
       perContainer: true,
       run: (p, ctx, container) => {
         const c = container ?? containersOf(p)[0]?.name
@@ -101,7 +98,7 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
     {
       id: 'shell',
       label: 'Shell',
-      icon: terminalIcon,
+      icon: 'terminal',
       perContainer: true,
       run: (p, ctx, container) => {
         const c = container ?? containersOf(p)[0]?.name
@@ -112,7 +109,7 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
     {
       id: 'logs',
       label: 'Logs',
-      icon: logsIcon,
+      icon: 'logs',
       perContainer: true,
       run: (p, ctx, container) => {
         const containers = containersOf(p)
@@ -122,7 +119,7 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
     {
       id: 'evict',
       label: 'Evict',
-      icon: evictIcon,
+      icon: 'evict',
       danger: true,
       run: async (p, ctx) => {
         if (!(await ctx.confirm(`Evict pod ${p.name}?`))) return

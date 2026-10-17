@@ -1,7 +1,7 @@
 <template>
   <div>
     <div v-if="menu" class="menu-overlay" @click="hideMenu" @contextmenu.prevent="hideMenu"></div>
-    <ContentHeader icon="" :title="title" :count="items.length" :search="search" showSearch @refresh="emit('refresh')" @search="v => emit('search', v)" />
+    <ContentHeader :icon="icon" :title="title" :count="items.length" :search="search" showSearch @refresh="emit('refresh')" @search="v => emit('search', v)" />
 
     <table v-if="items.length > 0" class="table">
       <thead>
@@ -63,6 +63,7 @@ const props = defineProps<{
   items: any[]
   search: string
   title: string
+  icon?: string
   emptyMessage: string
   columns: ColumnDef[]
   menuFor: (item: any) => MenuItemDef[]

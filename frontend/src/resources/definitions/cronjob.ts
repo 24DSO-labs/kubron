@@ -10,6 +10,7 @@ export const cronJob = defineResource<k8s.CronJobInfo>({
   title: 'CronJobs',
   namespaced: true,
   nav: { group: 'workloads', label: 'Cron Jobs' },
+  icon: 'restart',
 
   columns: [
     flatNameCol,

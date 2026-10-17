@@ -3,9 +3,7 @@ import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 import { badgeClass, statusColor } from '../status'
-import scaleIcon from '../../assets/icons/scale.svg'
-import restartIcon from '../../assets/icons/restart.svg'
-import logsIcon from '../../assets/icons/logs.svg'
+
 import DeploymentMetricsSection from '../../components/resource/sections/DeploymentMetricsSection.vue'
 import ImagesSection from '../../components/resource/sections/ImagesSection.vue'
 import ConditionsSection from '../../components/resource/sections/ConditionsSection.vue'
@@ -74,11 +72,11 @@ export const deployment = defineResource<k8s.DeploymentInfo>({
   ],
 
   actions: [
-    { id: 'scale', label: 'Scale', icon: scaleIcon, run: (d, ctx) => ctx.requestScale(d) },
+    { id: 'scale', label: 'Scale', icon: 'scale', run: (d, ctx) => ctx.requestScale(d) },
     {
       id: 'restart',
       label: 'Restart',
-      icon: restartIcon,
+      icon: 'restart',
       run: async (d, ctx) => {
         if (!(await ctx.confirm(`Restart deployment ${d.name}?`))) return
         return ctx.perform(
@@ -88,7 +86,7 @@ export const deployment = defineResource<k8s.DeploymentInfo>({
       },
     },
     // Название "View logs", а не "Logs": список особо обрабатывает пункт с меткой "Logs" (подменю контейнеров pod)
-    { id: 'logs', label: 'View logs', icon: logsIcon, run: (d, ctx) => ctx.openResourceLogs('deployment', d.namespace, d.name) },
+    { id: 'logs', label: 'View logs', icon: 'logs', run: (d, ctx) => ctx.openResourceLogs('deployment', d.namespace, d.name) },
   ],
 
   api: {
