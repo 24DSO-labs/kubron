@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div v-if="menu" class="menu-overlay" @click="hideMenu"></div>
+    <div v-if="menu" class="menu-overlay" @click="hideMenu" @contextmenu.prevent="hideMenu"></div>
     <ContentHeader icon="" :title="title" :count="items.length" :search="search" showSearch @refresh="emit('refresh')" @search="v => emit('search', v)" />
 
     <table v-if="items.length > 0" class="table">
@@ -11,7 +11,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="item in items" :key="itemKey(item)" class="clickable-row" @click="emit('select', item)">
+        <tr v-for="item in items" :key="itemKey(item)" class="clickable-row" @click="emit('select', item)" @contextmenu.prevent="openMenuAt(item, $event)">
           <td v-for="col in columns" :key="col.key" :class="col.className">
             <component :is="col.component" v-if="col.component" :item="item" :col="col" />
             <span v-else :style="cellStyle(col, item)">{{ cellValue(col, item) }}</span>
@@ -55,7 +55,7 @@
  * Таблица ресурсов с контекстным меню. Ничего не знает о конкретных действиях:
  * пункты и подменю приходят из menuFor(item), выбранный пункт уходит событием action.
  */
-import { ref, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import ContentHeader from '../ContentHeader.vue'
 import type { ColumnDef, MenuItemDef } from '../../resources/types'
 
@@ -99,7 +99,14 @@ function clearSubTimer() {
   if (subTimer) clearTimeout(subTimer)
   subTimer = null
 }
-onUnmounted(clearSubTimer)
+function onKey(e: KeyboardEvent) {
+  if (e.key === 'Escape') hideMenu()
+}
+onMounted(() => window.addEventListener('keydown', onKey))
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKey)
+  clearSubTimer()
+})
 
 function onEnter(i: number) {
   clearSubTimer()
@@ -110,33 +117,32 @@ function onLeave() {
   subTimer = setTimeout(() => { openSub.value = null }, 150)
 }
 
-function openMenu(item: any, event: MouseEvent) {
+const MENU_WIDTH = 200
+
+function showMenu(item: any, x: number, y: number) {
   const entries = props.menuFor(item)
   openSub.value = null
 
-  const rect = (event.target as HTMLElement).getBoundingClientRect()
-  const menuWidth = 200
   const menuHeight = Math.min(300, entries.length * 30 + 50)
 
-  let left: number
-  if (rect.left >= menuWidth) {
-    left = rect.left - menuWidth + window.scrollX
-  } else {
-    left = rect.right + window.scrollX
-    if (left + menuWidth > window.innerWidth + window.scrollX) {
-      left = window.innerWidth - menuWidth + window.scrollX
-    }
-  }
+  // не выходить за правый/нижний край окна
+  const left = Math.max(0, Math.min(x, window.innerWidth - MENU_WIDTH))
+  const top = Math.max(0, Math.min(y, window.innerHeight - menuHeight))
 
-  let top: number
-  if (window.innerHeight - rect.bottom >= menuHeight) {
-    top = rect.bottom + window.scrollY
-  } else {
-    top = Math.max(rect.top - menuHeight + window.scrollY, window.scrollY)
-  }
-
-  menuStyle.value = { position: 'absolute', top: `${top}px`, left: `${left}px` }
+  menuStyle.value = { position: 'fixed', top: `${top}px`, left: `${left}px` }
   menu.value = { item, entries }
+}
+
+/** Правая кнопка мыши: меню у курсора */
+function openMenuAt(item: any, event: MouseEvent) {
+  showMenu(item, event.clientX, event.clientY)
+}
+
+/** Кнопка «⋮»: меню слева от кнопки (как раньше) */
+function openMenu(item: any, event: MouseEvent) {
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  const x = rect.left >= MENU_WIDTH ? rect.left - MENU_WIDTH : rect.right
+  showMenu(item, x, rect.bottom)
 }
 
 function hideMenu() {
