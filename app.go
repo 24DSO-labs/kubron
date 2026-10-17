@@ -274,6 +274,10 @@ func (a *App) GetSecrets(namespace string) ([]k8s.SecretInfo, error) {
 	return a.k8sMgr.GetSecrets(namespace)
 }
 
+func (a *App) GetSecretValue(namespace, name, key string) (string, error) {
+	return a.k8sMgr.GetSecretValue(namespace, name, key)
+}
+
 // === Storage ===
 
 func (a *App) GetPersistentVolumes() ([]k8s.PVInfo, error) {

@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,4 +61,25 @@ func (m *Manager) DeleteSecret(namespace, name string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	return conn.Client.CoreV1().Secrets(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}
+
+// GetSecretValue возвращает расшифрованное значение одного ключа секрета.
+// client-go уже декодирует base64 в sec.Data.
+func (m *Manager) GetSecretValue(namespace, name, key string) (string, error) {
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return "", err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	sec, err := conn.Client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	val, ok := sec.Data[key]
+	if !ok {
+		return "", fmt.Errorf("ключ %q не найден в секрете %s", key, name)
+	}
+	return string(val), nil
 }
