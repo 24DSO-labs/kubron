@@ -1,53 +1,51 @@
 <template>
-  <div class="p-6 max-w-4xl space-y-6">
-    <h1 class="text-xl font-semibold text-white mb-6">Настройки кластера</h1>
+  <div class="settings-page">
+    <h1 class="settings-title">Настройки кластера</h1>
 
     <!-- App Settings -->
-    <div class="bg-gray-800 rounded-lg border border-gray-700">
-      <div class="p-5 border-b border-gray-700">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-blue-900/50 flex items-center justify-center">
-            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </div>
-          <div>
-            <h2 class="text-base font-medium text-white">Авто-обновление</h2>
-            <p class="text-sm text-gray-400">Периодическое обновление списков ресурсов</p>
+    <div class="settings-card">
+      <div class="settings-card-header">
+        <div class="settings-card-header-row">
+          <div class="settings-card-header-left">
+            <div class="settings-card-icon-wrap blue">
+              <svg class="settings-card-icon blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </div>
+            <div>
+              <h2 class="settings-card-heading">Авто-обновление</h2>
+              <p class="settings-card-description">Периодическое обновление списков ресурсов</p>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="p-5">
-        <div class="flex items-center gap-4">
-          <div class="flex-1">
-            <label class="block text-sm font-medium text-gray-300 mb-2">
+      <div class="settings-card-body">
+        <div class="settings-setting-row">
+          <div class="settings-setting-field">
+            <label class="settings-label">
               Интервал обновления
             </label>
-            <div class="flex items-center gap-3">
+            <div class="settings-setting-row-input">
               <input
                 v-model.number="refreshInterval"
                 type="number"
                 min="0"
                 max="300"
-                class="w-24 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm
-                       focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                class="settings-input"
                 placeholder="10"
               />
-              <span class="text-sm text-gray-400">секунд</span>
+              <span class="settings-input-placeholder">секунд</span>
             </div>
-            <p class="text-xs text-gray-500 mt-2">
+            <p class="settings-hint">
               0 — авто-обновление отключено. Списки обновляются только вручную.
             </p>
           </div>
           <button
             @click="saveRefreshSettings"
             :disabled="!settingsLoaded"
-            class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600
-                   active:from-blue-700 active:to-blue-800 disabled:from-gray-700 disabled:to-gray-700
-                   disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg
-                   transition-all duration-200 shadow-md hover:shadow-lg"
+            class="settings-save-btn"
           >
             Сохранить
           </button>
@@ -56,41 +54,41 @@
     </div>
 
     <!-- Metrics Stack -->
-    <div class="bg-gray-800 rounded-lg border border-gray-700">
+    <div class="settings-card">
       <!-- Header -->
-      <div class="p-5 border-b border-gray-700">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-purple-900/50 flex items-center justify-center">
-              <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="settings-card-header">
+        <div class="settings-card-header-row">
+          <div class="settings-card-header-left">
+            <div class="settings-card-icon-wrap purple">
+              <svg class="settings-card-icon purple" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             </div>
             <div>
-              <h2 class="text-base font-medium text-white">Стек метрик</h2>
-              <p class="text-sm text-gray-400">Prometheus + Node Exporter + Kube State Metrics</p>
+              <h2 class="settings-card-heading">Стек метрик</h2>
+              <p class="settings-card-description">Prometheus + Node Exporter + Kube State Metrics</p>
             </div>
           </div>
           <MetricsStatusBadge v-if="status" :status="status.status" />
         </div>
       </div>
 
-      <div class="p-5">
+      <div class="settings-card-body">
         <!-- NOT INSTALLED -->
         <div v-if="currentState === 'not_installed'">
-          <p class="text-sm text-gray-400 mb-4">
+          <p class="settings-not-installed-text">
             Установите стек метрик Kubron для включения мониторинга кластера с графиками CPU, памяти и сети. Создаёт пространство имён
-            <code class="text-gray-300 bg-gray-700 px-1.5 py-0.5 rounded text-xs">kubron-metrics</code>.
+            <code class="settings-code-inline">kubron-metrics</code>.
           </p>
 
-          <div class="bg-gray-900/50 rounded-lg p-4 mb-5">
-            <h4 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">
+          <div class="settings-components-list">
+            <h4 class="settings-components-title">
               Компоненты
             </h4>
-            <div class="space-y-2.5">
+            <div class="settings-components-list-inner">
               <div v-for="c in componentsList" :key="c.name"
-                class="flex items-center gap-2.5 text-sm">
+                class="settings-component-item">
                 <span class="w-2 h-2 rounded-full" :class="c.dotColor"></span>
                 <span class="text-gray-300 font-medium">{{ c.name }}</span>
                 <span class="text-gray-600 text-xs">— {{ c.desc }}</span>
@@ -99,9 +97,7 @@
           </div>
 
           <button @click="handleInstall" :disabled="loading"
-            class="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 active:from-blue-700 active:to-blue-800 disabled:from-blue-800 disabled:to-blue-800
-                   disabled:cursor-not-allowed text-white text-sm font-semibold
-                   rounded-lg transition-all duration-200 shadow-md hover:shadow-xl hover:scale-105 flex items-center gap-2">
+            class="settings-install-btn">
             <svg v-if="loading" class="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10"
                 stroke="currentColor" stroke-width="3"/>
@@ -114,9 +110,9 @@
 
         <!-- INSTALLING -->
         <div v-else-if="currentState === 'installing'">
-          <div class="flex items-center gap-3">
-            <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
-            <p class="text-sm text-gray-300">
+          <div class="settings-installing-status">
+            <div class="settings-installing-spinner"></div>
+            <p class="settings-installing-text">
               Установка стека метрик... Это может занять несколько минут.
             </p>
           </div>
@@ -124,19 +120,19 @@
 
         <!-- INSTALLED -->
         <div v-else-if="currentState === 'installed'">
-          <p class="text-sm text-gray-400 mb-4">
+          <p class="settings-installed-status-text">
             Стек метрик работает. Данные мониторинга собираются.
           </p>
 
           <!-- Running components -->
           <div v-if="status?.components"
-            class="bg-gray-900/50 rounded-lg p-4 mb-5">
-            <h4 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">
+            class="settings-installed-components">
+            <h4 class="settings-installed-components-title">
               Работающие компоненты
             </h4>
-            <div class="space-y-2.5">
+            <div class="settings-installed-components-inner">
               <div v-for="(comp, name) in status.components" :key="name"
-                class="flex items-center justify-between text-sm">
+                class="settings-installed-comp-item">
                 <div class="flex items-center gap-2.5">
                   <span :class="['w-2 h-2 rounded-full',
                     comp.ready ? 'bg-green-400' : 'bg-yellow-400 animate-pulse']">
@@ -151,8 +147,8 @@
           </div>
 
           <!-- Uninstall -->
-          <div class="pt-4 border-t border-gray-700">
-            <div class="flex items-center justify-between">
+          <div class="settings-uninstall-section">
+            <div class="settings-uninstall-row">
               <div>
                 <p class="text-sm text-gray-300">Удалить стек метрик</p>
                 <p class="text-xs text-gray-500 mt-0.5">
@@ -161,20 +157,18 @@
               </div>
               <div v-if="!showConfirm">
                 <button @click="showConfirm = true"
-                  class="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300
-                         text-sm font-medium rounded-lg border border-red-500/50 hover:border-red-500 transition-all duration-200">
+                  class="settings-delete-btn">
                   Удалить
                 </button>
               </div>
-              <div v-else class="flex items-center gap-2">
+              <div v-else class="settings-confirm-bar">
+                <span class="settings-confirm-text">Вы уверены?</span>
                 <button @click="showConfirm = false"
-                  class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white
-                         text-sm font-medium rounded-lg transition-all duration-200">
+                  class="settings-cancel-btn">
                   Отмена
                 </button>
                 <button @click="handleUninstall" :disabled="loading"
-                  class="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 active:from-red-700 active:to-red-800 disabled:from-red-800 disabled:to-red-800
-                         text-white text-sm font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:cursor-not-allowed">
+                  class="settings-confirm-btn">
                   Подтвердить удаление
                 </button>
               </div>
@@ -184,8 +178,8 @@
 
         <!-- DEGRADED -->
         <div v-else-if="currentState === 'degraded'">
-          <div class="bg-yellow-900/20 border border-yellow-700/50 rounded-lg p-4 mb-4">
-            <div class="flex items-start gap-2">
+          <div class="settings-degraded-warning">
+            <div class="settings-degraded-warning-content">
               <svg class="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" fill="none"
                 stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -200,10 +194,10 @@
             </div>
           </div>
 
-          <div v-if="status?.components" class="bg-gray-900/50 rounded-lg p-4 mb-4">
-            <div class="space-y-2.5">
+          <div v-if="status?.components" class="settings-degraded-components">
+            <div class="settings-degraded-components-inner">
               <div v-for="(comp, name) in status.components" :key="name"
-                class="flex items-center justify-between text-sm">
+                class="settings-degraded-comp-item">
                 <div class="flex items-center gap-2.5">
                   <span :class="['w-2 h-2 rounded-full',
                     comp.ready ? 'bg-green-400' : 'bg-red-400']"></span>
@@ -218,40 +212,35 @@
 
           <div class="flex items-center gap-2">
             <button @click="fetchStatus"
-              class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white
-                     text-sm font-medium rounded-lg transition-all duration-200">
+              class="settings-refresh-btn">
               Обновить
             </button>
             <button @click="handleReinstall" :disabled="loading"
-              class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 active:from-blue-700 active:to-blue-800 disabled:from-blue-800 disabled:to-blue-800
-                     text-white text-sm font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:cursor-not-allowed">
+              class="settings-reinstall-btn">
               Переустановить
             </button>
             <button @click="showConfirm = true"
-              class="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300
-                     text-sm font-medium rounded-lg border border-red-500/50 hover:border-red-500 transition-all duration-200">
+              class="settings-delete-btn">
               Удалить
             </button>
           </div>
 
-          <div v-if="showConfirm" class="mt-4 flex items-center gap-2 bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-            <span class="text-sm text-gray-300 font-medium">Вы уверены?</span>
+          <div v-if="showConfirm" class="settings-confirm-bar">
+            <span class="settings-confirm-text">Вы уверены?</span>
             <button @click="showConfirm = false"
-              class="ml-auto px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white
-                     text-sm font-medium rounded-lg transition-all duration-200">
+              class="settings-cancel-btn">
               Отмена
             </button>
             <button @click="handleUninstall" :disabled="loading"
-              class="px-3 py-1.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 active:from-red-700 active:to-red-800 disabled:from-red-800 disabled:to-red-800
-                     text-white text-sm font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:cursor-not-allowed">
+              class="settings-confirm-btn">
               Подтвердить
             </button>
           </div>
         </div>
 
         <!-- Error -->
-        <div v-if="error" class="mt-4 bg-red-900/20 border border-red-700/50 rounded-lg p-3">
-          <p class="text-sm text-red-400">{{ error }}</p>
+        <div v-if="error" class="settings-error-box">
+          <p class="settings-error-text">{{ error }}</p>
         </div>
       </div>
     </div>
