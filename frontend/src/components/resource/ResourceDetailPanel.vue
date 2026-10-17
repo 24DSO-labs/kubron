@@ -96,7 +96,7 @@ import K8sResourceDetailBase from '../panels/K8sResourceDetailBase.vue'
 import KeyValueSection from './sections/KeyValueSection.vue'
 import type { ActionDef, ResourceDefinition } from '../../resources/types'
 import { resourceActions } from '../../resources/actions'
-import { itemName, itemNs } from '../../resources/utils'
+import { containersOf, itemName, itemNs } from '../../resources/utils'
 
 const props = defineProps<{
   def: ResourceDefinition
@@ -144,7 +144,7 @@ function onNamespaceClick(namespace: string) {
 }
 
 // ─── Per-container dropdown (ActionDef.perContainer) ───
-const containers = computed(() => props.resource?.containers ?? [])
+const containers = computed(() => containersOf(props.resource))
 const openDropdown = ref<string | null>(null)
 
 function toggleDropdown(id: string) {
