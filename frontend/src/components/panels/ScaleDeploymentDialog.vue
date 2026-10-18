@@ -2,7 +2,7 @@
   <div class="scale-dialog-overlay" @click="handleOverlayClick">
     <div class="scale-dialog" @click.stop>
       <div class="dialog-header">
-        <h3>Scale Deployment <span class="resource-name">{{ deployment?.namespace }}/{{ deployment?.name }}</span></h3>
+        <h3>Scale {{ deployment?._kind || 'Deployment' }} <span class="resource-name">{{ deployment?.namespace }}/{{ deployment?.name }}</span></h3>
       </div>
 
       <div class="dialog-content">
@@ -47,7 +47,7 @@ import { ref } from 'vue'
 import type { DeploymentInfo } from '../../types'
 
 const props = defineProps<{
-  deployment: DeploymentInfo | null
+  deployment: (DeploymentInfo & { _kind?: string }) | null
 }>()
 
 const emit = defineEmits<{

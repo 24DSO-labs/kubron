@@ -2,18 +2,22 @@ import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
-import { formatMap } from '../utils'
 import { badgeClass, statusColor } from '../status'
 
+import StatefulSetMetricsSection from '../../components/resource/sections/StatefulSetMetricsSection.vue'
 import ImagesSection from '../../components/resource/sections/ImagesSection.vue'
+import TolerationsSection from '../../components/resource/sections/TolerationsSection.vue'
+import NodeAffinitySection from '../../components/resource/sections/NodeAffinitySection.vue'
+import PodAntiAffinitySection from '../../components/resource/sections/PodAntiAffinitySection.vue'
 import PodsTab from '../../components/resource/sections/PodsTab.vue'
 
 function stsStatus(s: any): string {
   const desired = s.replicas ?? 0
   const ready = s.readyReplicas ?? 0
   if (desired === 0) return 'Scaled to 0'
-  if (ready === desired) return 'Running'
-  return 'Pending'
+  if (ready === desired) return `${desired}/${desired} Running`
+  if (ready > 0) return `${ready}/${desired} Running`
+  return `${ready}/${desired} Progressing`
 }
 
 export const statefulSet = defineResource<k8s.StatefulSetInfo>({
@@ -33,30 +37,24 @@ export const statefulSet = defineResource<k8s.StatefulSetInfo>({
       key: 'pods',
       label: 'Pods',
       formatter: s => `${s.readyReplicas ?? 0}/${s.replicas ?? 0}`,
-      colorFn: s => (s.readyReplicas === s.replicas ? '#4ade80' : '#facc15'),
+      colorFn: s => stsStatus(s) === 'Scaled to 0' ? '#888' : (s.readyReplicas === s.replicas ? '#4ade80' : '#facc15'),
     },
-    { key: 'replicas', label: 'Replicas' },
     ageCol,
-    {
-      key: 'status',
-      label: 'Status',
-      formatter: stsStatus,
-      colorFn: s => statusColor(stsStatus(s)),
-    },
   ],
 
+  headSections: [StatefulSetMetricsSection],
   properties: [
-    { label: 'Selector', value: s => formatMap(s.selector) },
-    { label: 'Replicas', value: s => `${s.replicas ?? 0} / ${s.readyReplicas ?? 0}` },
-    { label: 'Strategy Type', value: s => s.strategy || 'RollingUpdate' },
+    { label: 'Selector', value: s => s.selector },
+    { label: 'Node Selector', value: s => s.nodeSelector },
     { label: 'Status', value: stsStatus, badge: s => badgeClass(stsStatus(s)) },
   ],
-  sections: [ImagesSection],
+  sections: [ImagesSection, TolerationsSection, NodeAffinitySection, PodAntiAffinitySection],
   tabs: [
     { id: 'pods', label: 'Pods', component: PodsTab },
   ],
 
   actions: [
+    { id: 'scale', label: 'Scale', icon: 'scale', run: (d, ctx) => ctx.requestScale(d, 'StatefulSet') },
     {
       id: 'restart',
       label: 'Restart',
