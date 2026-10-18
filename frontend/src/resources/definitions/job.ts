@@ -7,15 +7,13 @@ import { badgeClass, statusColor } from '../status'
 import JobSpecSection from '../../components/resource/sections/JobSpecSection.vue'
 import ImagesSection from '../../components/resource/sections/ImagesSection.vue'
 import ConditionsSection from '../../components/resource/sections/ConditionsSection.vue'
+import JobWarningCell from '../../components/resource/sections/JobWarningCell.vue'
 
-function jobStatus(j: any): string {
-  const conds: any[] = j?.status?.conditions ?? []
-  const complete = conds.find((c: any) => c.type === 'Complete')
-  const failed = conds.find((c: any) => c.type === 'Failed')
-  if (failed?.status === 'True') return 'Failed'
-  if (complete?.status === 'True') return 'Complete'
-  return 'Running'
-}
+const jobStatus = (j: any): string => j.status || 'Running'
+const jobConditions = (j: any): string =>
+  j.conditions?.length ? j.conditions.join(', ') : jobStatus(j)
+
+
 
 export const job = defineResource<k8s.JobInfo>({
   id: 'job',
@@ -24,25 +22,27 @@ export const job = defineResource<k8s.JobInfo>({
   title: 'Jobs',
   namespaced: true,
   nav: { group: 'workloads', label: 'Jobs' },
-
-  
   autoRefresh: true,
+
   columns: [
     flatNameCol,
     { ...flatNsCol, link: (j: any) => j.namespace ? { id: 'namespace', ns: '', name: j.namespace } : null },
+    { key: 'completions', label: 'Completions' },
+    
     ageCol,
     {
-      key: 'status',
-      label: 'Status',
-      formatter: jobStatus,
+      key: 'conditions',
+      label: 'Conditions',
+      formatter: jobConditions,
       colorFn: j => statusColor(jobStatus(j)),
     },
-    { key: 'completions', label: 'Completions' },
-    { key: 'duration', label: 'Duration' },
   ],
 
   properties: [
     { label: 'Status', value: j => jobStatus(j), badge: j => badgeClass(jobStatus(j)) },
+    { label: 'Completions', value: j => j.completions },
+    { label: 'Duration', value: j => j.duration },
+    { label: 'Conditions', value: j => jobConditions(j) },
   ],
   sections: [JobSpecSection, ImagesSection, ConditionsSection],
 
