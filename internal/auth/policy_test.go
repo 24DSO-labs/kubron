@@ -51,6 +51,7 @@ var exactPermission = map[string]Permission{
 	"ResetUserPassword":       PermUsersManage,
 	"DeleteUser":              PermUsersManage,
 	"ApplyYAML":               PermWrite,
+	"GetAuditLog":             PermAuditRead,
 }
 
 // Глаголы, по которым метод считается изменяющим: слабое право чтения для них недопустимо.
@@ -73,6 +74,7 @@ var permByIdent = map[string]Permission{
 	"PermPortForward":   PermPortForward,
 	"PermClusterManage": PermClusterManage,
 	"PermUsersManage":   PermUsersManage,
+	"PermAuditRead":     PermAuditRead,
 }
 
 type methodGuard struct {
@@ -124,7 +126,7 @@ func isAppReceiver(r *ast.FieldList) bool {
 	return ok && id.Name == "App"
 }
 
-// firstStmtPermission ищет в первом операторе вызов a.authz(auth.PermX).
+// firstStmtPermission ищет в первом операторе вызов a.authz(auth.PermX[, ключи и значения для журнала]).
 func firstStmtPermission(stmt ast.Stmt, t *testing.T, method string) (Permission, bool) {
 	ifs, ok := stmt.(*ast.IfStmt)
 	if !ok {
@@ -139,7 +141,7 @@ func firstStmtPermission(stmt ast.Stmt, t *testing.T, method string) (Permission
 				return true
 			}
 			sel, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok || sel.Sel.Name != "authz" || len(call.Args) != 1 {
+			if !ok || sel.Sel.Name != "authz" || len(call.Args) < 1 {
 				return true
 			}
 			arg, ok := call.Args[0].(*ast.SelectorExpr)
