@@ -17,7 +17,7 @@ export const replicaSet = defineResource<k8s.ReplicaSetInfo>({
 
   columns: [
     flatNameCol,
-    flatNsCol,
+    { ...flatNsCol, link: (r: any) => r.namespace ? { id: 'namespace', ns: '', name: r.namespace } : null },
     { key: 'desired', label: 'Desired' },
     { key: 'ready', label: 'Ready' },
     ageCol,

@@ -21,7 +21,7 @@ export const daemonSet = defineResource<k8s.DaemonSetInfo>({
   autoRefresh: true,
   columns: [
     flatNameCol,
-    flatNsCol,
+    { ...flatNsCol, link: (d: any) => d.namespace ? { id: 'namespace', ns: '', name: d.namespace } : null },
     { key: 'desired', label: 'Desired' },
     { key: 'current', label: 'Current' },
     { key: 'ready', label: 'Ready' },

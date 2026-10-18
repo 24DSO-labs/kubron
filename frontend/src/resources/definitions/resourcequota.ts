@@ -15,8 +15,7 @@ export const resourceQuota = defineResource<k8s.ResourceQuotaInfo>({
 
   columns: [
     flatNameCol,
-    flatNsCol,
-    { key: 'cpuLimit', label: 'CPU Limit' },
+    { ...flatNsCol, link: (r: any) => r.namespace ? { id: 'namespace', ns: '', name: r.namespace } : null },
     { key: 'cpuUsed', label: 'CPU Used' },
     { key: 'memLimit', label: 'Memory Limit' },
     { key: 'memUsed', label: 'Memory Used' },
