@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/robfig/cron/v3"
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -629,13 +630,15 @@ func (m *Manager) RetryJob(namespace, jobName string) error {
 // === CronJobs ===
 
 type CronJobInfo struct {
-	Name         string `json:"name"`
-	Namespace    string `json:"namespace"`
-	Schedule     string `json:"schedule"`
-	Suspend      bool   `json:"suspend"`
-	Active       int    `json:"active"`
-	LastSchedule string `json:"lastSchedule"`
-	Age          string `json:"age"`
+	Name          string `json:"name"`
+	Namespace     string `json:"namespace"`
+	Schedule      string `json:"schedule"`
+	Suspend       bool   `json:"suspend"`
+	Active        int    `json:"active"`
+	LastSchedule  string `json:"lastSchedule"`
+	NextExecution string `json:"nextExecution"`
+	TimeZone      string `json:"timeZone"`
+	Age           string `json:"age"`
 }
 
 func (m *Manager) GetCronJobs(namespace string) ([]CronJobInfo, error) {
@@ -662,14 +665,28 @@ func (m *Manager) GetCronJobs(namespace string) ([]CronJobInfo, error) {
 		if cj.Spec.Suspend != nil {
 			suspend = *cj.Spec.Suspend
 		}
+		// Вычисляем следующее время выполнения
+		nextExecution := "—"
+		if !suspend && cj.Spec.Schedule != "" {
+			nextExecution = computeNextExecution(cj.Spec.Schedule, cj.Spec.TimeZone)
+		}
+
+		// Временная зона
+		timeZone := "—"
+		if cj.Spec.TimeZone != nil && *cj.Spec.TimeZone != "" {
+			timeZone = *cj.Spec.TimeZone
+		}
+
 		items = append(items, CronJobInfo{
-			Name:         cj.Name,
-			Namespace:    cj.Namespace,
-			Schedule:     cj.Spec.Schedule,
-			Suspend:      suspend,
-			Active:       len(cj.Status.Active),
-			LastSchedule: lastSchedule,
-			Age:          formatAge(cj.CreationTimestamp.Time),
+			Name:          cj.Name,
+			Namespace:     cj.Namespace,
+			Schedule:      cj.Spec.Schedule,
+			Suspend:       suspend,
+			Active:        len(cj.Status.Active),
+			LastSchedule:  lastSchedule,
+			NextExecution: nextExecution,
+			TimeZone:      timeZone,
+			Age:           formatAge(cj.CreationTimestamp.Time),
 		})
 	}
 	return items, nil
@@ -685,6 +702,142 @@ func (m *Manager) DeleteCronJob(namespace, name string) error {
 	defer cancel()
 
 	return conn.Client.BatchV1().CronJobs(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}
+
+// GetCronJobJobs возвращает Job'ы, созданные указанным CronJob (по ownerReference).
+func (m *Manager) GetCronJobJobs(namespace, cronJobName string) ([]JobInfo, error) {
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	list, err := conn.Client.BatchV1().Jobs(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var items []JobInfo
+	for _, j := range list.Items {
+		// Проверяем ownerReference — Job должен принадлежать указанному CronJob
+		isOwnedByCronJob := false
+		for _, ref := range j.OwnerReferences {
+			if ref.Kind == "CronJob" && ref.Name == cronJobName {
+				isOwnedByCronJob = true
+				break
+			}
+		}
+		if !isOwnedByCronJob {
+			continue
+		}
+
+		completions := "1"
+		if j.Spec.Completions != nil {
+			completions = fmt.Sprintf("%d", *j.Spec.Completions)
+		}
+
+		conds := make([]string, 0, len(j.Status.Conditions))
+		var failed, complete, suspended bool
+		for _, c := range j.Status.Conditions {
+			if string(c.Status) != "True" {
+				continue
+			}
+			conds = append(conds, string(c.Type))
+			switch c.Type {
+			case batchv1.JobFailed:
+				failed = true
+			case batchv1.JobComplete:
+				complete = true
+			case batchv1.JobSuspended:
+				suspended = true
+			}
+		}
+		status := "Running"
+		switch {
+		case failed:
+			status = "Failed"
+		case complete:
+			status = "Complete"
+		case suspended:
+			status = "Suspended"
+		}
+
+		duration := ""
+		if j.Status.StartTime != nil {
+			end := time.Now()
+			if j.Status.CompletionTime != nil {
+				end = j.Status.CompletionTime.Time
+			}
+			duration = formatAge(time.Now().Add(-end.Sub(j.Status.StartTime.Time)))
+		}
+
+		items = append(items, JobInfo{
+			Name:        j.Name,
+			Namespace:   j.Namespace,
+			Completions: fmt.Sprintf("%d/%s", j.Status.Succeeded, completions),
+			Succeeded:   j.Status.Succeeded,
+			Failed:      j.Status.Failed,
+			Active:      j.Status.Active,
+			Duration:    duration,
+			Age:         formatAge(j.CreationTimestamp.Time),
+			Status:      status,
+			Conditions:  conds,
+		})
+	}
+
+	return items, nil
+}
+
+// computeNextExecution вычисляет следующее время выполнения cron-расписания.
+// Если указана timeZone, используем её, иначе UTC.
+func computeNextExecution(schedule string, timeZone *string) string {
+	loc := time.UTC
+	if timeZone != nil && *timeZone != "" {
+		var err error
+		loc, err = time.LoadLocation(*timeZone)
+		if err != nil {
+			loc = time.UTC
+		}
+	}
+
+	parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+	spec, err := parser.Parse(schedule)
+	if err != nil {
+		return "—"
+	}
+
+	next := spec.Next(time.Now().In(loc))
+	duration := time.Until(next)
+
+	if duration < time.Minute {
+		secs := int(duration.Seconds())
+		return fmt.Sprintf("In %d seconds", secs)
+	}
+	if duration < time.Hour {
+		mins := int(duration.Minutes())
+		if mins == 1 {
+			return "In 1 minute"
+		}
+		return fmt.Sprintf("In %d minutes", mins)
+	}
+	if duration < 24*time.Hour {
+		hours := int(duration.Hours())
+		mins := int(duration.Minutes()) % 60
+		if mins == 0 {
+			if hours == 1 {
+				return "In 1 hour"
+			}
+			return fmt.Sprintf("In %d hours", hours)
+		}
+		return fmt.Sprintf("In %d hours %d minutes", hours, mins)
+	}
+	days := int(duration.Hours()) / 24
+	if days == 1 {
+		return "In 1 day"
+	}
+	return fmt.Sprintf("In %d days", days)
 }
 
 func (m *Manager) ScaleStatefulSet(namespace, name string, replicas int32) error {
