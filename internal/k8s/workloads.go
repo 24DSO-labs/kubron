@@ -9,6 +9,7 @@ import (
 
 	"github.com/robfig/cron/v3"
 	batchv1 "k8s.io/api/batch/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -451,23 +452,24 @@ func (m *Manager) GetDaemonSets(namespace string) ([]DaemonSetInfo, error) {
 // === Jobs ===
 
 type JobInfo struct {
-	Name        string            `json:"name"`
-	Namespace   string            `json:"namespace"`
-	Completions string            `json:"completions"`
-	Succeeded   int32             `json:"succeeded"`
-	Failed      int32             `json:"failed"`
-	Active      int32             `json:"active"`
-	Parallelism int32             `json:"parallelism"`
-	Duration    string            `json:"duration"`
-	Age         string            `json:"age"`
-	Created     string            `json:"created"`
-	Status      string            `json:"status"`
-	Selector    string            `json:"selector"`
-	Images      []string          `json:"images"`
-	Labels      map[string]string `json:"labels"`
-	Annotations map[string]string `json:"annotations"`
-	Conditions  []ConditionInfo   `json:"conditions"`
-	PodStatuses map[string]int32  `json:"podStatuses"`
+	Name         string            `json:"name"`
+	Namespace    string            `json:"namespace"`
+	Completions  string            `json:"completions"`
+	Succeeded    int32             `json:"succeeded"`
+	Failed       int32             `json:"failed"`
+	Active       int32             `json:"active"`
+	Parallelism  int32             `json:"parallelism"`
+	Duration     string            `json:"duration"`
+	Age          string            `json:"age"`
+	Created      string            `json:"created"`
+	Status       string            `json:"status"`
+	Selector     string            `json:"selector"`
+	Images       []string          `json:"images"`
+	Labels       map[string]string `json:"labels"`
+	Annotations  map[string]string `json:"annotations"`
+	Conditions   []ConditionInfo   `json:"conditions"`
+	PodStatuses  map[string]int32  `json:"podStatuses"`
+	BackoffLimit int32             `json:"backoffLimit"`
 }
 
 // jobPodStatuses: счётчики подов по фазам для каждого Job ("ns/name" -> phase -> n).
@@ -560,24 +562,30 @@ func convertJob(j *batchv1.Job, podStatuses map[string]int32) JobInfo {
 		images = append(images, c.Image)
 	}
 
+	backoff := int32(6) // значение по умолчанию в k8s
+	if j.Spec.BackoffLimit != nil {
+		backoff = *j.Spec.BackoffLimit
+	}
+
 	return JobInfo{
-		Name:        j.Name,
-		Namespace:   j.Namespace,
-		Completions: fmt.Sprintf("%d/%s", j.Status.Succeeded, completions),
-		Succeeded:   j.Status.Succeeded,
-		Failed:      j.Status.Failed,
-		Active:      j.Status.Active,
-		Parallelism: parallelism,
-		Duration:    duration,
-		Age:         formatAge(j.CreationTimestamp.Time),
-		Created:     j.CreationTimestamp.Format(time.RFC3339),
-		Status:      status,
-		Selector:    selector,
-		Images:      images,
-		Labels:      j.Labels,
-		Annotations: j.Annotations,
-		Conditions:  conditions,
-		PodStatuses: podStatuses,
+		Name:         j.Name,
+		Namespace:    j.Namespace,
+		Completions:  fmt.Sprintf("%d/%s", j.Status.Succeeded, completions),
+		Succeeded:    j.Status.Succeeded,
+		Failed:       j.Status.Failed,
+		Active:       j.Status.Active,
+		Parallelism:  parallelism,
+		Duration:     duration,
+		Age:          formatAge(j.CreationTimestamp.Time),
+		Created:      j.CreationTimestamp.Format(time.RFC3339),
+		Status:       status,
+		Selector:     selector,
+		Images:       images,
+		Labels:       j.Labels,
+		Annotations:  j.Annotations,
+		Conditions:   conditions,
+		PodStatuses:  podStatuses,
+		BackoffLimit: backoff,
 	}
 }
 
@@ -651,43 +659,53 @@ func (m *Manager) RestartDaemonSet(namespace, name string) error {
 }
 
 // RetryJob creates a new job from an existing job configuration
+// RetryJob пересоздаёт Job с той же спецификацией: удаляет старый и создаёт новый.
+// Копия собирается с нуля, поэтому uid, resourceVersion, status и managedFields не переносятся;
+// сгенерированные селектор и controller-uid чистим, иначе apiserver отклонит создание.
 func (m *Manager) RetryJob(namespace, jobName string) error {
 	conn, err := m.GetActiveConnection()
 	if err != nil {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	// Get the existing job
 	job, err := conn.Client.BatchV1().Jobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
-	// Delete the old job first
-	propagationPolicy := metav1.DeletePropagationBackground
-	err = conn.Client.BatchV1().Jobs(namespace).Delete(ctx, jobName, metav1.DeleteOptions{
-		PropagationPolicy: &propagationPolicy,
-	})
-	if err != nil {
+	newJob := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            job.Name,
+			Namespace:       job.Namespace,
+			Labels:          job.Labels,
+			Annotations:     job.Annotations,
+			OwnerReferences: job.OwnerReferences,
+		},
+		Spec: job.Spec,
+	}
+	for _, k := range []string{"controller-uid", "batch.kubernetes.io/controller-uid"} {
+		delete(newJob.Labels, k)
+		delete(newJob.Spec.Template.Labels, k)
+	}
+	newJob.Spec.Selector = nil
+	newJob.Spec.ManualSelector = nil
+
+	policy := metav1.DeletePropagationBackground
+	if err := conn.Client.BatchV1().Jobs(namespace).Delete(ctx, jobName, metav1.DeleteOptions{PropagationPolicy: &policy}); err != nil {
 		return err
 	}
 
-	// Clear resource version and uid for the new job
-	job.ResourceVersion = ""
-	job.UID = ""
-	job.Status = batchv1.JobStatus{}
-
-	// Add annotation to track retry
-	if job.Annotations == nil {
-		job.Annotations = make(map[string]string)
+	// Имя освобождается не мгновенно: повторяем создание, пока объект не исчезнет
+	for i := 0; i < 10; i++ {
+		_, err = conn.Client.BatchV1().Jobs(namespace).Create(ctx, newJob, metav1.CreateOptions{})
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+		time.Sleep(500 * time.Millisecond)
 	}
-	job.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.RFC3339)
-
-	// Create the new job
-	_, err = conn.Client.BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
 	return err
 }
 
