@@ -2,6 +2,7 @@ package auth
 
 import (
 	"analog/internal/audit"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -28,6 +29,7 @@ var (
 	ErrWrongPassword          = errors.New("текущий пароль указан неверно")
 	ErrSamePassword           = errors.New("новый пароль должен отличаться от текущего")
 	ErrWeakPassword           = errors.New("пароль не должен совпадать с логином")
+	ErrInvalidIdleTimeout     = errors.New("время автовыхода: 0 (выключено) или от 1 до 1440 минут")
 )
 
 // LockedError — вход временно заблокирован после серии неудачных попыток.
@@ -39,6 +41,15 @@ func (e *LockedError) Error() string {
 }
 
 const (
+	// DefaultIdleTimeoutMinutes — автовыход по бездействию, пока администратор не задал своё значение.
+	DefaultIdleTimeoutMinutes = 15
+	// MaxIdleTimeoutMinutes — верхняя граница настройки (сутки).
+	MaxIdleTimeoutMinutes = 24 * 60
+	// idleGrace — запас бэкенда сверх настроенного времени. Интерфейс сообщает об активности
+	// не чаще раза в ~20 с, поэтому его собственный таймер всегда срабатывает раньше и успевает
+	// корректно выйти; бэкенд — страховка на случай, если интерфейс завис или недоступен.
+	idleGrace = 30 * time.Second
+
 	freeAttempts = 5
 	baseLockout  = 15 * time.Second
 	maxLockout   = 5 * time.Minute
@@ -62,6 +73,8 @@ type UserInfo struct {
 type Status struct {
 	NeedsSetup bool      `json:"needsSetup"`
 	User       *UserInfo `json:"user"`
+	// IdleTimeoutMinutes — через сколько минут без действий пользователя сессия завершается (0 — не завершается).
+	IdleTimeoutMinutes int `json:"idleTimeoutMinutes"`
 }
 
 type failure struct {
@@ -85,13 +98,14 @@ type Actor struct {
 // до выхода или закрытия приложения. Права текущего пользователя перечитываются из
 // хранилища при каждой проверке, так что смена роли действует немедленно.
 type Service struct {
-	mu        sync.Mutex
-	st        *store
-	sessionID string
-	failures  map[string]*failure
-	now       func() time.Time
-	onLogout  func()
-	rec       Recorder
+	mu         sync.Mutex
+	st         *store
+	sessionID  string
+	failures   map[string]*failure
+	now        func() time.Time
+	onLogout   func()
+	rec        Recorder
+	lastActive time.Time // последнее действие пользователя в интерфейсе (не вызов API)
 
 	dummyOnce sync.Once
 	dummyHash string
@@ -173,7 +187,104 @@ func (s *Service) sessionUserLocked() *userRecord {
 		s.sessionID = ""
 		return nil
 	}
+	if s.idleExpiredLocked() {
+		s.expireLocked(u)
+		return nil
+	}
 	return u
+}
+
+// ─── Автовыход по бездействию ──────────────────────────────
+
+func (s *Service) idleMinutesLocked() int {
+	if m := s.st.settings.IdleTimeoutMinutes; m != nil {
+		return *m
+	}
+	return DefaultIdleTimeoutMinutes
+}
+
+// wall отбрасывает монотонные часы: время сна компьютера должно считаться бездействием.
+func (s *Service) wall() time.Time { return s.now().Round(0) }
+
+func (s *Service) touchLocked() { s.lastActive = s.wall() }
+
+func (s *Service) idleExpiredLocked() bool {
+	m := s.idleMinutesLocked()
+	if m <= 0 {
+		return false
+	}
+	return s.wall().Sub(s.lastActive) > time.Duration(m)*time.Minute+idleGrace
+}
+
+// expireLocked завершает сессию из-за бездействия и запускает очистку (терминалы, port-forward).
+// Очистка идёт в отдельной горутине: она не должна выполняться под блокировкой Service.
+func (s *Service) expireLocked(u *userRecord) {
+	s.record(u, "SessionTimeout", audit.ResultOK, fmt.Sprintf("бездействие более %d мин", s.idleMinutesLocked()))
+	s.sessionID = ""
+	if hook := s.onLogout; hook != nil {
+		go hook()
+	}
+}
+
+// ReportActivity сообщает, что пользователь работает с интерфейсом, и продлевает сессию.
+// Обычные вызовы API сессию не продлевают: интерфейс сам опрашивает кластер по таймеру,
+// и иначе сессия не истекла бы никогда.
+func (s *Service) ReportActivity() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.sessionUserLocked() == nil {
+		return ErrNotAuthenticated
+	}
+	s.touchLocked()
+	return nil
+}
+
+// ExpireIdle завершает сессию, если она простаивала дольше допустимого. Возвращает true, если завершила.
+func (s *Service) ExpireIdle() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.sessionID == "" {
+		return false
+	}
+	return s.sessionUserLocked() == nil
+}
+
+// RunIdleWatcher периодически вызывает ExpireIdle, чтобы терминалы и port-forward закрывались
+// вовремя, даже если интерфейс больше ничего не вызывает. Возвращается при отмене ctx.
+func (s *Service) RunIdleWatcher(ctx context.Context, every time.Duration) {
+	t := time.NewTicker(every)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			s.ExpireIdle()
+		}
+	}
+}
+
+// SetIdleTimeout задаёт время автовыхода в минутах (0 — выключить) и возвращает сохранённое значение.
+func (s *Service) SetIdleTimeout(minutes int) (int, error) {
+	if minutes < 0 || minutes > MaxIdleTimeoutMinutes {
+		return 0, ErrInvalidIdleTimeout
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	actor, err := s.authorizeLocked(PermUsersManage)
+	if err != nil {
+		return 0, err
+	}
+	prev := s.st.settings
+	was := s.idleMinutesLocked()
+	s.st.settings.IdleTimeoutMinutes = &minutes
+	if err := s.st.save(); err != nil {
+		s.st.settings = prev
+		s.record(actor, "SetIdleTimeout", audit.ResultFailed, err.Error())
+		return 0, fmt.Errorf("не удалось сохранить настройку: %w", err)
+	}
+	s.record(actor, "SetIdleTimeout", audit.ResultOK, fmt.Sprintf("minutes=%d→%d", was, minutes))
+	return minutes, nil
 }
 
 func (s *Service) authorizeLocked(p Permission) (*userRecord, error) {
@@ -217,7 +328,7 @@ func (s *Service) Check(p Permission) (Actor, error) {
 func (s *Service) Status() Status {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	st := Status{NeedsSetup: len(s.st.users) == 0}
+	st := Status{NeedsSetup: len(s.st.users) == 0, IdleTimeoutMinutes: s.idleMinutesLocked()}
 	if u := s.sessionUserLocked(); u != nil {
 		st.User = toInfo(u)
 	}
@@ -264,6 +375,7 @@ func (s *Service) Setup(username, password string) (*UserInfo, error) {
 		return nil, fmt.Errorf("не удалось сохранить пользователя: %w", err)
 	}
 	s.sessionID = rec.ID
+	s.touchLocked()
 	s.record(&rec, "Setup", audit.ResultOK, "создан первый администратор")
 	return toInfo(&rec), nil
 }
@@ -336,6 +448,7 @@ func (s *Service) Login(username, password string) (*UserInfo, error) {
 	}
 	_ = s.st.save() // не мешаем входу, если диск недоступен для записи
 	s.sessionID = rec.ID
+	s.touchLocked()
 	s.record(rec, "Login", audit.ResultOK, "")
 	info := toInfo(rec)
 	hook := s.onLogout
@@ -446,6 +559,7 @@ func (s *Service) ChangePassword(oldPassword, newPassword string) error {
 		*rec = prev
 		return fmt.Errorf("не удалось сохранить пароль: %w", err)
 	}
+	s.touchLocked()
 	s.record(rec, "ChangePassword", audit.ResultOK, "")
 	return nil
 }

@@ -1,5 +1,5 @@
 import { computed, readonly, ref } from 'vue'
-import { callApp } from '../resources/wails'
+import { callApp, onSessionLost } from '../resources/wails'
 import type { Permission, UserInfo } from '../types/auth'
 
 /**
@@ -16,6 +16,38 @@ const initialized = ref(false)
 const needsSetup = ref(false)
 const user = ref<UserInfo | null>(null)
 const fatalError = ref('')
+/** Через сколько минут без действий сессия завершается; 0 — не завершается */
+const idleTimeoutMinutes = ref(0)
+/** Сообщение на экране входа (например, «Сеанс завершён из-за бездействия») */
+const notice = ref('')
+
+/** Почему сессия завершилась: запоминается на время перезагрузки интерфейса */
+export type LogoutReason = 'idle' | 'expired'
+const LOGOUT_REASON_KEY = 'kubron.logoutReason'
+const LOGOUT_NOTICES: Record<LogoutReason, string> = {
+  idle: 'Сеанс завершён из-за бездействия. Войдите снова.',
+  expired: 'Сеанс истёк. Войдите снова.',
+}
+
+function rememberLogoutReason(reason: LogoutReason) {
+  try {
+    sessionStorage.setItem(LOGOUT_REASON_KEY, reason)
+  } catch {
+    /* хранилище недоступно — сообщение просто не покажется */
+  }
+}
+
+function takeLogoutNotice(): string {
+  try {
+    const reason = sessionStorage.getItem(LOGOUT_REASON_KEY) as LogoutReason | null
+    sessionStorage.removeItem(LOGOUT_REASON_KEY)
+    return (reason && LOGOUT_NOTICES[reason]) || ''
+  } catch {
+    return ''
+  }
+}
+
+let loggingOut = false
 
 const screen = computed<AuthScreen>(() => {
   if (fatalError.value) return 'fatal'
@@ -42,7 +74,9 @@ export function can(permission: Permission): boolean {
 export function useAuth() {
   async function init() {
     try {
+      notice.value = takeLogoutNotice()
       const st = await callApp('AuthStatus')
+      idleTimeoutMinutes.value = st.idleTimeoutMinutes ?? 0
       needsSetup.value = !!st.needsSetup
       user.value = (st.user as UserInfo | null) ?? null
       fatalError.value = ''
@@ -53,16 +87,37 @@ export function useAuth() {
     }
   }
 
+  /** Настройка автовыхода хранится на бэкенде; после входа читаем актуальное значение */
+  async function refreshIdleTimeout() {
+    try {
+      idleTimeoutMinutes.value = (await callApp('AuthStatus')).idleTimeoutMinutes ?? 0
+    } catch {
+      /* без значения автовыход просто не включится до следующего запуска */
+    }
+  }
+
   async function setup(username: string, password: string) {
     user.value = (await callApp('SetupAdmin', username.trim(), password)) as UserInfo
     needsSetup.value = false
+    notice.value = ''
+    await refreshIdleTimeout()
   }
 
   async function login(username: string, password: string) {
     user.value = (await callApp('Login', username.trim(), password)) as UserInfo
+    notice.value = ''
+    await refreshIdleTimeout()
   }
 
-  async function logout() {
+  /** Администратор: время автовыхода в минутах, 0 — выключить */
+  async function setIdleTimeout(minutes: number) {
+    idleTimeoutMinutes.value = await callApp('SetIdleTimeout', minutes)
+  }
+
+  async function logout(reason?: LogoutReason) {
+    if (loggingOut) return
+    loggingOut = true
+    if (reason) rememberLogoutReason(reason)
     try {
       await callApp('Logout')
     } finally {
@@ -81,11 +136,19 @@ export function useAuth() {
     screen: readonly(screen),
     user: readonly(user),
     fatalError: readonly(fatalError),
+    idleTimeoutMinutes: readonly(idleTimeoutMinutes),
+    notice: readonly(notice),
     init,
     setup,
     login,
     logout,
     changePassword,
+    setIdleTimeout,
     can,
   }
 }
+
+// Бэкенд сообщил, что сессии больше нет (истекла по бездействию, пока интерфейс не успел выйти сам)
+onSessionLost(() => {
+  if (user.value) void useAuth().logout('expired')
+})
