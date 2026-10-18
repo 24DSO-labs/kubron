@@ -22,3 +22,17 @@ export function matchesSearch(item: any, search: string): boolean {
   if (!s) return true
   return itemName(item).toLowerCase().includes(s) || itemNs(item).toLowerCase().includes(s)
 }
+
+const PHASE_ORDER = ['Running', 'Pending', 'Succeeded', 'Failed', 'Unknown']
+
+/** Pod Status из счётчиков фаз: "Running: 1" / "Running: 1, Pending: 2" */
+export function podStatusSummary(item: any): string {
+  const entries = Object.entries(item?.podStatuses ?? {}).filter(([, n]) => (n as number) > 0)
+  if (!entries.length) return ''
+  entries.sort((a, b) => {
+    const ia = PHASE_ORDER.indexOf(a[0])
+    const ib = PHASE_ORDER.indexOf(b[0])
+    return (ia === -1 ? PHASE_ORDER.length : ia) - (ib === -1 ? PHASE_ORDER.length : ib)
+  })
+  return entries.map(([phase, n]) => `${phase}: ${n}`).join(', ')
+}
