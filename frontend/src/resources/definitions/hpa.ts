@@ -15,8 +15,7 @@ export const horizontalPodAutoscaler = defineResource<k8s.HPAInfo>({
 
   columns: [
     flatNameCol,
-    flatNsCol,
-    { key: 'reference', label: 'Reference' },
+    { ...flatNsCol, link: (h: any) => h.namespace ? { id: 'namespace', ns: '', name: h.namespace } : null },
     { key: 'minReplicas', label: 'Min' },
     { key: 'maxReplicas', label: 'Max' },
     { key: 'currentReplicas', label: 'Current' },

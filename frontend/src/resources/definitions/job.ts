@@ -29,7 +29,7 @@ export const job = defineResource<k8s.JobInfo>({
   autoRefresh: true,
   columns: [
     flatNameCol,
-    flatNsCol,
+    { ...flatNsCol, link: (j: any) => j.namespace ? { id: 'namespace', ns: '', name: j.namespace } : null },
     ageCol,
     {
       key: 'status',

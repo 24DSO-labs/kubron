@@ -15,7 +15,7 @@ export const configMap = defineResource<k8s.ConfigMapInfo, k8s.ConfigMapInfo>({
 
   
   autoRefresh: true,
-  columns: [flatNameCol, flatNsCol, { key: 'dataCount', label: 'Data' }, ageCol],
+  columns: [flatNameCol, { ...flatNsCol, link: (c: any) => c.namespace ? { id: 'namespace', ns: '', name: c.namespace } : null }, { key: 'dataCount', label: 'Data' }, ageCol],
 
   properties: [{ label: 'Keys', value: c => c.dataCount }],
   sections: [ConfigMapDataSection],

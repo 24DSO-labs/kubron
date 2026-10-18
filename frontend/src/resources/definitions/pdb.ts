@@ -15,7 +15,7 @@ export const podDisruptionBudget = defineResource<k8s.PDBInfo>({
 
   columns: [
     flatNameCol,
-    flatNsCol,
+    { ...flatNsCol, link: (p: any) => p.namespace ? { id: 'namespace', ns: '', name: p.namespace } : null },
     { key: 'minAvailable', label: 'Min Available' },
     { key: 'maxUnavailable', label: 'Max Unavailable' },
     { key: 'currentHealthy', label: 'Current Healthy' },
