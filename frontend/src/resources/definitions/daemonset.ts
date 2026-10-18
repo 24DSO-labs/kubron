@@ -2,12 +2,24 @@ import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
+import { badgeClass } from '../status'
 
 import DaemonSetMetricsSection from '../../components/resource/sections/DaemonSetMetricsSection.vue'
 import ImagesSection from '../../components/resource/sections/ImagesSection.vue'
 import TolerationsSection from '../../components/resource/sections/TolerationsSection.vue'
 import NodeAffinitySection from '../../components/resource/sections/NodeAffinitySection.vue'
 import PodsTab from '../../components/resource/sections/PodsTab.vue'
+
+/** Статус DaemonSet на основе подов */
+export function daemonsetStatus(ds: any): string {
+  const desired = ds.desired ?? ds.desiredNumberScheduled ?? 0
+  const ready = ds.ready ?? ds.numberReady ?? 0
+
+  if (desired === 0) return 'Pending'
+  if (ready === desired) return `${desired}/${desired} Running`
+  if (ready > 0) return `${ready}/${desired} Running`
+  return `${ready}/${desired} Progressing`
+}
 
 export const daemonSet = defineResource<k8s.DaemonSetInfo>({
   id: 'daemonset',
@@ -34,10 +46,7 @@ export const daemonSet = defineResource<k8s.DaemonSetInfo>({
     { label: 'Selector', value: d => d.selector },
     { label: 'Node Selector', value: d => d.nodeSelector },
     { label: 'Strategy Type', value: d => d.strategy },
-    {
-      label: 'Pod Status',
-      value: d => `${d.ready ?? d.numberReady ?? 0}/${d.desired ?? d.desiredNumberScheduled ?? 0} ready`,
-    },
+    { label: 'Status', value: daemonsetStatus, badge: d => badgeClass(daemonsetStatus(d)) },
   ],
   sections: [ImagesSection, TolerationsSection, NodeAffinitySection],
   tabs: [{ id: 'pods', label: 'Pods', component: PodsTab }],
