@@ -24,6 +24,8 @@ const (
 	PermClusterManage Permission = "clusters.manage"
 	// PermUsersManage — управление пользователями и их ролями.
 	PermUsersManage Permission = "users.manage"
+	// PermAuditRead — просмотр журнала аудита.
+	PermAuditRead Permission = "audit.read"
 )
 
 // allPermissions — полный список прав. Администратор получает все.
@@ -35,6 +37,7 @@ var allPermissions = []Permission{
 	PermPortForward,
 	PermClusterManage,
 	PermUsersManage,
+	PermAuditRead,
 }
 
 // Role — роль пользователя.
