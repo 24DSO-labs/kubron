@@ -18,7 +18,7 @@
     </div>
 
     <div class="cluster-bar-bottom">
-      <div class="cluster-icon-wrap add-cluster" title="Добавить кластер" @click="$emit('add')">
+      <div v-if="can(Perm.ClusterManage)" class="cluster-icon-wrap add-cluster" title="Добавить кластер" @click="$emit('add')">
         <div class="cluster-icon cluster-add">+</div>
       </div>
     </div>
@@ -63,6 +63,8 @@
 <script lang="ts" setup>
 import { ref } from 'vue'
 import type { ClusterStatus } from '../types'
+import { can } from '../composables/useAuth'
+import { Perm } from '../types/auth'
 
 defineProps<{ clusters: ClusterStatus[] }>()
 
@@ -83,6 +85,7 @@ const editIcon = ref('')
 const editColor = ref('')
 
 function onRightClick(cluster: ClusterStatus) {
+  if (!can(Perm.ClusterManage)) return
   contextMenu.value = { x: 70, y: 100, cluster }
 }
 

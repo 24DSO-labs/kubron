@@ -1,0 +1,131 @@
+// Package auth — локальная аутентификация (логин/пароль) и ролевая модель Kubron.
+//
+// Модель двухуровневая: роль → набор прав (Permission). Код всегда проверяет ПРАВА, а не роли,
+// поэтому новая роль добавляется одной записью в таблицу roles, без правок в местах проверок.
+package auth
+
+import "sort"
+
+// Permission — атомарное право на действие.
+type Permission string
+
+const (
+	// PermRead — просмотр ресурсов кластера, логов, событий, YAML, метрик.
+	PermRead Permission = "read"
+	// PermSecretsRead — просмотр значений Secret (отдельно от read, чтобы его можно было отозвать).
+	PermSecretsRead Permission = "secrets.read"
+	// PermWrite — любые изменения ресурсов: удаление, scale, restart, rollback, apply YAML и т.п.
+	PermWrite Permission = "write"
+	// PermExec — терминал / exec внутри подов.
+	PermExec Permission = "exec"
+	// PermPortForward — проброс портов в поды и сервисы.
+	PermPortForward Permission = "portforward"
+	// PermClusterManage — добавление, изменение и удаление кластеров в приложении.
+	PermClusterManage Permission = "clusters.manage"
+	// PermUsersManage — управление пользователями и их ролями.
+	PermUsersManage Permission = "users.manage"
+)
+
+// allPermissions — полный список прав. Администратор получает все.
+var allPermissions = []Permission{
+	PermRead,
+	PermSecretsRead,
+	PermWrite,
+	PermExec,
+	PermPortForward,
+	PermClusterManage,
+	PermUsersManage,
+}
+
+// Role — роль пользователя.
+type Role string
+
+const (
+	RoleAdmin Role = "admin"
+	RoleUser  Role = "user"
+)
+
+type roleDef struct {
+	label       string
+	permissions []Permission
+}
+
+// roles — единственное место, где описаны роли. Чтобы добавить роль, добавьте запись сюда
+// (и её идентификатор в roleOrder, чтобы она появилась в интерфейсе).
+var roles = map[Role]roleDef{
+	// Администратор может всё. Для него Has всегда true, в том числе для будущих прав.
+	RoleAdmin: {label: "Администратор", permissions: allPermissions},
+	// Пользователь: только чтение всего (включая значения секретов, как и договорено).
+	RoleUser: {label: "Пользователь", permissions: []Permission{PermRead, PermSecretsRead}},
+}
+
+var roleOrder = []Role{RoleAdmin, RoleUser}
+
+// Valid сообщает, известна ли роль.
+func (r Role) Valid() bool {
+	_, ok := roles[r]
+	return ok
+}
+
+// Label — отображаемое имя роли.
+func (r Role) Label() string {
+	if d, ok := roles[r]; ok {
+		return d.label
+	}
+	return string(r)
+}
+
+// Has проверяет право. Неизвестная роль не имеет никаких прав (fail closed).
+func (r Role) Has(p Permission) bool {
+	if r == RoleAdmin {
+		return true
+	}
+	d, ok := roles[r]
+	if !ok {
+		return false
+	}
+	for _, rp := range d.permissions {
+		if rp == p {
+			return true
+		}
+	}
+	return false
+}
+
+// Permissions возвращает права роли в стабильном порядке.
+func (r Role) Permissions() []Permission {
+	d, ok := roles[r]
+	if !ok {
+		return []Permission{}
+	}
+	out := make([]Permission, len(d.permissions))
+	copy(out, d.permissions)
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
+}
+
+// RoleInfo — описание роли для интерфейса.
+type RoleInfo struct {
+	ID          Role         `json:"id"`
+	Label       string       `json:"label"`
+	Permissions []Permission `json:"permissions"`
+}
+
+// Roles возвращает все роли в порядке отображения.
+func Roles() []RoleInfo {
+	out := make([]RoleInfo, 0, len(roleOrder))
+	for _, r := range roleOrder {
+		out = append(out, RoleInfo{ID: r, Label: r.Label(), Permissions: r.Permissions()})
+	}
+	return out
+}
+
+// KnownPermission сообщает, существует ли такое право.
+func KnownPermission(p Permission) bool {
+	for _, k := range allPermissions {
+		if k == p {
+			return true
+		}
+	}
+	return false
+}

@@ -1,0 +1,244 @@
+package auth
+
+import (
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"path/filepath"
+	"sort"
+	"strings"
+	"testing"
+)
+
+// Эти тесты — страховка от главной ошибки ролевой модели: добавить новый Wails-метод и забыть
+// его защитить. Они разбирают исходники app.go / app_auth.go и проверяют, что
+//   - каждый экспортируемый метод App начинается с проверки права a.authz(...);
+//   - изменяющие методы не защищены «слабым» правом чтения;
+//   - особые методы (терминал, секреты, кластеры, пользователи) требуют именно своих прав.
+
+// Методы без authz: до входа в систему они обязаны быть доступны.
+var publicMethods = map[string]bool{
+	"AuthStatus":     true,
+	"SetupAdmin":     true,
+	"Login":          true,
+	"Logout":         true,
+	"CurrentUser":    true,
+	"ChangePassword": true,
+}
+
+// Точные требования для особых методов.
+var exactPermission = map[string]Permission{
+	"GetSecretValue":          PermSecretsRead,
+	"ExecCommand":             PermExec,
+	"DetectShell":             PermExec,
+	"StartTerminalSession":    PermExec,
+	"WriteTerminal":           PermExec,
+	"ReadTerminal":            PermExec,
+	"ResizeTerminal":          PermExec,
+	"CloseTerminal":           PermExec,
+	"StartPortForward":        PermPortForward,
+	"StartServicePortForward": PermPortForward,
+	"StopPortForward":         PermPortForward,
+	"AddClusterFromFile":      PermClusterManage,
+	"AddClusterFromText":      PermClusterManage,
+	"UpdateCluster":           PermClusterManage,
+	"DeleteCluster":           PermClusterManage,
+	"ListRoles":               PermUsersManage,
+	"ListUsers":               PermUsersManage,
+	"CreateUser":              PermUsersManage,
+	"UpdateUserRole":          PermUsersManage,
+	"SetUserDisabled":         PermUsersManage,
+	"ResetUserPassword":       PermUsersManage,
+	"DeleteUser":              PermUsersManage,
+	"ApplyYAML":               PermWrite,
+}
+
+// Глаголы, по которым метод считается изменяющим: слабое право чтения для них недопустимо.
+var mutatingPrefixes = []string{
+	"Delete", "Scale", "Restart", "Rollback", "Retry", "Evict", "Apply",
+	"Install", "Uninstall", "Add", "Update", "Create", "Reset", "Start", "Stop",
+	"Exec", "Write", "Resize", "Close",
+}
+
+// Изменяющие по имени методы, которым чтения достаточно (с обоснованием).
+var mutatingButReadOK = map[string]string{
+	"SaveAppSettings": "тема и интервал обновления — личные настройки интерфейса, не ресурсы кластера",
+}
+
+var permByIdent = map[string]Permission{
+	"PermRead":          PermRead,
+	"PermSecretsRead":   PermSecretsRead,
+	"PermWrite":         PermWrite,
+	"PermExec":          PermExec,
+	"PermPortForward":   PermPortForward,
+	"PermClusterManage": PermClusterManage,
+	"PermUsersManage":   PermUsersManage,
+}
+
+type methodGuard struct {
+	name string
+	perm Permission
+	has  bool
+}
+
+func parseAppMethods(t *testing.T) []methodGuard {
+	t.Helper()
+	files, err := filepath.Glob(filepath.Join("..", "..", "app*.go"))
+	if err != nil || len(files) == 0 {
+		t.Fatalf("не найдены файлы app*.go: %v", err)
+	}
+	fset := token.NewFileSet()
+	var out []methodGuard
+	for _, f := range files {
+		if strings.HasSuffix(f, "_test.go") {
+			continue
+		}
+		file, err := parser.ParseFile(fset, f, nil, 0)
+		if err != nil {
+			t.Fatalf("разбор %s: %v", f, err)
+		}
+		for _, d := range file.Decls {
+			fn, ok := d.(*ast.FuncDecl)
+			if !ok || fn.Recv == nil || !fn.Name.IsExported() || !isAppReceiver(fn.Recv) {
+				continue
+			}
+			g := methodGuard{name: fn.Name.Name}
+			if fn.Body != nil && len(fn.Body.List) > 0 {
+				g.perm, g.has = firstStmtPermission(fn.Body.List[0], t, fn.Name.Name)
+			}
+			out = append(out, g)
+		}
+	}
+	return out
+}
+
+func isAppReceiver(r *ast.FieldList) bool {
+	if len(r.List) != 1 {
+		return false
+	}
+	typ := r.List[0].Type
+	if star, ok := typ.(*ast.StarExpr); ok {
+		typ = star.X
+	}
+	id, ok := typ.(*ast.Ident)
+	return ok && id.Name == "App"
+}
+
+// firstStmtPermission ищет в первом операторе вызов a.authz(auth.PermX).
+func firstStmtPermission(stmt ast.Stmt, t *testing.T, method string) (Permission, bool) {
+	ifs, ok := stmt.(*ast.IfStmt)
+	if !ok {
+		return "", false
+	}
+	var found Permission
+	var has bool
+	check := func(n ast.Node) {
+		ast.Inspect(n, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			sel, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok || sel.Sel.Name != "authz" || len(call.Args) != 1 {
+				return true
+			}
+			arg, ok := call.Args[0].(*ast.SelectorExpr)
+			if !ok {
+				t.Errorf("%s: аргумент authz должен быть константой auth.Perm*", method)
+				return true
+			}
+			p, known := permByIdent[arg.Sel.Name]
+			if !known {
+				t.Errorf("%s: неизвестное право %s (добавьте его в permByIdent теста)", method, arg.Sel.Name)
+				return true
+			}
+			found, has = p, true
+			return false
+		})
+	}
+	if ifs.Init != nil {
+		check(ifs.Init)
+	}
+	check(ifs.Cond)
+	return found, has
+}
+
+func TestEveryAppMethodIsGuarded(t *testing.T) {
+	methods := parseAppMethods(t)
+	if len(methods) < 100 {
+		t.Fatalf("подозрительно мало методов App: %d (разбор сломался?)", len(methods))
+	}
+	for _, m := range methods {
+		if publicMethods[m.name] {
+			if m.has {
+				t.Errorf("%s: публичный метод не должен вызывать authz", m.name)
+			}
+			continue
+		}
+		if !m.has {
+			t.Errorf("%s: нет проверки права первым оператором (if err := a.authz(auth.PermX); err != nil {...})", m.name)
+		}
+	}
+}
+
+func TestMethodPermissionsMatchPolicy(t *testing.T) {
+	for _, m := range parseAppMethods(t) {
+		if publicMethods[m.name] || !m.has {
+			continue
+		}
+		if want, ok := exactPermission[m.name]; ok {
+			if m.perm != want {
+				t.Errorf("%s: требует %q, ожидалось %q", m.name, m.perm, want)
+			}
+			continue
+		}
+		if _, ok := mutatingButReadOK[m.name]; ok {
+			continue
+		}
+		weak := m.perm == PermRead || m.perm == PermSecretsRead
+		if !weak {
+			continue
+		}
+		for _, p := range mutatingPrefixes {
+			if strings.HasPrefix(m.name, p) {
+				t.Errorf("%s: имя похоже на изменяющую операцию, но защищено правом %q; "+
+					"используйте PermWrite (или добавьте метод в exactPermission / mutatingButReadOK)", m.name, m.perm)
+				break
+			}
+		}
+	}
+}
+
+func TestExactPermissionTableHasNoStaleEntries(t *testing.T) {
+	have := map[string]bool{}
+	for _, m := range parseAppMethods(t) {
+		have[m.name] = true
+	}
+	var stale []string
+	for name := range exactPermission {
+		if !have[name] {
+			stale = append(stale, name)
+		}
+	}
+	for name := range publicMethods {
+		if !have[name] {
+			stale = append(stale, name)
+		}
+	}
+	sort.Strings(stale)
+	if len(stale) > 0 {
+		t.Errorf("в таблицах теста есть методы, которых нет в App: %v", stale)
+	}
+}
+
+func TestPermIdentTableCoversAllPermissions(t *testing.T) {
+	covered := map[Permission]bool{}
+	for _, p := range permByIdent {
+		covered[p] = true
+	}
+	for _, p := range allPermissions {
+		if !covered[p] {
+			t.Errorf("право %q отсутствует в permByIdent теста", p)
+		}
+	}
+}
