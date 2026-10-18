@@ -1012,24 +1012,6 @@ function handleResize(e: MouseEvent) {
   opacity: 1;
 }
 
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #1a1b26;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #3b3d5c;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #4a5568;
-}
-
 :deep(.monaco-editor) {
   background-color: #1a1b26 !important;
 }
