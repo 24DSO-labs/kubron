@@ -12,6 +12,19 @@ export type AppMethod = {
   [K in keyof AppApi]: AppApi[K] extends (...args: any[]) => Promise<any> ? K : never
 }[keyof AppApi]
 
+/** Текст ошибки бэкенда «нет сессии» (auth.ErrNotAuthenticated) */
+export const NOT_AUTHENTICATED = 'требуется вход в систему'
+
+/** Методы, для которых «нет сессии» — штатный ответ (до входа), а не признак истёкшей сессии */
+const PRE_LOGIN_METHODS = new Set<string>(['AuthStatus', 'SetupAdmin', 'Login', 'Logout', 'CurrentUser'])
+
+let sessionLostHandler: (() => void) | null = null
+
+/** Обработчик потери сессии на стороне бэкенда (автовыход по бездействию и т.п.) */
+export function onSessionLost(handler: () => void) {
+  sessionLostHandler = handler
+}
+
 export async function callApp<K extends AppMethod>(
   fn: K,
   ...args: Parameters<AppApi[K]>
@@ -20,5 +33,11 @@ export async function callApp<K extends AppMethod>(
   if (typeof app[fn] !== 'function') {
     throw new Error(`${String(fn)} недоступен в Go-биндингах`)
   }
-  return app[fn](...args)
+  try {
+    return await app[fn](...args)
+  } catch (e) {
+    const text = typeof e === 'string' ? e : (e as { message?: string } | null)?.message ?? ''
+    if (text.includes(NOT_AUTHENTICATED) && !PRE_LOGIN_METHODS.has(String(fn))) sessionLostHandler?.()
+    throw e
+  }
 }

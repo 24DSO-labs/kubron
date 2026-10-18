@@ -44,6 +44,14 @@
       <div :class="['nav-item', { active: currentView === 'settings' }]" @click="emit('navigate', 'settings')">
         <span class="nav-icon">⚙️</span> Settings
       </div>
+      <div v-if="can(Perm.UsersManage)" :class="['nav-item', { active: currentView === 'users' }]"
+        @click="emit('navigate', 'users')">
+        <span class="nav-icon">👥</span> Users
+      </div>
+      <div v-if="can(Perm.AuditRead)" :class="['nav-item', { active: currentView === 'audit' }]"
+        @click="emit('navigate', 'audit')">
+        <span class="nav-icon">📜</span> Audit
+      </div>
     </nav>
 
     <!-- Namespace selector -->
@@ -67,6 +75,8 @@ import { reactive } from 'vue'
 import type { NamespaceInfo } from '../types'
 import type { NavGroupId } from '../resources/types'
 import { NAV_GROUPS, buildNav } from '../resources/navigation'
+import { can } from '../composables/useAuth'
+import { Perm } from '../types/auth'
 
 defineProps<{
   currentView: string

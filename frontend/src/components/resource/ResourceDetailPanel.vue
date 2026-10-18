@@ -5,7 +5,7 @@
     :resource-type="def.kind"
     :custom-tabs="tabList"
     :show-edit="def.editable !== false"
-    :show-delete="!!def.api.remove"
+    :show-delete="canDelete(def)"
     @close="$emit('close')"
     @edit="resourceActions.edit(def.id, ns, name)"
     @delete="resourceActions.requestDelete(def.id, ns, name)"
@@ -108,6 +108,7 @@ import KeyValueSection from './sections/KeyValueSection.vue'
 import ResourceEventsTable from './ResourceEventsTable.vue'
 import type { ActionDef, ResourceDefinition } from '../../resources/types'
 import { resourceActions } from '../../resources/actions'
+import { actionAllowed, canDelete } from '../../resources/access'
 import { containersOf, itemName, itemNs } from '../../resources/utils'
 
 const props = defineProps<{
@@ -135,7 +136,7 @@ const labels = computed(() => props.resource?.labels ?? props.resource?.metadata
 const annotations = computed(() => props.resource?.annotations ?? props.resource?.metadata?.annotations)
 
 const visibleActions = computed(() =>
-  (props.def.actions ?? []).filter(a => !a.when || a.when(props.resource)),
+  (props.def.actions ?? []).filter(a => actionAllowed(a) && (!a.when || a.when(props.resource))),
 )
 
 const tabList = computed(() =>

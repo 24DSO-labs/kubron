@@ -1,4 +1,5 @@
 import { defineResource } from '../types'
+import { Perm } from '../../types/auth'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
@@ -54,9 +55,10 @@ export const statefulSet = defineResource<k8s.StatefulSetInfo>({
   ],
 
   actions: [
-    { id: 'scale', label: 'Scale', icon: 'scale', run: (d, ctx) => ctx.requestScale(d, 'StatefulSet') },
+    { id: 'scale', permission: Perm.Operate, label: 'Scale', icon: 'scale', run: (d, ctx) => ctx.requestScale(d, 'StatefulSet') },
     {
       id: 'restart',
+      permission: Perm.Operate,
       label: 'Restart',
       icon: 'restart',
       run: async (s, ctx) => {
@@ -69,6 +71,7 @@ export const statefulSet = defineResource<k8s.StatefulSetInfo>({
     },
     {
       id: 'logs',
+      permission: Perm.Read,
       label: 'View logs',
       icon: 'logs',
       run: (s, ctx) => ctx.openResourceLogs('statefulset', s.namespace, s.name),
