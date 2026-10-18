@@ -12,7 +12,8 @@ export const persistentVolume = defineResource<k8s.PVInfo>({
   namespaced: false,
   nav: { group: 'storage', label: 'Persistent Volumes' },
   
-  autoRefresh: true,icon: 'pvc',
+  autoRefresh: true,
+  // icon: 'pvc',
 
   columns: [
     flatNameCol,

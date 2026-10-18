@@ -8,7 +8,7 @@ export const role = defineResource({
   kind: 'Role',
   view: 'roles',
   title: 'Roles',
-  icon: 'cluster-role',
+  // icon: 'cluster-role',
   namespaced: true,
   nav: { group: 'access', label: 'Roles' },
   columns: [nameCol, { ...nsCol, link: (r: any) => r.metadata?.namespace ? { id: 'namespace', ns: '', name: r.metadata.namespace } : null }, ageCol],
