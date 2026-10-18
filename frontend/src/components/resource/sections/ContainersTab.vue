@@ -90,7 +90,7 @@
 
   <div class="ct-env-act">
     <button
-      v-if="refOf(e.value)?.kind === 'secret'"
+      v-if="refOf(e.value)?.kind === 'secret' && can(Perm.SecretsRead)"
       class="ct-env-eye"
       :disabled="secretLoading[envKey(c, e)]"
       :title="envKey(c, e) in secretValues ? 'Hide' : 'Reveal'"
@@ -141,6 +141,8 @@ import K8sIcon from '../../icons/K8sIcon.vue'
 import PortForwardControl from './PortForwardControl.vue'
 import { callApp } from '../../../resources/wails'
 import { useNotifications } from '../../../composables/useNotifications'
+import { can } from '../../../composables/useAuth'
+import { Perm } from '../../../types/auth'
 
 const props = defineProps<{ resource: any }>()
 const clusterName = inject(clusterNameKey, ref(undefined))

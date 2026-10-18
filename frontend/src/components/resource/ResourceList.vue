@@ -25,6 +25,7 @@ import ResourceTable from './ResourceTable.vue'
 import type { MenuItemDef, ResourceDefinition } from '../../resources/types'
 import { useResourceList } from '../../resources/store'
 import { resourceActions } from '../../resources/actions'
+import { actionAllowed, canDelete, canEditYaml } from '../../resources/access'
 import { containersOf, itemName, itemNs } from '../../resources/utils'
 
 const props = defineProps<{ def: ResourceDefinition }>()
@@ -39,7 +40,7 @@ function menuFor(item: any): MenuItemDef[] {
   const containers = containersOf(item)
   return [
     { label: 'Show Details', action: 'select' },
-    ...(props.def.actions ?? []).map(a => ({
+    ...(props.def.actions ?? []).filter(actionAllowed).map(a => ({
       label: a.label,
       action: a.id,
       danger: a.danger,
@@ -48,8 +49,9 @@ function menuFor(item: any): MenuItemDef[] {
           ? containers.map(c => ({ label: c.name, arg: c.name }))
           : undefined,
     })),
-    ...(props.def.editable !== false ? [{ label: 'Edit', action: 'edit' }] : []),
-    ...(props.def.api.remove ? [{ label: 'Delete', action: 'delete', danger: true }] : []),
+    // Без права на запись YAML открывается только для просмотра
+    ...(props.def.editable !== false ? [{ label: canEditYaml() ? 'Edit' : 'View YAML', action: 'edit' }] : []),
+    ...(canDelete(props.def) ? [{ label: 'Delete', action: 'delete', danger: true }] : []),
   ]
 }
 

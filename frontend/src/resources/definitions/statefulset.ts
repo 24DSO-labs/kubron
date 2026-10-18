@@ -1,4 +1,5 @@
 import { defineResource } from '../types'
+import { Perm } from '../../types/auth'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
@@ -69,6 +70,7 @@ export const statefulSet = defineResource<k8s.StatefulSetInfo>({
     },
     {
       id: 'logs',
+      permission: Perm.Read,
       label: 'View logs',
       icon: 'logs',
       run: (s, ctx) => ctx.openResourceLogs('statefulset', s.namespace, s.name),
