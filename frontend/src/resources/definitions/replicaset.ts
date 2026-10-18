@@ -7,6 +7,7 @@ import { badgeClass } from '../status'
 import ReplicaSetMetricsSection from '../../components/resource/sections/ReplicaSetMetricsSection.vue'
 import ImagesSection from '../../components/resource/sections/ImagesSection.vue'
 import PodsTab from '../../components/resource/sections/PodsTab.vue'
+import { podStatusSummary } from '../utils'
 
 /** Маппинг kind -> resource id для ссылок (владелец ReplicaSet — обычно Deployment) */
 const kindToId: Record<string, string> = {
@@ -38,19 +39,7 @@ export function replicaSetStatus(rs: any): string {
   return `${ready}/${desired} Progressing`
 }
 
-/** Pod Status из счётчиков фаз: "Running: 1" / "Running: 1, Pending: 2" */
-const PHASE_ORDER = ['Running', 'Pending', 'Succeeded', 'Failed', 'Unknown']
-function podStatusSummary(rs: any): string {
-  const statuses = rs.podStatuses ?? {}
-  const entries = Object.entries(statuses).filter(([, n]) => (n as number) > 0)
-  if (!entries.length) return ''
-  entries.sort((a, b) => {
-    const ia = PHASE_ORDER.indexOf(a[0])
-    const ib = PHASE_ORDER.indexOf(b[0])
-    return (ia === -1 ? PHASE_ORDER.length : ia) - (ib === -1 ? PHASE_ORDER.length : ib)
-  })
-  return entries.map(([phase, n]) => `${phase}: ${n}`).join(', ')
-}
+
 
 export const replicaSet = defineResource<k8s.ReplicaSetInfo>({
   id: 'replicaset',

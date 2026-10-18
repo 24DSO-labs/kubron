@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -450,21 +451,134 @@ func (m *Manager) GetDaemonSets(namespace string) ([]DaemonSetInfo, error) {
 // === Jobs ===
 
 type JobInfo struct {
-	Name        string   `json:"name"`
-	Namespace   string   `json:"namespace"`
-	Completions string   `json:"completions"`
-	Succeeded   int32    `json:"succeeded"`
-	Failed      int32    `json:"failed"`
-	Active      int32    `json:"active"`
-	Duration    string   `json:"duration"`
-	Age         string   `json:"age"`
-	Status      string   `json:"status"`
-	Conditions  []string `json:"conditions"`
+	Name        string            `json:"name"`
+	Namespace   string            `json:"namespace"`
+	Completions string            `json:"completions"`
+	Succeeded   int32             `json:"succeeded"`
+	Failed      int32             `json:"failed"`
+	Active      int32             `json:"active"`
+	Parallelism int32             `json:"parallelism"`
+	Duration    string            `json:"duration"`
+	Age         string            `json:"age"`
+	Created     string            `json:"created"`
+	Status      string            `json:"status"`
+	Selector    string            `json:"selector"`
+	Images      []string          `json:"images"`
+	Labels      map[string]string `json:"labels"`
+	Annotations map[string]string `json:"annotations"`
+	Conditions  []ConditionInfo   `json:"conditions"`
+	PodStatuses map[string]int32  `json:"podStatuses"`
 }
 
-type jobWarn struct {
-	count int
-	msg   string
+// jobPodStatuses: счётчики подов по фазам для каждого Job ("ns/name" -> phase -> n).
+// Одним запросом на все Job'ы; ошибка не ломает список.
+func jobPodStatuses(ctx context.Context, conn *ClusterConnection, namespace string) map[string]map[string]int32 {
+	out := map[string]map[string]int32{}
+	pods, err := conn.Client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return out
+	}
+	for _, pod := range pods.Items {
+		for _, ref := range pod.OwnerReferences {
+			if ref.Kind != "Job" || ref.Controller == nil || !*ref.Controller {
+				continue
+			}
+			key := pod.Namespace + "/" + ref.Name
+			if out[key] == nil {
+				out[key] = map[string]int32{}
+			}
+			out[key][string(pod.Status.Phase)]++
+		}
+	}
+	return out
+}
+
+func convertJob(j *batchv1.Job, podStatuses map[string]int32) JobInfo {
+	completions := "1"
+	if j.Spec.Completions != nil {
+		completions = fmt.Sprintf("%d", *j.Spec.Completions)
+	}
+	parallelism := int32(1)
+	if j.Spec.Parallelism != nil {
+		parallelism = *j.Spec.Parallelism
+	}
+
+	conditions := make([]ConditionInfo, 0, len(j.Status.Conditions))
+	var failed, complete, suspended bool
+	for _, c := range j.Status.Conditions {
+		conditions = append(conditions, ConditionInfo{
+			Type:               string(c.Type),
+			Status:             string(c.Status),
+			LastTransitionTime: c.LastTransitionTime.Format(time.RFC3339),
+			Reason:             c.Reason,
+			Message:            c.Message,
+		})
+		if string(c.Status) != "True" {
+			continue
+		}
+		switch c.Type {
+		case batchv1.JobFailed:
+			failed = true
+		case batchv1.JobComplete:
+			complete = true
+		case batchv1.JobSuspended:
+			suspended = true
+		}
+	}
+	status := "Running"
+	switch {
+	case failed:
+		status = "Failed"
+	case complete:
+		status = "Complete"
+	case suspended:
+		status = "Suspended"
+	}
+
+	duration := ""
+	if j.Status.StartTime != nil {
+		end := time.Now()
+		if j.Status.CompletionTime != nil {
+			end = j.Status.CompletionTime.Time
+		}
+		// formatAge форматирует «сколько прошло с момента t»: сдвигаем t на длительность
+		duration = formatAge(time.Now().Add(-end.Sub(j.Status.StartTime.Time)))
+	}
+
+	selector := ""
+	if j.Spec.Selector != nil && len(j.Spec.Selector.MatchLabels) > 0 {
+		parts := make([]string, 0, len(j.Spec.Selector.MatchLabels))
+		for k, v := range j.Spec.Selector.MatchLabels {
+			parts = append(parts, k+"="+v)
+		}
+		sort.Strings(parts)
+		selector = strings.Join(parts, ", ")
+	}
+
+	var images []string
+	for _, c := range j.Spec.Template.Spec.Containers {
+		images = append(images, c.Image)
+	}
+
+	return JobInfo{
+		Name:        j.Name,
+		Namespace:   j.Namespace,
+		Completions: fmt.Sprintf("%d/%s", j.Status.Succeeded, completions),
+		Succeeded:   j.Status.Succeeded,
+		Failed:      j.Status.Failed,
+		Active:      j.Status.Active,
+		Parallelism: parallelism,
+		Duration:    duration,
+		Age:         formatAge(j.CreationTimestamp.Time),
+		Created:     j.CreationTimestamp.Format(time.RFC3339),
+		Status:      status,
+		Selector:    selector,
+		Images:      images,
+		Labels:      j.Labels,
+		Annotations: j.Annotations,
+		Conditions:  conditions,
+		PodStatuses: podStatuses,
+	}
 }
 
 func (m *Manager) GetJobs(namespace string) ([]JobInfo, error) {
@@ -480,62 +594,12 @@ func (m *Manager) GetJobs(namespace string) ([]JobInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	pods := jobPodStatuses(ctx, conn, namespace)
 
-	var items []JobInfo
-	for _, j := range list.Items {
-		completions := "1"
-		if j.Spec.Completions != nil {
-			completions = fmt.Sprintf("%d", *j.Spec.Completions)
-		}
-
-		conds := make([]string, 0, len(j.Status.Conditions))
-		var failed, complete, suspended bool
-		for _, c := range j.Status.Conditions {
-			if string(c.Status) != "True" {
-				continue
-			}
-			conds = append(conds, string(c.Type))
-			switch c.Type {
-			case batchv1.JobFailed:
-				failed = true
-			case batchv1.JobComplete:
-				complete = true
-			case batchv1.JobSuspended:
-				suspended = true
-			}
-		}
-		status := "Running"
-		switch {
-		case failed:
-			status = "Failed"
-		case complete:
-			status = "Complete"
-		case suspended:
-			status = "Suspended"
-		}
-
-		duration := ""
-		if j.Status.StartTime != nil {
-			end := time.Now()
-			if j.Status.CompletionTime != nil {
-				end = j.Status.CompletionTime.Time
-			}
-			// formatAge форматирует «сколько прошло с момента t»: сдвигаем t на длительность
-			duration = formatAge(time.Now().Add(-end.Sub(j.Status.StartTime.Time)))
-		}
-
-		items = append(items, JobInfo{
-			Name:        j.Name,
-			Namespace:   j.Namespace,
-			Completions: fmt.Sprintf("%d/%s", j.Status.Succeeded, completions),
-			Succeeded:   j.Status.Succeeded,
-			Failed:      j.Status.Failed,
-			Active:      j.Status.Active,
-			Duration:    duration,
-			Age:         formatAge(j.CreationTimestamp.Time),
-			Status:      status,
-			Conditions:  conds,
-		})
+	items := make([]JobInfo, 0, len(list.Items))
+	for i := range list.Items {
+		j := &list.Items[i]
+		items = append(items, convertJob(j, pods[j.Namespace+"/"+j.Name]))
 	}
 	return items, nil
 }
@@ -719,74 +783,24 @@ func (m *Manager) GetCronJobJobs(namespace, cronJobName string) ([]JobInfo, erro
 		return nil, err
 	}
 
+	pods := jobPodStatuses(ctx, conn, namespace)
+
 	var items []JobInfo
-	for _, j := range list.Items {
+	for i := range list.Items {
+		j := &list.Items[i]
 		// Проверяем ownerReference — Job должен принадлежать указанному CronJob
-		isOwnedByCronJob := false
+		owned := false
 		for _, ref := range j.OwnerReferences {
 			if ref.Kind == "CronJob" && ref.Name == cronJobName {
-				isOwnedByCronJob = true
+				owned = true
 				break
 			}
 		}
-		if !isOwnedByCronJob {
+		if !owned {
 			continue
 		}
-
-		completions := "1"
-		if j.Spec.Completions != nil {
-			completions = fmt.Sprintf("%d", *j.Spec.Completions)
-		}
-
-		conds := make([]string, 0, len(j.Status.Conditions))
-		var failed, complete, suspended bool
-		for _, c := range j.Status.Conditions {
-			if string(c.Status) != "True" {
-				continue
-			}
-			conds = append(conds, string(c.Type))
-			switch c.Type {
-			case batchv1.JobFailed:
-				failed = true
-			case batchv1.JobComplete:
-				complete = true
-			case batchv1.JobSuspended:
-				suspended = true
-			}
-		}
-		status := "Running"
-		switch {
-		case failed:
-			status = "Failed"
-		case complete:
-			status = "Complete"
-		case suspended:
-			status = "Suspended"
-		}
-
-		duration := ""
-		if j.Status.StartTime != nil {
-			end := time.Now()
-			if j.Status.CompletionTime != nil {
-				end = j.Status.CompletionTime.Time
-			}
-			duration = formatAge(time.Now().Add(-end.Sub(j.Status.StartTime.Time)))
-		}
-
-		items = append(items, JobInfo{
-			Name:        j.Name,
-			Namespace:   j.Namespace,
-			Completions: fmt.Sprintf("%d/%s", j.Status.Succeeded, completions),
-			Succeeded:   j.Status.Succeeded,
-			Failed:      j.Status.Failed,
-			Active:      j.Status.Active,
-			Duration:    duration,
-			Age:         formatAge(j.CreationTimestamp.Time),
-			Status:      status,
-			Conditions:  conds,
-		})
+		items = append(items, convertJob(j, pods[j.Namespace+"/"+j.Name]))
 	}
-
 	return items, nil
 }
 
