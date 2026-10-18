@@ -57,6 +57,7 @@ export const daemonSet = defineResource<k8s.DaemonSetInfo>({
   actions: [
     {
       id: 'restart',
+      permission: Perm.Operate,
       label: 'Restart',
       icon: 'restart',
       run: async (d, ctx) => {

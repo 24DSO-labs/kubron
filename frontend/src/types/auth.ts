@@ -6,6 +6,7 @@
 export const Perm = {
   Read: 'read',
   SecretsRead: 'secrets.read',
+  Operate: 'operate',
   Write: 'write',
   Exec: 'exec',
   PortForward: 'portforward',
@@ -40,7 +41,8 @@ export interface RoleInfo {
 export const PERMISSION_LABELS: Record<string, string> = {
   [Perm.Read]: 'Просмотр ресурсов, логов, метрик, YAML',
   [Perm.SecretsRead]: 'Просмотр значений секретов',
-  [Perm.Write]: 'Изменение и удаление ресурсов',
+  [Perm.Operate]: 'Операции с нагрузками: масштабирование, перезапуск, откат',
+  [Perm.Write]: 'Удаление ресурсов и правка YAML',
   [Perm.Exec]: 'Терминал в подах',
   [Perm.PortForward]: 'Проброс портов',
   [Perm.ClusterManage]: 'Управление кластерами',
