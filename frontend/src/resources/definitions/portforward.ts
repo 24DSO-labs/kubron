@@ -1,5 +1,6 @@
 import type { k8s as models } from '../../../wailsjs/go/models'
 import { defineResource } from '../types'
+import { Perm } from '../../types/auth'
 import { callApp } from '../wails'
 import { useK8s } from '../../composables/useK8s'
 import { flatNsCol } from './common'
@@ -37,6 +38,7 @@ export const portForward = defineResource<models.PortForwardSession>({
   actions: [
     {
       id: 'stop',
+      permission: Perm.PortForward,
       label: 'Stop',
       danger: true,
       // perform() сам перезагрузит список, а list обновит сессии

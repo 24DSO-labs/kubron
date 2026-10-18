@@ -1,0 +1,69 @@
+/* Общие стили форм входа, первичной настройки и смены пароля */
+.auth-form { display: flex; flex-direction: column; gap: 14px; text-align: left; }
+
+.auth-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #a6adc8; }
+.auth-field input {
+  background: #11111b;
+  border: 1px solid #313244;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #cdd6f4;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.auth-field input:focus {
+  outline: none;
+  border-color: #89b4fa;
+  box-shadow: 0 0 0 3px rgba(137, 180, 250, 0.18);
+}
+.auth-field input:disabled { opacity: 0.6; }
+.auth-field small { color: #6c7086; font-size: 12px; }
+
+.auth-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(243, 139, 168, 0.12);
+  border: 1px solid rgba(243, 139, 168, 0.35);
+  color: #f38ba8;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.auth-notice {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(137, 180, 250, 0.10);
+  border: 1px solid rgba(137, 180, 250, 0.30);
+  color: #89b4fa;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.auth-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+
+.auth-submit {
+  background: #89b4fa;
+  color: #1e1e2e;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+.auth-submit:hover:not(:disabled) { background: #74c7ec; }
+.auth-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.auth-link {
+  background: none;
+  border: none;
+  color: #a6adc8;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 6px 8px;
+}
+.auth-link:hover { color: #cdd6f4; text-decoration: underline; }
