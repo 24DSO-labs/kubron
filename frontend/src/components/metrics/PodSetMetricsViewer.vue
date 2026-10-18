@@ -1,0 +1,115 @@
+<template>
+  <div class="ps-viewer">
+    <div class="metrics-selector">
+      <button
+        v-for="m in list"
+        :key="m.id"
+        :class="['metric-btn', { active: selected === m.id }]"
+        @click="selected = m.id"
+      >{{ m.label }}</button>
+    </div>
+    <div class="metrics-chart-container">
+      <MultiLineChart
+        :key="selected"
+        :title="cfg.title"
+        :unit="cfg.unit"
+        :fetch-data="fetchData"
+        :format-value="cfg.format"
+        :refresh-interval-ms="30000"
+      />
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import MultiLineChart from './MultiLineChart.vue'
+import { usePrometheusRange } from '../../composables/useMetrics'
+
+const props = defineProps<{ clusterName: string; namespace: string; podRegex: string }>()
+const { queryRange } = usePrometheusRange(props.clusterName)
+
+const sel = () => `namespace="${props.namespace}",pod=~"${props.podRegex}"`
+
+interface Line { label: string; expr: () => string }
+interface Cfg { id: string; label: string; title: string; unit: string; format: (v: number) => string; lines: Line[] }
+
+function formatCpu(v: number): string {
+  if (v < 0.001) return '0'
+  if (v < 1) return (v * 1000).toFixed(0) + 'm'
+  return v.toFixed(2)
+}
+function formatMemoryMB(v: number): string {
+  if (v < 1) return (v * 1024).toFixed(0) + ' KB'
+  if (v >= 1024) return (v / 1024).toFixed(2) + ' GB'
+  return v.toFixed(1) + ' MB'
+}
+function formatNetwork(v: number): string {
+  if (v < 0.01) return '0.0'
+  if (v < 1) return v.toFixed(2)
+  if (v < 1000) return v.toFixed(1)
+  if (v < 1000000) return (v / 1000).toFixed(1) + 'M'
+  return (v / 1000000).toFixed(1) + 'G'
+}
+const formatDisk = (v: number) => v.toFixed(2)
+
+const list: Cfg[] = [
+  {
+    id: 'cpu', label: 'CPU', title: 'CPU Usage', unit: 'cores', format: formatCpu,
+    lines: [
+      { label: 'CPU Usage', expr: () => `sum(rate(container_cpu_usage_seconds_total{${sel()},container!="",container!="POD"}[5m]))` },
+      { label: 'CPU Requests', expr: () => `sum(kube_pod_container_resource_requests{${sel()},container!="POD",resource="cpu"})` },
+      { label: 'CPU Limits', expr: () => `sum(kube_pod_container_resource_limits{${sel()},container!="POD",resource="cpu"})` },
+    ],
+  },
+  {
+    id: 'memory', label: 'Memory', title: 'Memory Usage', unit: 'MB', format: formatMemoryMB,
+    lines: [
+      { label: 'Memory Usage', expr: () => `sum(container_memory_working_set_bytes{${sel()},container!="",container!="POD"}) / 1024 / 1024` },
+      { label: 'Memory Requests', expr: () => `sum(kube_pod_container_resource_requests{${sel()},container!="POD",resource="memory"}) / 1024 / 1024` },
+      { label: 'Memory Limits', expr: () => `sum(kube_pod_container_resource_limits{${sel()},container!="POD",resource="memory"}) / 1024 / 1024` },
+    ],
+  },
+  {
+    id: 'network', label: 'Network', title: 'Network Traffic', unit: 'KB/s', format: formatNetwork,
+    lines: [
+      { label: 'Receive', expr: () => `sum(rate(container_network_receive_bytes_total{${sel()}}[5m])) / 1024` },
+      { label: 'Transmit', expr: () => `sum(rate(container_network_transmit_bytes_total{${sel()}}[5m])) / 1024` },
+    ],
+  },
+  {
+    id: 'disk', label: 'Disk I/O', title: 'Disk I/O', unit: 'MB/s', format: formatDisk,
+    lines: [
+      { label: 'File System Usage', expr: () => `sum(container_fs_usage_bytes{${sel()}}) / 1024 / 1024` },
+      { label: 'File System Writes', expr: () => `sum(rate(container_fs_writes_bytes_total{${sel()}}[5m])) / 1024 / 1024` },
+      { label: 'File System Reads', expr: () => `sum(rate(container_fs_reads_bytes_total{${sel()}}[5m])) / 1024 / 1024` },
+    ],
+  },
+]
+
+const selected = ref('cpu')
+const cfg = computed(() => list.find(m => m.id === selected.value)!)
+
+const fetchData = computed(() => {
+  const lines = cfg.value.lines
+  return async (start: number, end: number, step: number) => {
+    const data = await Promise.all(lines.map(l => queryRange(l.expr(), start, end, step)))
+    return lines.map((l, i) => ({ label: l.label, data: data[i] }))
+  }
+})
+</script>
+
+<style scoped>
+.ps-viewer { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; width: 100%; }
+.metrics-selector { display: flex; gap: 6px; flex-wrap: wrap; }
+.metric-btn {
+  padding: 6px 12px; background: #1e1f35; border: 1px solid #3b3d5c; border-radius: 4px;
+  color: #9ca0b8; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.metric-btn:hover { background: #262740; border-color: #5a5c7a; color: #c0c2d8; }
+.metric-btn.active { background: #3b82f6; border-color: #3b82f6; color: white; }
+.metrics-chart-container {
+  background: #1a1b2e; border: 1px solid #2a2b40; border-radius: 6px;
+  padding: 12px; width: 100%; min-height: 350px;
+}
+</style>
