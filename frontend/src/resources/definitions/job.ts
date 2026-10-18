@@ -2,18 +2,21 @@ import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
-import { badgeClass, statusColor } from '../status'
+import { statusColor } from '../status'
 
-import JobSpecSection from '../../components/resource/sections/JobSpecSection.vue'
+import JobMetricsSection from '../../components/resource/sections/JobMetricsSection.vue'
 import ImagesSection from '../../components/resource/sections/ImagesSection.vue'
 import ConditionsSection from '../../components/resource/sections/ConditionsSection.vue'
-import JobWarningCell from '../../components/resource/sections/JobWarningCell.vue'
+import JobStatsSection from '../../components/resource/sections/JobStatsSection.vue'
+import PodsTab from '../../components/resource/sections/PodsTab.vue'
 
 const jobStatus = (j: any): string => j.status || 'Running'
-const jobConditions = (j: any): string =>
-  j.conditions?.length ? j.conditions.join(', ') : jobStatus(j)
 
-
+/** conditions теперь объекты; в колонке показываем только активные (status=True) */
+const jobConditions = (j: any): string => {
+  const active = (j.conditions ?? []).filter((c: any) => c.status === 'True').map((c: any) => c.type)
+  return active.length ? active.join(', ') : jobStatus(j)
+}
 
 export const job = defineResource<k8s.JobInfo>({
   id: 'job',
@@ -28,7 +31,6 @@ export const job = defineResource<k8s.JobInfo>({
     flatNameCol,
     { ...flatNsCol, link: (j: any) => j.namespace ? { id: 'namespace', ns: '', name: j.namespace } : null },
     { key: 'completions', label: 'Completions' },
-    
     ageCol,
     {
       key: 'conditions',
@@ -38,13 +40,13 @@ export const job = defineResource<k8s.JobInfo>({
     },
   ],
 
+  // Порядок панели: метрики -> Labels -> Annotations -> properties -> sections
+  headSections: [JobMetricsSection],
   properties: [
-    { label: 'Status', value: j => jobStatus(j), badge: j => badgeClass(jobStatus(j)) },
-    { label: 'Completions', value: j => j.completions },
-    { label: 'Duration', value: j => j.duration },
-    { label: 'Conditions', value: j => jobConditions(j) },
+    { label: 'Selector', value: j => j.selector },
   ],
-  sections: [JobSpecSection, ImagesSection, ConditionsSection],
+  sections: [ImagesSection, ConditionsSection, JobStatsSection],
+  tabs: [{ id: 'pods', label: 'Pods', component: PodsTab }],
 
   actions: [
     {
