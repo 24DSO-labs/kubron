@@ -26,6 +26,7 @@ export interface YamlTab extends BaseTab {
   type: 'yaml'
   content: string
   originalContent: string
+  saving?: boolean
 }
 
 export interface TerminalTab extends BaseTab {

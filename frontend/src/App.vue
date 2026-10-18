@@ -229,13 +229,18 @@ const activeViewEvents = computed(() => ({
 
 async function applyYAMLTabbed(tabId: string) {
   const tab = globalTabbedPanel.tabs.value.find(t => t.id === tabId)
-  if (!tab || tab.type !== 'yaml') return
+  if (!tab || tab.type !== 'yaml' || tab.saving) return
+  tab.saving = true
+  const applied = tab.content
   try {
-    await k8s.applyYAML(tab.content, tab.resourceType, tab.namespace, tab.resourceName)
+    await k8s.applyYAML(applied, tab.resourceType, tab.namespace, tab.resourceName)
+    tab.originalContent = applied
     notifications.notifySuccess(`${tab.resourceType} ${tab.resourceName} updated`)
     await refreshAll()
   } catch (e: any) {
-    notifications.notifyError(`Apply error: ${e.message || e}`)
+    notifications.notifyError(`Apply error: ${e?.message || e}`)
+  } finally {
+    tab.saving = false
   }
 }
 
