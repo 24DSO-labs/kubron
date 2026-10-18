@@ -3,6 +3,7 @@ module analog
 go 1.25.0
 
 require (
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/wailsapp/wails/v2 v2.14.0
 	k8s.io/api v0.35.2
 	k8s.io/apimachinery v0.35.2
