@@ -367,45 +367,6 @@ function formatAgeAbsolute(created: string): string {
   opacity: 1;
 }
 
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #1a1b2e;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #35365a;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #45466a;
-}
-
-::-webkit-scrollbar-corner {
-  background: #1a1b2e;
-}
-
-.detail-content::-webkit-scrollbar {
-  width: 8px;
-}
-
-.detail-content::-webkit-scrollbar-track {
-  background: #1a1b2e;
-}
-
-.detail-content::-webkit-scrollbar-thumb {
-  background: #35365a;
-  border-radius: 4px;
-}
-
-.detail-content::-webkit-scrollbar-thumb:hover {
-  background: #45466a;
-}
-
 .meta-link {
   color: #60a5fa !important;
   cursor: pointer !important;
