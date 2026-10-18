@@ -241,6 +241,14 @@ func (a *App) GetCronJobDetail(namespace, name string) (*k8s.CronJobDetail, erro
 	return a.k8sMgr.GetCronJobDetail(namespace, name)
 }
 
+func (a *App) TriggerCronJob(namespace, name string) error {
+	return a.k8sMgr.TriggerCronJob(namespace, name)
+}
+
+func (a *App) ToggleCronJobSuspend(namespace, name string) (bool, error) {
+	return a.k8sMgr.ToggleCronJobSuspend(namespace, name)
+}
+
 // === Services ===
 
 func (a *App) GetServices(namespace string) ([]k8s.ServiceInfo, error) {
