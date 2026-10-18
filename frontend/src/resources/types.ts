@@ -61,8 +61,8 @@ export interface ActionContext {
   openResourceLogs(kind: string, ns: string, name: string): void
   openShell(ns: string, pod: string, container: string): Promise<void>
   openAttach(ns: string, pod: string, container: string): Promise<void>
-  /** Открыть диалог масштабирования Deployment */
-  requestScale(item: any): void
+  /** Открыть диалог масштабирования (Deployment / StatefulSet) */
+  requestScale(item: any, kind?: string): void
   /** Диалог подтверждения (рисует ResourceHost). Резолвится true по «Подтвердить», false по отмене */
   confirm(message: string): Promise<boolean>
   /** try/catch + тосты + обновление списка. Бросать исключение внутри fn безопасно */

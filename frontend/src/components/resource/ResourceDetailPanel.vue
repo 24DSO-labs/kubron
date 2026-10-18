@@ -94,7 +94,7 @@
     </template>
 
     <template #events>
-      <div class="rd-empty">No events available</div>
+      <ResourceEventsTable :resource="resource" @open="onOpen" />
     </template>
   </K8sResourceDetailBase>
 </template>
@@ -105,6 +105,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import K8sResourceDetailBase from '../panels/K8sResourceDetailBase.vue'
 import K8sIcon from '../icons/K8sIcon.vue'
 import KeyValueSection from './sections/KeyValueSection.vue'
+import ResourceEventsTable from './ResourceEventsTable.vue'
 import type { ActionDef, ResourceDefinition } from '../../resources/types'
 import { resourceActions } from '../../resources/actions'
 import { containersOf, itemName, itemNs } from '../../resources/utils'
@@ -126,6 +127,7 @@ const base = computed(() => {
     namespace: props.def.namespaced ? props.ns || itemNs(r) : '',
     age: r.age ?? '',
     created: r.created ?? r.createdTime ?? r.metadata?.creationTimestamp ?? '',
+    _kind: props.def.kind,
   }
 })
 
