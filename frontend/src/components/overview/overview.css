@@ -45,8 +45,9 @@
 
 .ov-btn {
   padding: 7px 14px;
+  width: 110px; 
   background: var(--ov-card-hover);
-  border: 1px solid var(--ov-border);
+  border: 1px solid var(--ov-accent);
   border-radius: 8px;
   font: inherit;
   font-size: 13px;
@@ -55,7 +56,7 @@
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
-.ov-btn:hover:not(:disabled) { border-color: var(--ov-accent); }
+.ov-btn:hover:not(:disabled) { background: var(--ov-card-hover); border-color: #89b4fa; }
 .ov-btn:disabled { opacity: 0.6; cursor: default; }
 .ov-btn-primary { background: var(--ov-accent); border-color: var(--ov-accent); color: #fff; }
 .ov-btn-primary:hover:not(:disabled) { background: var(--ov-accent-hover); }

@@ -77,6 +77,17 @@ export function useResourceList(getDef: () => ResourceDefinition) {
 
   const reload = () => loadResource(getDef())
 
+  // Состояние "загружается" для отображения кнопки Refresh
+  const refreshing = ref(false)
+  const updatedAt = ref<Date | null>(null)
+  const doReload = () => {
+    refreshing.value = true
+    loadResource(getDef()).finally(() => {
+      refreshing.value = false
+      updatedAt.value = new Date()
+    })
+  }
+
   // Авто-обновление
   const appSettings = useAppSettings()
   let refreshTimer: ReturnType<typeof setInterval> | null = null
@@ -88,7 +99,7 @@ export function useResourceList(getDef: () => ResourceDefinition) {
     const intervalMs = appSettings.getRefreshIntervalMs()
     if (intervalMs <= 0) return
     refreshTimer = setInterval(() => {
-      loadResource(def)
+      doReload()
     }, intervalMs)
   }
 
@@ -112,12 +123,12 @@ export function useResourceList(getDef: () => ResourceDefinition) {
   watch(
     () => k8s.selectedNamespace.value,
     () => {
-      if (getDef().namespaced) reload()
+      if (getDef().namespaced) doReload()
     },
   )
 
   // Внешние изменения данных (def.refreshOn); watch живёт, пока смонтирован список этого ресурса
-  watch(() => getDef().refreshOn?.(), () => reload())
+  watch(() => getDef().refreshOn?.(), () => doReload())
 
   const search = computed({
     get: () => k8s.search.value,
@@ -126,5 +137,5 @@ export function useResourceList(getDef: () => ResourceDefinition) {
     },
   })
 
-  return { items, initialLoading, reload, search }
+  return { items, initialLoading, reload: doReload, refreshing, updatedAt, search }
 }
