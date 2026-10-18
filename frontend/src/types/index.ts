@@ -224,6 +224,7 @@ export interface ReplicaSetInfo {
   name: string
   namespace: string
   desired: number
+  current: number
   ready: number
   age: string
   images: string[]
