@@ -7,6 +7,8 @@ import { reloadActive } from './store'
 import { callApp } from './wails'
 import { askConfirm } from './confirm'
 import type { ActionContext } from './types'
+import { can } from '../composables/useAuth'
+import { Perm, type Permission } from '../types/auth'
 
 const notifications = useNotifications()
 
@@ -20,6 +22,13 @@ export const pendingDelete = ref<{ id: string; kind: string; ns: string; name: s
 export const scaleTarget = shallowRef<any | null>(null)
 
 const errMsg = (e: any) => e?.message || String(e)
+
+/** Запасная проверка в самих действиях (кнопки без права и так скрыты); бэкенд проверяет независимо */
+function allowed(permission: Permission): boolean {
+  if (can(permission)) return true
+  notifications.notifyError('Недостаточно прав для этого действия')
+  return false
+}
 
 export const resourceActions: ActionContext & {
   closeDetail(): void
@@ -47,6 +56,7 @@ export const resourceActions: ActionContext & {
   },
 
   requestDelete(id, ns, name) {
+    if (!allowed(Perm.Write)) return
     const def = getResourceById(id)
     if (!def?.api.remove) {
       notifications.notifyError(`Удаление для ${def?.kind ?? id} не поддерживается`)
@@ -58,7 +68,7 @@ export const resourceActions: ActionContext & {
   async confirmDelete() {
     const p = pendingDelete.value
     pendingDelete.value = null
-    if (!p) return
+    if (!p || !allowed(Perm.Write)) return
     const def = getResourceById(p.id)
     if (!def?.api.remove) return
     try {
@@ -86,13 +96,18 @@ export const resourceActions: ActionContext & {
     globalTabbedPanel.openLogsTab(kind, name, ns)
   },
 
-  openShell: (ns, pod, container) =>
-    globalTabbedPanel.openTerminalTab('pod', pod, ns, pod, container, 'shell'),
+  async openShell(ns, pod, container) {
+    if (!allowed(Perm.Exec)) return
+    return globalTabbedPanel.openTerminalTab('pod', pod, ns, pod, container, 'shell')
+  },
 
-  openAttach: (ns, pod, container) =>
-    globalTabbedPanel.openTerminalTab('pod', pod, ns, pod, container, 'attach'),
+  async openAttach(ns, pod, container) {
+    if (!allowed(Perm.Exec)) return
+    return globalTabbedPanel.openTerminalTab('pod', pod, ns, pod, container, 'attach')
+  },
 
   requestScale(item, kind) {
+    if (!allowed(Perm.Write)) return
     scaleTarget.value = kind ? { ...item, _kind: kind } : item
   },
 

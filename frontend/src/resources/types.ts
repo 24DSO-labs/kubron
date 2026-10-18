@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import type { Permission } from '../types/auth'
 
 /**
  * Wails генерирует классы с методами (convertValues), а по сети приходят обычные JSON-объекты.
@@ -89,6 +90,12 @@ export interface ActionDef<T = any> {
   /** URL svg-иконки для кнопки в шапке панели; без иконки рисуется текст */
   icon?: string
   danger?: boolean
+  /**
+   * Право, необходимое для действия (скрывает кнопку и пункт меню). По умолчанию — Perm.Write,
+   * поэтому действие, у которого забыли указать право, остаётся недоступным «только читающим».
+   * Настоящую проверку всё равно делает Go-бэкенд.
+   */
+  permission?: Permission
   /** Видимость кнопки в шапке панели деталей */
   when?: (item: T) => boolean
   /**
