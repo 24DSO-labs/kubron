@@ -13,16 +13,22 @@ import (
 // === StatefulSets ===
 
 type StatefulSetInfo struct {
-	Name          string   `json:"name"`
-	Namespace     string   `json:"namespace"`
-	Replicas      int32    `json:"replicas"`
-	ReadyReplicas int32    `json:"readyReplicas"`
-	Age           string   `json:"age"`
-	Images        []string `json:"images"`
-	ServiceName   string   `json:"serviceName"`
+	Name          string            `json:"name"`
+	Namespace     string            `json:"namespace"`
+	Replicas      int32             `json:"replicas"`
+	ReadyReplicas int32             `json:"readyReplicas"`
+	Age           string            `json:"age"`
+	Images        []string          `json:"images"`
+	ServiceName   string            `json:"serviceName"`
 
-	Selector map[string]string `json:"selector"`
-	Strategy string            `json:"strategy"`
+	Selector       string            `json:"selector"`
+	Strategy       string            `json:"strategy"`
+	NodeSelector   string            `json:"nodeSelector"`
+	Labels         map[string]string `json:"labels"`
+	Annotations    map[string]string `json:"annotations"`
+	Tolerations    []TolerationInfo  `json:"tolerations"`
+	Affinity       *AffinityInfo     `json:"affinity"`
+	PodAntiAffinity *PodAntiAffinityInfo `json:"podAntiAffinity"`
 }
 
 func (m *Manager) GetStatefulSets(namespace string) ([]StatefulSetInfo, error) {
@@ -49,10 +55,144 @@ func (m *Manager) GetStatefulSets(namespace string) ([]StatefulSetInfo, error) {
 		if s.Spec.Replicas != nil {
 			replicas = *s.Spec.Replicas
 		}
-		var selector map[string]string
-		if s.Spec.Selector != nil {
-			selector = s.Spec.Selector.MatchLabels
+		var selector string
+		if s.Spec.Selector != nil && len(s.Spec.Selector.MatchLabels) > 0 {
+			first := true
+			for k, v := range s.Spec.Selector.MatchLabels {
+				if !first {
+					selector += ", "
+				}
+				selector += k + "=" + v
+				first = false
+			}
 		}
+
+		// Convert tolerations
+		var tolerations []TolerationInfo
+		for _, tol := range s.Spec.Template.Spec.Tolerations {
+			tolInfo := TolerationInfo{
+				Key:      tol.Key,
+				Operator: string(tol.Operator),
+				Value:    tol.Value,
+				Effect:   string(tol.Effect),
+			}
+			tolerations = append(tolerations, tolInfo)
+		}
+
+		// Extract node affinity information
+		var affinity *AffinityInfo
+		if s.Spec.Template.Spec.Affinity != nil && s.Spec.Template.Spec.Affinity.NodeAffinity != nil {
+			na := s.Spec.Template.Spec.Affinity.NodeAffinity
+			affinity = &AffinityInfo{
+				NodeAffinity: &NodeAffinityInfo{},
+			}
+
+			if na.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+				terms := na.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+				selectorTerms := make([]NodeSelectorTerm, 0)
+				for _, term := range terms {
+					matchExpressions := make([]MatchExpression, 0)
+					for _, expr := range term.MatchExpressions {
+						matchExpressions = append(matchExpressions, MatchExpression{
+							Key:      expr.Key,
+							Operator: string(expr.Operator),
+							Values:   expr.Values,
+						})
+					}
+					selectorTerms = append(selectorTerms, NodeSelectorTerm{
+						MatchExpressions: matchExpressions,
+					})
+				}
+				affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &NodeSelectorInfo{
+					NodeSelectorTerms: selectorTerms,
+				}
+			}
+
+			if na.PreferredDuringSchedulingIgnoredDuringExecution != nil {
+				preferred := make([]PreferredNodeSelector, 0)
+				for _, pref := range na.PreferredDuringSchedulingIgnoredDuringExecution {
+					matchExpressions := make([]MatchExpression, 0)
+					for _, expr := range pref.Preference.MatchExpressions {
+						matchExpressions = append(matchExpressions, MatchExpression{
+							Key:      expr.Key,
+							Operator: string(expr.Operator),
+							Values:   expr.Values,
+						})
+					}
+					preferred = append(preferred, PreferredNodeSelector{
+						Weight: pref.Weight,
+						Preference: NodeSelectorTerm{
+							MatchExpressions: matchExpressions,
+						},
+					})
+				}
+				affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = preferred
+			}
+		}
+
+		// Build node selector string
+		nodeSelectorStr := ""
+		if len(s.Spec.Template.Spec.NodeSelector) > 0 {
+			first := true
+			for k, v := range s.Spec.Template.Spec.NodeSelector {
+				if !first {
+					nodeSelectorStr += ", "
+				}
+				nodeSelectorStr += k + "=" + v
+				first = false
+			}
+		}
+
+		// Build pod anti-affinity info
+		var podAntiAffinity *PodAntiAffinityInfo
+		if s.Spec.Template.Spec.Affinity != nil && s.Spec.Template.Spec.Affinity.PodAntiAffinity != nil {
+			paa := s.Spec.Template.Spec.Affinity.PodAntiAffinity
+			podAntiAffinity = &PodAntiAffinityInfo{}
+
+			// Preferred affinities
+			if paa.PreferredDuringSchedulingIgnoredDuringExecution != nil {
+				for _, pref := range paa.PreferredDuringSchedulingIgnoredDuringExecution {
+					term := PodAffinityTermInfo{
+						TopologyKey: pref.PodAffinityTerm.TopologyKey,
+						Namespaces:  pref.PodAffinityTerm.Namespaces,
+					}
+					if pref.PodAffinityTerm.LabelSelector != nil {
+						term.LabelSelector = &LabelSelectorInfo{
+							MatchLabels: pref.PodAffinityTerm.LabelSelector.MatchLabels,
+						}
+					}
+					podAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution = append(
+						podAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution,
+						PreferredAffinityTermInfo{
+							Weight:          pref.Weight,
+							PodAffinityTerm: term,
+						},
+					)
+				}
+			}
+
+			// Required affinities
+			if paa.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+				for _, req := range paa.RequiredDuringSchedulingIgnoredDuringExecution {
+					term := PodAffinityTermInfo{
+						TopologyKey: req.TopologyKey,
+						Namespaces:  req.Namespaces,
+					}
+					if req.LabelSelector != nil {
+						term.LabelSelector = &LabelSelectorInfo{
+							MatchLabels: req.LabelSelector.MatchLabels,
+						}
+					}
+					podAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = append(
+						podAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution,
+						RequiredAffinityTermInfo{
+							PodAffinityTerm: term,
+						},
+					)
+				}
+			}
+		}
+
 		items = append(items, StatefulSetInfo{
 			Name:          s.Name,
 			Namespace:     s.Namespace,
@@ -63,6 +203,12 @@ func (m *Manager) GetStatefulSets(namespace string) ([]StatefulSetInfo, error) {
 			ServiceName:   s.Spec.ServiceName,
 			Selector:      selector,
 			Strategy:      string(s.Spec.UpdateStrategy.Type),
+			NodeSelector:  nodeSelectorStr,
+			Labels:        s.Labels,
+			Annotations:   s.Annotations,
+			Tolerations:   tolerations,
+			Affinity:      affinity,
+			PodAntiAffinity: podAntiAffinity,
 		})
 	}
 	return items, nil
@@ -139,6 +285,7 @@ type DaemonSetInfo struct {
 	CurrentNumberScheduled int32             `json:"currentNumberScheduled"`
 	NumberReady            int32             `json:"numberReady"`
 	NumberAvailable        int32             `json:"numberAvailable"`
+	NumberUpdatedScheduled int32             `json:"updated"`
 	Age                    string            `json:"age"`
 	Created                string            `json:"created"`
 	Images                 []string          `json:"images"`
@@ -282,6 +429,7 @@ func (m *Manager) GetDaemonSets(namespace string) ([]DaemonSetInfo, error) {
 			CurrentNumberScheduled: d.Status.CurrentNumberScheduled,
 			NumberReady:            d.Status.NumberReady,
 			NumberAvailable:        d.Status.NumberAvailable,
+			NumberUpdatedScheduled: d.Status.UpdatedNumberScheduled,
 			Age:                    formatAge(d.CreationTimestamp.Time),
 			Created:                d.CreationTimestamp.Format(time.RFC3339),
 			Images:                 images,
@@ -509,4 +657,28 @@ func (m *Manager) DeleteCronJob(namespace, name string) error {
 	defer cancel()
 
 	return conn.Client.BatchV1().CronJobs(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}
+
+func (m *Manager) ScaleStatefulSet(namespace, name string, replicas int32) error {
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	scale, err := conn.Client.AppsV1().StatefulSets(namespace).GetScale(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("не удалось получить scale: %w", err)
+	}
+
+	scale.Spec.Replicas = replicas
+
+	_, err = conn.Client.AppsV1().StatefulSets(namespace).UpdateScale(ctx, name, scale, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("не удалось масштабировать: %w", err)
+	}
+
+	return nil
 }

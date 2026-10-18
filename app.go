@@ -177,6 +177,10 @@ func (a *App) GetStatefulSets(namespace string) ([]k8s.StatefulSetInfo, error) {
 	return a.k8sMgr.GetStatefulSets(namespace)
 }
 
+func (a *App) ScaleStatefulSet(namespace, name string, replicas int32) error {
+	return a.k8sMgr.ScaleStatefulSet(namespace, name, replicas)
+}
+
 // === ReplicaSets ===
 
 func (a *App) GetReplicaSets(namespace string) ([]k8s.ReplicaSetInfo, error) {
