@@ -2,6 +2,7 @@ import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
+import CronJobHistoryTab from '../../components/resource/sections/CronJobHistoryTab.vue'
 
 export const cronJob = defineResource<k8s.CronJobInfo>({
   id: 'cronjob',
@@ -10,8 +11,9 @@ export const cronJob = defineResource<k8s.CronJobInfo>({
   title: 'CronJobs',
   namespaced: true,
   nav: { group: 'workloads', label: 'Cron Jobs' },
-  
-  autoRefresh: true,icon: 'restart',
+
+  autoRefresh: true,
+  icon: 'restart',
 
   columns: [
     flatNameCol,
@@ -20,10 +22,12 @@ export const cronJob = defineResource<k8s.CronJobInfo>({
     {
       key: 'suspend',
       label: 'Suspend',
-      formatter: c => (c.suspend ? 'True' : 'False'),
+      formatter: c => (c.suspend ? 'true' : 'false'),
     },
     { key: 'active', label: 'Active' },
-    { key: 'lastSchedule', label: 'Last Schedule' },
+    { key: 'lastSchedule', label: 'Last schedule' },
+    { key: 'nextExecution', label: 'Next execution' },
+    { key: 'timeZone', label: 'Time zone' },
     ageCol,
   ],
 
@@ -32,10 +36,17 @@ export const cronJob = defineResource<k8s.CronJobInfo>({
     { label: 'Suspend', value: c => (c.suspend ? 'True' : 'False') },
     { label: 'Active', value: c => c.active },
     { label: 'Last Schedule', value: c => c.lastSchedule },
+    { label: 'Next Execution', value: c => c.nextExecution },
+    { label: 'Time Zone', value: c => c.timeZone },
+  ],
+
+  tabs: [
+    { id: 'jobHistory', label: 'Job History', component: CronJobHistoryTab },
   ],
 
   api: {
     list: ns => callApp('GetCronJobs', ns),
+    get: (ns, name) => callApp('GetCronJobDetail', ns, name),
     remove: (ns, name) => callApp('DeleteCronJob', ns, name),
   },
 })
