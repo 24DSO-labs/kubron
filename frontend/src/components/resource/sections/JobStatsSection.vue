@@ -2,7 +2,7 @@
   <div class="js">
     <div v-for="r in rows" :key="r.label" class="rd-row">
       <span class="rd-label">{{ r.label }}</span>
-      <span class="rd-value">{{ r.value || '—' }}</span>
+      <span class="rd-value">{{ r.value === undefined || r.value === null || r.value === '' ? '—' : r.value }}</span>
     </div>
   </div>
 </template>
@@ -16,6 +16,7 @@ const props = defineProps<{ resource: any }>()
 const rows = computed(() => [
   { label: 'Completions', value: props.resource?.completions },
   { label: 'Parallelism', value: props.resource?.parallelism },
+  { label: 'Backoff Limit', value: props.resource?.backoffLimit },
   { label: 'Pod Status', value: podStatusSummary(props.resource) },
 ])
 </script>
