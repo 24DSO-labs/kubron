@@ -12,7 +12,8 @@ export const event = defineResource<k8s.EventInfo>({
   namespaced: true,
   nav: { label: 'Events' },
   
-  autoRefresh: true,icon: 'events',
+  autoRefresh: true,
+  // icon: 'events',
 
 // агрегация установленных релизов по chart-у: без YAML и удаления
   editable: false,

@@ -7,7 +7,7 @@ export const serviceAccount = defineResource({
   kind: 'ServiceAccount',
   view: 'serviceaccounts',
   title: 'Service Accounts',
-  icon: 'service-account',
+  // icon: 'service-account',
   namespaced: true,
   nav: { group: 'access', label: 'Service Accounts' },
   columns: [nameCol, { ...nsCol, link: (r: any) => r.metadata?.namespace ? { id: 'namespace', ns: '', name: r.metadata.namespace } : null }, ageCol],

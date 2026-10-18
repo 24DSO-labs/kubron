@@ -11,7 +11,8 @@ export const limitRange = defineResource<k8s.LimitRangeInfo>({
   namespaced: true,
   nav: { group: 'config', label: 'Limit Ranges' },
   
-  autoRefresh: true,icon: 'configmap',
+  autoRefresh: true,
+  // icon: 'configmap',
 
   columns: [
     flatNameCol,
