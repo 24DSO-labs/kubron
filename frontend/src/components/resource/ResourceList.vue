@@ -10,6 +10,8 @@
     :columns="def.columns"
     :menu-for="menuFor"
     :get-item-key="itemKey"
+    :refreshing="refreshing"
+    :updated-at="updatedAt ? updatedAt.toLocaleTimeString() : undefined"
     @refresh="reload"
     @search="(v: string) => (search = v)"
     @select="(item: any) => open(item)"
@@ -27,7 +29,7 @@ import { containersOf, itemName, itemNs } from '../../resources/utils'
 
 const props = defineProps<{ def: ResourceDefinition }>()
 
-const { items, initialLoading, reload, search } = useResourceList(() => props.def)
+const { items, initialLoading, reload, refreshing, updatedAt, search } = useResourceList(() => props.def)
 
 /**
  * Меню строится для конкретной строки. Действие с perContainer получает подменю контейнеров,
