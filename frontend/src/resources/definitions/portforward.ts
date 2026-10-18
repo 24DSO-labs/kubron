@@ -20,8 +20,7 @@ export const portForward = defineResource<models.PortForwardSession>({
 
   columns: [
     { key: 'id', label: 'ID', formatter: pf => String(pf.id ?? '').substring(0, 8) },
-    flatNsCol,
-    { key: 'pod', label: 'Pod', className: 'resource-name' },
+    { ...flatNsCol, link: (pf: any) => pf.namespace ? { id: 'namespace', ns: '', name: pf.namespace } : null },
     { key: 'localPort', label: 'Local Port' },
     { key: 'podPort', label: 'Pod Port' },
     { key: 'status', label: 'Status', colorFn: pf => statusColor(pf.status) },

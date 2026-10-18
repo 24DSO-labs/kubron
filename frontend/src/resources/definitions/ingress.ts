@@ -15,8 +15,7 @@ export const ingress = defineResource<k8s.IngressInfo>({
 
   columns: [
     flatNameCol,
-    flatNsCol,
-    { key: 'class', label: 'Class' },
+    { ...flatNsCol, link: (i: any) => i.namespace ? { id: 'namespace', ns: '', name: i.namespace } : null },
     { key: 'hosts', label: 'Hosts', formatter: i => (i.hosts ?? []).join(', ') },
     { key: 'address', label: 'Address' },
     {

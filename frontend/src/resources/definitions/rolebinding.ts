@@ -11,7 +11,7 @@ export const roleBinding = defineResource({
   icon: 'bind-role',
   namespaced: true,
   nav: { group: 'access', label: 'Role Bindings' },
-  columns: [nameCol, nsCol, ageCol],
+  columns: [nameCol, { ...nsCol, link: (r: any) => r.metadata?.namespace ? { id: 'namespace', ns: '', name: r.metadata.namespace } : null }, ageCol],
   sections: [BindingSection],
   api: {
     list: ns => callApp('GetRoleBindings', ns),

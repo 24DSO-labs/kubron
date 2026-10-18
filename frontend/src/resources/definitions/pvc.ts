@@ -16,13 +16,7 @@ export const persistentVolumeClaim = defineResource<k8s.PVCInfo>({
   autoRefresh: true,
   columns: [
     flatNameCol,
-    flatNsCol,
-    {
-      key: 'status',
-      label: 'Status',
-      colorFn: p => statusColor(p.status),
-    },
-    { key: 'volume', label: 'Volume' },
+    { ...flatNsCol, link: (p: any) => p.namespace ? { id: 'namespace', ns: '', name: p.namespace } : null },
     { key: 'capacity', label: 'Capacity' },
     { key: 'storageClass', label: 'Storage Class' },
     ageCol,

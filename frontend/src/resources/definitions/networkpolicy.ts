@@ -15,7 +15,7 @@ export const networkPolicy = defineResource<k8s.NetworkPolicyInfo>({
 
   columns: [
     flatNameCol,
-    flatNsCol,
+    { ...flatNsCol, link: (np: any) => np.namespace ? { id: 'namespace', ns: '', name: np.namespace } : null },
     { key: 'podSelector', label: 'Pod Selector' },
     ageCol,
   ],

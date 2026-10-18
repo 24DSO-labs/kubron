@@ -15,7 +15,7 @@ export const cronJob = defineResource<k8s.CronJobInfo>({
 
   columns: [
     flatNameCol,
-    flatNsCol,
+    { ...flatNsCol, link: (c: any) => c.namespace ? { id: 'namespace', ns: '', name: c.namespace } : null },
     { key: 'schedule', label: 'Schedule' },
     {
       key: 'suspend',
