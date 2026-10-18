@@ -18,6 +18,21 @@
       </article>
     </section>
 
+    <!-- Автовыход по бездействию -->
+    <section class="sec-card">
+      <div>
+        <h4>Автовыход при бездействии</h4>
+        <p>
+          Сеанс завершается, если пользователь не двигает мышь и не нажимает клавиши. Запущенные терминалы и проброс
+          портов при этом закрываются. Действует для всех учётных записей.
+        </p>
+      </div>
+      <select class="form-input idle-select" :value="auth.idleTimeoutMinutes.value" :disabled="savingIdle"
+        aria-label="Автовыход при бездействии" @change="changeIdle(($event.target as HTMLSelectElement).value)">
+        <option v-for="m in idleOptions" :key="m" :value="m">{{ idleLabel(m) }}</option>
+      </select>
+    </section>
+
     <p v-if="loadError" class="form-error">{{ loadError }}</p>
 
     <table v-if="users.length" class="users-table">
@@ -121,7 +136,7 @@
 </template>
 
 <script lang="ts" setup>
-import { nextTick, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { callApp } from '../../resources/wails'
 import { askConfirm } from '../../resources/confirm'
 import { errorText, useAuth } from '../../composables/useAuth'
@@ -144,6 +159,33 @@ const saving = ref(false)
 const dialogError = ref('')
 const form = reactive({ username: '', password: '', role: 'user' })
 const firstInput = ref<HTMLInputElement | null>(null)
+
+const IDLE_PRESETS = [0, 5, 10, 15, 30, 60, 120]
+const savingIdle = ref(false)
+// Если на бэкенде задано нестандартное значение, оно тоже должно быть в списке
+const idleOptions = computed(() => {
+  const cur = auth.idleTimeoutMinutes.value
+  return IDLE_PRESETS.includes(cur) ? IDLE_PRESETS : [...IDLE_PRESETS, cur].sort((a, b) => a - b)
+})
+
+function idleLabel(m: number): string {
+  if (m === 0) return 'Выключен'
+  if (m === 60) return '1 час'
+  if (m === 120) return '2 часа'
+  return `${m} мин`
+}
+
+async function changeIdle(value: string) {
+  savingIdle.value = true
+  try {
+    await auth.setIdleTimeout(Number(value))
+    notifications.notifySuccess(`Автовыход: ${idleLabel(auth.idleTimeoutMinutes.value).toLowerCase()}`)
+  } catch (e) {
+    notifications.notifyError(errorText(e))
+  } finally {
+    savingIdle.value = false
+  }
+}
 
 const permLabel = (p: string) => PERMISSION_LABELS[p] ?? p
 const isSelf = (u: UserInfo) => u.id === auth.user.value?.id
@@ -274,6 +316,14 @@ onMounted(load)
 .role-card { background: #181825; border: 1px solid #313244; border-radius: 10px; padding: 12px 16px; }
 .role-card h4 { margin: 0 0 8px; color: #cdd6f4; font-size: 14px; }
 .role-card ul { margin: 0; padding-left: 18px; color: #a6adc8; font-size: 12px; line-height: 1.7; }
+
+.sec-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 24px;
+  background: #181825; border: 1px solid #313244; border-radius: 10px; padding: 14px 16px;
+}
+.sec-card h4 { margin: 0 0 4px; color: #cdd6f4; font-size: 14px; }
+.sec-card p { margin: 0; color: #a6adc8; font-size: 12px; line-height: 1.5; max-width: 620px; }
+.idle-select { width: auto; min-width: 150px; padding: 6px 8px; flex-shrink: 0; }
 
 .users-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .users-table th { text-align: left; padding: 8px 12px; color: #a6adc8; font-weight: 600; border-bottom: 1px solid #313244; }

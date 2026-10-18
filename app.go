@@ -36,6 +36,9 @@ func (a *App) startup(ctx context.Context) {
 		println("Error:", err.Error())
 	}
 	a.initAuth(k8s.GetKubronDir())
+	if a.auth != nil {
+		go a.auth.RunIdleWatcher(ctx, 10*time.Second)
+	}
 }
 
 // === Kubron Cluster Management ===
