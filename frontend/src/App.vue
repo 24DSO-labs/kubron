@@ -1,5 +1,8 @@
 <template>
   <div id="app">
+    <!-- Автовыход по бездействию: следит за вводом и предупреждает перед выходом -->
+    <IdleGuard />
+
     <!-- Экран входа / первичной настройки / смены временного пароля -->
     <AuthScreen v-if="auth.screen.value !== 'app'" :mode="auth.screen.value" />
 
@@ -100,6 +103,7 @@ import { Perm } from './types/auth'
 
 import AuthScreen from './components/auth/AuthScreen.vue'
 import UserMenu from './components/auth/UserMenu.vue'
+import IdleGuard from './components/auth/IdleGuard.vue'
 import ClusterBar from './components/ClusterBar.vue'
 import AddClusterDialog from './components/AddClusterDialog.vue'
 import Sidebar from './components/Sidebar.vue'

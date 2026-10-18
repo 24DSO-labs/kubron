@@ -24,6 +24,7 @@ var publicMethods = map[string]bool{
 	"Logout":         true,
 	"CurrentUser":    true,
 	"ChangePassword": true,
+	"ReportActivity": true,
 }
 
 // Точные требования для особых методов.
@@ -52,6 +53,7 @@ var exactPermission = map[string]Permission{
 	"DeleteUser":              PermUsersManage,
 	"ApplyYAML":               PermWrite,
 	"GetAuditLog":             PermAuditRead,
+	"SetIdleTimeout":          PermUsersManage,
 }
 
 // Глаголы, по которым метод считается изменяющим: слабое право чтения для них недопустимо.

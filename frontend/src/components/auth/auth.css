@@ -30,6 +30,18 @@
   line-height: 1.4;
 }
 
+.auth-notice {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(137, 180, 250, 0.10);
+  border: 1px solid rgba(137, 180, 250, 0.30);
+  color: #89b4fa;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: left;
+}
+
 .auth-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 4px; }
 
 .auth-submit {
