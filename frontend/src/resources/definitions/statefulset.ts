@@ -28,7 +28,7 @@ export const statefulSet = defineResource<k8s.StatefulSetInfo>({
   autoRefresh: true,
   columns: [
     flatNameCol,
-    flatNsCol,
+    { ...flatNsCol, link: (s: any) => s.namespace ? { id: 'namespace', ns: '', name: s.namespace } : null },
     {
       key: 'pods',
       label: 'Pods',

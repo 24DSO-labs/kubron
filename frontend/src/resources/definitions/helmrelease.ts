@@ -18,8 +18,7 @@ export const helmRelease = defineResource<k8s.HelmReleaseInfo>({
 
   columns: [
     flatNameCol,
-    flatNsCol,
-    { key: 'chart', label: 'Chart' },
+    { ...flatNsCol, link: (h: any) => h.namespace ? { id: 'namespace', ns: '', name: h.namespace } : null },
     { key: 'chartVersion', label: 'Chart Version' },
     { key: 'appVersion', label: 'App Version' },
     { key: 'revision', label: 'Revision' },
