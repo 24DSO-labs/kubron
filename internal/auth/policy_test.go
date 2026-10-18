@@ -52,6 +52,14 @@ var exactPermission = map[string]Permission{
 	"ResetUserPassword":       PermUsersManage,
 	"DeleteUser":              PermUsersManage,
 	"ApplyYAML":               PermWrite,
+	"ScaleDeployment":         PermOperate,
+	"RestartDeployment":       PermOperate,
+	"RollbackDeployment":      PermOperate,
+	"ScaleStatefulSet":        PermOperate,
+	"RestartStatefulSet":      PermOperate,
+	"ScaleReplicaSet":         PermOperate,
+	"RestartDaemonSet":        PermOperate,
+	"RetryJob":                PermOperate,
 	"GetAuditLog":             PermAuditRead,
 	"SetIdleTimeout":          PermUsersManage,
 }
@@ -71,6 +79,7 @@ var mutatingButReadOK = map[string]string{
 var permByIdent = map[string]Permission{
 	"PermRead":          PermRead,
 	"PermSecretsRead":   PermSecretsRead,
+	"PermOperate":       PermOperate,
 	"PermWrite":         PermWrite,
 	"PermExec":          PermExec,
 	"PermPortForward":   PermPortForward,
@@ -209,6 +218,23 @@ func TestMethodPermissionsMatchPolicy(t *testing.T) {
 					"используйте PermWrite (или добавьте метод в exactPermission / mutatingButReadOK)", m.name, m.perm)
 				break
 			}
+		}
+	}
+}
+
+// Удаление, выселение и произвольный YAML — только с PermWrite (или более строгим): право operate,
+// выданное оператору, не должно «просочиться» в разрушительные методы.
+func TestDestructiveMethodsRequireWrite(t *testing.T) {
+	for _, m := range parseAppMethods(t) {
+		if !m.has {
+			continue
+		}
+		destructive := strings.HasPrefix(m.name, "Delete") || strings.HasPrefix(m.name, "Evict") || m.name == "ApplyYAML"
+		if !destructive || m.name == "DeleteCluster" || m.name == "DeleteUser" {
+			continue // у этих особые права из exactPermission
+		}
+		if m.perm != PermWrite {
+			t.Errorf("%s: разрушительный метод требует %q, ожидалось %q", m.name, m.perm, PermWrite)
 		}
 	}
 }

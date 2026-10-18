@@ -107,7 +107,7 @@ export const resourceActions: ActionContext & {
   },
 
   requestScale(item, kind) {
-    if (!allowed(Perm.Write)) return
+    if (!allowed(Perm.Operate)) return
     scaleTarget.value = kind ? { ...item, _kind: kind } : item
   },
 

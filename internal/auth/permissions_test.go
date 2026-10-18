@@ -23,6 +23,21 @@ func TestUserIsReadOnly(t *testing.T) {
 	}
 }
 
+func TestOperatorCanOperateButNotDestroy(t *testing.T) {
+	allowed := map[Permission]bool{PermRead: true, PermSecretsRead: true, PermOperate: true}
+	for _, p := range allPermissions {
+		if got := RoleOperator.Has(p); got != allowed[p] {
+			t.Errorf("operator.Has(%q) = %v, ожидалось %v", p, got, allowed[p])
+		}
+	}
+	// оператор не слабее пользователя: всё, что видит user, видит и operator
+	for _, p := range RoleUser.Permissions() {
+		if !RoleOperator.Has(p) {
+			t.Errorf("оператор лишён права %q, которое есть у пользователя", p)
+		}
+	}
+}
+
 func TestUnknownRoleHasNothing(t *testing.T) {
 	r := Role("hacker")
 	if r.Valid() {
