@@ -1,4 +1,5 @@
 import { defineResource } from '../types'
+import { Perm } from '../../types/auth'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
@@ -56,6 +57,7 @@ export const daemonSet = defineResource<k8s.DaemonSetInfo>({
   actions: [
     {
       id: 'restart',
+      permission: Perm.Operate,
       label: 'Restart',
       icon: 'restart',
       run: async (d, ctx) => {
@@ -66,7 +68,7 @@ export const daemonSet = defineResource<k8s.DaemonSetInfo>({
         )
       },
     },
-    { id: 'logs', label: 'View logs', icon: 'logs', run: (d, ctx) => ctx.openResourceLogs('daemonset', d.namespace, d.name) },
+    { id: 'logs', label: 'View logs', icon: 'logs', permission: Perm.Read, run: (d, ctx) => ctx.openResourceLogs('daemonset', d.namespace, d.name) },
   ],
 
   api: {

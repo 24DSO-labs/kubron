@@ -1,4 +1,5 @@
 import { defineResource } from '../types'
+import { Perm } from '../../types/auth'
 import type { k8s as models } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { useK8s } from '../../composables/useK8s'
@@ -124,6 +125,7 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
   actions: [
     {
       id: 'attach',
+      permission: Perm.Exec,
       label: 'Attach',
       icon: 'attach',
       perContainer: true,
@@ -135,6 +137,7 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
     },
     {
       id: 'shell',
+      permission: Perm.Exec,
       label: 'Shell',
       icon: 'terminal',
       perContainer: true,
@@ -146,6 +149,7 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
     },
     {
       id: 'logs',
+      permission: Perm.Read,
       label: 'Logs',
       icon: 'logs',
       perContainer: true,

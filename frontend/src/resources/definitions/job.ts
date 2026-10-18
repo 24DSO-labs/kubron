@@ -1,4 +1,5 @@
 import { defineResource } from '../types'
+import { Perm } from '../../types/auth'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
@@ -51,6 +52,7 @@ export const job = defineResource<k8s.JobInfo>({
   actions: [
     {
       id: 'retry',
+      permission: Perm.Operate,
       label: 'Retry',
       icon: 'restart',
       run: async (j, ctx) => {
