@@ -250,8 +250,8 @@ func TestLastAdminProtection(t *testing.T) {
 			adminID = u.ID
 		}
 	}
-	if _, err := s.UpdateRole(adminID, RoleUser); !errors.Is(err, ErrLastAdmin) {
-		t.Errorf("понижение последнего админа: %v", err)
+	if _, err := s.UpdateRole(adminID, RoleUser); !errors.Is(err, ErrSelfAction) {
+		t.Errorf("смена собственной роли: %v", err)
 	}
 	if _, err := s.SetDisabled(adminID, true); !errors.Is(err, ErrSelfAction) {
 		t.Errorf("отключение самого себя: %v", err)
@@ -273,6 +273,25 @@ func TestPromoteThenDemoteAdmin(t *testing.T) {
 	}
 	if _, err := s.UpdateRole(bob.ID, Role("root")); !errors.Is(err, ErrUnknownRole) {
 		t.Errorf("неизвестная роль: %v", err)
+	}
+}
+
+func TestAdminCannotChangeOwnRoleEvenWithOtherAdmin(t *testing.T) {
+	s, bob := setupWithUser(t)
+	loginAdmin(t, s)
+	admin, err := s.Current()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.UpdateRole(bob.ID, RoleAdmin); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.UpdateRole(admin.ID, RoleUser); !errors.Is(err, ErrSelfAction) {
+		t.Errorf("самопонижение при двух админах: %v", err)
+	}
+	// «смена» на ту же роль — не изменение, ошибки быть не должно
+	if _, err := s.UpdateRole(admin.ID, RoleAdmin); err != nil {
+		t.Errorf("та же роль: %v", err)
 	}
 }
 
