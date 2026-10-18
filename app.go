@@ -187,6 +187,10 @@ func (a *App) GetReplicaSets(namespace string) ([]k8s.ReplicaSetInfo, error) {
 	return a.k8sMgr.GetReplicaSets(namespace)
 }
 
+func (a *App) ScaleReplicaSet(namespace, name string, replicas int32) error {
+	return a.k8sMgr.ScaleReplicaSet(namespace, name, replicas)
+}
+
 // === DaemonSets ===
 
 func (a *App) GetDaemonSets(namespace string) ([]k8s.DaemonSetInfo, error) {
