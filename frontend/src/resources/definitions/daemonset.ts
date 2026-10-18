@@ -34,10 +34,12 @@ export const daemonSet = defineResource<k8s.DaemonSetInfo>({
   columns: [
     flatNameCol,
     { ...flatNsCol, link: (d: any) => d.namespace ? { id: 'namespace', ns: '', name: d.namespace } : null },
-    { key: 'desired', label: 'Desired' },
     { key: 'current', label: 'Current' },
+    { key: 'desired', label: 'Desired' },
     { key: 'ready', label: 'Ready' },
+    { key: 'updated', label: 'Up-to-date' },
     { key: 'available', label: 'Available' },
+    { key: 'nodeSelector', label: 'Node Selector', formatter: d => d.nodeSelector || '—' },
     ageCol,
   ],
 
