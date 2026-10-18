@@ -1,5 +1,9 @@
 <template>
   <div id="app">
+    <!-- Экран входа / первичной настройки / смены временного пароля -->
+    <AuthScreen v-if="auth.screen.value !== 'app'" :mode="auth.screen.value" />
+
+    <template v-else>
     <!-- Header -->
     <header class="header">
       <div class="header-brand">
@@ -12,6 +16,7 @@
         </span>
         <button class="btn-disconnect" @click="clusterConn.disconnect()">✕</button>
       </div>
+      <UserMenu />
     </header>
 
     <div class="app-body">
@@ -23,8 +28,11 @@
       <!-- Нет кластеров -->
       <div v-if="clusters.length === 0 && !clusterConn.showAddCluster.value" class="welcome-screen">
         <h2>Добро пожаловать в Kubron!</h2>
-        <p>Добавьте кластер для начала работы</p>
-        <button class="btn" @click="clusterConn.showAddCluster.value = true">➕ Добавить кластер</button>
+        <template v-if="can(Perm.ClusterManage)">
+          <p>Добавьте кластер для начала работы</p>
+          <button class="btn" @click="clusterConn.showAddCluster.value = true">➕ Добавить кластер</button>
+        </template>
+        <p v-else>Кластеры ещё не добавлены. Обратитесь к администратору.</p>
       </div>
 
       <!-- Не подключен, но кластеры есть -->
@@ -69,6 +77,7 @@
     <div v-if="clusterConn.connecting.value" class="overlay">
       <div class="spinner">⏳ Подключение...</div>
     </div>
+    </template>
   </div>
 </template>
 
@@ -86,7 +95,11 @@ import { resourceActions } from './resources/actions'
 import { clusterNameKey } from './resources/context'
 import { clearResourceStore, reloadActive } from './resources/store'
 import { answerConfirm } from './resources/confirm'
+import { can, useAuth } from './composables/useAuth'
+import { Perm } from './types/auth'
 
+import AuthScreen from './components/auth/AuthScreen.vue'
+import UserMenu from './components/auth/UserMenu.vue'
 import ClusterBar from './components/ClusterBar.vue'
 import AddClusterDialog from './components/AddClusterDialog.vue'
 import Sidebar from './components/Sidebar.vue'
@@ -99,6 +112,7 @@ import TabbedPanel from './components/utils/TabbedPanel.vue'
 // Composables
 // ═══════════════════════════════════════════════
 
+const auth = useAuth()
 const k8s = useK8s()
 const clustersApi = useClusters()
 const notifications = useNotifications()
@@ -228,6 +242,10 @@ const activeViewEvents = computed(() => ({
 // ═══════════════════════════════════════════════
 
 async function applyYAMLTabbed(tabId: string) {
+  if (!can(Perm.Write)) {
+    notifications.notifyError('Недостаточно прав для изменения ресурсов')
+    return
+  }
   const tab = globalTabbedPanel.tabs.value.find(t => t.id === tabId)
   if (!tab || tab.type !== 'yaml' || tab.saving) return
   tab.saving = true
@@ -261,10 +279,20 @@ watch(error, (val) => {
 
 const appSettings = useAppSettings()
 
-onMounted(() => {
-  appSettings.loadSettings()
-  clusterConn.initialize()
-})
+// Данные кластеров загружаем только после входа: до этого бэкенд отвечает «требуется вход»
+let appStarted = false
+watch(
+  () => auth.screen.value,
+  screen => {
+    if (screen !== 'app' || appStarted) return
+    appStarted = true
+    appSettings.loadSettings()
+    clusterConn.initialize()
+  },
+  { immediate: true },
+)
+
+onMounted(() => auth.init())
 </script>
 
 <style src="./assets/style.css"></style>

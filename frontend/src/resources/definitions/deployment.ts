@@ -1,4 +1,5 @@
 import { defineResource } from '../types'
+import { Perm } from '../../types/auth'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
@@ -88,7 +89,7 @@ export const deployment = defineResource<k8s.DeploymentInfo>({
       },
     },
     // Название "View logs", а не "Logs": список особо обрабатывает пункт с меткой "Logs" (подменю контейнеров pod)
-    { id: 'logs', label: 'View logs', icon: 'logs', run: (d, ctx) => ctx.openResourceLogs('deployment', d.namespace, d.name) },
+    { id: 'logs', label: 'View logs', icon: 'logs', permission: Perm.Read, run: (d, ctx) => ctx.openResourceLogs('deployment', d.namespace, d.name) },
   ],
 
   api: {
