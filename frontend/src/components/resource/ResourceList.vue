@@ -1,5 +1,5 @@
 <template>
-  <div v-if="initialLoading" class="loading">⏳ Загрузка...</div>
+  <div v-if="initialLoading" class="loading"> Загрузка...</div>
   <ResourceTable
     v-else
     :items="items"

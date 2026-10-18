@@ -11,7 +11,8 @@ export const ingressClass = defineResource<k8s.IngressClassInfo>({
   namespaced: false,
   nav: { group: 'network', label: 'Ingress Classes' },
   
-  autoRefresh: true,icon: 'ingress',
+  autoRefresh: true,
+  // icon: 'ingress',
 
   columns: [
     flatNameCol,
