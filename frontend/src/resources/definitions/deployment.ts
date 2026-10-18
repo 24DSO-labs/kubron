@@ -74,7 +74,7 @@ export const deployment = defineResource<k8s.DeploymentInfo>({
   ],
 
   actions: [
-    { id: 'scale', label: 'Scale', icon: 'scale', run: (d, ctx) => ctx.requestScale(d) },
+    { id: 'scale', label: 'Scale', icon: 'scale', run: (d, ctx) => ctx.requestScale(d, 'Deployment') },
     {
       id: 'restart',
       label: 'Restart',

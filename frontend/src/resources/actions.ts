@@ -92,17 +92,20 @@ export const resourceActions: ActionContext & {
   openAttach: (ns, pod, container) =>
     globalTabbedPanel.openTerminalTab('pod', pod, ns, pod, container, 'attach'),
 
-  requestScale(item) {
-    scaleTarget.value = item
+  requestScale(item, kind) {
+    scaleTarget.value = kind ? { ...item, _kind: kind } : item
   },
 
   async confirmScale(replicas) {
     const t = scaleTarget.value
     scaleTarget.value = null
     if (!t) return
+    const kind = t._kind || t.kind || 'Deployment'
+    const method = kind === 'StatefulSet' ? 'ScaleStatefulSet' : 'ScaleDeployment'
+    const kindLabel = kind === 'StatefulSet' ? 'StatefulSet' : 'Deployment'
     await resourceActions.perform(
-      () => callApp('ScaleDeployment', t.namespace, t.name, replicas),
-      `Deployment ${t.name} scaled to ${replicas} replicas`,
+      () => callApp(method, t.namespace, t.name, replicas),
+      `${kindLabel} ${t.name} scaled to ${replicas} replicas`,
     )
   },
 
