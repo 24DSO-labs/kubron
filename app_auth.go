@@ -31,6 +31,7 @@ func (a *App) initAuth(dir string) {
 // Чтение не журналируется (слишком шумно и безопасно), управление пользователями пишет
 // сам auth.Service — вместе с результатом.
 var auditedPermissions = map[auth.Permission]bool{
+	auth.PermOperate:       true,
 	auth.PermWrite:         true,
 	auth.PermExec:          true,
 	auth.PermPortForward:   true,

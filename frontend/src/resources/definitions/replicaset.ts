@@ -1,4 +1,5 @@
 import { defineResource } from '../types'
+import { Perm } from '../../types/auth'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
@@ -99,7 +100,7 @@ export const replicaSet = defineResource<k8s.ReplicaSetInfo>({
   tabs: [{ id: 'pods', label: 'Pods', component: PodsTab }],
 
   actions: [
-    { id: 'scale', label: 'Scale', icon: 'scale', run: (r, ctx) => ctx.requestScale(r, 'ReplicaSet') },
+    { id: 'scale', permission: Perm.Operate, label: 'Scale', icon: 'scale', run: (r, ctx) => ctx.requestScale(r, 'ReplicaSet') },
   ],
 
   api: {
