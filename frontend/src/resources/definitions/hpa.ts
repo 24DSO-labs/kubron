@@ -11,7 +11,8 @@ export const horizontalPodAutoscaler = defineResource<k8s.HPAInfo>({
   namespaced: true,
   nav: { group: 'config', label: 'HPA' },
   
-  autoRefresh: true,icon: 'autoscale',
+  autoRefresh: true,
+  // icon: 'autoscale',
 
   columns: [
     flatNameCol,

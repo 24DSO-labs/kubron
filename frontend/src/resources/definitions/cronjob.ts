@@ -13,7 +13,7 @@ export const cronJob = defineResource<k8s.CronJobInfo>({
   nav: { group: 'workloads', label: 'Cron Jobs' },
 
   autoRefresh: true,
-  icon: 'restart',
+  // icon: 'restart',
 
   columns: [
     flatNameCol,
@@ -42,6 +42,41 @@ export const cronJob = defineResource<k8s.CronJobInfo>({
 
   tabs: [
     { id: 'jobHistory', label: 'Job History', component: CronJobHistoryTab },
+  ],
+
+  actions: [
+    {
+      id: 'trigger',
+      label: 'Trigger',
+      icon: 'play',
+      run: (c, ctx) =>
+        ctx.perform(
+          () => callApp('TriggerCronJob', c.namespace, c.name),
+          `CronJob ${c.name}: triggered`,
+        ),
+    },
+    {
+      id: 'suspend',
+      label: 'Suspend',
+      icon: 'pause',
+      when: c => !c.suspend,
+      run: (c, ctx) =>
+        ctx.perform(
+          () => callApp('ToggleCronJobSuspend', c.namespace, c.name),
+          `CronJob ${c.name}: suspended`,
+        ),
+    },
+    {
+      id: 'resume',
+      label: 'Resume',
+      icon: 'play',
+      when: c => c.suspend,
+      run: (c, ctx) =>
+        ctx.perform(
+          () => callApp('ToggleCronJobSuspend', c.namespace, c.name),
+          `CronJob ${c.name}: resumed`,
+        ),
+    },
   ],
 
   api: {

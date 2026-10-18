@@ -9,7 +9,7 @@ export const configMap = defineResource<k8s.ConfigMapInfo, k8s.ConfigMapInfo>({
   kind: 'ConfigMap',
   view: 'configmaps',
   title: 'ConfigMaps',
-  icon: 'configmap',
+  // icon: 'configmap',
   namespaced: true,
   nav: { group: 'config', label: 'Config Maps' },
 

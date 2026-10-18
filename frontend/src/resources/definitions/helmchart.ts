@@ -11,7 +11,8 @@ export const helmChart = defineResource<k8s.HelmChartInfo>({
   namespaced: false,
   nav: { group: 'helm', label: 'Charts' },
   
-  autoRefresh: true,icon: 'documentation',
+  autoRefresh: true,
+  // icon: 'documentation',
   // агрегация установленных релизов по chart-у: без YAML и удаления
   editable: false,
 

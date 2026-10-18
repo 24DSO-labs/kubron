@@ -11,7 +11,8 @@ export const lease = defineResource<k8s.LeaseInfo>({
   namespaced: true,
   nav: { group: 'config', label: 'Leases' },
   
-  autoRefresh: true,icon: 'configmap',
+  autoRefresh: true,
+  // icon: 'configmap',
 
   columns: [
     flatNameCol,
