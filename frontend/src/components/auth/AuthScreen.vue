@@ -47,6 +47,7 @@
       <!-- Вход -->
       <template v-else-if="mode === 'login'">
         <h1>Вход</h1>
+        <p v-if="auth.notice.value" class="auth-notice" role="status">{{ auth.notice.value }}</p>
         <form class="auth-form" @submit.prevent="submitLogin">
           <label class="auth-field">
             <span>Логин</span>

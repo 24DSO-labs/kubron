@@ -27,15 +27,23 @@ type userRecord struct {
 	LastLoginAt        *time.Time `json:"lastLoginAt,omitempty"`
 }
 
+// settingsData — настройки безопасности, общие для всех пользователей.
+// Указатель различает «не задано» (берётся значение по умолчанию) и явный 0 («выключено»).
+type settingsData struct {
+	IdleTimeoutMinutes *int `json:"idleTimeoutMinutes,omitempty"`
+}
+
 type fileData struct {
-	Version int          `json:"version"`
-	Users   []userRecord `json:"users"`
+	Version  int          `json:"version"`
+	Users    []userRecord `json:"users"`
+	Settings settingsData `json:"settings"`
 }
 
 // store — файловое хранилище пользователей. Не потокобезопасно: синхронизацию делает Service.
 type store struct {
-	path  string
-	users []userRecord
+	path     string
+	users    []userRecord
+	settings settingsData
 }
 
 // loadStore читает файл. Отсутствие файла — это пустое хранилище (первый запуск).
@@ -58,12 +66,13 @@ func loadStore(dir string) (*store, error) {
 		return nil, fmt.Errorf("файл пользователей %s создан более новой версией Kubron", s.path)
 	}
 	s.users = fd.Users
+	s.settings = fd.Settings
 	return s, nil
 }
 
 // save атомарно записывает файл: временный файл в той же папке, затем rename.
 func (s *store) save() error {
-	data, err := json.MarshalIndent(fileData{Version: storageVersion, Users: s.users}, "", "  ")
+	data, err := json.MarshalIndent(fileData{Version: storageVersion, Users: s.users, Settings: s.settings}, "", "  ")
 	if err != nil {
 		return err
 	}

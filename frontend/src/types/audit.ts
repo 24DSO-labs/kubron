@@ -39,6 +39,8 @@ const ACTION_LABELS: Record<string, string> = {
   Setup: 'Первичная настройка',
   Login: 'Вход',
   Logout: 'Выход',
+  SessionTimeout: 'Автовыход по бездействию',
+  SetIdleTimeout: 'Настройка автовыхода',
   ChangePassword: 'Смена пароля',
   CreateUser: 'Создание пользователя',
   UpdateUserRole: 'Смена роли',
