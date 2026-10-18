@@ -1,6 +1,7 @@
 package main
 
 import (
+	"analog/internal/audit"
 	"analog/internal/auth"
 	"analog/internal/k8s"
 	"context"
@@ -16,6 +17,7 @@ type App struct {
 	ctx     context.Context
 	k8sMgr  *k8s.Manager
 	pfMgr   *k8s.PortForwardManager
+	audit   *audit.Logger
 	auth    *auth.Service // nil, если хранилище пользователей не открылось (см. authErr)
 	authErr error
 }
@@ -46,7 +48,7 @@ func (a *App) GetClusterStatuses() []k8s.ClusterStatus {
 }
 
 func (a *App) AddClusterFromFile(displayName, icon, color string) (*k8s.ClusterMeta, error) {
-	if err := a.authz(auth.PermClusterManage); err != nil {
+	if err := a.authz(auth.PermClusterManage, "displayName", displayName); err != nil {
 		return nil, err
 	}
 	path, err := wailsRuntime.OpenFileDialog(a.ctx, wailsRuntime.OpenDialogOptions{
@@ -65,21 +67,21 @@ func (a *App) AddClusterFromFile(displayName, icon, color string) (*k8s.ClusterM
 }
 
 func (a *App) AddClusterFromText(kubeconfigText, displayName, icon, color string) (*k8s.ClusterMeta, error) {
-	if err := a.authz(auth.PermClusterManage); err != nil {
+	if err := a.authz(auth.PermClusterManage, "displayName", displayName); err != nil {
 		return nil, err
 	}
 	return k8s.AddClusterFromText(kubeconfigText, displayName, icon, color)
 }
 
 func (a *App) DeleteCluster(id string) error {
-	if err := a.authz(auth.PermClusterManage); err != nil {
+	if err := a.authz(auth.PermClusterManage, "id", id); err != nil {
 		return err
 	}
 	return k8s.DeleteCluster(id)
 }
 
 func (a *App) UpdateCluster(id, displayName, icon, color string) error {
-	if err := a.authz(auth.PermClusterManage); err != nil {
+	if err := a.authz(auth.PermClusterManage, "id", id, "displayName", displayName); err != nil {
 		return err
 	}
 	return k8s.UpdateClusterMeta(id, displayName, icon, color)
@@ -196,14 +198,14 @@ func (a *App) GetPodLogs(namespace, name, container string, lines int64) (string
 }
 
 func (a *App) DeletePod(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeletePod(namespace, name)
 }
 
 func (a *App) EvictPod(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.EvictPod(namespace, name)
@@ -219,14 +221,14 @@ func (a *App) GetDeployments(namespace string) ([]k8s.DeploymentInfo, error) {
 }
 
 func (a *App) ScaleDeployment(namespace, name string, replicas int32) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name, "replicas", replicas); err != nil {
 		return err
 	}
 	return a.k8sMgr.ScaleDeployment(namespace, name, replicas)
 }
 
 func (a *App) RestartDeployment(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.RestartDeployment(namespace, name)
@@ -240,14 +242,14 @@ func (a *App) GetDeploymentRevisions(namespace, name string) ([]k8s.RevisionInfo
 }
 
 func (a *App) RollbackDeployment(namespace, name string, revision int64) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name, "revision", revision); err != nil {
 		return err
 	}
 	return a.k8sMgr.RollbackDeployment(namespace, name, revision)
 }
 
 func (a *App) DeleteDeployment(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteDeployment(namespace, name)
@@ -263,7 +265,7 @@ func (a *App) GetStatefulSets(namespace string) ([]k8s.StatefulSetInfo, error) {
 }
 
 func (a *App) ScaleStatefulSet(namespace, name string, replicas int32) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name, "replicas", replicas); err != nil {
 		return err
 	}
 	return a.k8sMgr.ScaleStatefulSet(namespace, name, replicas)
@@ -279,7 +281,7 @@ func (a *App) GetReplicaSets(namespace string) ([]k8s.ReplicaSetInfo, error) {
 }
 
 func (a *App) ScaleReplicaSet(namespace, name string, replicas int32) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name, "replicas", replicas); err != nil {
 		return err
 	}
 	return a.k8sMgr.ScaleReplicaSet(namespace, name, replicas)
@@ -304,42 +306,42 @@ func (a *App) GetJobs(namespace string) ([]k8s.JobInfo, error) {
 }
 
 func (a *App) DeleteJob(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteJob(namespace, name)
 }
 
 func (a *App) DeleteDaemonSet(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteDaemonSet(namespace, name)
 }
 
 func (a *App) RestartDaemonSet(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.RestartDaemonSet(namespace, name)
 }
 
 func (a *App) DeleteReplicaSet(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteReplicaSet(namespace, name)
 }
 
 func (a *App) DeleteConfigMap(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteConfigMap(namespace, name)
 }
 
 func (a *App) RetryJob(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.RetryJob(namespace, name)
@@ -446,7 +448,7 @@ func (a *App) GetSecrets(namespace string) ([]k8s.SecretInfo, error) {
 }
 
 func (a *App) GetSecretValue(namespace, name, key string) (string, error) {
-	if err := a.authz(auth.PermSecretsRead); err != nil {
+	if err := a.authz(auth.PermSecretsRead, "namespace", namespace, "name", name, "key", key); err != nil {
 		return "", err
 	}
 	return a.k8sMgr.GetSecretValue(namespace, name, key)
@@ -646,63 +648,63 @@ func (a *App) GetServiceAccountDetail(namespace, name string) (interface{}, erro
 }
 
 func (a *App) DeleteService(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteService(namespace, name)
 }
 
 func (a *App) DeleteSecret(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteSecret(namespace, name)
 }
 
 func (a *App) DeleteStatefulSet(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteStatefulSet(namespace, name)
 }
 
 func (a *App) RestartStatefulSet(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.RestartStatefulSet(namespace, name)
 }
 
 func (a *App) DeleteServiceAccount(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteServiceAccount(namespace, name)
 }
 
 func (a *App) DeleteRole(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteRole(namespace, name)
 }
 
 func (a *App) DeleteRoleBinding(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteRoleBinding(namespace, name)
 }
 
 func (a *App) DeleteClusterRole(name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteClusterRole(name)
 }
 
 func (a *App) DeleteClusterRoleBinding(name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteClusterRoleBinding(name)
@@ -716,98 +718,98 @@ func (a *App) GetResourceQuotas(namespace string) ([]k8s.ResourceQuotaInfo, erro
 }
 
 func (a *App) DeleteCronJob(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteCronJob(namespace, name)
 }
 
 func (a *App) DeleteIngress(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteIngress(namespace, name)
 }
 
 func (a *App) DeleteIngressClass(name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteIngressClass(name)
 }
 
 func (a *App) DeleteNetworkPolicy(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteNetworkPolicy(namespace, name)
 }
 
 func (a *App) DeletePersistentVolume(name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeletePersistentVolume(name)
 }
 
 func (a *App) DeletePersistentVolumeClaim(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeletePersistentVolumeClaim(namespace, name)
 }
 
 func (a *App) DeleteStorageClass(name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteStorageClass(name)
 }
 
 func (a *App) DeleteResourceQuota(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteResourceQuota(namespace, name)
 }
 
 func (a *App) DeleteLimitRange(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteLimitRange(namespace, name)
 }
 
 func (a *App) DeleteHPA(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteHPA(namespace, name)
 }
 
 func (a *App) DeletePDB(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeletePDB(namespace, name)
 }
 
 func (a *App) DeletePriorityClass(name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeletePriorityClass(name)
 }
 
 func (a *App) DeleteRuntimeClass(name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteRuntimeClass(name)
 }
 
 func (a *App) DeleteLease(namespace, name string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteLease(namespace, name)
@@ -829,7 +831,7 @@ func (a *App) GetResourceYAML(namespace, kind, name string, clean bool) (string,
 }
 
 func (a *App) ApplyYAML(namespace, kind, name, jsonData string) error {
-	if err := a.authz(auth.PermWrite); err != nil {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "kind", kind, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.ApplyYAML(namespace, kind, name, jsonData)
@@ -838,7 +840,7 @@ func (a *App) ApplyYAML(namespace, kind, name, jsonData string) error {
 // === Exec ===
 
 func (a *App) ExecCommand(namespace, pod, container, command string) (string, error) {
-	if err := a.authz(auth.PermExec); err != nil {
+	if err := a.authz(auth.PermExec, "namespace", namespace, "pod", pod, "container", container, "command", command); err != nil {
 		return "", err
 	}
 	return a.k8sMgr.ExecCommand(namespace, pod, container, command)
@@ -914,21 +916,21 @@ func (a *App) QueryPrometheusRange(query string, startUnix, endUnix int64, step 
 // === Port Forward ===
 
 func (a *App) StartPortForward(namespace, pod string, localPort, podPort int) (*k8s.PortForwardSession, error) {
-	if err := a.authz(auth.PermPortForward); err != nil {
+	if err := a.authz(auth.PermPortForward, "namespace", namespace, "pod", pod, "localPort", localPort, "podPort", podPort); err != nil {
 		return nil, err
 	}
 	return a.pfMgr.StartPortForward(namespace, pod, localPort, podPort)
 }
 
 func (a *App) StartServicePortForward(namespace, service string, localPort, servicePort int) (*k8s.PortForwardSession, error) {
-	if err := a.authz(auth.PermPortForward); err != nil {
+	if err := a.authz(auth.PermPortForward, "namespace", namespace, "service", service, "localPort", localPort, "servicePort", servicePort); err != nil {
 		return nil, err
 	}
 	return a.pfMgr.StartServicePortForward(namespace, service, localPort, servicePort)
 }
 
 func (a *App) StopPortForward(id string) error {
-	if err := a.authz(auth.PermPortForward); err != nil {
+	if err := a.authz(auth.PermPortForward, "id", id); err != nil {
 		return err
 	}
 	return a.pfMgr.StopPortForward(id)
@@ -963,14 +965,14 @@ func (a *App) OpenBrowserURL(url string) {
 // === Terminal ===
 
 func (a *App) DetectShell(namespace, pod, container string) (string, error) {
-	if err := a.authz(auth.PermExec); err != nil {
+	if err := a.authz(auth.PermExec, "namespace", namespace, "pod", pod, "container", container); err != nil {
 		return "", err
 	}
 	return a.k8sMgr.DetectShell(namespace, pod, container)
 }
 
 func (a *App) StartTerminalSession(sessionID, namespace, pod, container, shell string, cols, rows uint16) error {
-	if err := a.authz(auth.PermExec); err != nil {
+	if err := a.authz(auth.PermExec, "namespace", namespace, "pod", pod, "container", container, "shell", shell); err != nil {
 		return err
 	}
 	return a.k8sMgr.StartTerminalSession(sessionID, namespace, pod, container, shell, cols, rows)
