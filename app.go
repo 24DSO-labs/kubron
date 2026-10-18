@@ -224,14 +224,14 @@ func (a *App) GetDeployments(namespace string) ([]k8s.DeploymentInfo, error) {
 }
 
 func (a *App) ScaleDeployment(namespace, name string, replicas int32) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name, "replicas", replicas); err != nil {
+	if err := a.authz(auth.PermOperate, "namespace", namespace, "name", name, "replicas", replicas); err != nil {
 		return err
 	}
 	return a.k8sMgr.ScaleDeployment(namespace, name, replicas)
 }
 
 func (a *App) RestartDeployment(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
+	if err := a.authz(auth.PermOperate, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.RestartDeployment(namespace, name)
@@ -245,7 +245,7 @@ func (a *App) GetDeploymentRevisions(namespace, name string) ([]k8s.RevisionInfo
 }
 
 func (a *App) RollbackDeployment(namespace, name string, revision int64) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name, "revision", revision); err != nil {
+	if err := a.authz(auth.PermOperate, "namespace", namespace, "name", name, "revision", revision); err != nil {
 		return err
 	}
 	return a.k8sMgr.RollbackDeployment(namespace, name, revision)
@@ -268,7 +268,7 @@ func (a *App) GetStatefulSets(namespace string) ([]k8s.StatefulSetInfo, error) {
 }
 
 func (a *App) ScaleStatefulSet(namespace, name string, replicas int32) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name, "replicas", replicas); err != nil {
+	if err := a.authz(auth.PermOperate, "namespace", namespace, "name", name, "replicas", replicas); err != nil {
 		return err
 	}
 	return a.k8sMgr.ScaleStatefulSet(namespace, name, replicas)
@@ -284,7 +284,7 @@ func (a *App) GetReplicaSets(namespace string) ([]k8s.ReplicaSetInfo, error) {
 }
 
 func (a *App) ScaleReplicaSet(namespace, name string, replicas int32) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name, "replicas", replicas); err != nil {
+	if err := a.authz(auth.PermOperate, "namespace", namespace, "name", name, "replicas", replicas); err != nil {
 		return err
 	}
 	return a.k8sMgr.ScaleReplicaSet(namespace, name, replicas)
@@ -323,7 +323,7 @@ func (a *App) DeleteDaemonSet(namespace, name string) error {
 }
 
 func (a *App) RestartDaemonSet(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
+	if err := a.authz(auth.PermOperate, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.RestartDaemonSet(namespace, name)
@@ -344,7 +344,7 @@ func (a *App) DeleteConfigMap(namespace, name string) error {
 }
 
 func (a *App) RetryJob(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
+	if err := a.authz(auth.PermOperate, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.RetryJob(namespace, name)
@@ -672,7 +672,7 @@ func (a *App) DeleteStatefulSet(namespace, name string) error {
 }
 
 func (a *App) RestartStatefulSet(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
+	if err := a.authz(auth.PermOperate, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.RestartStatefulSet(namespace, name)

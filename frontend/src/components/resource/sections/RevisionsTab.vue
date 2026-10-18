@@ -17,7 +17,7 @@
           <td class="rd-muted">{{ r.age || '—' }}</td>
           <td class="rd-mono">{{ r.images || '—' }}</td>
           <td @click.stop>
-            <button v-if="can(Perm.Write)" class="rd-btn" @click="rollback(r.revision)">Rollback</button>
+            <button v-if="can(Perm.Operate)" class="rd-btn" @click="rollback(r.revision)">Rollback</button>
           </td>
         </tr>
       </tbody>
