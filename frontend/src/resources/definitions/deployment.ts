@@ -42,7 +42,7 @@ export const deployment = defineResource<k8s.DeploymentInfo>({
   autoRefresh: true,
   columns: [
     flatNameCol,
-    flatNsCol,
+    { ...flatNsCol, link: (d: any) => d.namespace ? { id: 'namespace', ns: '', name: d.namespace } : null },
     {
       key: 'pods',
       label: 'Pods',
