@@ -14,6 +14,9 @@ export const event = defineResource<k8s.EventInfo>({
   
   autoRefresh: true,icon: 'events',
 
+// агрегация установленных релизов по chart-у: без YAML и удаления
+  editable: false,
+  
   columns: [
     flatNameCol,
     {
