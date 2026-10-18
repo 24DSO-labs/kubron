@@ -5,71 +5,63 @@ import (
 	"fmt"
 	"time"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/dynamic"
 	"sigs.k8s.io/yaml"
 )
 
-func (m *Manager) ApplyYAML(namespace, kind, name, jsonData string) error {
+// ApplyYAML заменяет объект в кластере манифестом из редактора (get -> update).
+// Удалённые в редакторе поля реально удаляются.
+func (m *Manager) ApplyYAML(namespace, kind, name, yamlData string) error {
 	conn, err := m.GetActiveConnection()
 	if err != nil {
 		return err
+	}
+	ri, info, err := resourceClient(conn, kind, namespace)
+	if err != nil {
+		return err
+	}
+
+	// YAML -> JSON -> Unstructured: так числа получаются int64, а не float64
+	jsonData, err := yaml.YAMLToJSON([]byte(yamlData))
+	if err != nil {
+		return fmt.Errorf("ошибка парсинга YAML: %w", err)
+	}
+	obj := &unstructured.Unstructured{}
+	if err := obj.UnmarshalJSON(jsonData); err != nil {
+		return fmt.Errorf("некорректный манифест: %w", err)
+	}
+
+	// Защита от применения не к тому объекту
+	if obj.GetName() != name {
+		return fmt.Errorf("metadata.name изменять нельзя (было %q, стало %q)", name, obj.GetName())
+	}
+	if want := info.gvr.GroupVersion().String(); obj.GetAPIVersion() != want {
+		return fmt.Errorf("apiVersion должен быть %q, а не %q", want, obj.GetAPIVersion())
+	}
+	if info.namespaced {
+		if ns := obj.GetNamespace(); ns != "" && ns != namespace {
+			return fmt.Errorf("metadata.namespace изменять нельзя (было %q, стало %q)", namespace, ns)
+		}
+		obj.SetNamespace(namespace)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	switch kind {
-	case "pod":
-		_, err = conn.Client.CoreV1().Pods(namespace).Patch(
-			ctx, name, types.MergePatchType, []byte(jsonData), metav1.PatchOptions{},
-		)
-	case "deployment":
-		_, err = conn.Client.AppsV1().Deployments(namespace).Patch(
-			ctx, name, types.MergePatchType, []byte(jsonData), metav1.PatchOptions{},
-		)
-	case "service":
-		_, err = conn.Client.CoreV1().Services(namespace).Patch(
-			ctx, name, types.MergePatchType, []byte(jsonData), metav1.PatchOptions{},
-		)
-	case "configmap":
-		_, err = conn.Client.CoreV1().ConfigMaps(namespace).Patch(
-			ctx, name, types.MergePatchType, []byte(jsonData), metav1.PatchOptions{},
-		)
-	case "secret":
-		_, err = conn.Client.CoreV1().Secrets(namespace).Patch(
-			ctx, name, types.MergePatchType, []byte(jsonData), metav1.PatchOptions{},
-		)
-	default:
-		return m.applyDynamic(conn, ctx, namespace, kind, name, jsonData)
-	}
-
+	cur, err := ri.Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("ошибка применения %s/%s: %w", kind, name, err)
+		return fmt.Errorf("не удалось получить текущий объект: %w", err)
 	}
-	return nil
-}
+	// resourceVersion из редактора вырезан: берём актуальный, иначе Update у части ресурсов отклоняется
+	obj.SetResourceVersion(cur.GetResourceVersion())
 
-func (m *Manager) applyDynamic(conn *ClusterConnection, ctx context.Context, namespace, kind, name, jsonData string) error {
-	dynClient, err := dynamic.NewForConfig(conn.Config)
-	if err != nil {
+	if _, err := ri.Update(ctx, obj, metav1.UpdateOptions{}); err != nil {
+		if apierrors.IsConflict(err) {
+			return fmt.Errorf("объект изменился в кластере, закройте вкладку и откройте YAML заново: %w", err)
+		}
 		return err
 	}
-
-	var obj unstructured.Unstructured
-	if err := yaml.Unmarshal([]byte(jsonData), &obj.Object); err != nil {
-		return fmt.Errorf("ошибка парсинга YAML: %w", err)
-	}
-
-	gvr := dynamicGVR(kind)
-
-	if namespace != "" {
-		_, err = dynClient.Resource(gvr).Namespace(namespace).Update(ctx, &obj, metav1.UpdateOptions{})
-	} else {
-		_, err = dynClient.Resource(gvr).Update(ctx, &obj, metav1.UpdateOptions{})
-	}
-
-	return err
+	return nil
 }

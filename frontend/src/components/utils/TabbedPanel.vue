@@ -3,7 +3,8 @@
     <div class="panel-header" @mousedown.stop="startDrag">
       <div class="tabs-container">
         <div class="tabs-list">
-          <div v-for="tab in tabs" :key="tab.id" class="tab" :class="{ active: activeTabId === tab.id }" @click="activeTabId = tab.id">
+          <div v-for="tab in tabs" :key="tab.id" class="tab" :class="{ active: activeTabId === tab.id }"
+            @click="activeTabId = tab.id">
             <span class="tab-icon">{{ tab.icon }}</span>
             <span class="tab-name">{{ tab.title }}</span>
             <button class="tab-close" @click.stop="closeTab(tab.id)">✕</button>
@@ -18,61 +19,85 @@
           <div class="logs-toolbar">
             <div class="toolbar-group">
               <label>Pods:</label>
-              <select :value="(tab as LogsTab).selectedPodName" @change="onPodChange($event, tab as LogsTab)" class="select-pod">
+              <select :value="(tab as LogsTab).selectedPodName" @change="onPodChange($event, tab as LogsTab)"
+                class="select-pod">
                 <option value="">All Pods</option>
                 <option v-for="pod in (tab as LogsTab).pods" :key="pod.name" :value="pod.name">{{ pod.name }}</option>
               </select>
             </div>
             <div class="toolbar-group">
               <label>Containers:</label>
-              <select :value="(tab as LogsTab).selectedContainer" @change="onContainerChange($event, tab as LogsTab)" class="select-container">
+              <select :value="(tab as LogsTab).selectedContainer" @change="onContainerChange($event, tab as LogsTab)"
+                class="select-container">
                 <option value="">All Containers</option>
-                <option v-for="container in getAvailableContainers(tab as LogsTab)" :key="container" :value="container">{{ container }}</option>
+                <option v-for="container in getAvailableContainers(tab as LogsTab)" :key="container" :value="container">
+                  {{ container }}</option>
               </select>
             </div>
             <div class="toolbar-group">
               <label>Lines:</label>
-              <input v-model.number="logLines" type="number" min="10" max="10000" @change="loadLogs(tab as LogsTab)" class="input-lines" />
+              <input v-model.number="logLines" type="number" min="10" max="10000" @change="loadLogs(tab as LogsTab)"
+                class="input-lines" />
             </div>
             <div class="toolbar-group search-group">
               <input v-model="searchText" type="text" placeholder="Search in logs" class="input-search" />
             </div>
             <div class="toolbar-actions">
-              <button @click="showTimestamp = !showTimestamp" class="btn-action" :class="{ active: showTimestamp }"><img :src="timestampIcon" class="icon-svg" /></button>
-              <button @click="wrapLines = !wrapLines" class="btn-action" :class="{ active: wrapLines }"><img :src="wrapLinesIcon" class="icon-svg" /></button>
-              <button @click="loadLogs(tab as LogsTab)" class="btn-action btn-refresh"><img :src="restartIcon" class="icon-svg" /></button>
-              <button @click="downloadLogs(tab as LogsTab)" class="btn-action"><img :src="downloadIcon" class="icon-svg" /></button>
+              <button @click="showTimestamp = !showTimestamp" class="btn-action" :class="{ active: showTimestamp }"><img
+                  :src="timestampIcon" class="icon-svg" /></button>
+              <button @click="wrapLines = !wrapLines" class="btn-action" :class="{ active: wrapLines }"><img
+                  :src="wrapLinesIcon" class="icon-svg" /></button>
+              <button @click="loadLogs(tab as LogsTab)" class="btn-action btn-refresh"><img :src="restartIcon"
+                  class="icon-svg" /></button>
+              <button @click="downloadLogs(tab as LogsTab)" class="btn-action"><img :src="downloadIcon"
+                  class="icon-svg" /></button>
             </div>
           </div>
-          <div class="logs-info"><span>Namespace: <strong>{{ tab.namespace }}</strong> | {{ tab.resourceType }}: <strong>{{ tab.resourceName }}</strong> | Pods: <strong>{{ (tab as LogsTab).pods.length }}</strong></span></div>
+          <div class="logs-info"><span>Namespace: <strong>{{ tab.namespace }}</strong> | {{ tab.resourceType }}:
+              <strong>{{ tab.resourceName }}</strong> | Pods: <strong>{{ (tab as LogsTab).pods.length }}</strong></span>
+          </div>
           <div class="logs-content">
             <div v-if="(tab as LogsTab).loading" class="logs-loading">⏳ Loading...</div>
-            <pre v-else-if="(tab as LogsTab).rawLogs" class="logs-text" :class="{ 'no-wrap': !wrapLines }" v-html="searchText ? getHighlightedLogs(tab as LogsTab) : getDisplayedLogs(tab as LogsTab)"></pre>
+            <pre v-else-if="(tab as LogsTab).rawLogs" class="logs-text" :class="{ 'no-wrap': !wrapLines }"
+              v-html="searchText ? getHighlightedLogs(tab as LogsTab) : getDisplayedLogs(tab as LogsTab)"></pre>
             <div v-else class="logs-empty">No logs</div>
           </div>
         </div>
         <div v-else-if="tab.type === 'yaml' && activeTabId === tab.id" class="yaml-view">
           <div class="editor-header">
-            <div class="editor-title"><span>{{ tab.resourceType }} <strong>{{ tab.resourceName }}</strong></span> <span class="editor-namespace">in <a href="#" class="ns-link">{{ tab.namespace }}</a></span></div>
-            <button class="btn btn-sm btn-save" @click="saveYaml(tab as YamlTab)">💾 Save</button>
+            <div class="editor-title">
+              <span>{{ tab.resourceType }} <strong>{{ tab.resourceName }}</strong></span>
+              <span v-if="tab.namespace" class="editor-namespace">in <a href="#" class="ns-link">{{ tab.namespace
+                  }}</a></span>
+              <span v-if="(tab as YamlTab).content !== (tab as YamlTab).originalContent" class="editor-dirty"
+                title="Есть несохранённые изменения">●</span>
+            </div>
+            <button class="btn btn-sm btn-save"
+              :disabled="(tab as YamlTab).saving || (tab as YamlTab).content === (tab as YamlTab).originalContent"
+              @click="saveYaml(tab as YamlTab)">{{ (tab as YamlTab).saving ? '⏳ Saving...' : '💾 Save' }}</button>
           </div>
           <div :ref="el => setEditorContainer(tab.id, el as HTMLDivElement)" class="editor-container"></div>
         </div>
         <div v-else-if="tab.type === 'terminal' && activeTabId === tab.id" class="terminal-view">
           <div class="terminal-header">
-            <div class="terminal-title"><span>{{ (tab as TerminalTab).mode === 'shell' ? 'Terminal' : 'Attach' }}: <strong>{{ (tab as TerminalTab).container }}</strong> @ {{ (tab as TerminalTab).pod }}</span></div>
+            <div class="terminal-title"><span>{{ (tab as TerminalTab).mode === 'shell' ? 'Terminal' : 'Attach' }}:
+                <strong>{{ (tab as TerminalTab).container }}</strong> @ {{ (tab as TerminalTab).pod }}</span></div>
             <div class="terminal-controls">
-              <select :value="(tab as TerminalTab).container" @change="onTerminalContainerChange($event, tab as TerminalTab)" class="container-select">
+              <select :value="(tab as TerminalTab).container"
+                @change="onTerminalContainerChange($event, tab as TerminalTab)" class="container-select">
                 <option v-for="c in getTerminalContainers(tab as TerminalTab)" :key="c" :value="c">{{ c }}</option>
               </select>
               <span class="status-indicator">{{ terminalStatuses[tab.id] || '🔴' }}</span>
-              <button class="btn btn-sm" @click="reconnectTerminal(tab.id)" :disabled="terminalConnecting[tab.id] !== false">🔄</button>
+              <button class="btn btn-sm" @click="reconnectTerminal(tab.id)"
+                :disabled="terminalConnecting[tab.id] !== false">🔄</button>
             </div>
           </div>
           <div :ref="el => setTerminalContainer(tab.id, el as HTMLDivElement)" class="terminal-container"></div>
         </div>
       </template>
-      <div v-if="tabs.length === 0" class="no-tabs"><p>No tabs open</p></div>
+      <div v-if="tabs.length === 0" class="no-tabs">
+        <p>No tabs open</p>
+      </div>
     </div>
     <div class="resize-handle" @mousedown.stop="startResize"></div>
   </div>
@@ -101,9 +126,9 @@ import downloadIcon from '../../assets/icons/download.svg'
 import timestampIcon from '../../assets/icons/timestamp.svg'
 import wrapLinesIcon from '../../assets/icons/wrap-lines.svg'
 
-const emit = defineEmits<{(e: 'close'): void; (e: 'apply-yaml', tabId: string): void}>()
+const emit = defineEmits<{ (e: 'close'): void; (e: 'apply-yaml', tabId: string): void }>()
 const tabs = computed(() => globalTabbedPanel.tabs.value)
-const activeTabId = computed({ get: () => globalTabbedPanel.activeTabId.value, set: (val) => { globalTabbedPanel.activeTabId.value = val }})
+const activeTabId = computed({ get: () => globalTabbedPanel.activeTabId.value, set: (val) => { globalTabbedPanel.activeTabId.value = val } })
 const sidebarWidth = ref(200)
 const panelX = ref(276)
 const panelY = ref(window.innerHeight - 400)
@@ -294,11 +319,17 @@ function initializeEditor(tab: YamlTab) {
   const existingEditor = editors.get(tab.id)
   if (existingEditor) { existingEditor.dispose(); editors.delete(tab.id) }
   const editor = monaco.editor.create(container, { value: tab.content, language: 'yaml', theme: 'vs-dark', automaticLayout: true, minimap: { enabled: true }, scrollBeyondLastLine: false, wordWrap: 'off', fontSize: 12, fontFamily: "'Monaco', 'Menlo', monospace", lineNumbers: 'on', folding: true })
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => saveYaml(tab))
   editor.onDidChangeModelContent(() => { tab.content = editor.getValue() })
   editors.set(tab.id, editor)
+
 }
 
-function saveYaml(tab: YamlTab) { emit('apply-yaml', tab.id); tab.originalContent = tab.content }
+// Больше не ставим originalContent здесь: App.vue делает это только после успешного apply
+function saveYaml(tab: YamlTab) {
+  if (tab.saving || tab.content === tab.originalContent) return
+  emit('apply-yaml', tab.id)
+}
 
 // Terminal functions
 function getTerminalContainers(tab: TerminalTab): string[] {
@@ -336,24 +367,24 @@ async function initTerminal(tab: TerminalTab) {
   try {
     let shell = '/bin/sh'
     try { shell = await DetectShell(tab.namespace, tab.pod, tab.container) } catch { shell = '/bin/sh' }
-    
+
     // Очищаем контейнер перед созданием терминала
     container.innerHTML = ''
-    
-    const terminal = new Terminal({ 
-      fontFamily: 'Monaco, Menlo, "Courier New", monospace', 
-      fontSize: 13, 
-      lineHeight: 1.2, 
-      theme: { 
-        background: '#1e1e1e', 
-        foreground: '#d4d4d4', 
+
+    const terminal = new Terminal({
+      fontFamily: 'Monaco, Menlo, "Courier New", monospace',
+      fontSize: 13,
+      lineHeight: 1.2,
+      theme: {
+        background: '#1e1e1e',
+        foreground: '#d4d4d4',
         cursor: '#00ff00',
         cursorAccent: '#00ff00'
-      }, 
-      cursorBlink: true, 
-      disableStdin: false, 
-      cols: DEFAULT_COLS, 
-      rows: DEFAULT_ROWS, 
+      },
+      cursorBlink: true,
+      disableStdin: false,
+      cols: DEFAULT_COLS,
+      rows: DEFAULT_ROWS,
       allowProposedApi: true,
       scrollback: 10000,
       tabStopWidth: 4
@@ -361,14 +392,14 @@ async function initTerminal(tab: TerminalTab) {
     const fitAddon = new FitAddon()
     terminal.loadAddon(fitAddon)
     terminal.open(container)
-    
+
     // Ждем пока терминал откроется
     await nextTick()
     await new Promise(r => setTimeout(r, 150))
-    
+
     // Fit перед фокусом
-    try { fitAddon.fit() } catch {}
-    
+    try { fitAddon.fit() } catch { }
+
     const sessionID = `term_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
     const cols = terminal.cols
     const rows = terminal.rows
@@ -378,26 +409,26 @@ async function initTerminal(tab: TerminalTab) {
     terminalInstances.set(tab.id, instance)
     terminalStatuses[tab.id] = '🟢'
     terminalConnecting[tab.id] = false
-    
+
     // Обработчики событий
-    terminal.onData((data: string) => { if (!instance.sessionID) return; const bytes = Array.from(new TextEncoder().encode(data)); WriteTerminal(instance.sessionID, bytes).catch(() => {}) })
+    terminal.onData((data: string) => { if (!instance.sessionID) return; const bytes = Array.from(new TextEncoder().encode(data)); WriteTerminal(instance.sessionID, bytes).catch(() => { }) })
     terminal.onResize(({ cols, rows }) => debouncedResize(tab.id, cols, rows))
-    
+
     // ResizeObserver для контейнера
     instance.resizeObserver = new ResizeObserver(() => safeFit(tab.id))
     instance.resizeObserver.observe(container)
-    
+
     // Фокус при клике
     container.addEventListener('mousedown', () => { terminal.focus() })
     container.addEventListener('click', () => { terminal.focus() })
-    
+
     await new Promise(r => setTimeout(r, 100))
-    
+
     // Финальный fit и фокус
-    try { fitAddon.fit() } catch {}
+    try { fitAddon.fit() } catch { }
     readLoop(tab.id, instance)
     terminal.focus()
-    
+
     // Скролл вниз при подключении
     const viewport = container.querySelector('.xterm-viewport') as HTMLElement
     if (viewport) {
@@ -408,13 +439,13 @@ async function initTerminal(tab: TerminalTab) {
   initializingTabs.delete(tab.id)
 }
 
-function safeFit(tabId: string) { const instance = terminalInstances.get(tabId); if (!instance?.fitAddon) return; try { instance.fitAddon.fit() } catch {} }
+function safeFit(tabId: string) { const instance = terminalInstances.get(tabId); if (!instance?.fitAddon) return; try { instance.fitAddon.fit() } catch { } }
 
 function debouncedResize(tabId: string, cols: number, rows: number) {
   const instance = terminalInstances.get(tabId)
   if (!instance?.sessionID) return
   if (instance.resizeTimer) clearTimeout(instance.resizeTimer)
-  instance.resizeTimer = setTimeout(async () => { try { await ResizeTerminal(instance.sessionID, cols, rows) } catch {} }, 150)
+  instance.resizeTimer = setTimeout(async () => { try { await ResizeTerminal(instance.sessionID, cols, rows) } catch { } }, 150)
 }
 
 async function readLoop(tabId: string, instance: TerminalInstance) {
@@ -450,10 +481,10 @@ async function readLoop(tabId: string, instance: TerminalInstance) {
 function cleanupTerminal(tabId: string, instance: TerminalInstance) {
   instance.readLoopAborted = true
   if (instance.resizeTimer) clearTimeout(instance.resizeTimer)
-  if (instance.sessionID) CloseTerminal(instance.sessionID).catch(() => {})
+  if (instance.sessionID) CloseTerminal(instance.sessionID).catch(() => { })
   if (instance.resizeObserver) instance.resizeObserver.disconnect()
-  try { instance.fitAddon = undefined as any } catch {}
-  try { instance.terminal.dispose() } catch {}
+  try { instance.fitAddon = undefined as any } catch { }
+  try { instance.terminal.dispose() } catch { }
   terminalStatuses[tabId] = '🔴'
   terminalConnecting[tabId] = true
 }
@@ -567,11 +598,24 @@ function handleResize(e: MouseEvent) {
   min-width: 140px;
 }
 
-.tab:hover { background: #252a3a; }
-.tab.active { background: #2a2b3a; border-bottom-color: #2a2b3a; color: #e0e0e0; }
+.tab:hover {
+  background: #252a3a;
+}
 
-.tab-icon { font-size: 14px; }
-.tab-name { font-size: 12px; font-weight: 500; }
+.tab.active {
+  background: #2a2b3a;
+  border-bottom-color: #2a2b3a;
+  color: #e0e0e0;
+}
+
+.tab-icon {
+  font-size: 14px;
+}
+
+.tab-name {
+  font-size: 12px;
+  font-weight: 500;
+}
 
 .tab-close {
   background: none;
@@ -584,7 +628,9 @@ function handleResize(e: MouseEvent) {
   margin-left: auto;
 }
 
-.tab-close:hover { color: #999; }
+.tab-close:hover {
+  color: #999;
+}
 
 .btn-close {
   background: none;
@@ -596,7 +642,9 @@ function handleResize(e: MouseEvent) {
   transition: color 0.2s;
 }
 
-.btn-close:hover { color: #fff; }
+.btn-close:hover {
+  color: #fff;
+}
 
 .panel-content {
   flex: 1;
@@ -635,7 +683,10 @@ function handleResize(e: MouseEvent) {
   white-space: nowrap;
 }
 
-.select-pod, .select-container, .input-lines, .input-search {
+.select-pod,
+.select-container,
+.input-lines,
+.input-search {
   background: #1a1b26;
   border: 1px solid #3b3d5c;
   color: #d4d4d4;
@@ -644,9 +695,19 @@ function handleResize(e: MouseEvent) {
   font-size: 12px;
 }
 
-.input-lines { width: 60px; }
-.search-group { flex: 1; min-width: 200px; }
-.input-search { width: 100%; padding: 6px 10px; }
+.input-lines {
+  width: 60px;
+}
+
+.search-group {
+  flex: 1;
+  min-width: 200px;
+}
+
+.input-search {
+  width: 100%;
+  padding: 6px 10px;
+}
 
 .toolbar-actions {
   display: flex;
@@ -664,11 +725,30 @@ function handleResize(e: MouseEvent) {
   transition: all 0.2s;
 }
 
-.btn-action:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
-.btn-action.active { background: rgba(79, 99, 255, 0.2); border-color: #4f63ff; color: #4f63ff; }
-.btn-refresh { padding: 6px 8px; display: flex; align-items: center; justify-content: center; }
+.btn-action:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
 
-.icon-svg { width: 14px; height: 14px; stroke-width: 2; filter: invert(1); }
+.btn-action.active {
+  background: rgba(79, 99, 255, 0.2);
+  border-color: #4f63ff;
+  color: #4f63ff;
+}
+
+.btn-refresh {
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+  filter: invert(1);
+}
 
 .logs-info {
   padding: 8px 16px;
@@ -696,9 +776,15 @@ function handleResize(e: MouseEvent) {
   text-align: left;
 }
 
-.logs-text.no-wrap { white-space: pre; word-wrap: normal; word-break: normal; overflow-x: auto; }
+.logs-text.no-wrap {
+  white-space: pre;
+  word-wrap: normal;
+  word-break: normal;
+  overflow-x: auto;
+}
 
-.logs-loading, .logs-empty {
+.logs-loading,
+.logs-empty {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -707,7 +793,11 @@ function handleResize(e: MouseEvent) {
   font-size: 14px;
 }
 
-.search-highlight { background-color: #7a5e00; color: #ffd700; font-weight: bold; }
+.search-highlight {
+  background-color: #7a5e00;
+  color: #ffd700;
+  font-weight: bold;
+}
 
 /* YAML View */
 .yaml-view {
@@ -732,9 +822,19 @@ function handleResize(e: MouseEvent) {
   font-size: 14px;
 }
 
-.editor-namespace { color: #6b6d8a; font-size: 12px; }
-.ns-link { color: #60a5fa; text-decoration: none; }
-.ns-link:hover { text-decoration: underline; }
+.editor-namespace {
+  color: #6b6d8a;
+  font-size: 12px;
+}
+
+.ns-link {
+  color: #60a5fa;
+  text-decoration: none;
+}
+
+.ns-link:hover {
+  text-decoration: underline;
+}
 
 .btn {
   padding: 6px 12px;
@@ -744,11 +844,24 @@ function handleResize(e: MouseEvent) {
   font-size: 12px;
 }
 
-.btn-sm { padding: 4px 8px; }
-.btn-save { background: #10b981; color: white; }
-.btn-save:hover { background: #059669; }
+.btn-sm {
+  padding: 4px 8px;
+}
 
-.editor-container { flex: 1; overflow: hidden; position: relative; }
+.btn-save {
+  background: #10b981;
+  color: white;
+}
+
+.btn-save:hover {
+  background: #059669;
+}
+
+.editor-container {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
 
 /* Terminal View */
 .terminal-view {
@@ -791,7 +904,9 @@ function handleResize(e: MouseEvent) {
   max-width: 200px;
 }
 
-.status-indicator { font-size: 12px; }
+.status-indicator {
+  font-size: 12px;
+}
 
 .terminal-container {
   flex: 1;
@@ -893,14 +1008,40 @@ function handleResize(e: MouseEvent) {
   opacity: 0.5;
 }
 
-.resize-handle:hover { opacity: 1; }
+.resize-handle:hover {
+  opacity: 1;
+}
 
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: #1a1b26; }
-::-webkit-scrollbar-thumb { background: #3b3d5c; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #4a5568; }
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
 
-:deep(.monaco-editor) { background-color: #1a1b26 !important; }
-:deep(.monaco-editor .margin) { background-color: #1a1b26 !important; }
-:deep(.monaco-editor .minimap) { border-left: 1px solid #3b3d5c; }
+::-webkit-scrollbar-track {
+  background: #1a1b26;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3b3d5c;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4a5568;
+}
+
+:deep(.monaco-editor) {
+  background-color: #1a1b26 !important;
+}
+
+:deep(.monaco-editor .margin) {
+  background-color: #1a1b26 !important;
+}
+
+:deep(.monaco-editor .minimap) {
+  border-left: 1px solid #3b3d5c;
+}
+
+.editor-dirty { color: #facc15; font-size: 14px; }
+.btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
