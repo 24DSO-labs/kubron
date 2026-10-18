@@ -156,6 +156,15 @@ func (a *App) CurrentUser() (*auth.UserInfo, error) {
 	return a.auth.Current()
 }
 
+// ReportActivity вызывается интерфейсом при действиях пользователя (мышь, клавиатура)
+// и продлевает сессию. Не требует права: достаточно действующей сессии.
+func (a *App) ReportActivity() error {
+	if a.auth == nil {
+		return a.authUnavailable()
+	}
+	return a.auth.ReportActivity()
+}
+
 // ChangePassword меняет пароль вошедшего пользователя (в том числе когда смена обязательна).
 func (a *App) ChangePassword(oldPassword, newPassword string) error {
 	if a.auth == nil {
@@ -224,4 +233,12 @@ func (a *App) GetAuditLog(filter audit.Filter) (*audit.Page, error) {
 		return nil, err
 	}
 	return a.audit.Query(filter)
+}
+
+// SetIdleTimeout задаёт время автовыхода по бездействию в минутах (0 — выключить).
+func (a *App) SetIdleTimeout(minutes int) (int, error) {
+	if err := a.authz(auth.PermUsersManage); err != nil {
+		return 0, err
+	}
+	return a.auth.SetIdleTimeout(minutes)
 }
