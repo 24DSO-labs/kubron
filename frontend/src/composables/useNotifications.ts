@@ -10,9 +10,11 @@ export interface Notification {
 
 let nextId = 0
 
-export function useNotifications() {
-  const notifications = ref<Notification[]>([])
+// Одно хранилище на всё приложение: App.vue рисует тосты, а уведомления шлют и composables,
+// и resources/actions.ts. Если держать список внутри функции, у каждого вызова был бы свой.
+const notifications = ref<Notification[]>([])
 
+export function useNotifications() {
   function notify(message: string, type: NotificationType = 'info', duration = 4000) {
     const id = nextId++
     notifications.value.push({ id, type, message })

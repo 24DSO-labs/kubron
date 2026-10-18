@@ -1,5 +1,5 @@
 <template>
-  <div class="pf-control">
+  <div v-if="can(Perm.PortForward)" class="pf-control">
     <div v-if="active" class="pf-active">
       <span class="pf-label">→ localhost:{{ active.localPort }}</span>
       <button class="pf-btn-stop" @click="stop">Stop</button>
@@ -51,6 +51,8 @@
 <script lang="ts" setup>
 import { ref, computed } from 'vue'
 import { useK8s } from '../../../composables/useK8s'
+import { can } from '../../../composables/useAuth'
+import { Perm } from '../../../types/auth'
 import { callApp } from '../../../resources/wails'
 import { BrowserOpenURL } from '../../../../wailsjs/runtime/runtime'
 import { GetFreePort } from '../../../../wailsjs/go/main/App'

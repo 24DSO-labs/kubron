@@ -72,7 +72,8 @@
               <span v-if="(tab as YamlTab).content !== (tab as YamlTab).originalContent" class="editor-dirty"
                 title="Есть несохранённые изменения">●</span>
             </div>
-            <button class="btn btn-sm btn-save"
+            <span v-if="!canEdit" class="editor-readonly" title="Для изменения ресурсов нужны права администратора">Только чтение</span>
+            <button v-else class="btn btn-sm btn-save"
               :disabled="(tab as YamlTab).saving || (tab as YamlTab).content === (tab as YamlTab).originalContent"
               @click="saveYaml(tab as YamlTab)">{{ (tab as YamlTab).saving ? '⏳ Saving...' : '💾 Save' }}</button>
           </div>
@@ -120,6 +121,8 @@ import {
   ResizeTerminal,
 } from '../../../wailsjs/go/main/App'
 import { globalTabbedPanel } from '../../composables/useTabbedPanel'
+import { can } from '../../composables/useAuth'
+import { Perm } from '../../types/auth'
 import type { LogsTab, YamlTab, TerminalTab } from '../../composables/useTabbedPanel'
 import restartIcon from '../../assets/icons/restart.svg'
 import downloadIcon from '../../assets/icons/download.svg'
@@ -127,6 +130,9 @@ import timestampIcon from '../../assets/icons/timestamp.svg'
 import wrapLinesIcon from '../../assets/icons/wrap-lines.svg'
 
 const emit = defineEmits<{ (e: 'close'): void; (e: 'apply-yaml', tabId: string): void }>()
+
+// Без права на запись YAML открывается только для просмотра
+const canEdit = computed(() => can(Perm.Write))
 const tabs = computed(() => globalTabbedPanel.tabs.value)
 const activeTabId = computed({ get: () => globalTabbedPanel.activeTabId.value, set: (val) => { globalTabbedPanel.activeTabId.value = val } })
 const sidebarWidth = ref(200)
@@ -359,6 +365,7 @@ function initializeEditor(tab: YamlTab) {
     fontFamily: "'Monaco', 'Menlo', monospace",
     lineNumbers: 'on',
     folding: true,
+    readOnly: !canEdit.value,
   })
 
   const state = editorViewStates.get(tab.id)
@@ -371,7 +378,7 @@ function initializeEditor(tab: YamlTab) {
 
 // Больше не ставим originalContent здесь: App.vue делает это только после успешного apply
 function saveYaml(tab: YamlTab) {
-  if (tab.saving || tab.content === tab.originalContent) return
+  if (!canEdit.value || tab.saving || tab.content === tab.originalContent) return
   emit('apply-yaml', tab.id)
 }
 
@@ -844,6 +851,14 @@ function handleResize(e: MouseEvent) {
 }
 
 /* YAML View */
+.editor-readonly {
+  font-size: 12px;
+  color: #f9e2af;
+  background: rgba(249, 226, 175, 0.12);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
 .yaml-view {
   display: flex;
   flex-direction: column;
