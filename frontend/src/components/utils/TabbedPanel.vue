@@ -212,6 +212,18 @@ watch(activeTabId, async (newId) => {
   else if (tab.type === 'terminal') { await nextTick(); await new Promise(r => setTimeout(r, 50)); await initTerminal(tab as TerminalTab) }
 })
 
+// Внешнее изменение content вкладки (не набор текста пользователем) -> обновить редактор
+watch(
+  () => tabs.value.map((t: any) => (t.type === 'yaml' ? t.content : null)),
+  () => {
+    for (const t of tabs.value as any[]) {
+      if (t.type !== 'yaml') continue
+      const ed = editors.get(t.id)
+      if (ed && ed.getValue() !== t.content) ed.setValue(t.content)
+    }
+  },
+)
+
 watch(tabs, (newTabs) => {
   const currentTabIds = new Set(newTabs.map((t: any) => t.id))
   for (const [tabId, instance] of terminalInstances) {
@@ -309,20 +321,52 @@ function downloadLogs(tab: LogsTab) {
 function startAutoRefresh() { stopAutoRefresh(); autoRefreshInterval = setInterval(() => { const t = tabs.value.find((x: any) => x.id === activeTabId.value); if (t?.type === 'logs') loadLogs(t as LogsTab) }, 45000) }
 function stopAutoRefresh() { if (autoRefreshInterval) { clearInterval(autoRefreshInterval); autoRefreshInterval = null } }
 
+// Состояние view (курсор, прокрутка) на случай переключения вкладок
+const editorViewStates = new Map<string, monaco.editor.ICodeEditorViewState | null>()
+
 function setEditorContainer(tabId: string, el: HTMLDivElement | null) {
-  if (el) { editorContainers.set(tabId, el); const tab = tabs.value.find((t: any) => t.id === tabId); if (tab?.type === 'yaml') nextTick(() => initializeEditor(tab as YamlTab)) }
+  if (!el) return
+  // Функция-ref вызывается при каждой перерисовке: тот же элемент с живым редактором пропускаем
+  if (editorContainers.get(tabId) === el && editors.has(tabId)) return
+  editorContainers.set(tabId, el)
+  const tab = tabs.value.find((t: any) => t.id === tabId)
+  if (tab?.type === 'yaml') nextTick(() => initializeEditor(tab as YamlTab))
 }
 
 function initializeEditor(tab: YamlTab) {
   const container = editorContainers.get(tab.id)
   if (!container) return
-  const existingEditor = editors.get(tab.id)
-  if (existingEditor) { existingEditor.dispose(); editors.delete(tab.id) }
-  const editor = monaco.editor.create(container, { value: tab.content, language: 'yaml', theme: 'vs-dark', automaticLayout: true, minimap: { enabled: true }, scrollBeyondLastLine: false, wordWrap: 'off', fontSize: 12, fontFamily: "'Monaco', 'Menlo', monospace", lineNumbers: 'on', folding: true })
+
+  const existing = editors.get(tab.id)
+  if (existing) {
+    // Редактор уже создан в этом контейнере: ничего не пересоздаём
+    if (container.contains(existing.getDomNode())) return
+    // Контейнер новый (вкладку переключали): запоминаем позицию и пересоздаём
+    editorViewStates.set(tab.id, existing.saveViewState())
+    existing.dispose()
+    editors.delete(tab.id)
+  }
+
+  const editor = monaco.editor.create(container, {
+    value: tab.content,
+    language: 'yaml',
+    theme: 'vs-dark',
+    automaticLayout: true,
+    minimap: { enabled: true },
+    scrollBeyondLastLine: false,
+    wordWrap: 'off',
+    fontSize: 12,
+    fontFamily: "'Monaco', 'Menlo', monospace",
+    lineNumbers: 'on',
+    folding: true,
+  })
+
+  const state = editorViewStates.get(tab.id)
+  if (state) editor.restoreViewState(state)
+
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => saveYaml(tab))
   editor.onDidChangeModelContent(() => { tab.content = editor.getValue() })
   editors.set(tab.id, editor)
-
 }
 
 // Больше не ставим originalContent здесь: App.vue делает это только после успешного apply
