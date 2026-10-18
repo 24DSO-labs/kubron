@@ -98,6 +98,10 @@ export const replicaSet = defineResource<k8s.ReplicaSetInfo>({
   sections: [ImagesSection],
   tabs: [{ id: 'pods', label: 'Pods', component: PodsTab }],
 
+  actions: [
+    { id: 'scale', label: 'Scale', icon: 'scale', run: (r, ctx) => ctx.requestScale(r, 'ReplicaSet') },
+  ],
+
   api: {
     list: ns => callApp('GetReplicaSets', ns),
     remove: (ns, n) => callApp('DeleteReplicaSet', ns, n),
