@@ -11,6 +11,7 @@ export const Perm = {
   PortForward: 'portforward',
   ClusterManage: 'clusters.manage',
   UsersManage: 'users.manage',
+  AuditRead: 'audit.read',
 } as const
 
 export type Permission = (typeof Perm)[keyof typeof Perm]
@@ -44,4 +45,5 @@ export const PERMISSION_LABELS: Record<string, string> = {
   [Perm.PortForward]: 'Проброс портов',
   [Perm.ClusterManage]: 'Управление кластерами',
   [Perm.UsersManage]: 'Управление пользователями',
+  [Perm.AuditRead]: 'Просмотр журнала аудита',
 }
