@@ -275,10 +275,6 @@ function fmtRes(c: any, kind: 'requests' | 'limits'): string {
   margin-top: 8px; max-height: 340px; overflow-y: auto;
   background: #1a1b2e; border: 1px solid #2a2b40; border-radius: 6px;
 }
-.ct-env-box::-webkit-scrollbar { width: 6px; }
-.ct-env-box::-webkit-scrollbar-track { background: transparent; }
-.ct-env-box::-webkit-scrollbar-thumb { background: #3e3f5e; border-radius: 3px; }
-.ct-env-box::-webkit-scrollbar-thumb:hover { background: #4e4f6e; }
 .ct-env-empty { padding: 10px 12px; }
 
 .ct-env:last-child { border-bottom: none; }
