@@ -36,3 +36,16 @@ export function podStatusSummary(item: any): string {
   })
   return entries.map(([phase, n]) => `${phase}: ${n}`).join(', ')
 }
+
+export type PodOwnerKind = 'deployment' | 'replicaset' | 'daemonset' | 'statefulset' | 'job'
+
+/** Regex имён подов ресурса для PromQL (pod=~"..."; в Prometheus regex всегда с якорями) */
+export function podNameRegex(kind: PodOwnerKind, name: string): string {
+  const n = name.replace(/\./g, '[.]')
+  switch (kind) {
+    case 'deployment': return `${n}-[a-z0-9]{8,10}-[a-z0-9]{5}` // <dep>-<hash ReplicaSet>-<5>
+    case 'statefulset': return `${n}-[0-9]+`
+    case 'job': return `${n}-([0-9]+-)?[a-z0-9]{5}` // у Indexed-Job в имени есть индекс
+    default: return `${n}-[a-z0-9]{5}` // daemonset, replicaset
+  }
+}
