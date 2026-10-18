@@ -101,11 +101,10 @@ export const resourceActions: ActionContext & {
     scaleTarget.value = null
     if (!t) return
     const kind = t._kind || t.kind || 'Deployment'
-    const method = kind === 'StatefulSet' ? 'ScaleStatefulSet' : 'ScaleDeployment'
-    const kindLabel = kind === 'StatefulSet' ? 'StatefulSet' : 'Deployment'
+    const method = kind === 'StatefulSet' ? 'ScaleStatefulSet' : kind === 'ReplicaSet' ? 'ScaleReplicaSet' : 'ScaleDeployment'
     await resourceActions.perform(
       () => callApp(method, t.namespace, t.name, replicas),
-      `${kindLabel} ${t.name} scaled to ${replicas} replicas`,
+      `${kind} ${t.name} scaled to ${replicas} replicas`,
     )
   },
 
