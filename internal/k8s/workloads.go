@@ -13,21 +13,21 @@ import (
 // === StatefulSets ===
 
 type StatefulSetInfo struct {
-	Name          string            `json:"name"`
-	Namespace     string            `json:"namespace"`
-	Replicas      int32             `json:"replicas"`
-	ReadyReplicas int32             `json:"readyReplicas"`
-	Age           string            `json:"age"`
-	Images        []string          `json:"images"`
-	ServiceName   string            `json:"serviceName"`
+	Name          string   `json:"name"`
+	Namespace     string   `json:"namespace"`
+	Replicas      int32    `json:"replicas"`
+	ReadyReplicas int32    `json:"readyReplicas"`
+	Age           string   `json:"age"`
+	Images        []string `json:"images"`
+	ServiceName   string   `json:"serviceName"`
 
-	Selector       string            `json:"selector"`
-	Strategy       string            `json:"strategy"`
-	NodeSelector   string            `json:"nodeSelector"`
-	Labels         map[string]string `json:"labels"`
-	Annotations    map[string]string `json:"annotations"`
-	Tolerations    []TolerationInfo  `json:"tolerations"`
-	Affinity       *AffinityInfo     `json:"affinity"`
+	Selector        string               `json:"selector"`
+	Strategy        string               `json:"strategy"`
+	NodeSelector    string               `json:"nodeSelector"`
+	Labels          map[string]string    `json:"labels"`
+	Annotations     map[string]string    `json:"annotations"`
+	Tolerations     []TolerationInfo     `json:"tolerations"`
+	Affinity        *AffinityInfo        `json:"affinity"`
 	PodAntiAffinity *PodAntiAffinityInfo `json:"podAntiAffinity"`
 }
 
@@ -194,20 +194,20 @@ func (m *Manager) GetStatefulSets(namespace string) ([]StatefulSetInfo, error) {
 		}
 
 		items = append(items, StatefulSetInfo{
-			Name:          s.Name,
-			Namespace:     s.Namespace,
-			Replicas:      replicas,
-			ReadyReplicas: s.Status.ReadyReplicas,
-			Age:           formatAge(s.CreationTimestamp.Time),
-			Images:        images,
-			ServiceName:   s.Spec.ServiceName,
-			Selector:      selector,
-			Strategy:      string(s.Spec.UpdateStrategy.Type),
-			NodeSelector:  nodeSelectorStr,
-			Labels:        s.Labels,
-			Annotations:   s.Annotations,
-			Tolerations:   tolerations,
-			Affinity:      affinity,
+			Name:            s.Name,
+			Namespace:       s.Namespace,
+			Replicas:        replicas,
+			ReadyReplicas:   s.Status.ReadyReplicas,
+			Age:             formatAge(s.CreationTimestamp.Time),
+			Images:          images,
+			ServiceName:     s.Spec.ServiceName,
+			Selector:        selector,
+			Strategy:        string(s.Spec.UpdateStrategy.Type),
+			NodeSelector:    nodeSelectorStr,
+			Labels:          s.Labels,
+			Annotations:     s.Annotations,
+			Tolerations:     tolerations,
+			Affinity:        affinity,
 			PodAntiAffinity: podAntiAffinity,
 		})
 	}
@@ -449,15 +449,21 @@ func (m *Manager) GetDaemonSets(namespace string) ([]DaemonSetInfo, error) {
 // === Jobs ===
 
 type JobInfo struct {
-	Name        string `json:"name"`
-	Namespace   string `json:"namespace"`
-	Completions string `json:"completions"`
-	Succeeded   int32  `json:"succeeded"`
-	Failed      int32  `json:"failed"`
-	Active      int32  `json:"active"`
-	Duration    string `json:"duration"`
-	Age         string `json:"age"`
-	Status      string `json:"status"`
+	Name        string   `json:"name"`
+	Namespace   string   `json:"namespace"`
+	Completions string   `json:"completions"`
+	Succeeded   int32    `json:"succeeded"`
+	Failed      int32    `json:"failed"`
+	Active      int32    `json:"active"`
+	Duration    string   `json:"duration"`
+	Age         string   `json:"age"`
+	Status      string   `json:"status"`
+	Conditions  []string `json:"conditions"`
+}
+
+type jobWarn struct {
+	count int
+	msg   string
 }
 
 func (m *Manager) GetJobs(namespace string) ([]JobInfo, error) {
@@ -481,11 +487,30 @@ func (m *Manager) GetJobs(namespace string) ([]JobInfo, error) {
 			completions = fmt.Sprintf("%d", *j.Spec.Completions)
 		}
 
+		conds := make([]string, 0, len(j.Status.Conditions))
+		var failed, complete, suspended bool
+		for _, c := range j.Status.Conditions {
+			if string(c.Status) != "True" {
+				continue
+			}
+			conds = append(conds, string(c.Type))
+			switch c.Type {
+			case batchv1.JobFailed:
+				failed = true
+			case batchv1.JobComplete:
+				complete = true
+			case batchv1.JobSuspended:
+				suspended = true
+			}
+		}
 		status := "Running"
-		if j.Status.Succeeded > 0 {
-			status = "Complete"
-		} else if j.Status.Failed > 0 {
+		switch {
+		case failed:
 			status = "Failed"
+		case complete:
+			status = "Complete"
+		case suspended:
+			status = "Suspended"
 		}
 
 		duration := ""
@@ -494,7 +519,8 @@ func (m *Manager) GetJobs(namespace string) ([]JobInfo, error) {
 			if j.Status.CompletionTime != nil {
 				end = j.Status.CompletionTime.Time
 			}
-			duration = formatAge(end.Add(-end.Sub(j.Status.StartTime.Time)))
+			// formatAge форматирует «сколько прошло с момента t»: сдвигаем t на длительность
+			duration = formatAge(time.Now().Add(-end.Sub(j.Status.StartTime.Time)))
 		}
 
 		items = append(items, JobInfo{
@@ -507,6 +533,7 @@ func (m *Manager) GetJobs(namespace string) ([]JobInfo, error) {
 			Duration:    duration,
 			Age:         formatAge(j.CreationTimestamp.Time),
 			Status:      status,
+			Conditions:  conds,
 		})
 	}
 	return items, nil
@@ -521,7 +548,8 @@ func (m *Manager) DeleteJob(namespace, jobName string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	return conn.Client.BatchV1().Jobs(namespace).Delete(ctx, jobName, metav1.DeleteOptions{})
+	policy := metav1.DeletePropagationBackground
+	return conn.Client.BatchV1().Jobs(namespace).Delete(ctx, jobName, metav1.DeleteOptions{PropagationPolicy: &policy})
 }
 
 func (m *Manager) DeleteDaemonSet(namespace, daemonSetName string) error {
