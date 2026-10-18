@@ -233,6 +233,14 @@ func (a *App) GetCronJobs(namespace string) ([]k8s.CronJobInfo, error) {
 	return a.k8sMgr.GetCronJobs(namespace)
 }
 
+func (a *App) GetCronJobJobs(namespace, cronJobName string) ([]k8s.JobInfo, error) {
+	return a.k8sMgr.GetCronJobJobs(namespace, cronJobName)
+}
+
+func (a *App) GetCronJobDetail(namespace, name string) (*k8s.CronJobDetail, error) {
+	return a.k8sMgr.GetCronJobDetail(namespace, name)
+}
+
 // === Services ===
 
 func (a *App) GetServices(namespace string) ([]k8s.ServiceInfo, error) {
