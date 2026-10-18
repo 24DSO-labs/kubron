@@ -9,7 +9,7 @@
         <div class="scale-info">
           <div class="info-row">
             <span class="info-label">Current replica scale:</span>
-            <span class="info-value">{{ deployment?.replicas }}</span>
+            <span class="info-value">{{ deployment?.replicas ?? deployment?.desired }}</span>
           </div>
           <div class="info-row">
             <span class="info-label">Desired number of replicas:</span>
@@ -47,7 +47,7 @@ import { ref } from 'vue'
 import type { DeploymentInfo } from '../../types'
 
 const props = defineProps<{
-  deployment: (DeploymentInfo & { _kind?: string }) | null
+  deployment: (DeploymentInfo & { _kind?: string; desired?: number }) | null
 }>()
 
 const emit = defineEmits<{
@@ -55,7 +55,7 @@ const emit = defineEmits<{
   (e: 'scale', replicas: number): void
 }>()
 
-const desiredReplicas = ref(props.deployment?.replicas || 1)
+const desiredReplicas = ref(props.deployment?.replicas ?? props.deployment?.desired ?? 1)
 const loading = ref(false)
 const maxReplicas = ref(20)
 

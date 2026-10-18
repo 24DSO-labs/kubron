@@ -122,6 +122,30 @@ func (m *Manager) GetReplicaSet(namespace, name string) (*appsv1.ReplicaSet, err
 	return conn.Client.AppsV1().ReplicaSets(namespace).Get(ctx, name, metav1.GetOptions{})
 }
 
+func (m *Manager) ScaleReplicaSet(namespace, name string, replicas int32) error {
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	scale, err := conn.Client.AppsV1().ReplicaSets(namespace).GetScale(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("не удалось получить scale: %w", err)
+	}
+
+	scale.Spec.Replicas = replicas
+
+	_, err = conn.Client.AppsV1().ReplicaSets(namespace).UpdateScale(ctx, name, scale, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("не удалось масштабировать: %w", err)
+	}
+
+	return nil
+}
+
 func (m *Manager) DeleteReplicaSet(namespace, name string) error {
 	conn, err := m.GetActiveConnection()
 	if err != nil {
