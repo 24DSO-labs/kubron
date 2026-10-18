@@ -476,7 +476,12 @@ func (s *Service) UpdateRole(id string, role Role) (*UserInfo, error) {
 	if !role.Valid() {
 		return nil, ErrUnknownRole
 	}
-	return s.mutate(id, func(_, t *userRecord) error {
+	return s.mutate(id, func(actor, t *userRecord) error {
+		// Свою роль менять нельзя: иначе уже запущенные терминалы и port-forward
+		// пережили бы потерю прав. Понизить администратора может только другой администратор.
+		if actor.ID == t.ID && role != t.Role {
+			return ErrSelfAction
+		}
 		if t.Role == RoleAdmin && role != RoleAdmin && !t.Disabled && s.st.enabledAdmins() <= 1 {
 			return ErrLastAdmin
 		}

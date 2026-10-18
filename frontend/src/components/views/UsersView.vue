@@ -37,7 +37,8 @@
             <span v-if="isSelf(u)" class="badge badge-you">это вы</span>
           </td>
           <td>
-            <select class="form-input role-select" :value="u.role" :disabled="busyId === u.id"
+            <select class="form-input role-select" :value="u.role" :disabled="isSelf(u) || busyId === u.id"
+              :title="isSelf(u) ? 'Свою роль изменить нельзя' : ''"
               @change="changeRole(u, ($event.target as HTMLSelectElement).value)">
               <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.label }}</option>
             </select>
