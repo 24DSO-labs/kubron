@@ -18,8 +18,7 @@ export const service = defineResource<k8s.ServiceInfo, k8s.ServiceDetail>({
 
   columns: [
     flatNameCol,
-    flatNsCol,
-    { key: 'type', label: 'Type' },
+    { ...flatNsCol, link: (s: any) => s.namespace ? { id: 'namespace', ns: '', name: s.namespace } : null },
     { key: 'clusterIP', label: 'Cluster IP' },
     { key: 'externalIP', label: 'External IP' },
     { key: 'ports', label: 'Ports' },

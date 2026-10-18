@@ -15,7 +15,7 @@ export const limitRange = defineResource<k8s.LimitRangeInfo>({
 
   columns: [
     flatNameCol,
-    flatNsCol,
+    { ...flatNsCol, link: (lr: any) => lr.namespace ? { id: 'namespace', ns: '', name: lr.namespace } : null },
     { key: 'items', label: 'Limits' },
     ageCol,
   ],

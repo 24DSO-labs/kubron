@@ -26,7 +26,7 @@ export const event = defineResource<k8s.EventInfo>({
     },
     { key: 'reason', label: 'Reason' },
     { key: 'object', label: 'Object' },
-    flatNsCol,
+    { ...flatNsCol, link: (e: any) => e.namespace ? { id: 'namespace', ns: '', name: e.namespace } : null },
     { key: 'message', label: 'Message' },
     { key: 'count', label: 'Count' },
     ageCol,
