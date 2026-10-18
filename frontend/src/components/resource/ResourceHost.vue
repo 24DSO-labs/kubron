@@ -9,7 +9,7 @@
     @close="resourceActions.closeDetail()"
   />
 
-  <ScaleDeploymentDialog
+  <ScaleDialog
     v-if="scaleTarget"
     :deployment="scaleTarget"
     @close="resourceActions.cancelScale()"
@@ -44,7 +44,7 @@
 import { computed, ref, shallowRef, watch } from 'vue'
 import ResourceDetailPanel from './ResourceDetailPanel.vue'
 import ConfirmationDialog from '../utils/ConfirmationDialog.vue'
-import ScaleDeploymentDialog from '../panels/ScaleDeploymentDialog.vue'
+import ScaleDialog from '../panels/ScaleDialog.vue'
 import { getResourceById } from '../../resources/registry'
 import { findLoaded } from '../../resources/store'
 import { itemName, itemNs } from '../../resources/utils'
