@@ -1,20 +1,21 @@
 <template>
-  <MetricsBlock v-if="resource.selector">
-    <StatefulSetMetricsViewer
+  <MetricsBlock v-if="cluster">
+    <PodSetMetricsViewer
       :cluster-name="cluster || ''"
       :namespace="resource.namespace"
-      :statefulset-name="resource.name"
-      :selector="resource.selector"
+      :pod-regex="podRegex"
     />
   </MetricsBlock>
 </template>
 
 <script lang="ts" setup>
-import { inject } from 'vue'
+import { computed, inject } from 'vue'
 import MetricsBlock from './MetricsBlock.vue'
-import StatefulSetMetricsViewer from '../../metrics/StatefulSetMetricsViewer.vue'
+import PodSetMetricsViewer from '../../metrics/PodSetMetricsViewer.vue'
 import { clusterNameKey } from '../../../resources/context'
+import { podNameRegex } from '../../../resources/utils'
 
-defineProps<{ resource: any }>()
+const props = defineProps<{ resource: any }>()
 const cluster = inject(clusterNameKey, null)
+const podRegex = computed(() => podNameRegex('statefulset', String(props.resource?.name ?? '')))
 </script>

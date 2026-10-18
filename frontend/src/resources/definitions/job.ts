@@ -53,11 +53,13 @@ export const job = defineResource<k8s.JobInfo>({
       id: 'retry',
       label: 'Retry',
       icon: 'restart',
-      run: (j, ctx) =>
-        ctx.perform(
+      run: async (j, ctx) => {
+        if (!(await ctx.confirm(`Re-run job ${j.name}? The Job and its pods (with logs) will be deleted and created again.`))) return
+        return ctx.perform(
           () => callApp('RetryJob', j.namespace, j.name),
           `Job ${j.name} retry initiated`,
-        ),
+        )
+      },
     },
   ],
 
