@@ -96,7 +96,7 @@
             </div>
           </div>
 
-          <button @click="handleInstall" :disabled="loading"
+          <button v-if="canModify" @click="handleInstall" :disabled="loading"
             class="settings-install-btn">
             <svg v-if="loading" class="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10"
@@ -106,6 +106,7 @@
             </svg>
             {{ loading ? 'Установка...' : 'Установить стек метрик' }}
           </button>
+          <p v-else class="settings-not-installed-text">Установка стека метрик доступна администратору.</p>
         </div>
 
         <!-- INSTALLING -->
@@ -147,7 +148,7 @@
           </div>
 
           <!-- Uninstall -->
-          <div class="settings-uninstall-section">
+          <div v-if="canModify" class="settings-uninstall-section">
             <div class="settings-uninstall-row">
               <div>
                 <p class="text-sm text-gray-300">Удалить стек метрик</p>
@@ -215,11 +216,11 @@
               class="settings-refresh-btn">
               Обновить
             </button>
-            <button @click="handleReinstall" :disabled="loading"
+            <button v-if="canModify" @click="handleReinstall" :disabled="loading"
               class="settings-reinstall-btn">
               Переустановить
             </button>
-            <button @click="showConfirm = true"
+            <button v-if="canModify" @click="showConfirm = true"
               class="settings-delete-btn">
               Удалить
             </button>
@@ -252,10 +253,15 @@ import { ref, computed, onMounted } from 'vue'
 import MetricsStatusBadge from '../metrics/MetricsStatusBadge.vue'
 import { useMetricsStatus } from '../../composables/useMetrics'
 import { useAppSettings } from '../../composables/useAppSettings'
+import { can } from '../../composables/useAuth'
+import { Perm } from '../../types/auth'
 
 const props = defineProps<{
   clusterName: string
 }>()
+
+// Установка и удаление стека метрик изменяют кластер
+const canModify = computed(() => can(Perm.Write))
 
 const {
   status,

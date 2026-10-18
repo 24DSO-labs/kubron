@@ -387,3 +387,20 @@ func (m *Manager) execRaw(namespace, pod, container string, command []string) (s
 
 	return stdout.String(), nil
 }
+
+// CloseAllTerminals закрывает все открытые терминальные сессии (например, при выходе пользователя).
+func (m *Manager) CloseAllTerminals() {
+	if m.terminalSessions == nil {
+		return
+	}
+	m.terminalSessions.mu.RLock()
+	ids := make([]string, 0, len(m.terminalSessions.sessions))
+	for id := range m.terminalSessions.sessions {
+		ids = append(ids, id)
+	}
+	m.terminalSessions.mu.RUnlock()
+
+	for _, id := range ids {
+		_ = m.CloseTerminal(id)
+	}
+}
