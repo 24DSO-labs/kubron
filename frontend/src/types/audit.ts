@@ -1,0 +1,85 @@
+/** Результат действия; значения совпадают с internal/audit */
+export type AuditResult = 'ok' | 'failed' | 'denied'
+
+/** Запись журнала (internal/audit.Event) */
+export interface AuditEvent {
+  time: string
+  user: string
+  role?: string
+  action: string
+  result: AuditResult | string
+  detail?: string
+}
+
+/** Условия выборки (internal/audit.Filter) */
+export interface AuditFilter {
+  user: string
+  action: string
+  text: string
+  result: string
+  since: string
+  until: string
+  limit: number
+}
+
+/** Ответ GetAuditLog (internal/audit.Page) */
+export interface AuditPage {
+  events: AuditEvent[]
+  truncated: boolean
+  writeError: string
+}
+
+export const RESULT_LABELS: Record<string, string> = {
+  ok: 'Выполнено',
+  failed: 'Ошибка',
+  denied: 'Отказано',
+}
+
+const ACTION_LABELS: Record<string, string> = {
+  Setup: 'Первичная настройка',
+  Login: 'Вход',
+  Logout: 'Выход',
+  SessionTimeout: 'Автовыход по бездействию',
+  SetIdleTimeout: 'Настройка автовыхода',
+  ChangePassword: 'Смена пароля',
+  CreateUser: 'Создание пользователя',
+  UpdateUserRole: 'Смена роли',
+  SetUserDisabled: 'Блокировка / разблокировка',
+  ResetUserPassword: 'Сброс пароля',
+  DeleteUser: 'Удаление пользователя',
+  ApplyYAML: 'Применение YAML',
+  ExecCommand: 'Выполнение команды в поде',
+  DetectShell: 'Определение shell в поде',
+  StartTerminalSession: 'Открытие терминала',
+  CloseTerminal: 'Закрытие терминала',
+  GetSecretValue: 'Просмотр значения секрета',
+  StartPortForward: 'Проброс порта (под)',
+  StartServicePortForward: 'Проброс порта (сервис)',
+  StopPortForward: 'Остановка проброса порта',
+  AddClusterFromFile: 'Добавление кластера (файл)',
+  AddClusterFromText: 'Добавление кластера (текст)',
+  UpdateCluster: 'Изменение кластера',
+  DeleteCluster: 'Удаление кластера',
+  InstallMetricsStack: 'Установка стека метрик',
+  UninstallMetricsStack: 'Удаление стека метрик',
+  GetAuditLog: 'Просмотр журнала',
+}
+
+const ACTION_VERBS: [string, string][] = [
+  ['Delete', 'Удаление'],
+  ['Scale', 'Масштабирование'],
+  ['Restart', 'Перезапуск'],
+  ['Rollback', 'Откат'],
+  ['Retry', 'Повтор'],
+  ['Evict', 'Выселение'],
+]
+
+/** Понятное название действия; неизвестные имена показываются как есть */
+export function actionLabel(action: string): string {
+  const exact = ACTION_LABELS[action]
+  if (exact) return exact
+  for (const [prefix, verb] of ACTION_VERBS) {
+    if (action.startsWith(prefix) && action.length > prefix.length) return `${verb}: ${action.slice(prefix.length)}`
+  }
+  return action
+}
