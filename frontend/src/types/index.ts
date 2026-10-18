@@ -302,7 +302,14 @@ export interface CronJobInfo {
   suspend: boolean
   active: number
   lastSchedule: string
+  nextExecution: string
+  timeZone: string
   age: string
+}
+
+export interface CronJobDetail extends CronJobInfo {
+  labels?: Record<string, string>
+  annotations?: Record<string, string>
 }
 
 export interface ServiceInfo {
