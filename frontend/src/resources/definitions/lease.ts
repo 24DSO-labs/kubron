@@ -15,7 +15,7 @@ export const lease = defineResource<k8s.LeaseInfo>({
 
   columns: [
     flatNameCol,
-    flatNsCol,
+    { ...flatNsCol, link: (l: any) => l.namespace ? { id: 'namespace', ns: '', name: l.namespace } : null },
     { key: 'holder', label: 'Holder' },
     ageCol,
   ],

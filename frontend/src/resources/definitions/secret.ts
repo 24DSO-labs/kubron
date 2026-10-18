@@ -16,9 +16,7 @@ export const secret = defineResource<k8s.SecretInfo>({
 
   columns: [
     flatNameCol,
-    flatNsCol,
-    { key: 'type', label: 'Type' },
-    { key: 'dataCount', label: 'Data' },
+    { ...flatNsCol, link: (s: any) => s.namespace ? { id: 'namespace', ns: '', name: s.namespace } : null },
     ageCol,
   ],
 
