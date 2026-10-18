@@ -55,9 +55,10 @@ export const statefulSet = defineResource<k8s.StatefulSetInfo>({
   ],
 
   actions: [
-    { id: 'scale', label: 'Scale', icon: 'scale', run: (d, ctx) => ctx.requestScale(d, 'StatefulSet') },
+    { id: 'scale', permission: Perm.Operate, label: 'Scale', icon: 'scale', run: (d, ctx) => ctx.requestScale(d, 'StatefulSet') },
     {
       id: 'restart',
+      permission: Perm.Operate,
       label: 'Restart',
       icon: 'restart',
       run: async (s, ctx) => {

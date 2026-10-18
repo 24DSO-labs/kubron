@@ -14,7 +14,10 @@ const (
 	PermRead Permission = "read"
 	// PermSecretsRead — просмотр значений Secret (отдельно от read, чтобы его можно было отозвать).
 	PermSecretsRead Permission = "secrets.read"
-	// PermWrite — любые изменения ресурсов: удаление, scale, restart, rollback, apply YAML и т.п.
+	// PermOperate — безопасные операции с нагрузками: scale, restart, rollback, повтор Job.
+	// Не даёт удалять ресурсы и менять их YAML (для этого нужен PermWrite).
+	PermOperate Permission = "operate"
+	// PermWrite — изменения ресурсов с повышенным риском: удаление, выселение подов, apply YAML и т.п.
 	PermWrite Permission = "write"
 	// PermExec — терминал / exec внутри подов.
 	PermExec Permission = "exec"
@@ -32,6 +35,7 @@ const (
 var allPermissions = []Permission{
 	PermRead,
 	PermSecretsRead,
+	PermOperate,
 	PermWrite,
 	PermExec,
 	PermPortForward,
@@ -44,8 +48,9 @@ var allPermissions = []Permission{
 type Role string
 
 const (
-	RoleAdmin Role = "admin"
-	RoleUser  Role = "user"
+	RoleAdmin    Role = "admin"
+	RoleOperator Role = "operator"
+	RoleUser     Role = "user"
 )
 
 type roleDef struct {
@@ -58,11 +63,15 @@ type roleDef struct {
 var roles = map[Role]roleDef{
 	// Администратор может всё. Для него Has всегда true, в том числе для будущих прав.
 	RoleAdmin: {label: "Администратор", permissions: allPermissions},
+	// Оператор: всё, что может пользователь, плюс scale / restart / rollback / повтор Job.
+	// Не может удалять ресурсы, менять YAML, открывать терминал, пробрасывать порты и управлять
+	// кластерами и пользователями.
+	RoleOperator: {label: "Оператор", permissions: []Permission{PermRead, PermSecretsRead, PermOperate}},
 	// Пользователь: только чтение всего (включая значения секретов, как и договорено).
 	RoleUser: {label: "Пользователь", permissions: []Permission{PermRead, PermSecretsRead}},
 }
 
-var roleOrder = []Role{RoleAdmin, RoleUser}
+var roleOrder = []Role{RoleAdmin, RoleOperator, RoleUser}
 
 // Valid сообщает, известна ли роль.
 func (r Role) Valid() bool {
