@@ -48,6 +48,10 @@
         @click="emit('navigate', 'users')">
         <span class="nav-icon">👥</span> Users
       </div>
+      <div v-if="can(Perm.AuditRead)" :class="['nav-item', { active: currentView === 'audit' }]"
+        @click="emit('navigate', 'audit')">
+        <span class="nav-icon">📜</span> Audit
+      </div>
     </nav>
 
     <!-- Namespace selector -->
