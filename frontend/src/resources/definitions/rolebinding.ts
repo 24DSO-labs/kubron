@@ -8,7 +8,7 @@ export const roleBinding = defineResource({
   kind: 'RoleBinding',
   view: 'rolebindings',
   title: 'Role Bindings',
-  icon: 'bind-role',
+  // icon: 'bind-role',
   namespaced: true,
   nav: { group: 'access', label: 'Role Bindings' },
   columns: [nameCol, { ...nsCol, link: (r: any) => r.metadata?.namespace ? { id: 'namespace', ns: '', name: r.metadata.namespace } : null }, ageCol],

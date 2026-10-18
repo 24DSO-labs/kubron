@@ -11,7 +11,8 @@ export const priorityClass = defineResource<k8s.PriorityClassInfo>({
   namespaced: false,
   nav: { group: 'config', label: 'Priority Classes' },
   
-  autoRefresh: true,icon: 'configmap',
+  autoRefresh: true,
+  // icon: 'configmap',
 
   columns: [
     flatNameCol,
