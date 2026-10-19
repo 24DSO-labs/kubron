@@ -5,6 +5,7 @@ import (
 	"analog/internal/auth"
 	"analog/internal/k8s"
 	"context"
+	"errors"
 	"net"
 	"strings"
 	"time"
@@ -50,21 +51,28 @@ func (a *App) GetClusterStatuses() []k8s.ClusterStatus {
 	return a.k8sMgr.GetClusterStatuses()
 }
 
-func (a *App) AddClusterFromFile(displayName, icon, color string) (*k8s.ClusterMeta, error) {
+// PickKubeconfigFile opens a native file dialog and returns the chosen path
+// (empty string when the dialog was cancelled).
+func (a *App) PickKubeconfigFile() (string, error) {
+	if err := a.authz(auth.PermClusterManage); err != nil {
+		return "", err
+	}
+	return wailsRuntime.OpenFileDialog(a.ctx, wailsRuntime.OpenDialogOptions{
+		Title: "Выберите kubeconfig файл",
+		Filters: []wailsRuntime.FileFilter{
+			{DisplayName: "All Files", Pattern: "*"},
+		},
+	})
+}
+
+// AddClusterFromFile adds a cluster from a kubeconfig file previously chosen
+// with PickKubeconfigFile.
+func (a *App) AddClusterFromFile(path, displayName, icon, color string) (*k8s.ClusterMeta, error) {
 	if err := a.authz(auth.PermClusterManage, "displayName", displayName); err != nil {
 		return nil, err
 	}
-	path, err := wailsRuntime.OpenFileDialog(a.ctx, wailsRuntime.OpenDialogOptions{
-		Title: "Выберите kubeconfig файл",
-		Filters: []wailsRuntime.FileFilter{
-			{DisplayName: "All Files", Pattern: "."},
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
 	if path == "" {
-		return nil, nil
+		return nil, errors.New("kubeconfig file is not selected")
 	}
 	return k8s.AddClusterFromFile(path, displayName, icon, color)
 }

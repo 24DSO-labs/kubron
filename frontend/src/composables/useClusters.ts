@@ -28,11 +28,21 @@ async function connectToCluster(id: string) {
   }
 }
 
-async function addClusterFromFile(displayName: string, icon: string, color: string) {
+async function pickKubeconfigFile(): Promise<string> {
+  try {
+    const { PickKubeconfigFile } = await import('../../wailsjs/go/main/App')
+    return (await PickKubeconfigFile()) || ''
+  } catch (e: any) {
+    clusterError.value = e.message || String(e)
+    return ''
+  }
+}
+
+async function addClusterFromFile(path: string, displayName: string, icon: string, color: string) {
   try {
     clusterError.value = ''
     const { AddClusterFromFile } = await import('../../wailsjs/go/main/App')
-    const result = await AddClusterFromFile(displayName, icon, color)
+    const result = await AddClusterFromFile(path, displayName, icon, color)
     if (result) {
       await loadClusters()
     }
@@ -105,6 +115,7 @@ export function useClusters() {
     clusterError,
     loadClusters,
     connectToCluster,
+    pickKubeconfigFile,
     addClusterFromFile,
     addClusterFromText,
     deleteCluster,
