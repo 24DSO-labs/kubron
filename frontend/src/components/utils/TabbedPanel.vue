@@ -59,7 +59,7 @@
           <div class="logs-content">
             <div v-if="(tab as LogsTab).loading" class="logs-loading">⏳ Loading...</div>
             <pre v-else-if="(tab as LogsTab).rawLogs" class="logs-text" :class="{ 'no-wrap': !wrapLines }"
-              v-html="searchText ? getHighlightedLogs(tab as LogsTab) : getDisplayedLogs(tab as LogsTab)"></pre>
+              v-html="getHighlightedLogs(tab as LogsTab)"></pre>
             <div v-else class="logs-empty">No logs</div>
           </div>
         </div>
@@ -253,11 +253,22 @@ function getDisplayedLogs(tab: LogsTab): string {
   return logs.split('\n').filter((line: string) => line.toLowerCase().includes(search)).join('\n')
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+// Safe HTML for v-html: container output is untrusted, so it is always escaped
+// first; the search term is escaped the same way so it matches the escaped text.
 function getHighlightedLogs(tab: LogsTab): string {
-  if (!tab.rawLogs || !searchText.value) return tab.rawLogs || ''
-  const logs = getDisplayedLogs(tab)
-  const escaped = searchText.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return logs.replace(new RegExp(`(${escaped})`, 'gi'), '<mark class="search-highlight">$1</mark>')
+  const logs = escapeHtml(getDisplayedLogs(tab))
+  if (!searchText.value) return logs
+  const term = escapeHtml(searchText.value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return logs.replace(new RegExp(`(${term})`, 'gi'), '<mark class="search-highlight">$1</mark>')
 }
 
 async function loadResourcePods(tab: LogsTab) {
