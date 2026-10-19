@@ -1,5 +1,5 @@
 # Openkubron Monitoring Components
-# Unified manifest for lens-metrics namespace with all required components
+# Unified manifest for kubron-metrics namespace with all required components
 
 ---
 # Namespace
@@ -48,7 +48,7 @@ metadata:
     app.kubernetes.io/created-by: resource-stack
 rules:
 - apiGroups: [""]
-  resources: [configmaps, secrets, nodes, pods, services, resourcequotas, replicationcontrollers, limitranges, persistentvolumeclaims, persistentvolumes, namespaces, endpoints]
+  resources: [nodes, pods, services, resourcequotas, replicationcontrollers, limitranges, persistentvolumeclaims, persistentvolumes, namespaces, endpoints]
   verbs: [list, watch]
 - apiGroups: [apps]
   resources: [statefulsets, daemonsets, deployments, replicasets]
@@ -63,19 +63,10 @@ rules:
   resources: [poddisruptionbudgets]
   verbs: [list, watch]
 - apiGroups: [storage.k8s.io]
-  resources: [storageclasses, volumeattachments]
+  resources: [storageclasses]
   verbs: [list, watch]
 - apiGroups: [networking.k8s.io]
   resources: [networkpolicies, ingresses]
-  verbs: [list, watch]
-- apiGroups: [admissionregistration.k8s.io]
-  resources: [mutatingwebhookconfigurations, validatingwebhookconfigurations]
-  verbs: [list, watch]
-- apiGroups: [coordination.k8s.io]
-  resources: [leases]
-  verbs: [list, watch]
-- apiGroups: [certificates.k8s.io]
-  resources: [certificatesigningrequests]
   verbs: [list, watch]
 
 ---
@@ -109,7 +100,7 @@ metadata:
     app.kubernetes.io/created-by: resource-stack
 rules:
 - apiGroups: [""]
-  resources: [nodes, nodes/proxy, nodes/metrics, services, services/proxy, endpoints, pods, configmaps, secrets]
+  resources: [nodes, nodes/proxy, nodes/metrics, services, services/proxy, endpoints, pods]
   verbs: [get, list, watch]
 - apiGroups: [extensions]
   resources: [ingresses]
@@ -140,7 +131,7 @@ subjects:
   namespace: kubron-metrics
 
 ---
-# RoleBinding в kubron-metrics для всех authenticated пользователей для доступа к services/proxy
+# Role для доступа к Prometheus через services/proxy (привязывается вручную)
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -153,28 +144,15 @@ metadata:
 rules:
 - apiGroups: [""]
   resources: [services/proxy]
-  resourceNames: [prometheus]
+  # Kubernetes сопоставляет имя в виде "сервис:порт" (Kubron ходит на prometheus:web)
+  resourceNames: [prometheus, "prometheus:web"]
   verbs: [get]
 
 ---
-# RoleBinding для всех authenticated пользователей в kubron-metrics namespace
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: prometheus-proxy-access
-  namespace: kubron-metrics
-  labels:
-    app.kubernetes.io/name: kubron-metrics
-    app.kubernetes.io/managed-by: kubron
-    app.kubernetes.io/created-by: resource-stack
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: prometheus-proxy-access
-subjects:
-- kind: Group
-  name: system:authenticated
-  apiGroup: rbac.authorization.k8s.io
+# Доступ к Prometheus через API-прокси НЕ выдаётся всем аутентифицированным пользователям:
+# метрики раскрывают имена подов и namespace всего кластера. Чтобы дать доступ команде,
+# создайте RoleBinding на Role prometheus-proxy-access в namespace kubron-metrics.
+# Администраторы кластера имеют доступ без дополнительных привязок.
 
 ---
 # ConfigMap для конфигурации Prometheus
@@ -598,6 +576,9 @@ spec:
       - name: kube-state-metrics
         image: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.11.0
         imagePullPolicy: IfNotPresent
+        args:
+        # Только то, что нужно Kubron; секреты и configmaps не читаем (см. ClusterRole)
+        - --resources=cronjobs,daemonsets,deployments,endpoints,horizontalpodautoscalers,ingresses,jobs,limitranges,namespaces,networkpolicies,nodes,persistentvolumeclaims,persistentvolumes,poddisruptionbudgets,pods,replicasets,replicationcontrollers,resourcequotas,services,statefulsets,storageclasses
         ports:
         - containerPort: 8080
           name: metrics
