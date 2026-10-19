@@ -368,18 +368,30 @@ func (a *App) GetCronJobs(namespace string) ([]k8s.CronJobInfo, error) {
 }
 
 func (a *App) GetCronJobJobs(namespace, cronJobName string) ([]k8s.JobInfo, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
 	return a.k8sMgr.GetCronJobJobs(namespace, cronJobName)
 }
 
 func (a *App) GetCronJobDetail(namespace, name string) (*k8s.CronJobDetail, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
 	return a.k8sMgr.GetCronJobDetail(namespace, name)
 }
 
 func (a *App) TriggerCronJob(namespace, name string) error {
+	if err := a.authz(auth.PermOperate, "namespace", namespace, "name", name); err != nil {
+		return err
+	}
 	return a.k8sMgr.TriggerCronJob(namespace, name)
 }
 
 func (a *App) ToggleCronJobSuspend(namespace, name string) (bool, error) {
+	if err := a.authz(auth.PermOperate, "namespace", namespace, "name", name); err != nil {
+		return false, err
+	}
 	return a.k8sMgr.ToggleCronJobSuspend(namespace, name)
 }
 
