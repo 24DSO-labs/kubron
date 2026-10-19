@@ -43,15 +43,3 @@ func convertPriorityClass(pc schedulingv1.PriorityClass) PriorityClassInfo {
 		Age:   formatAge(pc.CreationTimestamp.Time),
 	}
 }
-
-func (m *Manager) DeletePriorityClass(name string) error {
-conn, err := m.GetActiveConnection()
-if err != nil {
-return err
-}
-
-ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-defer cancel()
-
-return conn.Client.SchedulingV1().PriorityClasses().Delete(ctx, name, metav1.DeleteOptions{})
-}

@@ -27,6 +27,6 @@ export const networkPolicy = defineResource<k8s.NetworkPolicyInfo>({
 
   api: {
     list: ns => callApp('GetNetworkPolicies', ns),
-    remove: (ns, name) => callApp('DeleteNetworkPolicy', ns, name),
+    remove: (ns, name) => callApp('DeleteResource', 'networkpolicy', ns, name),
   },
 })

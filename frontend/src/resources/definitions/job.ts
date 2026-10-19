@@ -67,6 +67,6 @@ export const job = defineResource<k8s.JobInfo>({
 
   api: {
     list: ns => callApp('GetJobs', ns),
-    remove: (ns, name) => callApp('DeleteJob', ns, name),
+    remove: (ns, name) => callApp('DeleteResource', 'job', ns, name),
   },
 })

@@ -19,6 +19,6 @@ export const serviceAccount = defineResource({
   api: {
     list: ns => callApp('GetServiceAccounts', ns),
     get: (ns, n) => callApp('GetServiceAccountDetail', ns, n),
-    remove: (ns, n) => callApp('DeleteServiceAccount', ns, n),
+    remove: (ns, n) => callApp('DeleteResource', 'serviceaccount', ns, n),
   },
 })

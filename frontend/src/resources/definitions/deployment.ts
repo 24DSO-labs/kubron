@@ -94,6 +94,6 @@ export const deployment = defineResource<k8s.DeploymentInfo>({
 
   api: {
     list: ns => callApp('GetDeployments', ns),
-    remove: (ns, n) => callApp('DeleteDeployment', ns, n),
+    remove: (ns, n) => callApp('DeleteResource', 'deployment', ns, n),
   },
 })
