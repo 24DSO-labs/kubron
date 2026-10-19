@@ -128,6 +128,19 @@ func buildConnection(name string, config *rest.Config) (*ClusterConnection, erro
 	}, nil
 }
 
+// RemoveConnection забывает подключение к кластеру (при удалении кластера из приложения).
+// Если кластер был активным, активное подключение сбрасывается.
+func (m *Manager) RemoveConnection(clusterID string) (wasActive bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.connections, clusterID)
+	if m.activeCtx == clusterID {
+		m.activeCtx = ""
+		return true
+	}
+	return false
+}
+
 func (m *Manager) GetActiveConnection() (*ClusterConnection, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
