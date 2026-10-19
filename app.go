@@ -31,6 +31,11 @@ func NewApp() *App {
 	}
 }
 
+// shutdown вызывается Wails при закрытии приложения: гасим все port-forward туннели.
+func (a *App) shutdown(_ context.Context) {
+	a.pfMgr.StopAll()
+}
+
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	if err := k8s.InitKubronDir(); err != nil {

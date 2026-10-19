@@ -2,67 +2,220 @@ package k8s
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
 )
 
+// Статусы сессии проброса портов.
+const (
+	PortForwardStarting = "starting"
+	PortForwardActive   = "active"
+	PortForwardError    = "error"
+)
+
+// portForwardReadyTimeout — сколько ждём установления туннеля при старте.
+const portForwardReadyTimeout = 15 * time.Second
+
+// PortForwardSession — сессия проброса порта в под (напрямую или через сервис).
 type PortForwardSession struct {
 	ID        string `json:"id"`
 	Namespace string `json:"namespace"`
 	Pod       string `json:"pod"`
-	LocalPort int    `json:"localPort"`
-	PodPort   int    `json:"podPort"`
-	Status    string `json:"status"`
-	stopChan  chan struct{}
+	Service   string `json:"service,omitempty"` // заполнено, если проброс запущен через сервис
+	// ServicePort — порт сервиса, выбранный пользователем (podPort — разрешённый targetPort).
+	ServicePort int    `json:"servicePort,omitempty"`
+	LocalPort   int    `json:"localPort"`
+	PodPort     int    `json:"podPort"`
+	Status      string `json:"status"`
+	Error       string `json:"error,omitempty"`
+
+	stopChan chan struct{}
+	stopOnce sync.Once
 }
 
+func (s *PortForwardSession) stop() {
+	s.stopOnce.Do(func() { close(s.stopChan) })
+}
+
+// snapshot возвращает копию без внутреннего состояния (вызывать под pfm.mu).
+func (s *PortForwardSession) snapshot() PortForwardSession {
+	return PortForwardSession{
+		ID:          s.ID,
+		Namespace:   s.Namespace,
+		Pod:         s.Pod,
+		Service:     s.Service,
+		ServicePort: s.ServicePort,
+		LocalPort:   s.LocalPort,
+		PodPort:     s.PodPort,
+		Status:      s.Status,
+		Error:       s.Error,
+	}
+}
+
+// PortForwardManager управляет сессиями проброса портов. Сессии живут только
+// пока работает приложение: туннель нельзя восстановить после перезапуска.
 type PortForwardManager struct {
-	mu       sync.RWMutex
+	mu       sync.Mutex
 	sessions map[string]*PortForwardSession
 	k8sMgr   *Manager
-	storeDir string
 }
 
 func NewPortForwardManager(k8sMgr *Manager) *PortForwardManager {
-	pfm := &PortForwardManager{
+	// Ранние версии сохраняли сессии на диск и после перезапуска показывали
+	// «мёртвые» записи. Убираем оставшийся файл.
+	_ = os.RemoveAll(filepath.Join(GetKubronDir(), "portforwards"))
+	return &PortForwardManager{
 		sessions: make(map[string]*PortForwardSession),
 		k8sMgr:   k8sMgr,
-		storeDir: filepath.Join(GetKubronDir(), "portforwards"),
 	}
-	// Создаем директорию для хранения если она не существует
-	os.MkdirAll(pfm.storeDir, 0755)
-	// Загружаем сохраненные port forwards
-	pfm.loadFromStorage()
-	return pfm
 }
 
+// StartPortForward пробрасывает localPort на podPort указанного пода.
 func (pfm *PortForwardManager) StartPortForward(namespace, pod string, localPort, podPort int) (*PortForwardSession, error) {
-	fmt.Printf("[PORT_FORWARD] StartPortForward called: namespace=%s, pod=%s, localPort=%d, podPort=%d\n", namespace, pod, localPort, podPort)
+	id := fmt.Sprintf("%s-%s-%d-%d", namespace, pod, localPort, podPort)
+	return pfm.start(id, namespace, pod, "", 0, localPort, podPort)
+}
 
+// StartServicePortForward пробрасывает localPort на порт сервиса: выбирается готовый
+// под сервиса, а targetPort (в том числе именованный) разрешается в номер порта пода.
+func (pfm *PortForwardManager) StartServicePortForward(namespace, serviceName string, localPort, servicePort int) (*PortForwardSession, error) {
 	conn, err := pfm.k8sMgr.GetActiveConnection()
 	if err != nil {
 		return nil, err
 	}
 
-	id := fmt.Sprintf("%s-%s-%d-%d", namespace, pod, localPort, podPort)
-	fmt.Printf("[PORT_FORWARD] Generated ID: %s\n", id)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
+	svc, err := conn.Client.CoreV1().Services(namespace).Get(ctx, serviceName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("сервис не найден: %w", err)
+	}
+	if len(svc.Spec.Selector) == 0 {
+		return nil, fmt.Errorf("у сервиса %s нет selector", serviceName)
+	}
+
+	var svcPort *corev1.ServicePort
+	for i := range svc.Spec.Ports {
+		if int(svc.Spec.Ports[i].Port) == servicePort {
+			svcPort = &svc.Spec.Ports[i]
+			break
+		}
+	}
+	if svcPort == nil {
+		return nil, fmt.Errorf("у сервиса %s нет порта %d", serviceName, servicePort)
+	}
+
+	pods, err := conn.Client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: labels.SelectorFromSet(svc.Spec.Selector).String(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("не удалось найти поды: %w", err)
+	}
+
+	pod := pickReadyPod(pods.Items)
+	if pod == nil {
+		return nil, fmt.Errorf("нет готовых подов для сервиса %s", serviceName)
+	}
+
+	podPort, err := resolveTargetPort(svcPort, pod)
+	if err != nil {
+		return nil, err
+	}
+
+	id := fmt.Sprintf("%s-svc-%s-%d-%d", namespace, serviceName, localPort, servicePort)
+	return pfm.start(id, namespace, pod.Name, serviceName, servicePort, localPort, podPort)
+}
+
+// pickReadyPod возвращает первый под в фазе Running с условием Ready.
+func pickReadyPod(pods []corev1.Pod) *corev1.Pod {
+	for i := range pods {
+		p := &pods[i]
+		if p.Status.Phase != corev1.PodRunning || p.DeletionTimestamp != nil {
+			continue
+		}
+		for _, c := range p.Status.Conditions {
+			if c.Type == corev1.PodReady && c.Status == corev1.ConditionTrue {
+				return p
+			}
+		}
+	}
+	return nil
+}
+
+// resolveTargetPort переводит targetPort сервиса в номер порта контейнера пода.
+func resolveTargetPort(sp *corev1.ServicePort, pod *corev1.Pod) (int, error) {
+	tp := sp.TargetPort
+	if tp.String() == "" || tp.String() == "0" {
+		return int(sp.Port), nil // targetPort не задан — совпадает с port
+	}
+	if tp.IntVal != 0 && tp.StrVal == "" {
+		return int(tp.IntVal), nil
+	}
+	for _, c := range pod.Spec.Containers {
+		for _, cp := range c.Ports {
+			if cp.Name == tp.StrVal {
+				return int(cp.ContainerPort), nil
+			}
+		}
+	}
+	return 0, fmt.Errorf("порт %q не найден в контейнерах пода %s", tp.StrVal, pod.Name)
+}
+
+func (pfm *PortForwardManager) start(id, namespace, pod, service string, servicePort, localPort, podPort int) (*PortForwardSession, error) {
+	conn, err := pfm.k8sMgr.GetActiveConnection()
+	if err != nil {
+		return nil, err
+	}
+
+	session := &PortForwardSession{
+		ID:          id,
+		Namespace:   namespace,
+		Pod:         pod,
+		Service:     service,
+		ServicePort: servicePort,
+		LocalPort:   localPort,
+		PodPort:     podPort,
+		Status:      PortForwardStarting,
+		stopChan:    make(chan struct{}),
+	}
+
+	// Проверка и вставка выполняются под одним локом, чтобы два одновременных
+	// вызова не создали два туннеля на один порт.
 	pfm.mu.Lock()
 	if existing, ok := pfm.sessions[id]; ok {
-		pfm.mu.Unlock()
-		return existing, nil
+		if existing.Status != PortForwardError {
+			snap := existing.snapshot()
+			pfm.mu.Unlock()
+			return &snap, nil
+		}
+		existing.stop()
+		delete(pfm.sessions, id)
 	}
+	pfm.sessions[id] = session
 	pfm.mu.Unlock()
+
+	fail := func(err error) (*PortForwardSession, error) {
+		pfm.mu.Lock()
+		if pfm.sessions[id] == session {
+			delete(pfm.sessions, id)
+		}
+		pfm.mu.Unlock()
+		session.stop()
+		return nil, err
+	}
 
 	reqURL := conn.Client.CoreV1().RESTClient().Post().
 		Resource("pods").
@@ -73,206 +226,99 @@ func (pfm *PortForwardManager) StartPortForward(namespace, pod string, localPort
 
 	transport, upgrader, err := spdy.RoundTripperFor(conn.Config)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка создания transport: %w", err)
+		return fail(fmt.Errorf("ошибка создания transport: %w", err))
 	}
-
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, &url.URL{
 		Scheme: reqURL.Scheme,
 		Host:   reqURL.Host,
 		Path:   reqURL.Path,
 	})
 
-	stopChan := make(chan struct{})
 	readyChan := make(chan struct{})
-
-	ports := []string{fmt.Sprintf("%d:%d", localPort, podPort)}
-
-	fw, err := portforward.New(dialer, ports, stopChan, readyChan, nil, nil)
+	fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", localPort, podPort)}, session.stopChan, readyChan, nil, nil)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка создания port-forward: %w", err)
+		return fail(fmt.Errorf("ошибка создания port-forward: %w", err))
 	}
 
-	session := &PortForwardSession{
-		ID:        id,
-		Namespace: namespace,
-		Pod:       pod,
-		LocalPort: localPort,
-		PodPort:   podPort,
-		Status:    "starting",
-		stopChan:  stopChan,
-	}
-
-	pfm.mu.Lock()
-	pfm.sessions[id] = session
-	pfm.mu.Unlock()
-
+	done := make(chan error, 1)
 	go func() {
-		if err := fw.ForwardPorts(); err != nil {
-			pfm.mu.Lock()
-			session.Status = "error: " + err.Error()
-			pfm.mu.Unlock()
-		}
-	}()
+		err := fw.ForwardPorts()
+		done <- err
 
-	go func() {
-		<-readyChan
+		// Туннель закрылся: если сессию не остановили вручную, отмечаем ошибку,
+		// чтобы интерфейс не показывал «живую» сессию.
 		pfm.mu.Lock()
-		session.Status = "active"
-		pfm.mu.Unlock()
-		pfm.saveToStorage()
+		defer pfm.mu.Unlock()
+		if pfm.sessions[id] != session {
+			return
+		}
+		msg := "соединение закрыто"
+		if err != nil {
+			msg = err.Error()
+		}
+		session.Status = PortForwardError
+		session.Error = msg
 	}()
 
-	return session, nil
+	select {
+	case <-readyChan:
+		pfm.mu.Lock()
+		if pfm.sessions[id] == session && session.Status == PortForwardStarting {
+			session.Status = PortForwardActive
+		}
+		snap := session.snapshot()
+		pfm.mu.Unlock()
+		return &snap, nil
+	case err := <-done:
+		if err == nil {
+			err = fmt.Errorf("соединение закрыто до готовности")
+		}
+		return fail(fmt.Errorf("не удалось запустить port-forward: %w", err))
+	case <-time.After(portForwardReadyTimeout):
+		return fail(fmt.Errorf("таймаут установления port-forward (%s)", portForwardReadyTimeout))
+	}
 }
 
+// StopPortForward останавливает сессию и удаляет её из списка.
 func (pfm *PortForwardManager) StopPortForward(id string) error {
 	pfm.mu.Lock()
-	defer pfm.mu.Unlock()
-
 	session, ok := pfm.sessions[id]
+	if ok {
+		delete(pfm.sessions, id)
+	}
+	pfm.mu.Unlock()
+
 	if !ok {
 		return fmt.Errorf("сессия не найдена: %s", id)
 	}
-
-	close(session.stopChan)
-	delete(pfm.sessions, id)
-	pfm.mu.Unlock()
-	pfm.saveToStorage()
-	pfm.mu.Lock()
+	session.stop()
 	return nil
 }
 
+// ListPortForwards возвращает копии всех сессий, отсортированные по ID.
 func (pfm *PortForwardManager) ListPortForwards() []PortForwardSession {
-	pfm.mu.RLock()
-	defer pfm.mu.RUnlock()
-
-	var result []PortForwardSession
-	for _, s := range pfm.sessions {
-		result = append(result, PortForwardSession{
-			ID:        s.ID,
-			Namespace: s.Namespace,
-			Pod:       s.Pod,
-			LocalPort: s.LocalPort,
-			PodPort:   s.PodPort,
-			Status:    s.Status,
-		})
-	}
-	return result
-}
-
-func (pfm *PortForwardManager) saveToStorage() error {
-	pfm.mu.RLock()
-	var toSave []*PortForwardSession
-	for _, s := range pfm.sessions {
-		toSave = append(toSave, &PortForwardSession{
-			ID:        s.ID,
-			Namespace: s.Namespace,
-			Pod:       s.Pod,
-			LocalPort: s.LocalPort,
-			PodPort:   s.PodPort,
-			Status:    s.Status,
-		})
-	}
-	pfm.mu.RUnlock()
-
-	data, err := json.MarshalIndent(toSave, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	filePath := filepath.Join(pfm.storeDir, "sessions.json")
-	return os.WriteFile(filePath, data, 0644)
-}
-
-func (pfm *PortForwardManager) loadFromStorage() {
-	filePath := filepath.Join(pfm.storeDir, "sessions.json")
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return // файл не существует или другая ошибка чтения
-	}
-
-	var sessions []*PortForwardSession
-	if err := json.Unmarshal(data, &sessions); err != nil {
-		return
-	}
-
 	pfm.mu.Lock()
 	defer pfm.mu.Unlock()
 
-	for _, s := range sessions {
-		// Помечаем все загруженные сессии как "inactive" так как они не были активны до перезагрузки
-		s.Status = "inactive"
-		s.stopChan = make(chan struct{})
-		pfm.sessions[s.ID] = s
+	result := make([]PortForwardSession, 0, len(pfm.sessions))
+	for _, s := range pfm.sessions {
+		result = append(result, s.snapshot())
 	}
+	sort.Slice(result, func(i, j int) bool { return result[i].ID < result[j].ID })
+	return result
 }
 
+// StopAll останавливает все сессии (выход из учётной записи, закрытие приложения).
 func (pfm *PortForwardManager) StopAll() {
 	pfm.mu.Lock()
-	defer pfm.mu.Unlock()
-
-	for id, session := range pfm.sessions {
-		close(session.stopChan)
+	sessions := make([]*PortForwardSession, 0, len(pfm.sessions))
+	for id, s := range pfm.sessions {
+		sessions = append(sessions, s)
 		delete(pfm.sessions, id)
 	}
-}
+	pfm.mu.Unlock()
 
-func (pfm *PortForwardManager) StartServicePortForward(namespace, serviceName string, localPort, servicePort int) (*PortForwardSession, error) {
-	conn, err := pfm.k8sMgr.GetActiveConnection()
-	if err != nil {
-		return nil, err
+	for _, s := range sessions {
+		s.stop()
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// Находим поды сервиса через selector
-	svc, err := conn.Client.CoreV1().Services(namespace).Get(ctx, serviceName, metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("сервис не найден: %w", err)
-	}
-
-	if len(svc.Spec.Selector) == 0 {
-		return nil, fmt.Errorf("у сервиса %s нет selector", serviceName)
-	}
-
-	// Собираем selector в строку
-	var selectorParts []string
-	for k, v := range svc.Spec.Selector {
-		selectorParts = append(selectorParts, fmt.Sprintf("%s=%s", k, v))
-	}
-	selector := joinSelector(selectorParts)
-
-	// Находим первый Running pod
-	pods, err := conn.Client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: selector,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("не удалось найти поды: %w", err)
-	}
-
-	var targetPod string
-	for _, pod := range pods.Items {
-		if pod.Status.Phase == "Running" {
-			targetPod = pod.Name
-			break
-		}
-	}
-
-	if targetPod == "" {
-		return nil, fmt.Errorf("нет Running подов для сервиса %s", serviceName)
-	}
-
-	return pfm.StartPortForward(namespace, targetPod, localPort, servicePort)
-}
-
-func joinSelector(parts []string) string {
-	result := ""
-	for i, p := range parts {
-		if i > 0 {
-			result += ","
-		}
-		result += p
-	}
-	return result
 }
