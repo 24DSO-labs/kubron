@@ -20,7 +20,7 @@ export const portForward = defineResource<models.PortForwardSession>({
   editable: false,
 
   columns: [
-    { key: 'id', label: 'ID', formatter: pf => String(pf.id ?? '').substring(0, 8) },
+    { key: 'target', label: 'Target', formatter: (pf: any) => pf.service ? `svc/${pf.service}:${pf.servicePort}` : `pod/${pf.pod}` },
     { ...flatNsCol, link: (pf: any) => pf.namespace ? { id: 'namespace', ns: '', name: pf.namespace } : null },
     { key: 'localPort', label: 'Local Port' },
     { key: 'podPort', label: 'Pod Port' },
@@ -30,9 +30,11 @@ export const portForward = defineResource<models.PortForwardSession>({
   properties: [
     { label: 'Namespace', value: pf => pf.namespace },
     { label: 'Pod', value: pf => pf.pod },
+    { label: 'Service', value: (pf: any) => pf.service ? `${pf.service}:${pf.servicePort}` : '—' },
     { label: 'Local Port', value: pf => pf.localPort },
     { label: 'Pod Port', value: pf => pf.podPort },
     { label: 'Status', value: pf => pf.status, badge: pf => badgeClass(pf.status) },
+    { label: 'Error', value: (pf: any) => pf.error || '—' },
   ],
 
   actions: [
@@ -45,7 +47,7 @@ export const portForward = defineResource<models.PortForwardSession>({
       run: (pf, ctx) =>
         ctx.perform(
           () => callApp('StopPortForward', pf.id),
-          `Port forward :${pf.localPort} → ${pf.pod}:${pf.podPort} остановлен`,
+          `Port forward :${pf.localPort} → ${(pf as any).service || pf.pod}:${pf.podPort} остановлен`,
         ),
     },
   ],
