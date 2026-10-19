@@ -82,6 +82,6 @@ export const cronJob = defineResource<k8s.CronJobInfo>({
   api: {
     list: ns => callApp('GetCronJobs', ns),
     get: (ns, name) => callApp('GetCronJobDetail', ns, name),
-    remove: (ns, name) => callApp('DeleteCronJob', ns, name),
+    remove: (ns, name) => callApp('DeleteResource', 'cronjob', ns, name),
   },
 })

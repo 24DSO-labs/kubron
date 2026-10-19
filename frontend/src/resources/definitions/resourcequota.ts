@@ -32,6 +32,6 @@ export const resourceQuota = defineResource<k8s.ResourceQuotaInfo>({
 
   api: {
     list: ns => callApp('GetResourceQuotas', ns),
-    remove: (ns, name) => callApp('DeleteResourceQuota', ns, name),
+    remove: (ns, name) => callApp('DeleteResource', 'resourcequota', ns, name),
   },
 })

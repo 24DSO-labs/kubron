@@ -14,7 +14,7 @@
 
     <form class="audit-filters" @submit.prevent="load">
       <input v-model="filter.user" class="form-input" type="search" placeholder="Пользователь" aria-label="Пользователь" />
-      <input v-model="filter.action" class="form-input" type="search" placeholder="Действие (DeletePod, Login…)"
+      <input v-model="filter.action" class="form-input" type="search" placeholder="Действие (DeleteResource, Login…)"
         aria-label="Действие" />
       <input v-model="filter.text" class="form-input" type="search" placeholder="Объект (namespace, имя…)"
         aria-label="Объект" />

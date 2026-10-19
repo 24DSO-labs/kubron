@@ -213,13 +213,6 @@ func (a *App) GetPodLogs(namespace, name, container string, lines int64) (string
 	return a.k8sMgr.GetPodLogs(namespace, name, container, lines)
 }
 
-func (a *App) DeletePod(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeletePod(namespace, name)
-}
-
 func (a *App) EvictPod(namespace, name string) error {
 	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return err
@@ -262,13 +255,6 @@ func (a *App) RollbackDeployment(namespace, name string, revision int64) error {
 		return err
 	}
 	return a.k8sMgr.RollbackDeployment(namespace, name, revision)
-}
-
-func (a *App) DeleteDeployment(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteDeployment(namespace, name)
 }
 
 // === StatefulSets ===
@@ -321,39 +307,11 @@ func (a *App) GetJobs(namespace string) ([]k8s.JobInfo, error) {
 	return a.k8sMgr.GetJobs(namespace)
 }
 
-func (a *App) DeleteJob(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteJob(namespace, name)
-}
-
-func (a *App) DeleteDaemonSet(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteDaemonSet(namespace, name)
-}
-
 func (a *App) RestartDaemonSet(namespace, name string) error {
 	if err := a.authz(auth.PermOperate, "namespace", namespace, "name", name); err != nil {
 		return err
 	}
 	return a.k8sMgr.RestartDaemonSet(namespace, name)
-}
-
-func (a *App) DeleteReplicaSet(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteReplicaSet(namespace, name)
-}
-
-func (a *App) DeleteConfigMap(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteConfigMap(namespace, name)
 }
 
 func (a *App) RetryJob(namespace, name string) error {
@@ -712,27 +670,6 @@ func (a *App) GetServiceAccountDetail(namespace, name string) (interface{}, erro
 	return a.k8sMgr.GetServiceAccountDetail(namespace, name)
 }
 
-func (a *App) DeleteService(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteService(namespace, name)
-}
-
-func (a *App) DeleteSecret(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteSecret(namespace, name)
-}
-
-func (a *App) DeleteStatefulSet(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteStatefulSet(namespace, name)
-}
-
 func (a *App) RestartStatefulSet(namespace, name string) error {
 	if err := a.authz(auth.PermOperate, "namespace", namespace, "name", name); err != nil {
 		return err
@@ -740,144 +677,11 @@ func (a *App) RestartStatefulSet(namespace, name string) error {
 	return a.k8sMgr.RestartStatefulSet(namespace, name)
 }
 
-func (a *App) DeleteServiceAccount(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteServiceAccount(namespace, name)
-}
-
-func (a *App) DeleteRole(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteRole(namespace, name)
-}
-
-func (a *App) DeleteRoleBinding(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteRoleBinding(namespace, name)
-}
-
-func (a *App) DeleteClusterRole(name string) error {
-	if err := a.authz(auth.PermWrite, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteClusterRole(name)
-}
-
-func (a *App) DeleteClusterRoleBinding(name string) error {
-	if err := a.authz(auth.PermWrite, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteClusterRoleBinding(name)
-}
-
 func (a *App) GetResourceQuotas(namespace string) ([]k8s.ResourceQuotaInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
 	return a.k8sMgr.GetResourceQuotas(namespace)
-}
-
-func (a *App) DeleteCronJob(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteCronJob(namespace, name)
-}
-
-func (a *App) DeleteIngress(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteIngress(namespace, name)
-}
-
-func (a *App) DeleteIngressClass(name string) error {
-	if err := a.authz(auth.PermWrite, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteIngressClass(name)
-}
-
-func (a *App) DeleteNetworkPolicy(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteNetworkPolicy(namespace, name)
-}
-
-func (a *App) DeletePersistentVolume(name string) error {
-	if err := a.authz(auth.PermWrite, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeletePersistentVolume(name)
-}
-
-func (a *App) DeletePersistentVolumeClaim(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeletePersistentVolumeClaim(namespace, name)
-}
-
-func (a *App) DeleteStorageClass(name string) error {
-	if err := a.authz(auth.PermWrite, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteStorageClass(name)
-}
-
-func (a *App) DeleteResourceQuota(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteResourceQuota(namespace, name)
-}
-
-func (a *App) DeleteLimitRange(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteLimitRange(namespace, name)
-}
-
-func (a *App) DeleteHPA(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteHPA(namespace, name)
-}
-
-func (a *App) DeletePDB(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeletePDB(namespace, name)
-}
-
-func (a *App) DeletePriorityClass(name string) error {
-	if err := a.authz(auth.PermWrite, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeletePriorityClass(name)
-}
-
-func (a *App) DeleteRuntimeClass(name string) error {
-	if err := a.authz(auth.PermWrite, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteRuntimeClass(name)
-}
-
-func (a *App) DeleteLease(namespace, name string) error {
-	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
-		return err
-	}
-	return a.k8sMgr.DeleteLease(namespace, name)
 }
 
 // === YAML ===
@@ -1069,4 +873,13 @@ func (a *App) CloseTerminal(sessionID string) error {
 		return err
 	}
 	return a.k8sMgr.CloseTerminal(sessionID)
+}
+
+// DeleteResource удаляет ресурс любого поддерживаемого типа. kind — ключ типа
+// (совпадает с id определения ресурса на фронтенде, например "deployment").
+func (a *App) DeleteResource(kind, namespace, name string) error {
+	if err := a.authz(auth.PermWrite, "kind", kind, "namespace", namespace, "name", name); err != nil {
+		return err
+	}
+	return a.k8sMgr.DeleteResource(kind, namespace, name)
 }

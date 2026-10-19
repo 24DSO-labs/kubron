@@ -45,15 +45,3 @@ func convertLimitRange(lr v1.LimitRange) LimitRangeInfo {
 		Items:     len(lr.Spec.Limits),
 	}
 }
-
-func (m *Manager) DeleteLimitRange(namespace, name string) error {
-conn, err := m.GetActiveConnection()
-if err != nil {
-return err
-}
-
-ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-defer cancel()
-
-return conn.Client.CoreV1().LimitRanges(namespace).Delete(ctx, name, metav1.DeleteOptions{})
-}

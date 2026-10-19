@@ -37,6 +37,6 @@ export const ingress = defineResource<k8s.IngressInfo>({
 
   api: {
     list: ns => callApp('GetIngresses', ns),
-    remove: (ns, name) => callApp('DeleteIngress', ns, name),
+    remove: (ns, name) => callApp('DeleteResource', 'ingress', ns, name),
   },
 })

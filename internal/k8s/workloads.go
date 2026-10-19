@@ -217,16 +217,6 @@ func (m *Manager) GetStatefulSets(namespace string) ([]StatefulSetInfo, error) {
 	return items, nil
 }
 
-func (m *Manager) DeleteStatefulSet(namespace, name string) error {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	return conn.Client.AppsV1().StatefulSets(namespace).Delete(ctx, name, metav1.DeleteOptions{})
-}
-
 func (m *Manager) RestartStatefulSet(namespace, name string) error {
 	conn, err := m.GetActiveConnection()
 	if err != nil {
@@ -612,31 +602,6 @@ func (m *Manager) GetJobs(namespace string) ([]JobInfo, error) {
 	return items, nil
 }
 
-func (m *Manager) DeleteJob(namespace, jobName string) error {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	policy := metav1.DeletePropagationBackground
-	return conn.Client.BatchV1().Jobs(namespace).Delete(ctx, jobName, metav1.DeleteOptions{PropagationPolicy: &policy})
-}
-
-func (m *Manager) DeleteDaemonSet(namespace, daemonSetName string) error {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	return conn.Client.AppsV1().DaemonSets(namespace).Delete(ctx, daemonSetName, metav1.DeleteOptions{})
-}
-
 // RestartDaemonSet триггерит rolling restart: меняет аннотацию в шаблоне пода (как kubectl rollout restart)
 func (m *Manager) RestartDaemonSet(namespace, name string) error {
 	conn, err := m.GetActiveConnection()
@@ -772,18 +737,6 @@ func (m *Manager) GetCronJobs(namespace string) ([]CronJobInfo, error) {
 		})
 	}
 	return items, nil
-}
-
-func (m *Manager) DeleteCronJob(namespace, name string) error {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	return conn.Client.BatchV1().CronJobs(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 }
 
 // GetCronJobJobs возвращает Job'ы, созданные указанным CronJob (по ownerReference).

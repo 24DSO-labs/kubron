@@ -211,25 +211,3 @@ func (m *Manager) ScaleDeployment(namespace, name string, replicas int32) error 
 
 	return nil
 }
-
-func (m *Manager) DeleteDeployment(namespace, name string) error {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	deletePolicy := metav1.DeletePropagationForeground
-	deleteOptions := metav1.DeleteOptions{
-		PropagationPolicy: &deletePolicy,
-	}
-
-	err = conn.Client.AppsV1().Deployments(namespace).Delete(ctx, name, deleteOptions)
-	if err != nil {
-		return fmt.Errorf("не удалось удалить deployment: %w", err)
-	}
-
-	return nil
-}

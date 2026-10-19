@@ -33,6 +33,6 @@ export const horizontalPodAutoscaler = defineResource<k8s.HPAInfo>({
 
   api: {
     list: ns => callApp('GetHPA', ns),
-    remove: (ns, name) => callApp('DeleteHPA', ns, name),
+    remove: (ns, name) => callApp('DeleteResource', 'horizontalpodautoscaler', ns, name),
   },
 })

@@ -23,6 +23,6 @@ export const configMap = defineResource<k8s.ConfigMapInfo, k8s.ConfigMapInfo>({
   api: {
     list: ns => callApp('GetConfigMaps', ns),
     get: (ns, n) => callApp('GetConfigMapDetail', ns, n), // в detail приходит data
-    remove: (ns, n) => callApp('DeleteConfigMap', ns, n),
+    remove: (ns, n) => callApp('DeleteResource', 'configmap', ns, n),
   },
 })
