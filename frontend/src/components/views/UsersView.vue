@@ -305,7 +305,7 @@ const submitReset = () =>
 onMounted(load)
 </script>
 
-<style src="../auth/auth.css"></style>
+
 <style scoped>
 .users-view { padding: 24px; text-align: left; max-width: 1100px; }
 .users-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }

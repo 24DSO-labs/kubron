@@ -35,4 +35,4 @@ function onDone() {
 }
 h3 { margin: 0 0 16px; color: #89b4fa; font-size: 17px; text-align: left; }
 </style>
-<style src="./auth.css"></style>
+
