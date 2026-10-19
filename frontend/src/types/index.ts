@@ -363,6 +363,7 @@ export interface ConfigMapInfo {
   dataCount: number
   age: string
   labels: any
+  annotations: Record<string, string>
   data: Record<string, string>
 }
 
