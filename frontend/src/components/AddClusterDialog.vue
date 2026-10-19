@@ -59,9 +59,11 @@
 <script lang="ts" setup>
 import { ref, computed } from 'vue'
 
+const props = defineProps<{ pickFile: () => Promise<string> }>()
+
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'addFile', name: string, icon: string, color: string): void
+  (e: 'addFile', path: string, name: string, icon: string, color: string): void
   (e: 'addText', text: string, name: string, icon: string, color: string): void
 }>()
 
@@ -73,23 +75,28 @@ const icon = ref('🔵')
 const color = ref('#89b4fa')
 const method = ref<'file' | 'paste'>('file')
 const pasteText = ref('')
+const filePath = ref('')
 const fileSelected = ref(false)
 const error = ref('')
 
 const canAdd = computed(() => {
   if (!displayName.value.trim()) return false
   if (method.value === 'paste' && !pasteText.value.trim()) return false
+  if (method.value === 'file' && !filePath.value) return false
   return true
 })
 
-function selectFile() {
-  emit('addFile', displayName.value, icon.value, color.value)
-  fileSelected.value = true
+async function selectFile() {
+  const path = await props.pickFile()
+  if (path) {
+    filePath.value = path
+    fileSelected.value = true
+  }
 }
 
 function doAdd() {
   if (method.value === 'file') {
-    emit('addFile', displayName.value, icon.value, color.value)
+    emit('addFile', filePath.value, displayName.value, icon.value, color.value)
   } else {
     emit('addText', pasteText.value, displayName.value, icon.value, color.value)
   }
