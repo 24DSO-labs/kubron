@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import type { ClusterStatus } from '../types'
+import { askConfirm } from '../resources/confirm'
 
 const clusters = ref<ClusterStatus[]>([])
 const activeClusterId = ref('')
@@ -69,7 +70,7 @@ async function addClusterFromText(text: string, displayName: string, icon: strin
 }
 
 async function deleteCluster(id: string) {
-  if (!confirm('Удалить кластер?')) return
+  if (!(await askConfirm('Удалить кластер? Подключение будет закрыто, сохранённый kubeconfig удалён.'))) return
   try {
     const { DeleteCluster } = await import('../../wailsjs/go/main/App')
     await DeleteCluster(id)

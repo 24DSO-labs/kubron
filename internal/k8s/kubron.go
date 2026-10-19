@@ -216,8 +216,11 @@ func addClusterFromData(data []byte, displayName, icon, color string) (*ClusterM
 
 func DeleteCluster(id string) error {
 	dir := getClustersDir()
-	os.Remove(filepath.Join(dir, id+".json"))
-	os.Remove(filepath.Join(dir, id+".kubeconfig"))
+	for _, name := range []string{id + ".json", id + ".kubeconfig"} {
+		if err := os.Remove(filepath.Join(dir, name)); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("не удалось удалить %s: %w", name, err)
+		}
+	}
 	return nil
 }
 

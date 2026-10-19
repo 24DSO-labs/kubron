@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -120,27 +121,27 @@ func (m *Manager) RollbackDeployment(namespace, name string, revision int64) err
 		return err
 	}
 
-	var targetRS *string
-	for _, rs := range rsList.Items {
-		rev := rs.Annotations["deployment.kubernetes.io/revision"]
-		if rev == fmt.Sprintf("%d", revision) {
-			name := rs.Name
-			targetRS = &name
+	revStr := fmt.Sprintf("%d", revision)
+	var target *appsv1.ReplicaSet
+	for i := range rsList.Items {
+		rs := &rsList.Items[i]
+		if !metav1.IsControlledBy(rs, dep) {
+			continue // ReplicaSet с похожими лейблами, но другого владельца
+		}
+		if rs.Annotations["deployment.kubernetes.io/revision"] == revStr {
+			target = rs
 			break
 		}
 	}
-
-	if targetRS == nil {
+	if target == nil {
 		return fmt.Errorf("ревизия %d не найдена", revision)
 	}
 
-	// Патчим deployment template из целевого ReplicaSet
-	for _, rs := range rsList.Items {
-		if rs.Name == *targetRS {
-			dep.Spec.Template = rs.Spec.Template
-			break
-		}
-	}
+	// Как и kubectl rollout undo: берём template целевого ReplicaSet без лейбла
+	// pod-template-hash, который ReplicaSet-контроллер добавляет сам.
+	template := target.Spec.Template.DeepCopy()
+	delete(template.Labels, appsv1.DefaultDeploymentUniqueLabelKey)
+	dep.Spec.Template = *template
 
 	_, err = conn.Client.AppsV1().Deployments(namespace).Update(ctx, dep, metav1.UpdateOptions{})
 	if err != nil {
