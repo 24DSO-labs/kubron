@@ -4,8 +4,8 @@ import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 import { badgeClass, statusColor } from '../status'
+import { workloadMetrics } from '../workloadMetrics'
 
-import DeploymentMetricsSection from '../../components/resource/sections/DeploymentMetricsSection.vue'
 import ImagesSection from '../../components/resource/sections/ImagesSection.vue'
 import ConditionsSection from '../../components/resource/sections/ConditionsSection.vue'
 import PodAntiAffinitySection from '../../components/resource/sections/PodAntiAffinitySection.vue'
@@ -39,7 +39,6 @@ export const deployment = defineResource<k8s.DeploymentInfo>({
   namespaced: true,
   nav: { group: 'workloads', label: 'Deployments' },
 
-  
   autoRefresh: true,
   columns: [
     flatNameCol,
@@ -60,7 +59,7 @@ export const deployment = defineResource<k8s.DeploymentInfo>({
     },
   ],
 
-  headSections: [DeploymentMetricsSection],
+  headSections: [workloadMetrics.deployment],
   properties: [
     { label: 'Replicas', value: replicasSummary },
     { label: 'Selector', value: d => d.selector },
