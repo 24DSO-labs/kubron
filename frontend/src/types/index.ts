@@ -396,9 +396,17 @@ export interface PVCInfo {
   status: string
   volume: string
   capacity: string
+  requested: string
   accessModes: string
   storageClass: string
+  volumeMode: string
   age: string
+  created: string
+  labels?: Record<string, string>
+  annotations?: Record<string, string>
+  finalizers?: string[]
+  pods: string[]
+  selector?: { matchLabels?: Record<string, string>; matchExpressions?: MatchExpression[] } | null
 }
 
 export interface PodMetricsInfo {
