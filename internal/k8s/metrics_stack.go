@@ -3,11 +3,16 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// metricsInstallGrace — сколько после создания namespace отсутствие или неготовность
+// компонентов считается «установкой», а не неисправностью.
+const metricsInstallGrace = 5 * time.Minute
 
 func (m *Manager) GetMetricsStatus() (*MetricsStackStatus, error) {
 	conn, err := m.GetActiveConnection()
@@ -19,11 +24,10 @@ func (m *Manager) GetMetricsStatus() (*MetricsStackStatus, error) {
 
 	status := &MetricsStackStatus{
 		Status:     "not_installed",
-		Components: make(map[string]string),
+		Components: make(map[string]MetricsComponentStatus),
 	}
 
-	// Check namespace
-	_, err = conn.Client.CoreV1().Namespaces().Get(ctx, MetricsNamespace, metav1.GetOptions{})
+	ns, err := conn.Client.CoreV1().Namespaces().Get(ctx, MetricsNamespace, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return status, nil
@@ -31,73 +35,81 @@ func (m *Manager) GetMetricsStatus() (*MetricsStackStatus, error) {
 		return nil, fmt.Errorf("failed to check namespace: %w", err)
 	}
 
-	// Check Prometheus StatefulSet
-	promSts, err := conn.Client.AppsV1().StatefulSets(MetricsNamespace).Get(ctx, "prometheus", metav1.GetOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			status.Components["prometheus"] = "not_found"
-		} else {
-			status.Components["prometheus"] = "error"
+	var missing, notReady []string
+	record := func(name string, desired, available int32, getErr error) error {
+		if getErr != nil {
+			if errors.IsNotFound(getErr) {
+				missing = append(missing, name)
+				return nil
+			}
+			return fmt.Errorf("failed to check %s: %w", name, getErr)
 		}
-	} else {
-		if promSts.Status.ReadyReplicas > 0 {
-			status.Components["prometheus"] = "running"
-		} else {
-			status.Components["prometheus"] = "pending"
+		c := MetricsComponentStatus{
+			Ready:             desired > 0 && available >= desired,
+			Replicas:          desired,
+			AvailableReplicas: available,
 		}
+		status.Components[name] = c
+		if !c.Ready {
+			notReady = append(notReady, name)
+		}
+		return nil
 	}
 
-	// Check Node Exporter DaemonSet
-	neDaemon, err := conn.Client.AppsV1().DaemonSets(MetricsNamespace).Get(ctx, "node-exporter", metav1.GetOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			status.Components["node-exporter"] = "not_found"
-		} else {
-			status.Components["node-exporter"] = "error"
-		}
-	} else {
-		if neDaemon.Status.NumberReady > 0 {
-			status.Components["node-exporter"] = "running"
-		} else {
-			status.Components["node-exporter"] = "pending"
+	apps := conn.Client.AppsV1()
+
+	sts, err := apps.StatefulSets(MetricsNamespace).Get(ctx, "prometheus", metav1.GetOptions{})
+	var desired, avail int32
+	if err == nil {
+		desired, avail = 1, sts.Status.ReadyReplicas
+		if sts.Spec.Replicas != nil {
+			desired = *sts.Spec.Replicas
 		}
 	}
-
-	// Check Kube State Metrics Deployment
-	ksmDeploy, err := conn.Client.AppsV1().Deployments(MetricsNamespace).Get(ctx, "kube-state-metrics", metav1.GetOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			status.Components["kube-state-metrics"] = "not_found"
-		} else {
-			status.Components["kube-state-metrics"] = "error"
-		}
-	} else {
-		if ksmDeploy.Status.ReadyReplicas > 0 {
-			status.Components["kube-state-metrics"] = "running"
-		} else {
-			status.Components["kube-state-metrics"] = "pending"
-		}
+	if err := record("prometheus", desired, avail, err); err != nil {
+		return nil, err
 	}
 
-	// Determine overall status
-	allRunning := true
-	anyFound := false
-	for _, cs := range status.Components {
-		if cs != "not_found" {
-			anyFound = true
-		}
-		if cs != "running" {
-			allRunning = false
-		}
+	ds, err := apps.DaemonSets(MetricsNamespace).Get(ctx, "node-exporter", metav1.GetOptions{})
+	desired, avail = 0, 0
+	if err == nil {
+		desired, avail = ds.Status.DesiredNumberScheduled, ds.Status.NumberReady
+	}
+	if err := record("node-exporter", desired, avail, err); err != nil {
+		return nil, err
 	}
 
-	if allRunning && anyFound {
+	dep, err := apps.Deployments(MetricsNamespace).Get(ctx, "kube-state-metrics", metav1.GetOptions{})
+	desired, avail = 0, 0
+	if err == nil {
+		desired, avail = 1, dep.Status.AvailableReplicas
+		if dep.Spec.Replicas != nil {
+			desired = *dep.Spec.Replicas
+		}
+	}
+	if err := record("kube-state-metrics", desired, avail, err); err != nil {
+		return nil, err
+	}
+
+	if len(missing) == 0 && len(notReady) == 0 {
 		status.Status = "installed"
 		status.PrometheusURL = PrometheusSvcURL
-	} else if anyFound {
-		status.Status = "degraded"
+		return status, nil
 	}
 
+	if time.Since(ns.CreationTimestamp.Time) < metricsInstallGrace {
+		status.Status = "installing"
+		status.Message = "Компоненты запускаются"
+		return status, nil
+	}
+
+	status.Status = "degraded"
+	switch {
+	case len(missing) > 0:
+		status.Message = "Не найдены компоненты: " + strings.Join(missing, ", ")
+	default:
+		status.Message = "Не готовы компоненты: " + strings.Join(notReady, ", ")
+	}
 	return status, nil
 }
 
