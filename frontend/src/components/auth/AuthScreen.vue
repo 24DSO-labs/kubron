@@ -143,7 +143,7 @@ async function run(fn: () => Promise<void>) {
 }
 </script>
 
-<style src="./auth.css"></style>
+
 <style scoped>
 .auth-screen {
   position: fixed;

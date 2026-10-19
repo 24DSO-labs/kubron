@@ -3,9 +3,9 @@ import { Perm } from '../../types/auth'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
-import { badgeClass, statusColor } from '../status'
+import { badgeClass } from '../status'
+import { workloadMetrics } from '../workloadMetrics'
 
-import StatefulSetMetricsSection from '../../components/resource/sections/StatefulSetMetricsSection.vue'
 import ImagesSection from '../../components/resource/sections/ImagesSection.vue'
 import TolerationsSection from '../../components/resource/sections/TolerationsSection.vue'
 import NodeAffinitySection from '../../components/resource/sections/NodeAffinitySection.vue'
@@ -29,7 +29,6 @@ export const statefulSet = defineResource<k8s.StatefulSetInfo>({
   namespaced: true,
   nav: { group: 'workloads', label: 'Stateful Sets' },
 
-  
   autoRefresh: true,
   columns: [
     flatNameCol,
@@ -43,7 +42,7 @@ export const statefulSet = defineResource<k8s.StatefulSetInfo>({
     ageCol,
   ],
 
-  headSections: [StatefulSetMetricsSection],
+  headSections: [workloadMetrics.statefulset],
   properties: [
     { label: 'Selector', value: s => s.selector },
     { label: 'Node Selector', value: s => s.nodeSelector },
