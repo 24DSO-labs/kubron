@@ -3,6 +3,7 @@ package audit
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -140,6 +141,9 @@ func TestCorruptLineDoesNotHideOthers(t *testing.T) {
 }
 
 func TestFilePermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows не поддерживает POSIX-права доступа: os.Stat всегда возвращает 0666")
+	}
 	l := newLogger(t)
 	l.Record(Event{User: "a", Action: "X", Result: ResultOK})
 	st, err := os.Stat(filepath.Join(l.dir, fileName))
