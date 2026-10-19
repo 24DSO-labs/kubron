@@ -18,13 +18,18 @@ export const secret = defineResource<k8s.SecretInfo>({
   columns: [
     flatNameCol,
     { ...flatNsCol, link: (s: any) => s.namespace ? { id: 'namespace', ns: '', name: s.namespace } : null },
+    { key: 'dataCount', label: 'Keys' },
+    { key: 'type', label: 'Type' },
     ageCol,
   ],
 
   properties: [
     { label: 'Type', value: s => s.type },
   ],
-  sections: [SecretDataSection],
+
+  tabs: [
+    { id: 'data', label: 'Data', component: SecretDataSection },
+  ],
 
   api: {
     list: ns => callApp('GetSecrets', ns),

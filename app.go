@@ -500,6 +500,20 @@ func (a *App) GetSecretValue(namespace, name, key string) (string, error) {
 	return a.k8sMgr.GetSecretValue(namespace, name, key)
 }
 
+func (a *App) GetSecretBase64Value(namespace, name, key string) (string, error) {
+	if err := a.authz(auth.PermSecretsRead, "namespace", namespace, "name", name, "key", key); err != nil {
+		return "", err
+	}
+	return a.k8sMgr.GetSecretBase64Value(namespace, name, key)
+}
+
+func (a *App) UpdateSecret(namespace, name string, data map[string]string) error {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
+		return err
+	}
+	return a.k8sMgr.UpdateSecret(namespace, name, data)
+}
+
 // === Storage ===
 
 func (a *App) GetPersistentVolumes() ([]k8s.PVInfo, error) {
