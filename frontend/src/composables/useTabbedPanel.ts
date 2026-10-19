@@ -56,7 +56,7 @@ function openLogsTab(resourceType: string, resourceName: string, namespace: stri
     activeTabId.value = existingTab.id
     if (selectedContainer) existingTab.selectedContainer = selectedContainer
   } else {
-    const id = `logs-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const id = `logs-${crypto.randomUUID()}`
     const newTab: LogsTab = {
       id,
       type: 'logs',
@@ -91,7 +91,7 @@ async function openTerminalTab(
   container: string,
   mode: 'shell' | 'attach' = 'shell'
 ) {
-  const id = `terminal-${mode}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  const id = `terminal-${mode}-${crypto.randomUUID()}`
   
   // Получаем информацию о поде для списка контейнеров
   let podContainers: Array<{ name: string }> = []
@@ -158,7 +158,7 @@ function openYamlTab(resourceType: string, resourceName: string, namespace: stri
       existingTab.originalContent = content
     }
   } else {
-    const id = `yaml-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const id = `yaml-${crypto.randomUUID()}`
     const newTab: YamlTab = {
       id,
       type: 'yaml',
