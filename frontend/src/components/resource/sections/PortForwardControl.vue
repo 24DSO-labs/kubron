@@ -51,6 +51,7 @@
 <script lang="ts" setup>
 import { ref, computed } from 'vue'
 import { useK8s } from '../../../composables/useK8s'
+import { useNotifications } from '../../../composables/useNotifications'
 import { can } from '../../../composables/useAuth'
 import { Perm } from '../../../types/auth'
 import { callApp } from '../../../resources/wails'
@@ -65,12 +66,15 @@ const props = defineProps<{
 }>()
 
 const k8s = useK8s()
+const notifications = useNotifications()
 const showModal = ref(false)
 const localPortInput = ref('')
 const isRandom = ref(true)
 const useHttps = ref(false)
 const openInBrowser = ref(true)
 const loading = ref(false)
+
+const errText = (e: any): string => e?.message || String(e)
 
 const active = computed(() => {
   return k8s.portForwards.value.find((s: any) => {
@@ -106,6 +110,7 @@ function onPortBlur() {
 }
 
 async function start() {
+  if (loading.value) return
   loading.value = true
   try {
     let localPort: number
@@ -123,13 +128,15 @@ async function start() {
     }
     await k8s.refreshPortForwards()
     showModal.value = false
+    notifications.notifySuccess(`Port forward: localhost:${localPort} → ${props.resourceName}:${props.port}`)
 
     if (openInBrowser.value) {
       const protocol = useHttps.value ? 'https' : 'http'
       BrowserOpenURL(`${protocol}://localhost:${localPort}`)
     }
   } catch (e: any) {
-    alert('Port forward error: ' + (e?.message || e))
+    // Окно остаётся открытым: порт можно поправить и нажать Start ещё раз
+    notifications.notifyError(`Port forward: ${errText(e)}`)
   } finally {
     loading.value = false
   }
@@ -140,8 +147,9 @@ async function stop() {
   try {
     await callApp('StopPortForward', active.value.id)
     await k8s.refreshPortForwards()
+    notifications.notifySuccess('Port forward остановлен')
   } catch (e: any) {
-    alert('Stop forward error: ' + (e?.message || e))
+    notifications.notifyError(`Остановка port forward: ${errText(e)}`)
   }
 }
 </script>

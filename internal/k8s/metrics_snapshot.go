@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"encoding/json"
+	"sort"
 	"strconv"
 )
 
@@ -165,75 +166,61 @@ func (m *Manager) GetPodMetrics(namespace string) ([]PodMetrics, error) {
 	return podMetrics, nil
 }
 
+// GetNodeMetrics — загрузка CPU и памяти по нодам в процентах. Нода определяется по метке
+// kubernetes_node (см. promNodeLabel); серии без неё пропускаются.
 func (m *Manager) GetNodeMetrics() ([]NodeMetrics, error) {
-	// Get CPU metrics
-	cpuResult, err := m.QueryPrometheus(promQueryNodeCPU())
-	nodeMetricsMap := make(map[string]*NodeMetrics)
+	byNode := make(map[string]*NodeMetrics)
 
-	// Parse CPU results
-	if err == nil && cpuResult != nil && cpuResult.Data != nil {
-		var data map[string]interface{}
-		if err := json.Unmarshal(cpuResult.Data, &data); err == nil {
-			if results, ok := data["result"].([]interface{}); ok {
-				for _, r := range results {
-					if resultMap, ok := r.(map[string]interface{}); ok {
-						if metric, ok := resultMap["metric"].(map[string]interface{}); ok {
-							nodeName := getStringFromMap(metric, "instance")
-							if _, exists := nodeMetricsMap[nodeName]; !exists {
-								nodeMetricsMap[nodeName] = &NodeMetrics{Name: nodeName}
-							}
-
-							if value, ok := resultMap["value"].([]interface{}); ok && len(value) > 1 {
-								if valStr, ok := value[1].(string); ok {
-									nodeMetricsMap[nodeName].CPUUsage = valStr
-									if cpuVal, err := strconv.ParseFloat(valStr, 64); err == nil {
-										nodeMetricsMap[nodeName].CPUPct = int(cpuVal)
-									}
-								}
-							}
-						}
-					}
-				}
+	// fill разбирает instant-вектор: одно значение на ноду
+	fill := func(query string, set func(nm *NodeMetrics, raw string, pct int)) {
+		res, err := m.QueryPrometheus(query)
+		if err != nil || res == nil || res.Data == nil {
+			return
+		}
+		var data struct {
+			Result []struct {
+				Metric map[string]string `json:"metric"`
+				Value  []interface{}     `json:"value"`
+			} `json:"result"`
+		}
+		if json.Unmarshal(res.Data, &data) != nil {
+			return
+		}
+		for _, r := range data.Result {
+			name := r.Metric[promNodeLabel]
+			if name == "" || len(r.Value) < 2 {
+				continue
 			}
+			raw, ok := r.Value[1].(string)
+			if !ok {
+				continue
+			}
+			f, err := strconv.ParseFloat(raw, 64)
+			if err != nil {
+				continue
+			}
+			nm := byNode[name]
+			if nm == nil {
+				nm = &NodeMetrics{Name: name}
+				byNode[name] = nm
+			}
+			set(nm, raw, int(f+0.5))
 		}
 	}
 
-	// Get Memory metrics
-	memResult, err := m.QueryPrometheus(promQueryNodeMem())
-	if err == nil && memResult != nil && memResult.Data != nil {
-		var data map[string]interface{}
-		if err := json.Unmarshal(memResult.Data, &data); err == nil {
-			if results, ok := data["result"].([]interface{}); ok {
-				for _, r := range results {
-					if resultMap, ok := r.(map[string]interface{}); ok {
-						if metric, ok := resultMap["metric"].(map[string]interface{}); ok {
-							nodeName := getStringFromMap(metric, "instance")
-							if _, exists := nodeMetricsMap[nodeName]; !exists {
-								nodeMetricsMap[nodeName] = &NodeMetrics{Name: nodeName}
-							}
+	fill(promQueryNodeCPU(), func(nm *NodeMetrics, raw string, pct int) {
+		nm.CPUUsage, nm.CPUPct = raw, pct
+	})
+	fill(promQueryNodeMem(), func(nm *NodeMetrics, raw string, pct int) {
+		nm.MemUsage, nm.MemPct = raw, pct
+	})
 
-							if value, ok := resultMap["value"].([]interface{}); ok && len(value) > 1 {
-								if valStr, ok := value[1].(string); ok {
-									nodeMetricsMap[nodeName].MemUsage = valStr
-									if memVal, err := strconv.ParseFloat(valStr, 64); err == nil {
-										nodeMetricsMap[nodeName].MemPct = int(memVal)
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
+	out := make([]NodeMetrics, 0, len(byNode))
+	for _, nm := range byNode {
+		out = append(out, *nm)
 	}
-
-	// Convert map to slice
-	var nodeMetrics []NodeMetrics
-	for _, nm := range nodeMetricsMap {
-		nodeMetrics = append(nodeMetrics, *nm)
-	}
-
-	return nodeMetrics, nil
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, nil
 }
 
 func getStringFromMap(m map[string]interface{}, key string) string {
