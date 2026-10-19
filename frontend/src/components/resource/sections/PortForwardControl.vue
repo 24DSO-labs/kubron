@@ -73,12 +73,13 @@ const openInBrowser = ref(true)
 const loading = ref(false)
 
 const active = computed(() => {
-  return k8s.portForwards.value.find(
-    (s: any) =>
-      s.namespace === props.namespace &&
-      s[props.resourceType] === props.resourceName &&
-      s.podPort === props.port,
-  )
+  return k8s.portForwards.value.find((s: any) => {
+    if (s.namespace !== props.namespace) return false
+    if (props.resourceType === 'service') {
+      return s.service === props.resourceName && s.servicePort === props.port
+    }
+    return !s.service && s.pod === props.resourceName && s.podPort === props.port
+  })
 })
 
 function openModal() {
