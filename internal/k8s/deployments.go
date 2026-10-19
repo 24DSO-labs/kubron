@@ -90,17 +90,7 @@ func (m *Manager) GetDeployments(namespace string) ([]DeploymentInfo, error) {
 		}
 
 		// Build selector string from MatchLabels
-		selectorStr := ""
-		if dep.Spec.Selector != nil && len(dep.Spec.Selector.MatchLabels) > 0 {
-			first := true
-			for k, v := range dep.Spec.Selector.MatchLabels {
-				if !first {
-					selectorStr += ", "
-				}
-				selectorStr += k + "=" + v
-				first = false
-			}
-		}
+		selectorStr := formatMatchLabels(dep.Spec.Selector)
 
 		// Build node selector string
 		nodeSelectorStr := ""

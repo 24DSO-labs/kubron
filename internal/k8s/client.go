@@ -128,37 +128,6 @@ func buildConnection(name string, config *rest.Config) (*ClusterConnection, erro
 	}, nil
 }
 
-func (m *Manager) ConnectToContext(contextName string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if _, exists := m.connections[contextName]; exists {
-		m.activeCtx = contextName
-		return nil
-	}
-
-	path := GetKubeconfigPath()
-
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: path},
-		&clientcmd.ConfigOverrides{CurrentContext: contextName},
-	).ClientConfig()
-	if err != nil {
-		return fmt.Errorf("ошибка конфигурации: %w", err)
-	}
-
-	config.QPS = 50
-	config.Burst = 100
-
-	conn, err := buildConnection(contextName, config)
-	if err != nil {
-		return err
-	}
-
-	m.connections[contextName] = conn
-	m.activeCtx = contextName
-	return nil
-}
-
 func (m *Manager) GetActiveConnection() (*ClusterConnection, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
