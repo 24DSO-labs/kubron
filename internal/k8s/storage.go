@@ -3,8 +3,10 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -18,16 +20,27 @@ type PVInfo struct {
 	StorageClass  string `json:"storageClass"`
 	Age           string `json:"age"`
 }
-
+type PVCSelectorInfo struct {
+	MatchLabels      map[string]string `json:"matchLabels"`
+	MatchExpressions []MatchExpression `json:"matchExpressions"`
+}
 type PVCInfo struct {
-	Name         string `json:"name"`
-	Namespace    string `json:"namespace"`
-	Status       string `json:"status"`
-	Volume       string `json:"volume"`
-	Capacity     string `json:"capacity"`
-	AccessModes  string `json:"accessModes"`
-	StorageClass string `json:"storageClass"`
-	Age          string `json:"age"`
+	Name         string            `json:"name"`
+	Namespace    string            `json:"namespace"`
+	Status       string            `json:"status"`
+	Volume       string            `json:"volume"`
+	Capacity     string            `json:"capacity"`  // status.capacity, а пока не bound — requested
+	Requested    string            `json:"requested"` // spec.resources.requests.storage
+	AccessModes  string            `json:"accessModes"`
+	StorageClass string            `json:"storageClass"`
+	VolumeMode   string            `json:"volumeMode"`
+	Age          string            `json:"age"`
+	Created      string            `json:"created"`
+	Labels       map[string]string `json:"labels"`
+	Annotations  map[string]string `json:"annotations"`
+	Finalizers   []string          `json:"finalizers"`
+	Pods         []string          `json:"pods"`
+	Selector     *PVCSelectorInfo  `json:"selector"`
 }
 
 func (m *Manager) GetPersistentVolumes() ([]PVInfo, error) {
@@ -80,6 +93,37 @@ func (m *Manager) GetPersistentVolumes() ([]PVInfo, error) {
 	return items, nil
 }
 
+// pvcPods: "ns/claim" -> имена активных подов, монтирующих claim. Ошибка не ломает список.
+func pvcPods(ctx context.Context, conn *ClusterConnection, namespace string) map[string][]string {
+	out := map[string][]string{}
+	pods, err := conn.Client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return out
+	}
+	for i := range pods.Items {
+		p := &pods.Items[i]
+		if p.Status.Phase == corev1.PodSucceeded || p.Status.Phase == corev1.PodFailed {
+			continue
+		}
+		seen := map[string]bool{}
+		for _, v := range p.Spec.Volumes {
+			if v.PersistentVolumeClaim == nil {
+				continue
+			}
+			key := p.Namespace + "/" + v.PersistentVolumeClaim.ClaimName
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			out[key] = append(out[key], p.Name)
+		}
+	}
+	for k := range out {
+		sort.Strings(out[k])
+	}
+	return out
+}
+
 func (m *Manager) GetPersistentVolumeClaims(namespace string) ([]PVCInfo, error) {
 	conn, err := m.GetActiveConnection()
 	if err != nil {
@@ -93,24 +137,46 @@ func (m *Manager) GetPersistentVolumeClaims(namespace string) ([]PVCInfo, error)
 	if err != nil {
 		return nil, err
 	}
+	podsByClaim := pvcPods(ctx, conn, namespace)
 
-	var items []PVCInfo
+	items := make([]PVCInfo, 0, len(list.Items))
 	for _, pvc := range list.Items {
-		capacity := ""
-		if pvc.Status.Capacity != nil {
-			if storage, ok := pvc.Status.Capacity["storage"]; ok {
-				capacity = storage.String()
-			}
+		requested := ""
+		if q, ok := pvc.Spec.Resources.Requests[corev1.ResourceStorage]; ok {
+			requested = q.String()
+		}
+		capacity := requested
+		if q, ok := pvc.Status.Capacity[corev1.ResourceStorage]; ok {
+			capacity = q.String()
 		}
 
 		var modes []string
-		for _, m := range pvc.Spec.AccessModes {
-			modes = append(modes, string(m))
+		for _, am := range pvc.Spec.AccessModes {
+			modes = append(modes, string(am))
 		}
 
 		sc := ""
 		if pvc.Spec.StorageClassName != nil {
 			sc = *pvc.Spec.StorageClassName
+		}
+		volumeMode := ""
+		if pvc.Spec.VolumeMode != nil {
+			volumeMode = string(*pvc.Spec.VolumeMode)
+		}
+
+		var selector *PVCSelectorInfo
+		if s := pvc.Spec.Selector; s != nil {
+			selector = &PVCSelectorInfo{MatchLabels: s.MatchLabels, MatchExpressions: []MatchExpression{}}
+			for _, e := range s.MatchExpressions {
+				selector.MatchExpressions = append(selector.MatchExpressions, MatchExpression{
+					Key: e.Key, Operator: string(e.Operator), Values: e.Values,
+				})
+			}
+		}
+
+		pods := podsByClaim[pvc.Namespace+"/"+pvc.Name]
+		if pods == nil {
+			pods = []string{}
 		}
 
 		items = append(items, PVCInfo{
@@ -119,9 +185,17 @@ func (m *Manager) GetPersistentVolumeClaims(namespace string) ([]PVCInfo, error)
 			Status:       string(pvc.Status.Phase),
 			Volume:       pvc.Spec.VolumeName,
 			Capacity:     capacity,
+			Requested:    requested,
 			AccessModes:  joinShort(modes),
 			StorageClass: sc,
+			VolumeMode:   volumeMode,
 			Age:          formatAge(pvc.CreationTimestamp.Time),
+			Created:      pvc.CreationTimestamp.Format(time.RFC3339),
+			Labels:       pvc.Labels,
+			Annotations:  pvc.Annotations,
+			Finalizers:   pvc.Finalizers,
+			Pods:         pods,
+			Selector:     selector,
 		})
 	}
 	return items, nil

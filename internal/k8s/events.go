@@ -46,10 +46,13 @@ func (m *Manager) GetEvents(namespace string) ([]EventInfo, error) {
 		obj := fmt.Sprintf("%s/%s", ev.InvolvedObject.Kind, ev.InvolvedObject.Name)
 
 		age := ""
-		if !ev.LastTimestamp.IsZero() {
+		switch {
+		case !ev.LastTimestamp.IsZero():
 			age = formatAge(ev.LastTimestamp.Time)
-		} else if !ev.EventTime.IsZero() {
+		case !ev.EventTime.IsZero():
 			age = formatAge(ev.EventTime.Time)
+		default:
+			age = formatAge(ev.CreationTimestamp.Time)
 		}
 
 		source := ""

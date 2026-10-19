@@ -3,18 +3,20 @@
     <table class="rd-table">
       <thead>
         <tr>
-          <th>Type</th><th>Message</th><th>Count</th><th>Age</th>
+          <th>Type</th>
+          <th>Reason</th>
+          <th>Message</th>
+          <th>Count</th>
+          <th>Age</th>
         </tr>
       </thead>
       <tbody>
-        <tr
-          v-for="ev in events"
-          :key="`${ev.uid || ev.message}`"
-        >
+        <tr v-for="ev in events" :key="ev.uid">
           <td><span class="rd-badge rd-badge-dot" :class="badgeClass(ev.type)"></span></td>
+          <td class="rd-mono">{{ ev.reason }}</td>
           <td class="rd-muted">{{ ev.message }}</td>
           <td class="rd-mono">{{ ev.count }}</td>
-          <td class="rd-mono">{{ ev.age }}</td>
+          <td class="rd-mono">{{ ev.age || '—' }}</td>
         </tr>
       </tbody>
     </table>
@@ -34,6 +36,7 @@ const emit = defineEmits<{ (e: 'open', p: { id: string; ns: string; name: string
 interface EventRow {
   uid: string
   type: string
+  reason: string
   message: string
   count: number
   age: string
@@ -58,11 +61,12 @@ async function load() {
       return true
     })
     events.value = filtered.map((e: any) => ({
-      uid: e.uid || `${e.reason}-${e.count}`,
+      uid: e.name,                 // имя события уникально в namespace
       type: e.type || 'Normal',
+      reason: e.reason || '',
       message: e.message || '',
-      count: e.count ?? 1,
-      age: timeAgo(e.firstTimestamp || e.lastTimestamp || e.eventTime, now.value),
+      count: e.count || 1,         // у событий нового API count = 0
+      age: e.age || '',            // Go уже отдаёт готовый age
     }))
   } catch {
     events.value = []
