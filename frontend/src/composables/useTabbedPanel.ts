@@ -27,6 +27,10 @@ export interface YamlTab extends BaseTab {
   content: string
   originalContent: string
   saving?: boolean
+  /** Перечитывается ли манифест из кластера */
+  loading?: boolean
+  /** edit — редактор, diff — просмотр изменений перед применением */
+  view?: 'edit' | 'diff'
 }
 
 export interface TerminalTab extends BaseTab {
@@ -56,7 +60,7 @@ function openLogsTab(resourceType: string, resourceName: string, namespace: stri
     activeTabId.value = existingTab.id
     if (selectedContainer) existingTab.selectedContainer = selectedContainer
   } else {
-    const id = `logs-${crypto.randomUUID()}`
+    const id = `logs-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     const newTab: LogsTab = {
       id,
       type: 'logs',
@@ -91,7 +95,7 @@ async function openTerminalTab(
   container: string,
   mode: 'shell' | 'attach' = 'shell'
 ) {
-  const id = `terminal-${mode}-${crypto.randomUUID()}`
+  const id = `terminal-${mode}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
   
   // Получаем информацию о поде для списка контейнеров
   let podContainers: Array<{ name: string }> = []
@@ -153,12 +157,15 @@ function openYamlTab(resourceType: string, resourceName: string, namespace: stri
 
   if (existingTab) {
     activeTabId.value = existingTab.id
-    if (content !== existingTab.content) {
+    // Вкладку с несохранёнными правками не перезаписываем: актуальный YAML из кластера
+    // пользователь получит кнопкой Reload
+    const dirty = existingTab.content !== existingTab.originalContent
+    if (!dirty && content !== existingTab.content) {
       existingTab.content = content
       existingTab.originalContent = content
     }
   } else {
-    const id = `yaml-${crypto.randomUUID()}`
+    const id = `yaml-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     const newTab: YamlTab = {
       id,
       type: 'yaml',
@@ -168,7 +175,8 @@ function openYamlTab(resourceType: string, resourceName: string, namespace: stri
       resourceName,
       namespace,
       content,
-      originalContent: content
+      originalContent: content,
+      view: 'edit',
     }
     
     tabs.value.push(newTab)

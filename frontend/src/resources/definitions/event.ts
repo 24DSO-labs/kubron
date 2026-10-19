@@ -11,13 +11,13 @@ export const event = defineResource<k8s.EventInfo>({
   title: 'Events',
   namespaced: true,
   nav: { label: 'Events' },
-  
+
   autoRefresh: true,
   // icon: 'events',
 
-// агрегация установленных релизов по chart-у: без YAML и удаления
+  // События создаёт control plane: YAML не редактируется, пункты Edit/View YAML скрыты
   editable: false,
-  
+
   columns: [
     flatNameCol,
     {
