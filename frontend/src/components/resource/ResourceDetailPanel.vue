@@ -57,7 +57,18 @@
 
         <div v-for="p in def.properties" :key="p.label" class="rd-row">
           <span class="rd-label">{{ p.label }}</span>
-          <span v-if="p.badge" class="rd-value">
+          <span v-if="p.links" class="rd-value rd-links">
+            <template v-if="p.links(resource).length">
+              <a
+                v-for="l in p.links(resource)"
+                :key="`${l.id}/${l.ns}/${l.name}`"
+                class="rd-link"
+                @click="resourceActions.open(l.id, l.ns, l.name)"
+              >{{ l.label ?? l.name }}</a>
+            </template>
+            <template v-else>—</template>
+          </span>
+          <span v-else-if="p.badge" class="rd-value">
             <span class="rd-badge" :class="p.badge(resource)">{{ show(p.value(resource)) }}</span>
           </span>
           <span v-else-if="p.link" class="rd-value">
