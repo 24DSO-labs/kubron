@@ -72,7 +72,7 @@
       @apply-yaml="applyYAMLTabbed" />
 
     <AddClusterDialog v-if="clusterConn.showAddCluster.value" @close="clusterConn.showAddCluster.value = false"
-      @addFile="clusterConn.addFromFile" @addText="clusterConn.addFromText" />
+      :pick-file="clusterConn.pickKubeconfigFile" @addFile="clusterConn.addFromFile" @addText="clusterConn.addFromText" />
 
     <NotificationToast :notifications="notifications.notifications.value" @dismiss="notifications.dismiss" />
 
@@ -129,7 +129,7 @@ const {
 
 const {
   clusters, activeClusterId,
-  loadClusters, connectToCluster, addClusterFromFile, addClusterFromText,
+  loadClusters, connectToCluster, pickKubeconfigFile, addClusterFromFile, addClusterFromText,
   deleteCluster, updateCluster, autoConnect,
 } = clustersApi
 
@@ -144,6 +144,7 @@ const clusterConn = useClusterConnection({
   refreshData,
   k8sDisconnect: k8s.disconnect,
   loadClusters,
+  pickKubeconfigFile,
   addClusterFromFile,
   addClusterFromText,
   deleteCluster,
