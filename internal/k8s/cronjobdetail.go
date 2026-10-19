@@ -11,17 +11,17 @@ import (
 )
 
 type CronJobDetail struct {
-	Name        string            `json:"name"`
-	Namespace   string            `json:"namespace"`
-	Schedule    string            `json:"schedule"`
-	Suspend     bool              `json:"suspend"`
-	Active      int               `json:"active"`
-	LastSchedule string           `json:"lastSchedule"`
-	NextExecution string          `json:"nextExecution"`
-	TimeZone    string            `json:"timeZone"`
-	Age         string            `json:"age"`
-	Labels      map[string]string `json:"labels"`
-	Annotations map[string]string `json:"annotations"`
+	Name          string            `json:"name"`
+	Namespace     string            `json:"namespace"`
+	Schedule      string            `json:"schedule"`
+	Suspend       bool              `json:"suspend"`
+	Active        int               `json:"active"`
+	LastSchedule  string            `json:"lastSchedule"`
+	NextExecution string            `json:"nextExecution"`
+	TimeZone      string            `json:"timeZone"`
+	Age           string            `json:"age"`
+	Labels        map[string]string `json:"labels"`
+	Annotations   map[string]string `json:"annotations"`
 }
 
 func (m *Manager) GetCronJobDetail(namespace, name string) (*CronJobDetail, error) {

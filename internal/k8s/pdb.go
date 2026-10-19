@@ -63,15 +63,3 @@ func convertPDB(pdb policyv1.PodDisruptionBudget) PDBInfo {
 		Age:                formatAge(pdb.CreationTimestamp.Time),
 	}
 }
-
-func (m *Manager) DeletePDB(namespace, name string) error {
-conn, err := m.GetActiveConnection()
-if err != nil {
-return err
-}
-
-ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-defer cancel()
-
-return conn.Client.PolicyV1().PodDisruptionBudgets(namespace).Delete(ctx, name, metav1.DeleteOptions{})
-}

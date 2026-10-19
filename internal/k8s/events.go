@@ -9,17 +9,17 @@ import (
 )
 
 type EventInfo struct {
-	Name             string `json:"name"`
-	Type             string `json:"type"`
-	Reason           string `json:"reason"`
-	Message          string `json:"message"`
-	Object           string `json:"object"`
-	Count            int32  `json:"count"`
-	Age              string `json:"age"`
-	Source           string `json:"source"`
-	Namespace        string `json:"namespace"`
-	InvolvedKind     string `json:"involvedKind"`
-	InvolvedName     string `json:"involvedName"`
+	Name         string `json:"name"`
+	Type         string `json:"type"`
+	Reason       string `json:"reason"`
+	Message      string `json:"message"`
+	Object       string `json:"object"`
+	Count        int32  `json:"count"`
+	Age          string `json:"age"`
+	Source       string `json:"source"`
+	Namespace    string `json:"namespace"`
+	InvolvedKind string `json:"involvedKind"`
+	InvolvedName string `json:"involvedName"`
 }
 
 func (m *Manager) GetEvents(namespace string) ([]EventInfo, error) {
@@ -56,17 +56,17 @@ func (m *Manager) GetEvents(namespace string) ([]EventInfo, error) {
 		}
 
 		events = append(events, EventInfo{
-			Name:           ev.Name,
-			Type:           ev.Type,
-			Reason:         ev.Reason,
-			Message:        ev.Message,
-			Object:         obj,
-			Count:          ev.Count,
-			Age:            age,
-			Source:         source,
-			Namespace:      ev.Namespace,
-			InvolvedKind:   ev.InvolvedObject.Kind,
-			InvolvedName:   ev.InvolvedObject.Name,
+			Name:         ev.Name,
+			Type:         ev.Type,
+			Reason:       ev.Reason,
+			Message:      ev.Message,
+			Object:       obj,
+			Count:        ev.Count,
+			Age:          age,
+			Source:       source,
+			Namespace:    ev.Namespace,
+			InvolvedKind: ev.InvolvedObject.Kind,
+			InvolvedName: ev.InvolvedObject.Name,
 		})
 	}
 

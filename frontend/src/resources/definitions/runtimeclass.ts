@@ -25,6 +25,6 @@ export const runtimeClass = defineResource<k8s.RuntimeClassInfo>({
 
   api: {
     list: () => callApp('GetRuntimeClasses'),
-    remove: (_ns, name) => callApp('DeleteRuntimeClass', name),
+    remove: (_ns, name) => callApp('DeleteResource', 'runtimeclass', '', name),
   },
 })

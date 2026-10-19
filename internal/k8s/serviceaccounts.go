@@ -36,14 +36,3 @@ func (m *Manager) GetServiceAccounts(namespace string) (interface{}, error) {
 	}
 	return list.Items, nil
 }
-
-func (m *Manager) DeleteServiceAccount(namespace, name string) error {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	return conn.Client.CoreV1().ServiceAccounts(namespace).Delete(ctx, name, metav1.DeleteOptions{})
-}

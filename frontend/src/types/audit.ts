@@ -60,6 +60,7 @@ const ACTION_LABELS: Record<string, string> = {
   AddClusterFromText: 'Добавление кластера (текст)',
   UpdateCluster: 'Изменение кластера',
   DeleteCluster: 'Удаление кластера',
+  DeleteResource: 'Удаление ресурса',
   InstallMetricsStack: 'Установка стека метрик',
   UninstallMetricsStack: 'Удаление стека метрик',
   GetAuditLog: 'Просмотр журнала',

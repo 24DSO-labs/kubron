@@ -92,6 +92,6 @@ export const replicaSet = defineResource<k8s.ReplicaSetInfo>({
 
   api: {
     list: ns => callApp('GetReplicaSets', ns),
-    remove: (ns, n) => callApp('DeleteReplicaSet', ns, n),
+    remove: (ns, n) => callApp('DeleteResource', 'replicaset', ns, n),
   },
 })
