@@ -433,9 +433,12 @@ export interface PortForwardSession {
   id: string
   namespace: string
   pod: string
+  service?: string
+  servicePort?: number
   localPort: number
   podPort: number
   status: string
+  error?: string
 }
 
 export interface ServiceDetail {
