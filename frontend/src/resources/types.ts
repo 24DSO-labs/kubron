@@ -82,6 +82,8 @@ export interface PropertyDef<T = any> {
   link?: (item: T) => { id: string; ns: string; name: string } | null | undefined
   /** Текст ссылки (если отличается от value). value рендерится как обычный текст, linkLabel — как ссылка */
   linkLabel?: (item: T) => string | null | undefined
+  /** Несколько ссылок списком (например, поды PVC). value при этом можно возвращать null */
+  links?: (item: T) => { id: string; ns: string; name: string; label?: string }[]
 }
 
 export interface ActionDef<T = any> {
