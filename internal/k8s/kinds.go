@@ -50,6 +50,7 @@ var kindTable = map[string]kindInfo{
 	"priorityclass":           {gvr("scheduling.k8s.io", "v1", "priorityclasses"), false},
 	"runtimeclass":            {gvr("node.k8s.io", "v1", "runtimeclasses"), false},
 	"lease":                   {gvr("coordination.k8s.io", "v1", "leases"), true},
+	"endpointslice":           {gvr("discovery.k8s.io", "v1", "endpointslices"), true},
 }
 
 func init() {
