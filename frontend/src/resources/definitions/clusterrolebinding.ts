@@ -15,6 +15,6 @@ export const clusterRoleBinding = defineResource({
   sections: [BindingSection],
   api: {
     list: () => callApp('GetClusterRoleBindings'),
-    remove: (_ns, n) => callApp('DeleteClusterRoleBinding', n),
+    remove: (_ns, n) => callApp('DeleteResource', 'clusterrolebinding', '', n),
   },
 })

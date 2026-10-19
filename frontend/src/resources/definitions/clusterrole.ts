@@ -16,6 +16,6 @@ export const clusterRole = defineResource({
   sections: [RulesSection],
   api: {
     list: () => callApp('GetClusterRoles'),
-    remove: (_ns, n) => callApp('DeleteClusterRole', n),
+    remove: (_ns, n) => callApp('DeleteResource', 'clusterrole', '', n),
   },
 })

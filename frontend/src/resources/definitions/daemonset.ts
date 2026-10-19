@@ -72,6 +72,6 @@ export const daemonSet = defineResource<k8s.DaemonSetInfo>({
 
   api: {
     list: ns => callApp('GetDaemonSets', ns),
-    remove: (ns, n) => callApp('DeleteDaemonSet', ns, n),
+    remove: (ns, n) => callApp('DeleteResource', 'daemonset', ns, n),
   },
 })

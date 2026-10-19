@@ -33,6 +33,6 @@ export const storageClass = defineResource<k8s.StorageClassInfo>({
 
   api: {
     list: () => callApp('GetStorageClasses'),
-    remove: (_ns, name) => callApp('DeleteStorageClass', name),
+    remove: (_ns, name) => callApp('DeleteResource', 'storageclass', '', name),
   },
 })

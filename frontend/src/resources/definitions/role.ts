@@ -16,6 +16,6 @@ export const role = defineResource({
   sections: [RulesSection],
   api: {
     list: ns => callApp('GetRoles', ns),
-    remove: (ns, n) => callApp('DeleteRole', ns, n),
+    remove: (ns, n) => callApp('DeleteResource', 'role', ns, n),
   },
 })

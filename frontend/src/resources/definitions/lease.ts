@@ -27,6 +27,6 @@ export const lease = defineResource<k8s.LeaseInfo>({
 
   api: {
     list: ns => callApp('GetLeases', ns),
-    remove: (ns, name) => callApp('DeleteLease', ns, name),
+    remove: (ns, name) => callApp('DeleteResource', 'lease', ns, name),
   },
 })

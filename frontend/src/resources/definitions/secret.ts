@@ -33,6 +33,6 @@ export const secret = defineResource<k8s.SecretInfo>({
 
   api: {
     list: ns => callApp('GetSecrets', ns),
-    remove: (ns, name) => callApp('DeleteSecret', ns, name),
+    remove: (ns, name) => callApp('DeleteResource', 'secret', ns, name),
   },
 })

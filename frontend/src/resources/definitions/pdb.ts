@@ -35,6 +35,6 @@ export const podDisruptionBudget = defineResource<k8s.PDBInfo>({
 
   api: {
     list: ns => callApp('GetPodDisruptionBudgets', ns),
-    remove: (ns, name) => callApp('DeletePDB', ns, name),
+    remove: (ns, name) => callApp('DeleteResource', 'poddisruptionbudget', ns, name),
   },
 })

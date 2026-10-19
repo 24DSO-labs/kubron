@@ -26,6 +26,6 @@ export const ingressClass = defineResource<k8s.IngressClassInfo>({
 
   api: {
     list: () => callApp('GetIngressClasses'),
-    remove: (_ns, name) => callApp('DeleteIngressClass', name),
+    remove: (_ns, name) => callApp('DeleteResource', 'ingressclass', '', name),
   },
 })
