@@ -93,7 +93,14 @@ func (a *App) DeleteCluster(id string) error {
 	if err := a.authz(auth.PermClusterManage, "id", id); err != nil {
 		return err
 	}
-	return k8s.DeleteCluster(id)
+	if err := k8s.DeleteCluster(id); err != nil {
+		return err
+	}
+	// Подключение и проброшенные порты удалённого активного кластера больше не нужны.
+	if a.k8sMgr.RemoveConnection(id) {
+		a.pfMgr.StopAll()
+	}
+	return nil
 }
 
 func (a *App) UpdateCluster(id, displayName, icon, color string) error {
