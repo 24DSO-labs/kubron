@@ -107,6 +107,16 @@
 <script lang="ts" setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, reactive } from 'vue'
 import * as monaco from 'monaco-editor'
+import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
+
+// Configure Monaco web workers
+if (typeof window !== 'undefined') {
+  (window as any).MonacoEnvironment = {
+    getWorker: function (_moduleId: string, _label: string) {
+      return new editorWorker()
+    }
+  }
+}
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
