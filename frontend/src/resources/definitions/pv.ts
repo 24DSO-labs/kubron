@@ -40,6 +40,6 @@ export const persistentVolume = defineResource<k8s.PVInfo>({
 
   api: {
     list: () => callApp('GetPersistentVolumes'),
-    remove: (_ns, name) => callApp('DeletePersistentVolume', name),
+    remove: (_ns, name) => callApp('DeleteResource', 'persistentvolume', '', name),
   },
 })

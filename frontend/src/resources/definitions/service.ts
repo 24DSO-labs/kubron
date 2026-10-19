@@ -38,6 +38,6 @@ export const service = defineResource<k8s.ServiceInfo, k8s.ServiceDetail>({
   api: {
     list: ns => callApp('GetServices', ns),
     get: (ns, name) => callApp('GetServiceDetail', ns, name),
-    remove: (ns, name) => callApp('DeleteService', ns, name),
+    remove: (ns, name) => callApp('DeleteResource', 'service', ns, name),
   },
 })

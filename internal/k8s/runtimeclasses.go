@@ -43,15 +43,3 @@ func convertRuntimeClass(rc nodesv1.RuntimeClass) RuntimeClassInfo {
 		Age:     formatAge(rc.CreationTimestamp.Time),
 	}
 }
-
-func (m *Manager) DeleteRuntimeClass(name string) error {
-conn, err := m.GetActiveConnection()
-if err != nil {
-return err
-}
-
-ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-defer cancel()
-
-return conn.Client.NodeV1().RuntimeClasses().Delete(ctx, name, metav1.DeleteOptions{})
-}

@@ -27,6 +27,6 @@ export const limitRange = defineResource<k8s.LimitRangeInfo>({
 
   api: {
     list: ns => callApp('GetLimitRanges', ns),
-    remove: (ns, name) => callApp('DeleteLimitRange', ns, name),
+    remove: (ns, name) => callApp('DeleteResource', 'limitrange', ns, name),
   },
 })

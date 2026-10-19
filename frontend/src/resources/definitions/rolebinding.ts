@@ -15,6 +15,6 @@ export const roleBinding = defineResource({
   sections: [BindingSection],
   api: {
     list: ns => callApp('GetRoleBindings', ns),
-    remove: (ns, n) => callApp('DeleteRoleBinding', ns, n),
+    remove: (ns, n) => callApp('DeleteResource', 'rolebinding', ns, n),
   },
 })

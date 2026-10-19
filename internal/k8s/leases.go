@@ -50,15 +50,3 @@ func convertLease(lease coordinationv1.Lease) LeaseInfo {
 		Age:       formatAge(lease.CreationTimestamp.Time),
 	}
 }
-
-func (m *Manager) DeleteLease(namespace, name string) error {
-conn, err := m.GetActiveConnection()
-if err != nil {
-return err
-}
-
-ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-defer cancel()
-
-return conn.Client.CoordinationV1().Leases(namespace).Delete(ctx, name, metav1.DeleteOptions{})
-}
