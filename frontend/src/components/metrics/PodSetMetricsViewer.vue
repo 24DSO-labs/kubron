@@ -26,13 +26,37 @@ import { ref, computed } from 'vue'
 import MultiLineChart from './MultiLineChart.vue'
 import { usePrometheusRange } from '../../composables/useMetrics'
 
-const props = defineProps<{ clusterName: string; namespace: string; podRegex: string }>()
+/**
+ * Метрики набора подов, которым владеет один ресурс (Deployment, DaemonSet, ...).
+ * Поды выбираются через kube_pod_owner (kube-state-metrics), а не по имени пода:
+ * имя пода обрезается Kubernetes для длинных имён ресурсов, владелец указан всегда.
+ */
+const props = defineProps<{
+  clusterName: string
+  namespace: string
+  /** kube_pod_owner.owner_kind: ReplicaSet | DaemonSet | StatefulSet | Job */
+  ownerKind: string
+  /** regex для owner_name (в Prometheus он всегда с якорями) */
+  ownerRegex: string
+}>()
+
 const { queryRange } = usePrometheusRange(props.clusterName)
 
-const sel = () => `namespace="${props.namespace}",pod=~"${props.podRegex}"`
+const ns = () => `namespace="${props.namespace}"`
+const owner = () =>
+  `kube_pod_owner{${ns()},owner_kind="${props.ownerKind}",owner_name=~"${props.ownerRegex}",owner_is_controller="true"}`
+/** Оставляет только серии подов нужного владельца (значение kube_pod_owner всегда 1) */
+const own = (expr: string) => `${expr} * on(namespace,pod) group_left() ${owner()}`
 
 interface Line { label: string; expr: () => string }
-interface Cfg { id: string; label: string; title: string; unit: string; format: (v: number) => string; lines: Line[] }
+interface Cfg {
+  id: string
+  label: string
+  title: string
+  unit: string
+  format: (v: number) => string
+  lines: Line[]
+}
 
 function formatCpu(v: number): string {
   if (v < 0.001) return '0'
@@ -57,32 +81,65 @@ const list: Cfg[] = [
   {
     id: 'cpu', label: 'CPU', title: 'CPU Usage', unit: 'cores', format: formatCpu,
     lines: [
-      { label: 'CPU Usage', expr: () => `sum(rate(container_cpu_usage_seconds_total{${sel()},container!="",container!="POD"}[5m]))` },
-      { label: 'CPU Requests', expr: () => `sum(kube_pod_container_resource_requests{${sel()},container!="POD",resource="cpu"})` },
-      { label: 'CPU Limits', expr: () => `sum(kube_pod_container_resource_limits{${sel()},container!="POD",resource="cpu"})` },
+      {
+        label: 'CPU Usage',
+        expr: () => `sum(${own(`rate(container_cpu_usage_seconds_total{${ns()},container!="",container!="POD"}[5m])`)})`,
+      },
+      {
+        label: 'CPU Requests',
+        expr: () => `sum(${own(`kube_pod_container_resource_requests{${ns()},container!="POD",resource="cpu"}`)})`,
+      },
+      {
+        label: 'CPU Limits',
+        expr: () => `sum(${own(`kube_pod_container_resource_limits{${ns()},container!="POD",resource="cpu"}`)})`,
+      },
     ],
   },
   {
     id: 'memory', label: 'Memory', title: 'Memory Usage', unit: 'MB', format: formatMemoryMB,
     lines: [
-      { label: 'Memory Usage', expr: () => `sum(container_memory_working_set_bytes{${sel()},container!="",container!="POD"}) / 1024 / 1024` },
-      { label: 'Memory Requests', expr: () => `sum(kube_pod_container_resource_requests{${sel()},container!="POD",resource="memory"}) / 1024 / 1024` },
-      { label: 'Memory Limits', expr: () => `sum(kube_pod_container_resource_limits{${sel()},container!="POD",resource="memory"}) / 1024 / 1024` },
+      {
+        label: 'Memory Usage',
+        expr: () => `sum(${own(`container_memory_working_set_bytes{${ns()},container!="",container!="POD"}`)}) / 1024 / 1024`,
+      },
+      {
+        label: 'Memory Requests',
+        expr: () => `sum(${own(`kube_pod_container_resource_requests{${ns()},container!="POD",resource="memory"}`)}) / 1024 / 1024`,
+      },
+      {
+        label: 'Memory Limits',
+        expr: () => `sum(${own(`kube_pod_container_resource_limits{${ns()},container!="POD",resource="memory"}`)}) / 1024 / 1024`,
+      },
     ],
   },
   {
     id: 'network', label: 'Network', title: 'Network Traffic', unit: 'KB/s', format: formatNetwork,
     lines: [
-      { label: 'Receive', expr: () => `sum(rate(container_network_receive_bytes_total{${sel()}}[5m])) / 1024` },
-      { label: 'Transmit', expr: () => `sum(rate(container_network_transmit_bytes_total{${sel()}}[5m])) / 1024` },
+      {
+        label: 'Receive',
+        expr: () => `sum(${own(`rate(container_network_receive_bytes_total{${ns()}}[5m])`)}) / 1024`,
+      },
+      {
+        label: 'Transmit',
+        expr: () => `sum(${own(`rate(container_network_transmit_bytes_total{${ns()}}[5m])`)}) / 1024`,
+      },
     ],
   },
   {
     id: 'disk', label: 'Disk I/O', title: 'Disk I/O', unit: 'MB/s', format: formatDisk,
     lines: [
-      { label: 'File System Usage', expr: () => `sum(container_fs_usage_bytes{${sel()}}) / 1024 / 1024` },
-      { label: 'File System Writes', expr: () => `sum(rate(container_fs_writes_bytes_total{${sel()}}[5m])) / 1024 / 1024` },
-      { label: 'File System Reads', expr: () => `sum(rate(container_fs_reads_bytes_total{${sel()}}[5m])) / 1024 / 1024` },
+      {
+        label: 'File System Usage',
+        expr: () => `sum(${own(`container_fs_usage_bytes{${ns()}}`)}) / 1024 / 1024`,
+      },
+      {
+        label: 'File System Writes',
+        expr: () => `sum(${own(`rate(container_fs_writes_bytes_total{${ns()}}[5m])`)}) / 1024 / 1024`,
+      },
+      {
+        label: 'File System Reads',
+        expr: () => `sum(${own(`rate(container_fs_reads_bytes_total{${ns()}}[5m])`)}) / 1024 / 1024`,
+      },
     ],
   },
 ]

@@ -132,4 +132,4 @@ onBeforeUnmount(() => {
 .idle-dialog strong { color: #cdd6f4; }
 .idle-actions { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
 </style>
-<style src="./auth.css"></style>
+

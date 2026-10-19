@@ -4,8 +4,8 @@ import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 import { statusColor } from '../status'
+import { workloadMetrics } from '../workloadMetrics'
 
-import JobMetricsSection from '../../components/resource/sections/JobMetricsSection.vue'
 import ImagesSection from '../../components/resource/sections/ImagesSection.vue'
 import ConditionsSection from '../../components/resource/sections/ConditionsSection.vue'
 import JobStatsSection from '../../components/resource/sections/JobStatsSection.vue'
@@ -42,7 +42,7 @@ export const job = defineResource<k8s.JobInfo>({
   ],
 
   // Порядок панели: метрики -> Labels -> Annotations -> properties -> sections
-  headSections: [JobMetricsSection],
+  headSections: [workloadMetrics.job],
   properties: [
     { label: 'Selector', value: j => j.selector },
   ],
