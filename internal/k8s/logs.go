@@ -82,18 +82,6 @@ func (m *Manager) GetPodLogs(namespace, name, container string, lines int64) (st
 	return string(data), nil
 }
 
-func (m *Manager) DeletePod(namespace, name string) error {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	return conn.Client.CoreV1().Pods(namespace).Delete(ctx, name, metav1.DeleteOptions{})
-}
-
 func (m *Manager) EvictPod(namespace, name string) error {
 	conn, err := m.GetActiveConnection()
 	if err != nil {

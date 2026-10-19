@@ -79,6 +79,6 @@ export const statefulSet = defineResource<k8s.StatefulSetInfo>({
 
   api: {
     list: ns => callApp('GetStatefulSets', ns),
-    remove: (ns, name) => callApp('DeleteStatefulSet', ns, name),
+    remove: (ns, name) => callApp('DeleteResource', 'statefulset', ns, name),
   },
 })

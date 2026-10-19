@@ -182,6 +182,6 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
   api: {
     list: ns => callApp('GetPods', ns),
     get: (ns, name) => callApp('GetPodDetail', ns, name),
-    remove: (ns, name) => callApp('DeletePod', ns, name),
+    remove: (ns, name) => callApp('DeleteResource', 'pod', ns, name),
   },
 })

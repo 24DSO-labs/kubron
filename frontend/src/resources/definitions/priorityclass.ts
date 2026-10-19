@@ -26,6 +26,6 @@ export const priorityClass = defineResource<k8s.PriorityClassInfo>({
 
   api: {
     list: () => callApp('GetPriorityClasses'),
-    remove: (_ns, name) => callApp('DeletePriorityClass', name),
+    remove: (_ns, name) => callApp('DeleteResource', 'priorityclass', '', name),
   },
 })
