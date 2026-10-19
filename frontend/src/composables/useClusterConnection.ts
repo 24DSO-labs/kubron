@@ -13,7 +13,8 @@ export function useClusterConnection(deps: {
   refreshData: () => Promise<void>
   k8sDisconnect: () => void
   loadClusters: () => Promise<void>
-  addClusterFromFile: (name: string, icon: string, color: string) => Promise<any>
+  pickKubeconfigFile: () => Promise<string>
+  addClusterFromFile: (path: string, name: string, icon: string, color: string) => Promise<any>
   addClusterFromText: (text: string, name: string, icon: string, color: string) => Promise<any>
   deleteCluster: (id: string) => Promise<void>
   updateCluster: (id: string, name: string, icon: string, color: string) => Promise<void>
@@ -24,7 +25,7 @@ export function useClusterConnection(deps: {
     selectedNamespace, currentView,
     connectToCluster, loadNamespaces, refreshData,
     k8sDisconnect, loadClusters,
-    addClusterFromFile, addClusterFromText,
+    pickKubeconfigFile, addClusterFromFile, addClusterFromText,
     deleteCluster, updateCluster, autoConnect,
   } = deps
 
@@ -52,8 +53,8 @@ export function useClusterConnection(deps: {
     }
   }
 
-  async function addFromFile(name: string, icon: string, color: string) {
-    const result = await addClusterFromFile(name, icon, color)
+  async function addFromFile(path: string, name: string, icon: string, color: string) {
+    const result = await addClusterFromFile(path, name, icon, color)
     if (result) {
       showAddCluster.value = false
       await selectCluster(result.id)
@@ -89,6 +90,7 @@ export function useClusterConnection(deps: {
     showAddCluster,
     activeClusterMeta,
     selectCluster,
+    pickKubeconfigFile,
     addFromFile,
     addFromText,
     disconnect,
