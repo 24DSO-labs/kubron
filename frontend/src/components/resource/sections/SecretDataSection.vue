@@ -48,6 +48,18 @@ import { useNotifications } from '../../../composables/useNotifications'
 const props = defineProps<{ resource: any }>()
 const { notifySuccess, notifyError } = useNotifications()
 
+// btoa/atob работают только с Latin-1 и ломают UTF-8 (кириллица, эмодзи): кодируем через байты
+function utf8ToB64(text: string): string {
+  let bin = ''
+  new TextEncoder().encode(text).forEach(b => { bin += String.fromCharCode(b) })
+  return btoa(bin)
+}
+
+function b64ToUtf8(b64: string): string {
+  const bin = atob(b64.trim())
+  return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)))
+}
+
 const keys = computed(() => props.resource?.keys ?? [])
 
 // base64Values — оригинальные base64-значения из K8s
@@ -76,7 +88,7 @@ function toggleReveal(key: string) {
   if (revealed[key]) {
     // Switch from decoded to base64: encode current display value back to base64
     try {
-      displayValues[key] = btoa(displayValues[key])
+      displayValues[key] = utf8ToB64(displayValues[key])
     } catch {
       // if encoding fails, keep original base64 value
       displayValues[key] = base64Values[key]
@@ -85,7 +97,7 @@ function toggleReveal(key: string) {
   } else {
     // Switch from base64 to decoded: decode current display value
     try {
-      displayValues[key] = atob(displayValues[key])
+      displayValues[key] = b64ToUtf8(displayValues[key])
     } catch {
       // if decoding fails, keep as-is
     }
@@ -112,7 +124,7 @@ async function saveKey(key: string) {
         // If currently in revealed (decoded) mode, encode to base64 before sending
         // If in base64 mode, send as-is
         if (revealed[k]) {
-          updatedData[k] = btoa(displayValues[k] ?? '')
+          updatedData[k] = utf8ToB64(displayValues[k] ?? '')
         } else {
           updatedData[k] = displayValues[k] ?? ''
         }

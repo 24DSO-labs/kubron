@@ -3,7 +3,6 @@ package k8s
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -58,17 +57,7 @@ func (m *Manager) GetStatefulSets(namespace string) ([]StatefulSetInfo, error) {
 		if s.Spec.Replicas != nil {
 			replicas = *s.Spec.Replicas
 		}
-		var selector string
-		if s.Spec.Selector != nil && len(s.Spec.Selector.MatchLabels) > 0 {
-			first := true
-			for k, v := range s.Spec.Selector.MatchLabels {
-				if !first {
-					selector += ", "
-				}
-				selector += k + "=" + v
-				first = false
-			}
-		}
+		selector := formatMatchLabels(s.Spec.Selector)
 
 		// Convert tolerations
 		var tolerations []TolerationInfo
@@ -322,17 +311,7 @@ func (m *Manager) GetDaemonSets(namespace string) ([]DaemonSetInfo, error) {
 		}
 
 		// Build selector string from MatchLabels
-		selectorStr := ""
-		if d.Spec.Selector != nil && len(d.Spec.Selector.MatchLabels) > 0 {
-			first := true
-			for k, v := range d.Spec.Selector.MatchLabels {
-				if !first {
-					selectorStr += ", "
-				}
-				selectorStr += k + "=" + v
-				first = false
-			}
-		}
+		selectorStr := formatMatchLabels(d.Spec.Selector)
 
 		// Convert conditions
 		var conditions []ConditionInfo
@@ -537,15 +516,7 @@ func convertJob(j *batchv1.Job, podStatuses map[string]int32) JobInfo {
 		duration = formatAge(time.Now().Add(-end.Sub(j.Status.StartTime.Time)))
 	}
 
-	selector := ""
-	if j.Spec.Selector != nil && len(j.Spec.Selector.MatchLabels) > 0 {
-		parts := make([]string, 0, len(j.Spec.Selector.MatchLabels))
-		for k, v := range j.Spec.Selector.MatchLabels {
-			parts = append(parts, k+"="+v)
-		}
-		sort.Strings(parts)
-		selector = strings.Join(parts, ", ")
-	}
+	selector := formatMatchLabels(j.Spec.Selector)
 
 	var images []string
 	for _, c := range j.Spec.Template.Spec.Containers {
