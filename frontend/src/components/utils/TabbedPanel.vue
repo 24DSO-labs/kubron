@@ -60,7 +60,7 @@
             <div v-if="(tab as LogsTab).loading" class="logs-loading">⏳ Loading...</div>
             <pre v-else-if="(tab as LogsTab).rawLogs" class="logs-text" :class="{ 'no-wrap': !wrapLines }"
               v-html="getHighlightedLogs(tab as LogsTab)"></pre>
-            <div v-else class="logs-empty">No logs</div>
+            <div v-else class="logs-empty">{{ (tab as LogsTab).pods.length ? 'No logs' : 'No pods found' }}</div>
           </div>
         </div>
         <div v-else-if="tab.type === 'yaml' && activeTabId === tab.id" class="yaml-view">
@@ -69,15 +69,31 @@
               <span>{{ tab.resourceType }} <strong>{{ tab.resourceName }}</strong></span>
               <span v-if="tab.namespace" class="editor-namespace">in <a href="#" class="ns-link">{{ tab.namespace
                   }}</a></span>
-              <span v-if="(tab as YamlTab).content !== (tab as YamlTab).originalContent" class="editor-dirty"
-                title="Есть несохранённые изменения">●</span>
+              <span v-if="isDirty(tab as YamlTab)" class="editor-dirty" title="Есть несохранённые изменения">●</span>
+              <span v-if="(tab as YamlTab).view === 'diff'" class="editor-mode">Review changes</span>
             </div>
-            <span v-if="!canEdit" class="editor-readonly" title="Для изменения ресурсов нужны права администратора">Только чтение</span>
-            <button v-else class="btn btn-sm btn-save"
-              :disabled="(tab as YamlTab).saving || (tab as YamlTab).content === (tab as YamlTab).originalContent"
-              @click="saveYaml(tab as YamlTab)">{{ (tab as YamlTab).saving ? '⏳ Saving...' : '💾 Save' }}</button>
+            <div class="editor-actions">
+              <template v-if="(tab as YamlTab).view === 'diff'">
+                <button class="btn btn-sm btn-secondary" @click="backToEdit(tab as YamlTab)">← Back to editing</button>
+                <button class="btn btn-sm btn-save"
+                  :disabled="(tab as YamlTab).saving || !isDirty(tab as YamlTab)"
+                  @click="applyChanges(tab as YamlTab)">{{ (tab as YamlTab).saving ? '⏳ Applying...' : '✓ Apply' }}</button>
+              </template>
+              <template v-else>
+                <button class="btn btn-sm btn-secondary" :disabled="(tab as YamlTab).loading || (tab as YamlTab).saving"
+                  title="Перечитать манифест из кластера" @click="reloadYaml(tab as YamlTab)">{{ (tab as YamlTab).loading ? '⏳ Loading...' : '↻ Reload' }}</button>
+                <span v-if="!canEdit" class="editor-readonly" title="Для изменения ресурсов нужны права администратора">Только чтение</span>
+                <button v-else class="btn btn-sm btn-save"
+                  :disabled="(tab as YamlTab).saving || !isDirty(tab as YamlTab)"
+                  title="Посмотреть изменения и применить (Ctrl+S)"
+                  @click="reviewChanges(tab as YamlTab)">💾 Review &amp; Save</button>
+              </template>
+            </div>
           </div>
-          <div :ref="el => setEditorContainer(tab.id, el as HTMLDivElement)" class="editor-container"></div>
+          <div v-show="(tab as YamlTab).view !== 'diff'" :ref="el => setEditorContainer(tab.id, el as HTMLDivElement)"
+            class="editor-container"></div>
+          <div v-if="(tab as YamlTab).view === 'diff'" :ref="el => setDiffContainer(tab.id, el as HTMLDivElement | null)"
+            class="editor-container"></div>
         </div>
         <div v-else-if="tab.type === 'terminal' && activeTabId === tab.id" class="terminal-view">
           <div class="terminal-header">
@@ -121,8 +137,8 @@ import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
 import {
-  GetPods,
   GetPodLogs,
+  GetResourceYAML,
   StartTerminalSession,
   ReadTerminal,
   WriteTerminal,
@@ -131,8 +147,12 @@ import {
   ResizeTerminal,
 } from '../../../wailsjs/go/main/App'
 import { globalTabbedPanel } from '../../composables/useTabbedPanel'
+import { useNotifications } from '../../composables/useNotifications'
 import { can } from '../../composables/useAuth'
 import { Perm } from '../../types/auth'
+import { askConfirm } from '../../resources/confirm'
+import { getWorkloadPods } from '../../resources/workloadPods'
+import { containersOf } from '../../resources/utils'
 import type { LogsTab, YamlTab, TerminalTab } from '../../composables/useTabbedPanel'
 import restartIcon from '../../assets/icons/restart.svg'
 import downloadIcon from '../../assets/icons/download.svg'
@@ -140,6 +160,8 @@ import timestampIcon from '../../assets/icons/timestamp.svg'
 import wrapLinesIcon from '../../assets/icons/wrap-lines.svg'
 
 const emit = defineEmits<{ (e: 'close'): void; (e: 'apply-yaml', tabId: string): void }>()
+
+const notifications = useNotifications()
 
 // Без права на запись YAML открывается только для просмотра
 const canEdit = computed(() => can(Perm.Write))
@@ -167,6 +189,14 @@ const wrapLines = ref(true)
 let autoRefreshInterval: ReturnType<typeof setInterval> | null = null
 const editors = new Map<string, monaco.editor.IStandaloneCodeEditor>()
 const editorContainers = new Map<string, HTMLDivElement>()
+
+interface DiffInstance {
+  editor: monaco.editor.IStandaloneDiffEditor
+  original: monaco.editor.ITextModel
+  modified: monaco.editor.ITextModel
+  container: HTMLDivElement
+}
+const diffEditors = new Map<string, DiffInstance>()
 
 // Terminal state
 const terminalStatuses = reactive<Record<string, string>>({})
@@ -210,6 +240,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   stopAutoRefresh()
+  for (const id of [...diffEditors.keys()]) disposeDiff(id)
   editors.forEach(editor => editor.dispose())
   editors.clear()
   editorContainers.clear()
@@ -246,11 +277,21 @@ watch(tabs, (newTabs) => {
     if (!currentTabIds.has(tabId)) { cleanupTerminal(tabId, instance); terminalInstances.delete(tabId); terminalContainers.delete(tabId); initializingTabs.delete(tabId) }
   }
   editors.forEach((editor, id) => { if (!currentTabIds.has(id)) { editor.dispose(); editors.delete(id); editorContainers.delete(id) } })
+  for (const id of [...diffEditors.keys()]) if (!currentTabIds.has(id)) disposeDiff(id)
+  // Изменения применены (или откачены): смотреть в diff больше нечего
+  for (const t of newTabs as any[]) {
+    if (t.type === 'yaml' && t.view === 'diff' && !isDirty(t)) t.view = 'edit'
+  }
 }, { deep: true })
 
 function getAvailableContainers(tab: LogsTab): string[] {
   if (!tab.selectedPodName) { const containers = new Set<string>(); tab.pods.forEach((pod: any) => { pod.containers?.forEach((c: any) => containers.add(c.name)) }); return Array.from(containers).sort() }
   else { const pod = tab.pods.find(p => p.name === tab.selectedPodName); return pod?.containers?.map((c: any) => c.name) || [] }
+}
+
+/** Контейнер по умолчанию: обычный (не init), иначе первый из списка */
+function defaultContainer(pod: any): string {
+  return containersOf(pod)[0]?.name || pod?.containers?.[0]?.name || ''
 }
 
 function getDisplayedLogs(tab: LogsTab): string {
@@ -284,17 +325,12 @@ function getHighlightedLogs(tab: LogsTab): string {
 async function loadResourcePods(tab: LogsTab) {
   try {
     tab.loading = true
-    const allPods = await GetPods(tab.namespace)
-    let filteredPods: any[] = []
-    const resourceName = tab.resourceName
-    switch (tab.resourceType.toLowerCase()) {
-      case 'deployment': filteredPods = allPods.filter((pod: any) => { const l = pod.labels || {}; return l['app.kubernetes.io/instance'] === resourceName || l['app'] === resourceName || pod.name.startsWith(resourceName) }); break
-      case 'job': filteredPods = allPods.filter((pod: any) => pod.name.startsWith(resourceName + '-')); break
-      case 'pod': filteredPods = allPods.filter((pod: any) => pod.name === resourceName); break
-      default: filteredPods = []
+    // Поды ресурса определяются по владельцу (см. resources/workloadPods.ts)
+    tab.pods = await getWorkloadPods(tab.resourceType, tab.namespace, tab.resourceName)
+    if (tab.pods.length > 0 && !tab.selectedPodName) {
+      tab.selectedPodName = tab.pods[0].name
+      tab.selectedContainer = defaultContainer(tab.pods[0])
     }
-    tab.pods = filteredPods
-    if (tab.pods.length > 0 && !tab.selectedPodName) { tab.selectedPodName = tab.pods[0].name; tab.selectedContainer = tab.pods[0].containers?.[0]?.name || '' }
     if (tab.selectedPodName || tab.pods.length > 0) await loadLogs(tab)
   } catch (e: any) { tab.rawLogs = `Error: ${e}` }
   finally { tab.loading = false }
@@ -304,7 +340,7 @@ async function onPodChange(event: Event, tab: LogsTab) {
   const target = event.target as HTMLSelectElement
   tab.selectedPodName = target.value
   tab.selectedContainer = ''
-  if (tab.selectedPodName) { const pod = tab.pods.find(p => p.name === tab.selectedPodName); if (pod?.containers?.[0]) tab.selectedContainer = pod.containers[0].name }
+  if (tab.selectedPodName) { const pod = tab.pods.find(p => p.name === tab.selectedPodName); if (pod) tab.selectedContainer = defaultContainer(pod) }
   await loadLogs(tab)
 }
 
@@ -319,16 +355,21 @@ async function loadLogs(tab: LogsTab) {
   try {
     tab.loading = true
     if (tab.selectedPodName) {
-      const container = tab.selectedContainer || tab.pods.find(p => p.name === tab.selectedPodName)?.containers?.[0]?.name || ''
+      const pod = tab.pods.find(p => p.name === tab.selectedPodName)
+      const container = tab.selectedContainer || defaultContainer(pod)
       tab.rawLogs = await GetPodLogs(tab.namespace, tab.selectedPodName, container, logLines.value)
     } else {
-      const allLogs: string[] = []
-      for (const pod of tab.pods) {
-        const container = tab.selectedContainer || pod.containers?.[0]?.name || ''
-        try { const logs = await GetPodLogs(tab.namespace, pod.name, container, logLines.value); if (logs) { allLogs.push(`\n=== ${pod.name} ===\n`); allLogs.push(logs) } }
-        catch (e: any) { allLogs.push(`\n=== ${pod.name} (error) ===\n${e}`) }
-      }
-      tab.rawLogs = allLogs.join('')
+      // Все поды сразу: запросы идут параллельно, ошибка одного пода не ломает остальные
+      const parts = await Promise.all(tab.pods.map(async (pod: any) => {
+        const container = tab.selectedContainer || defaultContainer(pod)
+        try {
+          const logs = await GetPodLogs(tab.namespace, pod.name, container, logLines.value)
+          return logs ? `\n=== ${pod.name} ===\n${logs}` : ''
+        } catch (e: any) {
+          return `\n=== ${pod.name} (error) ===\n${e}`
+        }
+      }))
+      tab.rawLogs = parts.join('')
     }
   } catch (e: any) { tab.rawLogs = `Error: ${e}` }
   finally { tab.loading = false }
@@ -348,8 +389,12 @@ function downloadLogs(tab: LogsTab) {
 function startAutoRefresh() { stopAutoRefresh(); autoRefreshInterval = setInterval(() => { const t = tabs.value.find((x: any) => x.id === activeTabId.value); if (t?.type === 'logs') loadLogs(t as LogsTab) }, 45000) }
 function stopAutoRefresh() { if (autoRefreshInterval) { clearInterval(autoRefreshInterval); autoRefreshInterval = null } }
 
+// ─── YAML: редактор, diff, перезагрузка ───
+
 // Состояние view (курсор, прокрутка) на случай переключения вкладок
 const editorViewStates = new Map<string, monaco.editor.ICodeEditorViewState | null>()
+
+const isDirty = (tab: YamlTab) => tab.content !== tab.originalContent
 
 function setEditorContainer(tabId: string, el: HTMLDivElement | null) {
   if (!el) return
@@ -392,15 +437,86 @@ function initializeEditor(tab: YamlTab) {
   const state = editorViewStates.get(tab.id)
   if (state) editor.restoreViewState(state)
 
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => saveYaml(tab))
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => reviewChanges(tab))
   editor.onDidChangeModelContent(() => { tab.content = editor.getValue() })
   editors.set(tab.id, editor)
 }
 
-// Больше не ставим originalContent здесь: App.vue делает это только после успешного apply
-function saveYaml(tab: YamlTab) {
-  if (!canEdit.value || tab.saving || tab.content === tab.originalContent) return
+/** Diff «в кластере сейчас» (слева) ↔ «ваша версия» (справа); только просмотр */
+function setDiffContainer(tabId: string, el: HTMLDivElement | null) {
+  // null — элемент размонтирован (вернулись в режим редактирования или переключили вкладку)
+  if (!el) { disposeDiff(tabId); return }
+  // Функция-ref вызывается при каждой перерисовке: тот же элемент пропускаем
+  if (diffEditors.get(tabId)?.container === el) return
+  disposeDiff(tabId)
+
+  const tab = tabs.value.find((t: any) => t.id === tabId)
+  if (!tab || tab.type !== 'yaml') return
+  const y = tab as YamlTab
+
+  const original = monaco.editor.createModel(y.originalContent, 'yaml')
+  const modified = monaco.editor.createModel(y.content, 'yaml')
+  const editor = monaco.editor.createDiffEditor(el, {
+    theme: 'vs-dark',
+    automaticLayout: true,
+    readOnly: true,
+    originalEditable: false,
+    renderSideBySide: true,
+    ignoreTrimWhitespace: false,
+    scrollBeyondLastLine: false,
+    minimap: { enabled: false },
+    fontSize: 12,
+    fontFamily: "'Monaco', 'Menlo', monospace",
+  })
+  editor.setModel({ original, modified })
+  diffEditors.set(tabId, { editor, original, modified, container: el })
+}
+
+function disposeDiff(tabId: string) {
+  const d = diffEditors.get(tabId)
+  if (!d) return
+  diffEditors.delete(tabId)
+  d.editor.dispose()
+  d.original.dispose()
+  d.modified.dispose()
+}
+
+/** Сохранение начинается с просмотра изменений (Save / Ctrl+S) */
+function reviewChanges(tab: YamlTab) {
+  if (!canEdit.value || tab.saving || !isDirty(tab)) return
+  tab.view = 'diff'
+}
+
+/** Применить в кластере (кнопка Apply в режиме diff); результат обрабатывает App.vue */
+function applyChanges(tab: YamlTab) {
+  if (!canEdit.value || tab.saving || !isDirty(tab)) return
   emit('apply-yaml', tab.id)
+}
+
+function backToEdit(tab: YamlTab) {
+  tab.view = 'edit'
+  nextTick(() => {
+    const ed = editors.get(tab.id)
+    ed?.layout()
+    ed?.focus()
+  })
+}
+
+/** Перечитать манифест из кластера; несохранённые правки — только после подтверждения */
+async function reloadYaml(tab: YamlTab) {
+  if (tab.loading || tab.saving) return
+  if (isDirty(tab) && !(await askConfirm('Discard unsaved changes and reload YAML from the cluster?'))) return
+  tab.loading = true
+  try {
+    const fresh = await GetResourceYAML(tab.namespace, tab.resourceType, tab.resourceName, true)
+    tab.originalContent = fresh
+    tab.content = fresh
+    tab.view = 'edit'
+  } catch (e: any) {
+    notifications.notifyError(`Не удалось перечитать YAML: ${e?.message || e}`)
+  } finally {
+    tab.loading = false
+  }
 }
 
 // Terminal functions
@@ -902,6 +1018,20 @@ function handleResize(e: MouseEvent) {
   font-size: 14px;
 }
 
+.editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editor-mode {
+  font-size: 12px;
+  color: #89b4fa;
+  background: rgba(137, 180, 250, 0.12);
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+
 .editor-namespace {
   color: #6b6d8a;
   font-size: 12px;
@@ -1105,5 +1235,5 @@ function handleResize(e: MouseEvent) {
 }
 
 .editor-dirty { color: #facc15; font-size: 14px; }
-.btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
