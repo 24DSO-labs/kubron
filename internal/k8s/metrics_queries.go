@@ -5,18 +5,29 @@ import (
 	"strings"
 )
 
+// Метка, которую Prometheus-конфиг из manifests/metrics-stack.yaml ставит на метрики
+// node-exporter: имя Node (instance там — IP пода, по нему ноду не найти).
+const promNodeLabel = "kubernetes_node"
+
 // promLabelValue экранирует значение для подстановки в строковый литерал PromQL.
 func promLabelValue(v string) string {
 	return strings.NewReplacer(`\`, `\\`, `"`, `\"`, "\n", `\n`).Replace(v)
 }
 
+// Загрузка CPU по нодам в процентах: сумма занятых ядер / число ядер.
 func promQueryNodeCPU() string {
-	return "sum by (instance) (rate(node_cpu_seconds_total{mode!=" +
-		string('"') + "idle" + string('"') + "}[5m])) * 100"
+	return fmt.Sprintf(
+		`100 * sum by (%[1]s) (rate(node_cpu_seconds_total{mode!="idle"}[5m])) / count by (%[1]s) (node_cpu_seconds_total{mode="idle"})`,
+		promNodeLabel,
+	)
 }
 
+// Использование памяти по нодам в процентах.
 func promQueryNodeMem() string {
-	return "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100"
+	return fmt.Sprintf(
+		`100 * (1 - sum by (%[1]s) (node_memory_MemAvailable_bytes) / sum by (%[1]s) (node_memory_MemTotal_bytes))`,
+		promNodeLabel,
+	)
 }
 
 // Агрегаты по всему кластеру (одно значение): используются на главном экране
