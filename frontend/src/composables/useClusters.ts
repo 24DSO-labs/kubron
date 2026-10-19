@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import type { ClusterStatus } from '../types'
 import { askConfirm } from '../resources/confirm'
+import { callApp } from '../resources/wails'
 
 const clusters = ref<ClusterStatus[]>([])
 const activeClusterId = ref('')
@@ -9,8 +10,7 @@ const clusterError = ref('')
 
 async function loadClusters() {
   try {
-    const { GetClusterStatuses } = await import('../../wailsjs/go/main/App')
-    clusters.value = await GetClusterStatuses() || []
+    clusters.value = await callApp('GetClusterStatuses') || []
   } catch (e: any) {
     clusters.value = []
   }
@@ -19,8 +19,7 @@ async function loadClusters() {
 async function connectToCluster(id: string) {
   try {
     clusterError.value = ''
-    const { ConnectToCluster } = await import('../../wailsjs/go/main/App')
-    await ConnectToCluster(id)
+    await callApp('ConnectToCluster', id)
     activeClusterId.value = id
     await loadClusters()
   } catch (e: any) {
@@ -31,8 +30,7 @@ async function connectToCluster(id: string) {
 
 async function pickKubeconfigFile(): Promise<string> {
   try {
-    const { PickKubeconfigFile } = await import('../../wailsjs/go/main/App')
-    return (await PickKubeconfigFile()) || ''
+    return (await callApp('PickKubeconfigFile')) || ''
   } catch (e: any) {
     clusterError.value = e.message || String(e)
     return ''
@@ -42,8 +40,7 @@ async function pickKubeconfigFile(): Promise<string> {
 async function addClusterFromFile(path: string, displayName: string, icon: string, color: string) {
   try {
     clusterError.value = ''
-    const { AddClusterFromFile } = await import('../../wailsjs/go/main/App')
-    const result = await AddClusterFromFile(path, displayName, icon, color)
+    const result = await callApp('AddClusterFromFile', path, displayName, icon, color)
     if (result) {
       await loadClusters()
     }
@@ -57,8 +54,7 @@ async function addClusterFromFile(path: string, displayName: string, icon: strin
 async function addClusterFromText(text: string, displayName: string, icon: string, color: string) {
   try {
     clusterError.value = ''
-    const { AddClusterFromText } = await import('../../wailsjs/go/main/App')
-    const result = await AddClusterFromText(text, displayName, icon, color)
+    const result = await callApp('AddClusterFromText', text, displayName, icon, color)
     if (result) {
       await loadClusters()
     }
@@ -72,8 +68,7 @@ async function addClusterFromText(text: string, displayName: string, icon: strin
 async function deleteCluster(id: string) {
   if (!(await askConfirm('Удалить кластер? Подключение будет закрыто, сохранённый kubeconfig удалён.'))) return
   try {
-    const { DeleteCluster } = await import('../../wailsjs/go/main/App')
-    await DeleteCluster(id)
+    await callApp('DeleteCluster', id)
     if (activeClusterId.value === id) {
       activeClusterId.value = ''
     }
@@ -85,8 +80,7 @@ async function deleteCluster(id: string) {
 
 async function updateCluster(id: string, displayName: string, icon: string, color: string) {
   try {
-    const { UpdateCluster } = await import('../../wailsjs/go/main/App')
-    await UpdateCluster(id, displayName, icon, color)
+    await callApp('UpdateCluster', id, displayName, icon, color)
     await loadClusters()
   } catch (e: any) {
     clusterError.value = e.message || String(e)
@@ -95,8 +89,7 @@ async function updateCluster(id: string, displayName: string, icon: string, colo
 
 async function autoConnect() {
   try {
-    const { GetLastActiveCluster } = await import('../../wailsjs/go/main/App')
-    const lastId = await GetLastActiveCluster()
+    const lastId = await callApp('GetLastActiveCluster')
     if (lastId) {
       const exists = clusters.value.find(c => c.id === lastId)
       if (exists) {

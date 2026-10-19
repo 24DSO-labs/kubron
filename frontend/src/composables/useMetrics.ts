@@ -1,5 +1,6 @@
 import { ref, reactive, computed } from 'vue'
 import type {
+import { callApp } from '../resources/wails'
   MetricsStatus,
   ClusterMetricsSnapshot,
   NodeMetricSnapshot,
@@ -15,8 +16,7 @@ export function useMetricsStatus(clusterName: string) {
 
   async function fetchStatus() {
     try {
-      const { GetMetricsStatus } = await import('../../wailsjs/go/main/App')
-      status.value = (await GetMetricsStatus()) as unknown as MetricsStatus
+      status.value = (await callApp('GetMetricsStatus')) as unknown as MetricsStatus
     } catch (e: any) {
       error.value = e.message || String(e)
     }
@@ -26,8 +26,7 @@ export function useMetricsStatus(clusterName: string) {
     try {
       loading.value = true
       error.value = ''
-      const { InstallMetricsStack } = await import('../../wailsjs/go/main/App')
-      await InstallMetricsStack()
+      await callApp('InstallMetricsStack')
       await fetchStatus()
     } catch (e: any) {
       error.value = e.message || String(e)
@@ -40,8 +39,7 @@ export function useMetricsStatus(clusterName: string) {
     try {
       loading.value = true
       error.value = ''
-      const { UninstallMetricsStack } = await import('../../wailsjs/go/main/App')
-      await UninstallMetricsStack()
+      await callApp('UninstallMetricsStack')
       await fetchStatus()
     } catch (e: any) {
       error.value = e.message || String(e)
@@ -68,8 +66,7 @@ export function useClusterMetrics(clusterName: string) {
   async function fetch() {
     loading.value = true
     try {
-      const { GetClusterMetricsSnapshot } = await import('../../wailsjs/go/main/App')
-      const data = await GetClusterMetricsSnapshot()
+      const data = await callApp('GetClusterMetricsSnapshot')
       if (data) {
         snapshot.value = data as unknown as ClusterMetricsSnapshot
       }
@@ -89,8 +86,7 @@ export function useNodeMetrics(clusterName: string) {
 
   async function fetch() {
     try {
-      const { GetNodeMetrics } = await import('../../wailsjs/go/main/App')
-      const data = await GetNodeMetrics()
+      const data = await callApp('GetNodeMetrics')
       if (Array.isArray(data)) {
         metrics.value = (data as any[]).map((item: any) => ({
           name: item.name || '',
@@ -120,8 +116,7 @@ export function usePodMetrics(clusterName: string, namespace: string) {
 
   async function fetch() {
     try {
-      const { GetPodMetrics } = await import('../../wailsjs/go/main/App')
-      const data = await GetPodMetrics(namespace)
+      const data = await callApp('GetPodMetrics', namespace)
 
       // Backend currently returns only CPU as string (TotalCPU) and uses field names
       // that may not match PodMetricSnapshot exactly. Normalize here to avoid 0/undefined in UI.
@@ -157,9 +152,8 @@ export function usePrometheusRange(clusterName: string) {
     step: number
   ): Promise<TimeSeriesDataPoint[]> {
     try {
-      const { QueryPrometheusRange } = await import('../../wailsjs/go/main/App')
       const stepStr = `${step}s`
-      const result = await QueryPrometheusRange(query, startUnix, endUnix, stepStr)
+      const result = await callApp('QueryPrometheusRange', query, startUnix, endUnix, stepStr)
 
       if (!result || result.status !== 'success') {
         return []

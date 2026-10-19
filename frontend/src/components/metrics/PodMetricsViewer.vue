@@ -42,33 +42,39 @@
 import { ref, computed } from 'vue'
 import MetricsChart from './MetricsChart.vue'
 import MultiLineChart from './MultiLineChart.vue'
-import { usePrometheusRange, usePodMetrics } from '../../composables/useMetrics'
+import { usePrometheusRange } from '../../composables/useMetrics'
 
 const props = defineProps<{
   clusterName: string
   namespace: string
   podName: string
+  /** Если задан — метрики одного контейнера, иначе сумма по всем контейнерам пода */
+  containerName?: string
 }>()
 
 const { queryRange } = usePrometheusRange(props.clusterName)
-const { metrics: allPods, fetch: fetchPods } = usePodMetrics(props.clusterName, props.namespace)
 
-// Fetch pod metrics on mount
-fetchPods()
+// Селекторы PromQL (сетевые метрики cAdvisor — только на уровне пода): usage-метрики помечены контейнером (пропускаем пустой и pause "POD"),
+// requests/limits и диск — на уровне пода или конкретного контейнера.
+const podSel = computed(() => `namespace="${props.namespace}",pod="${props.podName}"`)
+const containerSel = computed(() => (props.containerName ? `${podSel.value},container="${props.containerName}"` : ''))
+const usageSel = computed(() => containerSel.value || `${podSel.value},container!="",container!="POD"`)
+const configSel = computed(() => containerSel.value || `${podSel.value},container!="POD"`)
+const diskSel = computed(() => containerSel.value || podSel.value)
 
 // Fetch functions for each metric
 async function fetchCpuUsage(start: number, end: number, step: number) {
-  const q = `sum(rate(container_cpu_usage_seconds_total{namespace="${props.namespace}",pod="${props.podName}",container!="",container!="POD"}[5m]))`
+  const q = `sum(rate(container_cpu_usage_seconds_total{${usageSel.value}}[5m]))`
   return await queryRange(q, start, end, step)
 }
 
 async function fetchCpuRequests(start: number, end: number, step: number) {
-  const q = `sum(kube_pod_container_resource_requests{namespace="${props.namespace}",pod="${props.podName}",container!="POD",resource="cpu"})`
+  const q = `sum(kube_pod_container_resource_requests{${configSel.value},resource="cpu"})`
   return await queryRange(q, start, end, step)
 }
 
 async function fetchCpuLimits(start: number, end: number, step: number) {
-  const q = `sum(kube_pod_container_resource_limits{namespace="${props.namespace}",pod="${props.podName}",container!="POD",resource="cpu"})`
+  const q = `sum(kube_pod_container_resource_limits{${configSel.value},resource="cpu"})`
   return await queryRange(q, start, end, step)
 }
 
@@ -84,17 +90,17 @@ async function fetchCpuCombined(start: number, end: number, step: number) {
 }
 
 async function fetchMemoryUsage(start: number, end: number, step: number) {
-  const q = `sum(container_memory_working_set_bytes{namespace="${props.namespace}",pod="${props.podName}",container!="",container!="POD"}) / 1024 / 1024`
+  const q = `sum(container_memory_working_set_bytes{${usageSel.value}}) / 1024 / 1024`
   return await queryRange(q, start, end, step)
 }
 
 async function fetchMemoryRequests(start: number, end: number, step: number) {
-  const q = `sum(kube_pod_container_resource_requests{namespace="${props.namespace}",pod="${props.podName}",container!="POD",resource="memory"}) / 1024 / 1024`
+  const q = `sum(kube_pod_container_resource_requests{${configSel.value},resource="memory"}) / 1024 / 1024`
   return await queryRange(q, start, end, step)
 }
 
 async function fetchMemoryLimits(start: number, end: number, step: number) {
-  const q = `sum(kube_pod_container_resource_limits{namespace="${props.namespace}",pod="${props.podName}",container!="POD",resource="memory"}) / 1024 / 1024`
+  const q = `sum(kube_pod_container_resource_limits{${configSel.value},resource="memory"}) / 1024 / 1024`
   return await queryRange(q, start, end, step)
 }
 
@@ -110,27 +116,27 @@ async function fetchMemoryCombined(start: number, end: number, step: number) {
 }
 
 async function fetchNetworkRx(start: number, end: number, step: number) {
-  const q = `sum(rate(container_network_receive_bytes_total{namespace="${props.namespace}",pod="${props.podName}"}[5m])) / 1024`
+  const q = `sum(rate(container_network_receive_bytes_total{${podSel.value}}[5m])) / 1024`
   return await queryRange(q, start, end, step)
 }
 
 async function fetchNetworkTx(start: number, end: number, step: number) {
-  const q = `sum(rate(container_network_transmit_bytes_total{namespace="${props.namespace}",pod="${props.podName}"}[5m])) / 1024`
+  const q = `sum(rate(container_network_transmit_bytes_total{${podSel.value}}[5m])) / 1024`
   return await queryRange(q, start, end, step)
 }
 
 async function fetchDiskUsage(start: number, end: number, step: number) {
-  const q = `sum(container_fs_usage_bytes{namespace="${props.namespace}",pod="${props.podName}"}) / 1024 / 1024`
+  const q = `sum(container_fs_usage_bytes{${diskSel.value}}) / 1024 / 1024`
   return await queryRange(q, start, end, step)
 }
 
 async function fetchDiskWrites(start: number, end: number, step: number) {
-  const q = `sum(rate(container_fs_writes_bytes_total{namespace="${props.namespace}",pod="${props.podName}"}[5m])) / 1024 / 1024`
+  const q = `sum(rate(container_fs_writes_bytes_total{${diskSel.value}}[5m])) / 1024 / 1024`
   return await queryRange(q, start, end, step)
 }
 
 async function fetchDiskReads(start: number, end: number, step: number) {
-  const q = `sum(rate(container_fs_reads_bytes_total{namespace="${props.namespace}",pod="${props.podName}"}[5m])) / 1024 / 1024`
+  const q = `sum(rate(container_fs_reads_bytes_total{${diskSel.value}}[5m])) / 1024 / 1024`
   return await queryRange(q, start, end, step)
 }
 
