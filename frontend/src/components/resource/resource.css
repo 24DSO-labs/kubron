@@ -1,5 +1,6 @@
 /* Общие стили панелей деталей и секций (components/resource). Префикс rd- нужен, чтобы не пересекаться со старым css */
 
+.rd-links { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 .rd-props { display: flex; flex-direction: column; }
 
 .rd-row {
