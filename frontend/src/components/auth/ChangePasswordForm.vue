@@ -67,4 +67,4 @@ async function submit() {
 }
 </script>
 
-<style src="./auth.css"></style>
+

@@ -4,8 +4,8 @@ import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 import { badgeClass } from '../status'
+import { workloadMetrics } from '../workloadMetrics'
 
-import DaemonSetMetricsSection from '../../components/resource/sections/DaemonSetMetricsSection.vue'
 import ImagesSection from '../../components/resource/sections/ImagesSection.vue'
 import TolerationsSection from '../../components/resource/sections/TolerationsSection.vue'
 import NodeAffinitySection from '../../components/resource/sections/NodeAffinitySection.vue'
@@ -30,7 +30,6 @@ export const daemonSet = defineResource<k8s.DaemonSetInfo>({
   namespaced: true,
   nav: { group: 'workloads', label: 'Daemon Sets' },
 
-  
   autoRefresh: true,
   columns: [
     flatNameCol,
@@ -44,7 +43,7 @@ export const daemonSet = defineResource<k8s.DaemonSetInfo>({
     ageCol,
   ],
 
-  headSections: [DaemonSetMetricsSection],
+  headSections: [workloadMetrics.daemonset],
   properties: [
     { label: 'Selector', value: d => d.selector },
     { label: 'Node Selector', value: d => d.nodeSelector },
