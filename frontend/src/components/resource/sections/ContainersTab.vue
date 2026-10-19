@@ -16,7 +16,7 @@
             <span class="rd-arrow" :class="{ open: metricsOpen[c.name] }">›</span>
           </div>
           <div v-if="metricsOpen[c.name]" class="rd-block-body">
-            <ContainerMetricsViewer
+            <PodMetricsViewer
               :cluster-name="clusterName"
               :namespace="resource.namespace"
               :pod-name="resource.name"
@@ -136,7 +136,7 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from 'vue'
 import { clusterNameKey } from '../../../resources/context'
-import ContainerMetricsViewer from '../../metrics/ContainerMetricsViewer.vue'
+import PodMetricsViewer from '../../metrics/PodMetricsViewer.vue'
 import K8sIcon from '../../icons/K8sIcon.vue'
 import PortForwardControl from './PortForwardControl.vue'
 import { callApp } from '../../../resources/wails'
