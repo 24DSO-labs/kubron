@@ -1,12 +1,12 @@
 import { ref, reactive, computed } from 'vue'
 import type {
-import { callApp } from '../resources/wails'
   MetricsStatus,
   ClusterMetricsSnapshot,
   NodeMetricSnapshot,
   PodMetricSnapshot,
   TimeSeriesDataPoint,
 } from '../types/metrics'
+import { callApp } from '../resources/wails'
 
 // Metrics Status
 export function useMetricsStatus(clusterName: string) {
