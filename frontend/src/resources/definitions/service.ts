@@ -3,8 +3,10 @@ import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 import { formatMap } from '../utils'
-import ServicePortsSection from '../../components/resource/sections/ServicePortsSection.vue'
-import EndpointsSection from '../../components/resource/sections/EndpointsSection.vue'
+import { statusColor } from '../status'
+import ConnectionTab from '../../components/resource/sections/ConnectionTab.vue'
+import EndpointSlicesTab from '../../components/resource/sections/EndpointSlicesTab.vue'
+import EndpointsTab from '../../components/resource/sections/EndpointsTab.vue'
 
 export const service = defineResource<k8s.ServiceInfo, k8s.ServiceDetail>({
   id: 'service',
@@ -13,27 +15,33 @@ export const service = defineResource<k8s.ServiceInfo, k8s.ServiceDetail>({
   title: 'Services',
   namespaced: true,
   nav: { group: 'network', label: 'Services' },
-  
-  autoRefresh: true,icon: 'service',
+
+  autoRefresh: true, icon: 'service',
 
   columns: [
     flatNameCol,
     { ...flatNsCol, link: (s: any) => s.namespace ? { id: 'namespace', ns: '', name: s.namespace } : null },
+    { key: 'type', label: 'Type' },
     { key: 'clusterIP', label: 'Cluster IP' },
-    { key: 'externalIP', label: 'External IP' },
     { key: 'ports', label: 'Ports' },
+    { key: 'externalIP', label: 'External IP' },
+    { key: 'selector', label: 'Selector', formatter: (s: any) => formatMap(s.selector) },
     ageCol,
+    { key: 'status', label: 'Status', colorFn: (s: any) => statusColor(s.status) },
   ],
 
   properties: [
-    { label: 'Cluster IP', value: s => s.clusterIP },
-    { label: 'Cluster IPs', value: s => s.clusterIPs?.join(', ') },
-    { label: 'IP Families', value: s => s.ipFamilies },
-    { label: 'IP Family Policy', value: s => s.ipFamilyPolicy },
+    { label: 'Session Affinity', value: s => s.sessionAffinity },
     { label: 'Type', value: s => s.type },
     { label: 'Selector', value: s => formatMap(s.selector) },
+    { label: 'Finalizers', value: s => s.finalizers?.join(', ') },
   ],
-  sections: [ServicePortsSection, EndpointsSection],
+  sections: [],
+  tabs: [
+    { id: 'connection', label: 'Connection', component: ConnectionTab },
+    { id: 'endpoints', label: 'Endpoints', component: EndpointsTab },
+    { id: 'endpointSlices', label: 'Endpoint Slices', component: EndpointSlicesTab },
+  ],
 
   api: {
     list: ns => callApp('GetServices', ns),
