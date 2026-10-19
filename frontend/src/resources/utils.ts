@@ -39,13 +39,18 @@ export function podStatusSummary(item: any): string {
 
 export type PodOwnerKind = 'deployment' | 'replicaset' | 'daemonset' | 'statefulset' | 'job'
 
-/** Regex имён подов ресурса для PromQL (pod=~"..."; в Prometheus regex всегда с якорями) */
-export function podNameRegex(kind: PodOwnerKind, name: string): string {
+/**
+ * Владелец подов для PromQL: kube_pod_owner{owner_kind, owner_name=~regex}
+ * (regex в Prometheus всегда с якорями).
+ * Deployment владеет ReplicaSet-ом "<dep>-<pod-template-hash>", поэтому для него ищем такие ReplicaSet.
+ */
+export function podOwner(kind: PodOwnerKind, name: string): { kind: string; regex: string } {
   const n = name.replace(/\./g, '[.]')
   switch (kind) {
-    case 'deployment': return `${n}-[a-z0-9]{8,10}-[a-z0-9]{5}` // <dep>-<hash ReplicaSet>-<5>
-    case 'statefulset': return `${n}-[0-9]+`
-    case 'job': return `${n}-([0-9]+-)?[a-z0-9]{5}` // у Indexed-Job в имени есть индекс
-    default: return `${n}-[a-z0-9]{5}` // daemonset, replicaset
+    case 'deployment': return { kind: 'ReplicaSet', regex: `${n}-[a-z0-9]{8,10}` }
+    case 'replicaset': return { kind: 'ReplicaSet', regex: n }
+    case 'daemonset': return { kind: 'DaemonSet', regex: n }
+    case 'statefulset': return { kind: 'StatefulSet', regex: n }
+    case 'job': return { kind: 'Job', regex: n }
   }
 }

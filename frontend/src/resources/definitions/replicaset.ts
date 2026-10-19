@@ -4,11 +4,11 @@ import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
 import { badgeClass } from '../status'
+import { podStatusSummary } from '../utils'
+import { workloadMetrics } from '../workloadMetrics'
 
-import ReplicaSetMetricsSection from '../../components/resource/sections/ReplicaSetMetricsSection.vue'
 import ImagesSection from '../../components/resource/sections/ImagesSection.vue'
 import PodsTab from '../../components/resource/sections/PodsTab.vue'
-import { podStatusSummary } from '../utils'
 
 /** Маппинг kind -> resource id для ссылок (владелец ReplicaSet — обычно Deployment) */
 const kindToId: Record<string, string> = {
@@ -40,8 +40,6 @@ export function replicaSetStatus(rs: any): string {
   return `${ready}/${desired} Progressing`
 }
 
-
-
 export const replicaSet = defineResource<k8s.ReplicaSetInfo>({
   id: 'replicaset',
   kind: 'ReplicaSet',
@@ -49,9 +47,8 @@ export const replicaSet = defineResource<k8s.ReplicaSetInfo>({
   title: 'ReplicaSets',
   namespaced: true,
   nav: { group: 'workloads', label: 'Replica Sets' },
-  
+
   autoRefresh: true,
-  // icon: 'service',
 
   columns: [
     flatNameCol,
@@ -62,7 +59,7 @@ export const replicaSet = defineResource<k8s.ReplicaSetInfo>({
     ageCol,
   ],
 
-  headSections: [ReplicaSetMetricsSection],
+  headSections: [workloadMetrics.replicaset],
   properties: [
     { label: 'Replicas', value: r => `${r.current ?? 0} current / ${r.desired ?? 0} desired` },
     {
