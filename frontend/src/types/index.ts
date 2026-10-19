@@ -320,6 +320,9 @@ export interface ServiceInfo {
   externalIP: string
   ports: string[]
   age: string
+  labels?: Record<string, string>
+  selector?: Record<string, string>
+  status: string
 }
 
 export interface IngressInfo {
@@ -447,14 +450,18 @@ export interface ServiceDetail {
   type: string
   clusterIP: string
   clusterIPs: string[]
+  externalIPs: string[]
   ipFamilies: string
   ipFamilyPolicy: string
+  sessionAffinity: string
   ports: ServicePortInfo[]
   selector: Record<string, string>
   labels: Record<string, string>
   annotations: Record<string, string>
+  finalizers: string[]
   age: string
   endpoints: EndpointInfo[]
+  endpointSlices: EndpointSliceInfo[]
 }
 
 export interface ServicePortInfo {
@@ -470,6 +477,17 @@ export interface ServicePortInfo {
 export interface EndpointInfo {
   name: string
   addresses: string[]
+}
+
+export interface EndpointSliceInfo {
+  name: string
+  namespace: string
+  addresses: string[]
+  ports: string[]
+  zone: string
+  endpoints: string
+  addressType: string
+  age: string
 }
 
 export interface ResourceQuotaInfo {

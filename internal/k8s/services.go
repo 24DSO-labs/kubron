@@ -18,6 +18,7 @@ type ServiceInfo struct {
 	Age        string            `json:"age"`
 	Labels     map[string]string `json:"labels"`
 	Selector   map[string]string `json:"selector"`
+	Status     string            `json:"status"`
 }
 
 func (m *Manager) GetServices(namespace string) ([]ServiceInfo, error) {
@@ -58,6 +59,11 @@ func (m *Manager) GetServices(namespace string) ([]ServiceInfo, error) {
 			}
 		}
 
+		status := "Active"
+		if svc.Spec.Type == "LoadBalancer" && externalIP == "" {
+			status = "Pending"
+		}
+
 		services = append(services, ServiceInfo{
 			Name:       svc.Name,
 			Namespace:  svc.Namespace,
@@ -68,6 +74,7 @@ func (m *Manager) GetServices(namespace string) ([]ServiceInfo, error) {
 			Age:        formatAge(svc.CreationTimestamp.Time),
 			Labels:     svc.Labels,
 			Selector:   svc.Spec.Selector,
+			Status:     status,
 		})
 	}
 
