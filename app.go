@@ -477,6 +477,13 @@ func (a *App) GetConfigMapDetail(namespace, name string) (*k8s.ConfigMapInfo, er
 	return a.k8sMgr.GetConfigMapDetail(namespace, name)
 }
 
+func (a *App) UpdateConfigMap(namespace, name string, data map[string]string) error {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
+		return err
+	}
+	return a.k8sMgr.UpdateConfigMap(namespace, name, data)
+}
+
 // === Secrets ===
 
 func (a *App) GetSecrets(namespace string) ([]k8s.SecretInfo, error) {
