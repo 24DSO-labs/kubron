@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,7 +37,11 @@ func (m *Manager) GetEvents(namespace string) ([]EventInfo, error) {
 		return nil, err
 	}
 
-	var events []EventInfo
+	type timedEvent struct {
+		info EventInfo
+		at   time.Time
+	}
+	timed := make([]timedEvent, 0, len(eventList.Items))
 	for _, ev := range eventList.Items {
 		obj := fmt.Sprintf("%s/%s", ev.InvolvedObject.Kind, ev.InvolvedObject.Name)
 
@@ -55,7 +60,16 @@ func (m *Manager) GetEvents(namespace string) ([]EventInfo, error) {
 			source = ev.ReportingController
 		}
 
-		events = append(events, EventInfo{
+		// Время события: API не гарантирует порядок списка, сортируем сами.
+		at := ev.LastTimestamp.Time
+		if at.IsZero() {
+			at = ev.EventTime.Time
+		}
+		if at.IsZero() {
+			at = ev.CreationTimestamp.Time
+		}
+
+		timed = append(timed, timedEvent{at: at, info: EventInfo{
 			Name:         ev.Name,
 			Type:         ev.Type,
 			Reason:       ev.Reason,
@@ -67,13 +81,15 @@ func (m *Manager) GetEvents(namespace string) ([]EventInfo, error) {
 			Namespace:    ev.Namespace,
 			InvolvedKind: ev.InvolvedObject.Kind,
 			InvolvedName: ev.InvolvedObject.Name,
-		})
+		}})
 	}
 
-	// Сортируем: новые сверху
-	for i, j := 0, len(events)-1; i < j; i, j = i+1, j-1 {
-		events[i], events[j] = events[j], events[i]
-	}
+	// Новые сверху
+	sort.SliceStable(timed, func(i, j int) bool { return timed[i].at.After(timed[j].at) })
 
+	events := make([]EventInfo, len(timed))
+	for i, t := range timed {
+		events[i] = t.info
+	}
 	return events, nil
 }
