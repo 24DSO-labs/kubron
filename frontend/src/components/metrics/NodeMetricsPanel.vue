@@ -63,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { onMounted, onBeforeUnmount, computed } from 'vue'
 import GaugeCard from './GaugeCard.vue'
 import MetricsChart from './MetricsChart.vue'
 import {
@@ -89,36 +89,45 @@ const nodeData = computed(() => {
   return allNodes.value.find((n: any) => n.name === props.nodeName) || null
 })
 
-const instance = computed(() => {
-  // Prometheus node_exporter instance label обычно hostname:9100
-  return `${props.nodeName}:9100`
+/**
+ * Селектор ноды. У node-exporter из manifests/metrics-stack.yaml instance — это IP пода,
+ * а имя Node лежит в метке kubernetes_node (должна совпадать с promNodeLabel в Go).
+ */
+const nodeSel = computed(() => {
+  const v = props.nodeName.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+  return `kubernetes_node="${v}"`
 })
+
+// Физические интерфейсы: виртуальные (veth, мосты, оверлей) дублируют трафик
+const NET_DEVICES = 'device!~"lo|veth.*|docker.*|cni.*|flannel.*|cali.*|br-.*"'
 
 async function fetchNodeCpu(
   start: number, end: number, step: number
 ): Promise<[number, number][]> {
-  const q = `100 - (avg(rate(node_cpu_seconds_total{mode="idle",instance=~"${instance.value}.*"}[5m])) * 100)`
+  const q = `100 - (avg(rate(node_cpu_seconds_total{mode="idle",${nodeSel.value}}[5m])) * 100)`
   return await queryRange(q, start, end, step)
 }
 
 async function fetchNodeMemory(
   start: number, end: number, step: number
 ): Promise<[number, number][]> {
-  const q = `(1 - (node_memory_MemAvailable_bytes{instance=~"${instance.value}.*"} / node_memory_MemTotal_bytes{instance=~"${instance.value}.*"})) * 100`
+  const q = `(1 - (sum(node_memory_MemAvailable_bytes{${nodeSel.value}}) / sum(node_memory_MemTotal_bytes{${nodeSel.value}}))) * 100`
   return await queryRange(q, start, end, step)
 }
 
 async function fetchNodeDisk(
   start: number, end: number, step: number
 ): Promise<[number, number][]> {
-  const q = `(1 - (node_filesystem_avail_bytes{instance=~"${instance.value}.*",mountpoint="/",fstype!="tmpfs"} / node_filesystem_size_bytes{instance=~"${instance.value}.*",mountpoint="/",fstype!="tmpfs"})) * 100`
+  const sel = `${nodeSel.value},mountpoint="/",fstype!="tmpfs"`
+  const q = `(1 - (max(node_filesystem_avail_bytes{${sel}}) / max(node_filesystem_size_bytes{${sel}}))) * 100`
   return await queryRange(q, start, end, step)
 }
 
 async function fetchNodeNetwork(
   start: number, end: number, step: number
 ): Promise<[number, number][]> {
-  const q = `rate(node_network_receive_bytes_total{instance=~"${instance.value}.*",device!="lo"}[5m]) / 1024 / 1024`
+  const sel = `${nodeSel.value},${NET_DEVICES}`
+  const q = `(sum(rate(node_network_receive_bytes_total{${sel}}[5m])) + sum(rate(node_network_transmit_bytes_total{${sel}}[5m]))) / 1024 / 1024`
   return await queryRange(q, start, end, step)
 }
 
