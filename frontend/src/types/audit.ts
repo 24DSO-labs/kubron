@@ -48,7 +48,6 @@ const ACTION_LABELS: Record<string, string> = {
   ResetUserPassword: 'Сброс пароля',
   DeleteUser: 'Удаление пользователя',
   ApplyYAML: 'Применение YAML',
-  ExecCommand: 'Выполнение команды в поде',
   DetectShell: 'Определение shell в поде',
   StartTerminalSession: 'Открытие терминала',
   CloseTerminal: 'Закрытие терминала',

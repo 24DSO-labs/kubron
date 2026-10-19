@@ -147,24 +147,6 @@ func (a *App) SaveAppSettings(settings *k8s.KubronConfig) error {
 
 // === Контексты ===
 
-func (a *App) GetContexts() ([]k8s.ContextInfo, error) {
-	if err := a.authz(auth.PermRead); err != nil {
-		return nil, err
-	}
-	return a.k8sMgr.LoadContexts()
-}
-
-func (a *App) ConnectToContext(contextName string) error {
-	if err := a.authz(auth.PermRead); err != nil {
-		return err
-	}
-	err := a.k8sMgr.ConnectToContext(contextName)
-	if err != nil {
-		return err
-	}
-	return a.k8sMgr.TestConnection()
-}
-
 func (a *App) GetActiveContext() string {
 	if a.authz(auth.PermRead) != nil {
 		return ""
@@ -708,13 +690,6 @@ func (a *App) ApplyYAML(namespace, kind, name, jsonData string) error {
 
 // === Exec ===
 
-func (a *App) ExecCommand(namespace, pod, container, command string) (string, error) {
-	if err := a.authz(auth.PermExec, "namespace", namespace, "pod", pod, "container", container, "command", command); err != nil {
-		return "", err
-	}
-	return a.k8sMgr.ExecCommand(namespace, pod, container, command)
-}
-
 // === Metrics ===
 
 func (a *App) GetPodMetrics(namespace string) ([]k8s.PodMetrics, error) {
@@ -757,13 +732,6 @@ func (a *App) GetClusterMetricsSnapshot() (*k8s.ClusterMetricsSnapshot, error) {
 		return nil, err
 	}
 	return a.k8sMgr.GetClusterMetricsSnapshot()
-}
-
-func (a *App) GetNodeMetricsByRole(role string) (*k8s.NodeMetricsByRole, error) {
-	if err := a.authz(auth.PermRead); err != nil {
-		return nil, err
-	}
-	return a.k8sMgr.GetNodeMetricsByRole(role)
 }
 
 func (a *App) QueryPrometheus(query string) (*k8s.PromQueryResult, error) {
