@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"strings"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -98,8 +99,10 @@ func (m *Manager) GetSecretBase64Value(namespace, name, key string) (string, err
 	return base64.StdEncoding.EncodeToString(val), nil
 }
 
-// UpdateSecret обновляет данные секрета. Значения передаются в виде строк,
-// они конвертируются в []byte (client-go сам кодирует в base64 при отправке).
+// UpdateSecret обновляет данные секрета. Значения передаются в base64 (в том же виде,
+// в каком их отдаёт GetSecretBase64Value) и декодируются в сырые байты: client-go сам
+// кодирует Data в base64 при отправке, поэтому без декодирования значения
+// записывались бы дважды закодированными.
 func (m *Manager) UpdateSecret(namespace, name string, data map[string]string) error {
 	conn, err := m.GetActiveConnection()
 	if err != nil {
@@ -113,10 +116,15 @@ func (m *Manager) UpdateSecret(namespace, name string, data map[string]string) e
 		return fmt.Errorf("не удалось получить Secret: %w", err)
 	}
 
-	sec.Data = make(map[string][]byte, len(data))
+	decoded := make(map[string][]byte, len(data))
 	for k, v := range data {
-		sec.Data[k] = []byte(v)
+		raw, err := base64.StdEncoding.DecodeString(strings.TrimSpace(v))
+		if err != nil {
+			return fmt.Errorf("значение ключа %q не является корректным base64: %w", k, err)
+		}
+		decoded[k] = raw
 	}
+	sec.Data = decoded
 
 	_, err = conn.Client.CoreV1().Secrets(namespace).Update(ctx, sec, metav1.UpdateOptions{})
 	if err != nil {

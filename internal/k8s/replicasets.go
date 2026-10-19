@@ -70,17 +70,7 @@ func (m *Manager) GetReplicaSets(namespace string) ([]ReplicaSetInfo, error) {
 		}
 
 		// Selector из MatchLabels: "app=myapp,version=v1"
-		selectorStr := ""
-		if rs.Spec.Selector != nil && len(rs.Spec.Selector.MatchLabels) > 0 {
-			first := true
-			for k, v := range rs.Spec.Selector.MatchLabels {
-				if !first {
-					selectorStr += ", "
-				}
-				selectorStr += k + "=" + v
-				first = false
-			}
-		}
+		selectorStr := formatMatchLabels(rs.Spec.Selector)
 
 		// Владелец (обычно Deployment): "Deployment/my-app"
 		controlledBy := ""
