@@ -11,10 +11,21 @@ const (
 	PrometheusSvcURL = "http://prometheus.kubron-metrics.svc:80"
 )
 
+// MetricsComponentStatus — состояние одного компонента стека метрик.
+// Формат совпадает с ComponentStatus во frontend/src/types/metrics.ts.
+type MetricsComponentStatus struct {
+	Ready             bool  `json:"ready"`
+	Replicas          int32 `json:"replicas"`
+	AvailableReplicas int32 `json:"availableReplicas"`
+}
+
+// MetricsStackStatus — статус стека метрик.
+// Status: not_installed | installing | installed | degraded.
 type MetricsStackStatus struct {
-	Status        string            `json:"status"`
-	Components    map[string]string `json:"components"`
-	PrometheusURL string            `json:"prometheusUrl,omitempty"`
+	Status        string                            `json:"status"`
+	Components    map[string]MetricsComponentStatus `json:"components"`
+	Message       string                            `json:"message,omitempty"`
+	PrometheusURL string                            `json:"prometheusUrl,omitempty"`
 }
 
 type PromQueryResult struct {
