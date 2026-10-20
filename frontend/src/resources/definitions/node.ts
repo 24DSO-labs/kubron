@@ -2,10 +2,17 @@ import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, ageCol } from './common'
-import { badgeClass, statusColor } from '../status'
+import { badgeClass } from '../status'
+import NodeUsageCell from '../../components/resource/sections/NodeUsageCell.vue'
 import NodeMetricsSection from '../../components/resource/sections/NodeMetricsSection.vue'
 import ConditionsSection from '../../components/resource/sections/ConditionsSection.vue'
 import NodeTaintsSection from '../../components/resource/sections/NodeTaintsSection.vue'
+
+/** Цвет Conditions: зелёный — Ready без проблем, жёлтый — Ready с pressure, красный — NotReady */
+const conditionsColor = (n: any): string => {
+  if (n.status !== 'Ready') return '#ef4444'
+  return n.conditions === 'Ready' ? '#4ade80' : '#facc15'
+}
 
 export const node = defineResource<k8s.NodeInfo, k8s.NodeDetail>({
   id: 'node',
@@ -14,18 +21,46 @@ export const node = defineResource<k8s.NodeInfo, k8s.NodeDetail>({
   title: 'Nodes',
   namespaced: false,
   nav: { label: 'Nodes' },
-  
-  autoRefresh: true,icon: 'service',
+
+  autoRefresh: true,
+  icon: 'service',
 
   columns: [
     flatNameCol,
-    { key: 'status', label: 'Status', colorFn: n => statusColor(n.status) },
-    { key: 'roles', label: 'Roles' },
+    { key: 'cpu', label: 'CPU', width: 100, component: NodeUsageCell },
+    { key: 'memory', label: 'Memory', width: 100, component: NodeUsageCell },
+    { key: 'disk', label: 'Disk', width: 100, component: NodeUsageCell },
+    { key: 'taints', label: 'Taints', width: 80 },
+    // kubectl показывает <none> для worker, в списке оставляем пусто
+    { key: 'roles', label: 'Roles', formatter: n => (n.roles === '<none>' ? '' : n.roles) },
     { key: 'version', label: 'Version' },
-    { key: 'cpuCapacity', label: 'CPU' },
-    { key: 'memoryCapacity', label: 'Memory' },
     ageCol,
+    { key: 'conditions', label: 'Conditions', colorFn: conditionsColor },
   ],
+
+  // Использование CPU / памяти / диска подмешивается к строкам, когда придут метрики
+  onLoaded: async items => {
+    let list: any[] = []
+    try {
+      list = ((await callApp('GetNodeMetrics')) as any[]) ?? []
+    } catch {
+      /* стек метрик не установлен или Prometheus недоступен: список остаётся без полосок */
+    }
+    if (!list.length) return items
+    const byName = new Map(list.map(m => [m.name, m]))
+    return items.map(n => {
+      const m = byName.get(n.name)
+      if (!m) return n
+      return {
+        ...n,
+        usage: {
+          cpu: { pct: m.cpuPercent, used: m.cpuUsedCores, total: m.cpuCores },
+          memory: { pct: m.memoryPercent, used: m.memoryUsedBytes, total: m.memoryTotalBytes },
+          disk: { pct: m.diskPercent, used: m.diskUsedBytes, total: m.diskTotalBytes },
+        },
+      }
+    }) as any[]
+  },
 
   properties: [
     { label: 'Status', value: n => n.status, badge: n => badgeClass(n.status) },
