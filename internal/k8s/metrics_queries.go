@@ -14,20 +14,31 @@ func promLabelValue(v string) string {
 	return strings.NewReplacer(`\`, `\\`, `"`, `\"`, "\n", `\n`).Replace(v)
 }
 
-// Загрузка CPU по нодам в процентах: сумма занятых ядер / число ядер.
-func promQueryNodeCPU() string {
-	return fmt.Sprintf(
-		`100 * sum by (%[1]s) (rate(node_cpu_seconds_total{mode!="idle"}[5m])) / count by (%[1]s) (node_cpu_seconds_total{mode="idle"})`,
-		promNodeLabel,
-	)
+// Метрики по нодам: одно значение на ноду (метка kubernetes_node)
+
+func promQueryNodeCPUUsedCores() string {
+	return fmt.Sprintf(`sum by (%[1]s) (rate(node_cpu_seconds_total{mode!="idle"}[5m]))`, promNodeLabel)
 }
 
-// Использование памяти по нодам в процентах.
-func promQueryNodeMem() string {
-	return fmt.Sprintf(
-		`100 * (1 - sum by (%[1]s) (node_memory_MemAvailable_bytes) / sum by (%[1]s) (node_memory_MemTotal_bytes))`,
-		promNodeLabel,
-	)
+func promQueryNodeCPUCores() string {
+	return fmt.Sprintf(`count by (%[1]s) (node_cpu_seconds_total{mode="idle"})`, promNodeLabel)
+}
+
+func promQueryNodeMemTotal() string {
+	return fmt.Sprintf(`sum by (%[1]s) (node_memory_MemTotal_bytes)`, promNodeLabel)
+}
+
+func promQueryNodeMemAvailable() string {
+	return fmt.Sprintf(`sum by (%[1]s) (node_memory_MemAvailable_bytes)`, promNodeLabel)
+}
+
+// max: корневой раздел может быть виден несколькими устройствами (bind-mount), берём одно
+func promQueryNodeDiskSize() string {
+	return fmt.Sprintf(`max by (%[1]s) (node_filesystem_size_bytes{mountpoint="/",fstype!="tmpfs"})`, promNodeLabel)
+}
+
+func promQueryNodeDiskAvail() string {
+	return fmt.Sprintf(`max by (%[1]s) (node_filesystem_avail_bytes{mountpoint="/",fstype!="tmpfs"})`, promNodeLabel)
 }
 
 // Агрегаты по всему кластеру (одно значение): используются на главном экране
