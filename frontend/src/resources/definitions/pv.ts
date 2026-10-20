@@ -4,7 +4,7 @@ import { callApp } from '../wails'
 import { flatNameCol, ageCol } from './common'
 import { badgeClass, statusColor } from '../status'
 import { expandAccessModes } from '../utils'
-import PVMetricsSection from '../../components/resource/sections/PVCMetricsSection.vue'
+import PVMetricsSection from '../../components/resource/sections/PVMetricsSection.vue'
 import PVProviderTab from '../../components/resource/sections/PVProviderTab.vue'
 import PVClaimTab from '../../components/resource/sections/PVClaimTab.vue'
 
