@@ -34,6 +34,7 @@ import { node } from './definitions/node'
 import { portForward } from './definitions/portforward'
 import { helmRelease } from './definitions/helmrelease'
 import { helmChart } from './definitions/helmchart'
+import { endpointSlice } from './definitions/endpointslice'
 
 /** Добавляя новый ресурс, достаточно дописать его сюда. */
 export const resources: ResourceDefinition[] = [
@@ -59,6 +60,7 @@ export const resources: ResourceDefinition[] = [
   // network
   service,
   endpoint,
+  endpointSlice,
   ingress,
   ingressClass,
   networkPolicy,
