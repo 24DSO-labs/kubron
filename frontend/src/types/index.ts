@@ -386,8 +386,16 @@ export interface PVInfo {
   reclaimPolicy: string
   status: string
   claim: string
+  claimNamespace: string
+  claimName: string
   storageClass: string
+  volumeMode: string
+    provider?: { source: string; fields: { name: string; value: string }[] } | null
   age: string
+  created: string
+  labels?: Record<string, string>
+  annotations?: Record<string, string>
+  finalizers?: string[]
 }
 
 export interface PVCInfo {
