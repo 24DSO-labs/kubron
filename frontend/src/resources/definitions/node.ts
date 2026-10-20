@@ -7,6 +7,7 @@ import NodeUsageCell from '../../components/resource/sections/NodeUsageCell.vue'
 import NodeMetricsSection from '../../components/resource/sections/NodeMetricsSection.vue'
 import ConditionsSection from '../../components/resource/sections/ConditionsSection.vue'
 import NodeTaintsSection from '../../components/resource/sections/NodeTaintsSection.vue'
+import { Perm } from '../../types/auth'
 
 /** Цвет Conditions: зелёный — Ready без проблем, жёлтый — Ready с pressure, красный — NotReady */
 const conditionsColor = (n: any): string => {
@@ -75,11 +76,65 @@ export const node = defineResource<k8s.NodeInfo, k8s.NodeDetail>({
     { label: 'Allocatable CPU', value: n => n.allocatableCPU },
     { label: 'Allocatable Memory', value: n => n.allocatableMemory },
     { label: 'Allocatable Pods', value: n => n.allocatablePods },
+     { label: 'Scheduling', value: n => (n.unschedulable ? 'Disabled (cordoned)' : 'Enabled') },
+  
   ],
   sections: [NodeMetricsSection, ConditionsSection, NodeTaintsSection],
+
+   actions: [
+    {
+      id: 'shell',
+      label: 'Shell',
+      icon: 'terminal',
+      permission: Perm.Exec,
+      run: async (n, ctx) => {
+        if (!(await ctx.confirm(
+          `Open a root shell on node ${n.name}? A privileged helper pod is created in kube-system and removed when the session ends.`,
+        ))) return
+        try {
+          const s = await callApp('StartNodeShell', n.name)
+          await ctx.openAttach(s.namespace, s.pod, s.container)
+        } catch (e: any) {
+          ctx.notifyError(`Shell: ${e?.message || e}`)
+        }
+      },
+    },
+    {
+      id: 'cordon',
+      label: 'Cordon',
+      icon: 'pause',
+      permission: Perm.Operate,
+      when: n => !n.unschedulable,
+      run: (n, ctx) =>
+        ctx.perform(() => callApp('CordonNode', n.name, true), `Node ${n.name} cordoned`),
+    },
+    {
+      id: 'uncordon',
+      label: 'Uncordon',
+      icon: 'play',
+      permission: Perm.Operate,
+      when: n => !!n.unschedulable,
+      run: (n, ctx) =>
+        ctx.perform(() => callApp('CordonNode', n.name, false), `Node ${n.name} uncordoned`),
+    },
+    {
+      id: 'drain',
+      label: 'Drain',
+      icon: 'evict',
+      permission: Perm.Write,
+      run: async (n, ctx) => {
+        if (!(await ctx.confirm(
+          `Drain node ${n.name}? It will be cordoned and its pods evicted (DaemonSet and static pods are skipped). This can take a few minutes.`,
+        ))) return
+        return ctx.perform(() => callApp('DrainNode', n.name), `Node ${n.name} drained`)
+      },
+    },
+  ],
 
   api: {
     list: () => callApp('GetNodes'),
     get: (_ns, name) => callApp('GetNodeDetail', name),
+    remove: (_ns, name) => callApp('DeleteResource', 'node', '', name),
   },
+
 })
