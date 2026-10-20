@@ -92,7 +92,7 @@
             </template>
             <template v-else>{{ show(p.value(resource)) }}</template>
           </span>
-          <span v-else class="rd-value">{{ show(p.value(resource)) }}</span>
+          <span v-else class="rd-value" :class="{ 'rd-pre': p.multiline }">{{ show(p.value(resource)) }}</span>
         </div>
 
         <component :is="s" v-for="(s, i) in def.sections" :key="'s' + i" :resource="resource" @open="onOpen" />
