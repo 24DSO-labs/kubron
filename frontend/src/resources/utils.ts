@@ -54,3 +54,14 @@ export function podOwner(kind: PodOwnerKind, name: string): { kind: string; rege
     case 'job': return { kind: 'Job', regex: n }
   }
 }
+
+const ACCESS_MODES: Record<string, string> = {
+  RWO: 'ReadWriteOnce',
+  ROX: 'ReadOnlyMany',
+  RWX: 'ReadWriteMany',
+  RWOP: 'ReadWriteOncePod',
+}
+/** "RWO,RWX" -> "ReadWriteOnce, ReadWriteMany" */
+export function expandAccessModes(short?: string): string {
+  return String(short ?? '').split(',').filter(Boolean).map(m => ACCESS_MODES[m] ?? m).join(', ')
+}

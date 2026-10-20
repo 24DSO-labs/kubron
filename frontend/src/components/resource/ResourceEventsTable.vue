@@ -55,7 +55,8 @@ async function load() {
     const name = props.resource?.name ?? ''
     const kind = props.resource?._kind ?? ''
     const filtered = all.filter((e: any) => {
-      if (e.namespace !== ns) return false
+      // у кластерных ресурсов (PV, Node ...) ns пустой: события лежат в default, namespace не сверяем
+      if (ns && e.namespace !== ns) return false
       if (kind && e.involvedKind !== kind) return false
       if (name && e.involvedName !== name) return false
       return true
