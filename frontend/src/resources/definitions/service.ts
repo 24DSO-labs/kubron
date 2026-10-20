@@ -7,6 +7,7 @@ import { statusColor } from '../status'
 import ConnectionTab from '../../components/resource/sections/ConnectionTab.vue'
 import EndpointSlicesTab from '../../components/resource/sections/EndpointSlicesTab.vue'
 import EndpointsTab from '../../components/resource/sections/EndpointsTab.vue'
+import ServiceNetworkPoliciesTab from '../../components/resource/sections/ServiceNetworkPoliciesTab.vue'
 
 export const service = defineResource<k8s.ServiceInfo, k8s.ServiceDetail>({
   id: 'service',
@@ -46,6 +47,7 @@ export const service = defineResource<k8s.ServiceInfo, k8s.ServiceDetail>({
     { id: 'connection', label: 'Connection', component: ConnectionTab },
     { id: 'endpoints', label: 'Endpoints', component: EndpointsTab },
     { id: 'endpointSlices', label: 'Endpoint Slices', component: EndpointSlicesTab },
+    { id: 'networkPolicies', label: 'Network Policies', component: ServiceNetworkPoliciesTab },
   ],
 
   api: {

@@ -3,6 +3,7 @@ import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, ageCol } from './common'
 import { badgeClass } from '../status'
+import IngressClassUsedBySection from '../../components/resource/sections/IngressClassUsedBySection.vue'
 
 const yesNo = (v: boolean) => (v ? 'True' : 'False')
 
@@ -20,6 +21,11 @@ export const ingressClass = defineResource<k8s.IngressClassInfo>({
     { key: 'controller', label: 'Controller' },
     { key: 'paramsKind', label: 'Parameters', formatter: (c: any) => (c.paramsKind ? `${c.paramsKind}/${c.paramsName}` : '—') },
     { key: 'default', label: 'Default', formatter: (c: any) => yesNo(c.default), colorFn: (c: any) => (c.default ? '#4ade80' : '#868d8a') },
+    {
+      key: 'usedBy',
+      label: 'Used by',
+      formatter: (c: any) => (c.usedBy ?? []).map((u: any) => u.name).join(', ') || '—',
+    },
     ageCol,
   ],
 
@@ -32,7 +38,7 @@ export const ingressClass = defineResource<k8s.IngressClassInfo>({
     { label: 'Parameters Scope', value: (c: any) => c.paramsScope },
     { label: 'Parameters Namespace', value: (c: any) => c.paramsNamespace },
   ],
-
+  sections: [IngressClassUsedBySection],
   api: {
     list: () => callApp('GetIngressClasses'),
     remove: (_ns, name) => callApp('DeleteResource', 'ingressclass', '', name),

@@ -2,12 +2,20 @@ package k8s
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const defaultIngressClassAnnotation = "ingressclass.kubernetes.io/is-default-class"
+
+// IngressRef — Ingress, использующий класс. Implicit: класс не указан, Ingress попал в default.
+type IngressRef struct {
+	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
+	Implicit  bool   `json:"implicit"`
+}
 
 type IngressClassInfo struct {
 	Name            string            `json:"name"`
@@ -18,6 +26,7 @@ type IngressClassInfo struct {
 	ParamsName      string            `json:"paramsName"`
 	ParamsScope     string            `json:"paramsScope"`
 	ParamsNamespace string            `json:"paramsNamespace"`
+	UsedBy          []IngressRef      `json:"usedBy"`
 	Age             string            `json:"age"`
 	Created         string            `json:"created"`
 	Labels          map[string]string `json:"labels"`
@@ -35,6 +44,28 @@ func (m *Manager) GetIngressClasses() ([]IngressClassInfo, error) {
 	list, err := conn.Client.NetworkingV1().IngressClasses().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
+	}
+
+	// Ingress по классам. Нет прав на Ingress — список классов всё равно отдаём.
+	usedBy := map[string][]IngressRef{}
+	var noClass []IngressRef
+	if ings, err := conn.Client.NetworkingV1().Ingresses("").List(ctx, metav1.ListOptions{}); err == nil {
+		for i := range ings.Items {
+			ing := &ings.Items[i]
+			ref := IngressRef{Namespace: ing.Namespace, Name: ing.Name}
+			if c := ingressClassOf(ing); c != "" {
+				usedBy[c] = append(usedBy[c], ref)
+			} else {
+				ref.Implicit = true
+				noClass = append(noClass, ref)
+			}
+		}
+	}
+	defaults := 0
+	for _, ic := range list.Items {
+		if ic.Annotations[defaultIngressClassAnnotation] == "true" {
+			defaults++
+		}
 	}
 
 	items := make([]IngressClassInfo, 0, len(list.Items))
@@ -60,6 +91,19 @@ func (m *Manager) GetIngressClasses() ([]IngressClassInfo, error) {
 				info.ParamsNamespace = *p.Namespace
 			}
 		}
+
+		refs := append([]IngressRef{}, usedBy[ic.Name]...)
+		if info.Default && defaults == 1 {
+			refs = append(refs, noClass...)
+		}
+		sort.Slice(refs, func(i, j int) bool {
+			if refs[i].Namespace != refs[j].Namespace {
+				return refs[i].Namespace < refs[j].Namespace
+			}
+			return refs[i].Name < refs[j].Name
+		})
+		info.UsedBy = refs
+
 		items = append(items, info)
 	}
 	return items, nil
