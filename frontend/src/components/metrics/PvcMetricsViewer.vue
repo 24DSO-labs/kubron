@@ -31,9 +31,9 @@ async function fetchData(start: number, end: number, step: number) {
     queryRange(q('kubelet_volume_stats_available_bytes'), start, end, step),
   ])
   return [
-    { label: 'Used', data: used },
-    { label: 'Capacity', data: capacity },
-    { label: 'Available', data: available },
+    { label: 'Disk Usage', data: used },
+    { label: 'Disk Capacity', data: capacity },
+    { label: 'Disk Available', data: available },
   ]
 }
 

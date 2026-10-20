@@ -1,9 +1,9 @@
 <template>
-  <MetricsBlock v-if="clusterName && resource.status === 'Bound' && resource.claimName">
+  <MetricsBlock v-if="clusterName && resource.status === 'Bound'">
     <PvcMetricsViewer
       :cluster-name="clusterName"
-      :namespace="resource.claimNamespace"
-      :claim="resource.claimName"
+      :namespace="resource.namespace"
+      :claim="resource.name"
     />
   </MetricsBlock>
 </template>
