@@ -27,17 +27,19 @@ import MultiLineChart from './MultiLineChart.vue'
 import { usePrometheusRange } from '../../composables/useMetrics'
 
 /**
- * Метрики набора подов, которым владеет один ресурс (Deployment, DaemonSet, ...).
- * Поды выбираются через kube_pod_owner (kube-state-metrics), а не по имени пода:
- * имя пода обрезается Kubernetes для длинных имён ресурсов, владелец указан всегда.
+ * Метрики набора подов.
+ *  - с ownerKind/ownerRegex: поды одного владельца (Deployment, DaemonSet, ...), выбираются через
+ *    kube_pod_owner (kube-state-metrics), а не по имени пода: имя пода обрезается Kubernetes
+ *    для длинных имён ресурсов, владелец указан всегда;
+ *  - без них: все поды namespace.
  */
 const props = defineProps<{
   clusterName: string
   namespace: string
   /** kube_pod_owner.owner_kind: ReplicaSet | DaemonSet | StatefulSet | Job */
-  ownerKind: string
+  ownerKind?: string
   /** regex для owner_name (в Prometheus он всегда с якорями) */
-  ownerRegex: string
+  ownerRegex?: string
 }>()
 
 const { queryRange } = usePrometheusRange(props.clusterName)
@@ -45,9 +47,11 @@ const { queryRange } = usePrometheusRange(props.clusterName)
 const ns = () => `namespace="${props.namespace}"`
 const owner = () =>
   `kube_pod_owner{${ns()},owner_kind="${props.ownerKind}",owner_name=~"${props.ownerRegex}",owner_is_controller="true"}`
-/** Оставляет только серии подов нужного владельца (значение kube_pod_owner всегда 1) */
-const own = (expr: string) => `${expr} * on(namespace,pod) group_left() ${owner()}`
+/** Оставляет только серии подов нужного владельца (значение kube_pod_owner всегда 1); без владельца — как есть */
+const own = (expr: string) =>
+  props.ownerKind ? `${expr} * on(namespace,pod) group_left() ${owner()}` : expr
 
+  
 interface Line { label: string; expr: () => string }
 interface Cfg {
   id: string
