@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { GetPods } from '../../wailsjs/go/main/App'
+import { uid } from '../resources/uid'
 
 export type TabType = 'logs' | 'yaml' | 'terminal'
 
@@ -60,7 +61,7 @@ function openLogsTab(resourceType: string, resourceName: string, namespace: stri
     activeTabId.value = existingTab.id
     if (selectedContainer) existingTab.selectedContainer = selectedContainer
   } else {
-    const id = `logs-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const id = `logs-${uid()}`
     const newTab: LogsTab = {
       id,
       type: 'logs',
@@ -95,7 +96,7 @@ async function openTerminalTab(
   container: string,
   mode: 'shell' | 'attach' = 'shell'
 ) {
-  const id = `terminal-${mode}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  const id = `terminal-${mode}-${uid()}`
   
   // Получаем информацию о поде для списка контейнеров
   let podContainers: Array<{ name: string }> = []
@@ -165,7 +166,7 @@ function openYamlTab(resourceType: string, resourceName: string, namespace: stri
       existingTab.originalContent = content
     }
   } else {
-    const id = `yaml-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const id = `yaml-${uid()}`
     const newTab: YamlTab = {
       id,
       type: 'yaml',
