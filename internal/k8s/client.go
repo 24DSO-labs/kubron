@@ -31,6 +31,29 @@ type ClusterConnection struct {
 	Config          *rest.Config
 	DynamicClient   dynamic.Interface
 	DiscoveryClient discovery.DiscoveryInterface
+
+	cacheMu  sync.Mutex
+	overview *overviewCache
+}
+
+// overviewCache лениво запускает informers для главного экрана (только у активного кластера).
+func (c *ClusterConnection) overviewCache(onChange func()) *overviewCache {
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+	if c.overview == nil {
+		c.overview = newOverviewCache(c.Client, onChange)
+	}
+	return c.overview
+}
+
+// Close останавливает фоновые informers подключения.
+func (c *ClusterConnection) Close() {
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+	if c.overview != nil {
+		c.overview.stop()
+		c.overview = nil
+	}
 }
 
 type Manager struct {
@@ -39,6 +62,36 @@ type Manager struct {
 	activeCtx        string
 	rawConfig        *api.Config
 	terminalSessions *TerminalSessionManager
+
+	notifyMu sync.RWMutex
+	notifier func(event string, data ...any)
+}
+
+// SetNotifier задаёт функцию, которой бэкенд сообщает фронтенду о событиях (Wails EventsEmit).
+func (m *Manager) SetNotifier(f func(event string, data ...any)) {
+	m.notifyMu.Lock()
+	m.notifier = f
+	m.notifyMu.Unlock()
+}
+
+func (m *Manager) emit(event string, data ...any) {
+	m.notifyMu.RLock()
+	f := m.notifier
+	m.notifyMu.RUnlock()
+	if f != nil {
+		f(event, data...)
+	}
+}
+
+// activateLocked делает кластер активным и останавливает фоновые informers остальных
+// (вызывать под m.mu).
+func (m *Manager) activateLocked(clusterID string) {
+	m.activeCtx = clusterID
+	for id, conn := range m.connections {
+		if id != clusterID {
+			conn.Close()
+		}
+	}
 }
 
 func NewManager() *Manager {
@@ -133,6 +186,9 @@ func buildConnection(name string, config *rest.Config) (*ClusterConnection, erro
 func (m *Manager) RemoveConnection(clusterID string) (wasActive bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if conn, ok := m.connections[clusterID]; ok {
+		conn.Close()
+	}
 	delete(m.connections, clusterID)
 	if m.activeCtx == clusterID {
 		m.activeCtx = ""
@@ -173,7 +229,7 @@ func (m *Manager) ConnectToCluster(clusterID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if _, exists := m.connections[clusterID]; exists {
-		m.activeCtx = clusterID
+		m.activateLocked(clusterID)
 		return nil
 	}
 
@@ -209,7 +265,7 @@ func (m *Manager) ConnectToCluster(clusterID string) error {
 	}
 
 	m.connections[clusterID] = conn
-	m.activeCtx = clusterID
+	m.activateLocked(clusterID)
 	return nil
 }
 
