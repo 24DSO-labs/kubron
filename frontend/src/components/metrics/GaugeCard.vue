@@ -21,10 +21,10 @@
     <div class="gauge-card-values">
       <div>
         <p class="gauge-card-value-main">
-          {{ formatValue(used) }}
+          {{ fmt(used) }}
         </p>
         <p class="gauge-card-value-sub">
-          of {{ formatValue(total) }} {{ unit }}
+          of {{ fmt(total) }}<template v-if="unit"> {{ unit }}</template>
         </p>
       </div>
     </div>
@@ -32,15 +32,18 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
+const props = withDefaults(defineProps<{
   title: string
   percent: number
   used: number
   total: number
-  unit: string
-}>()
+  unit?: string
+  /** Форматтер значения (ядра, байты ...); по умолчанию — короткая запись с K/M/G */
+  format?: (v: number) => string
+}>(), { unit: '' })
 
-function formatValue(value: number): string {
+function fmt(value: number): string {
+  if (props.format) return props.format(value)
   if (value < 0) return '—'
   if (value < 1000) return value.toFixed(0)
   if (value < 1000000) return (value / 1000).toFixed(1) + 'K'
