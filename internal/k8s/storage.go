@@ -7,6 +7,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -28,6 +29,13 @@ type PVInfo struct {
 	Annotations map[string]string `json:"annotations"`
 	Finalizers  []string          `json:"finalizers"`
 	Provider    *PVProviderInfo   `json:"provider"`
+}
+
+// StorageClassVolume — PV, принадлежащий классу (вкладка Persistent Volumes).
+type StorageClassVolume struct {
+	Name     string `json:"name"`
+	Capacity string `json:"capacity"`
+	Status   string `json:"status"`
 }
 
 // PVField — строка вкладки Provider (имя, значение), порядок сохраняется.
@@ -283,11 +291,33 @@ func (m *Manager) GetPersistentVolumeClaims(namespace string) ([]PVCInfo, error)
 }
 
 type StorageClassInfo struct {
-	Name          string `json:"name"`
-	Provisioner   string `json:"provisioner"`
-	ReclaimPolicy string `json:"reclaimPolicy"`
-	Default       bool   `json:"default"`
-	Age           string `json:"age"`
+	Name                 string               `json:"name"`
+	Provisioner          string               `json:"provisioner"`
+	ReclaimPolicy        string               `json:"reclaimPolicy"`
+	VolumeBindingMode    string               `json:"volumeBindingMode"`
+	AllowVolumeExpansion bool                 `json:"allowVolumeExpansion"`
+	Default              bool                 `json:"default"`
+	MountOptions         []string             `json:"mountOptions"`
+	Parameters           map[string]string    `json:"parameters"`
+	Volumes              []StorageClassVolume `json:"volumes"`
+	Finalizers           []string             `json:"finalizers"`
+	Labels               map[string]string    `json:"labels"`
+	Annotations          map[string]string    `json:"annotations"`
+	Age                  string               `json:"age"`
+	Created              string               `json:"created"`
+}
+
+// Обе аннотации: beta ещё встречается в старых кластерах
+func isDefaultStorageClass(sc *storagev1.StorageClass) bool {
+	for _, k := range []string{
+		"storageclass.kubernetes.io/is-default-class",
+		"storageclass.beta.kubernetes.io/is-default-class",
+	} {
+		if sc.Annotations[k] == "true" {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *Manager) GetStorageClasses() ([]StorageClassInfo, error) {
@@ -304,29 +334,66 @@ func (m *Manager) GetStorageClasses() ([]StorageClassInfo, error) {
 		return nil, err
 	}
 
-	var items []StorageClassInfo
-	for _, sc := range list.Items {
-		isDefault := false
-		if val, ok := sc.Annotations["storageclass.kubernetes.io/is-default-class"]; ok {
-			isDefault = val == "true"
+	// PV по классам: нет прав на PV — список классов всё равно отдаём
+	pvByClass := map[string][]StorageClassVolume{}
+	if pvs, err := conn.Client.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{}); err == nil {
+		for i := range pvs.Items {
+			pv := &pvs.Items[i]
+			capacity := ""
+			if q, ok := pv.Spec.Capacity[corev1.ResourceStorage]; ok {
+				capacity = q.String()
+			}
+			pvByClass[pv.Spec.StorageClassName] = append(pvByClass[pv.Spec.StorageClassName], StorageClassVolume{
+				Name:     pv.Name,
+				Capacity: capacity,
+				Status:   string(pv.Status.Phase),
+			})
 		}
-
-		provisioner := ""
-		if sc.Provisioner != "" {
-			provisioner = sc.Provisioner
+		for k := range pvByClass {
+			vols := pvByClass[k]
+			sort.Slice(vols, func(i, j int) bool { return vols[i].Name < vols[j].Name })
 		}
+	}
 
-		reclaimPolicy := ""
+	items := make([]StorageClassInfo, 0, len(list.Items))
+	for i := range list.Items {
+		sc := &list.Items[i]
+
+		// Значения по умолчанию из спецификации Kubernetes
+		reclaim := string(corev1.PersistentVolumeReclaimDelete)
 		if sc.ReclaimPolicy != nil {
-			reclaimPolicy = string(*sc.ReclaimPolicy)
+			reclaim = string(*sc.ReclaimPolicy)
+		}
+		binding := string(storagev1.VolumeBindingImmediate)
+		if sc.VolumeBindingMode != nil {
+			binding = string(*sc.VolumeBindingMode)
+		}
+		expansion := sc.AllowVolumeExpansion != nil && *sc.AllowVolumeExpansion
+
+		mountOptions := sc.MountOptions
+		if mountOptions == nil {
+			mountOptions = []string{}
+		}
+		volumes := pvByClass[sc.Name]
+		if volumes == nil {
+			volumes = []StorageClassVolume{}
 		}
 
 		items = append(items, StorageClassInfo{
-			Name:          sc.Name,
-			Provisioner:   provisioner,
-			ReclaimPolicy: reclaimPolicy,
-			Default:       isDefault,
-			Age:           formatAge(sc.CreationTimestamp.Time),
+			Name:                 sc.Name,
+			Provisioner:          sc.Provisioner,
+			ReclaimPolicy:        reclaim,
+			VolumeBindingMode:    binding,
+			AllowVolumeExpansion: expansion,
+			Default:              isDefaultStorageClass(sc),
+			MountOptions:         mountOptions,
+			Parameters:           sc.Parameters,
+			Volumes:              volumes,
+			Finalizers:           sc.Finalizers,
+			Labels:               sc.Labels,
+			Annotations:          sc.Annotations,
+			Age:                  formatAge(sc.CreationTimestamp.Time),
+			Created:              sc.CreationTimestamp.Format(time.RFC3339),
 		})
 	}
 	return items, nil
