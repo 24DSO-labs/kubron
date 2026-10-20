@@ -24,6 +24,7 @@ type NodeInfo struct {
 	Age            string `json:"age"`
 	PodCIDR        string `json:"podCIDR"`
 	Taints         int    `json:"taints"`
+	Unschedulable  bool   `json:"unschedulable"`
 }
 
 func (m *Manager) GetNodes() ([]NodeInfo, error) {
@@ -65,7 +66,9 @@ func convertNode(node corev1.Node) NodeInfo {
 			conds = append(conds, string(cond.Type))
 		}
 	}
-
+	if node.Spec.Unschedulable {
+		conds = append(conds, "SchedulingDisabled")
+	}
 	// Роли
 	var roles []string
 	for label := range node.Labels {
@@ -108,6 +111,7 @@ func convertNode(node corev1.Node) NodeInfo {
 		Age:            formatAge(node.CreationTimestamp.Time),
 		PodCIDR:        node.Spec.PodCIDR,
 		Taints:         len(node.Spec.Taints),
+		Unschedulable:  node.Spec.Unschedulable,
 	}
 }
 
@@ -149,6 +153,7 @@ type NodeDetail struct {
 	Annotations       map[string]string   `json:"annotations"`
 	Taints            []NodeTaintInfo     `json:"taints"`
 	Conditions        []NodeConditionInfo `json:"conditions"`
+	Unschedulable     bool                `json:"unschedulable"`
 }
 
 func (m *Manager) GetNodeDetail(name string) (*NodeDetail, error) {
@@ -224,5 +229,6 @@ func (m *Manager) GetNodeDetail(name string) (*NodeDetail, error) {
 		Annotations:       node.Annotations,
 		Taints:            taints,
 		Conditions:        conditions,
+		Unschedulable:     node.Spec.Unschedulable,
 	}, nil
 }

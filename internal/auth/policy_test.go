@@ -62,6 +62,9 @@ var exactPermission = map[string]Permission{
 	"RetryJob":                PermOperate,
 	"GetAuditLog":             PermAuditRead,
 	"SetIdleTimeout":          PermUsersManage,
+	"CordonNode":              PermOperate,
+	"DrainNode":               PermWrite,
+	"StartNodeShell":          PermExec,
 }
 
 // Глаголы, по которым метод считается изменяющим: слабое право чтения для них недопустимо.
@@ -69,6 +72,8 @@ var mutatingPrefixes = []string{
 	"Delete", "Scale", "Restart", "Rollback", "Retry", "Evict", "Apply",
 	"Install", "Uninstall", "Add", "Update", "Create", "Reset", "Start", "Stop",
 	"Exec", "Write", "Resize", "Close",
+
+	"Cordon", "Drain",
 }
 
 // Изменяющие по имени методы, которым чтения достаточно (с обоснованием).
@@ -229,7 +234,8 @@ func TestDestructiveMethodsRequireWrite(t *testing.T) {
 		if !m.has {
 			continue
 		}
-		destructive := strings.HasPrefix(m.name, "Delete") || strings.HasPrefix(m.name, "Evict") || m.name == "ApplyYAML"
+
+		destructive := strings.HasPrefix(m.name, "Delete") || strings.HasPrefix(m.name, "Evict") || strings.HasPrefix(m.name, "Drain") || m.name == "ApplyYAML"
 		if !destructive || m.name == "DeleteCluster" || m.name == "DeleteUser" {
 			continue // у этих особые права из exactPermission
 		}

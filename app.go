@@ -174,6 +174,29 @@ func (a *App) GetClusterOverview() (*k8s.ClusterOverview, error) {
 	return a.k8sMgr.GetClusterOverview()
 }
 
+// === Node actions ===
+
+func (a *App) CordonNode(name string, cordon bool) error {
+	if err := a.authz(auth.PermOperate, "node", name, "cordon", cordon); err != nil {
+		return err
+	}
+	return a.k8sMgr.CordonNode(name, cordon)
+}
+
+func (a *App) DrainNode(name string) error {
+	if err := a.authz(auth.PermWrite, "node", name); err != nil {
+		return err
+	}
+	return a.k8sMgr.DrainNode(name)
+}
+
+func (a *App) StartNodeShell(name string) (*k8s.NodeShellSession, error) {
+	if err := a.authz(auth.PermExec, "node", name); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.StartNodeShell(name)
+}
+
 // === Неймспейсы ===
 
 func (a *App) GetNamespaces() ([]k8s.NamespaceInfo, error) {
