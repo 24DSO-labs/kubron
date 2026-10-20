@@ -117,38 +117,55 @@ func (m *Manager) GetClusterOverview() (*ClusterOverview, error) {
 		}()
 	}
 
+	// Из локального кеша informers (если он уже синхронизирован), иначе прямым запросом к API
+	oc := conn.overviewCache(func() { m.emit(EventClusterChanged, conn.Name) })
+
 	run(func() {
-		if l, err := conn.Client.CoreV1().Nodes().List(ctx, metav1.ListOptions{}); err == nil {
+		if l, ok := oc.nodeList(); ok {
+			nodes = l
+		} else if l, err := conn.Client.CoreV1().Nodes().List(ctx, metav1.ListOptions{}); err == nil {
 			nodes = l
 		}
 	})
 	run(func() {
-		if l, err := conn.Client.CoreV1().Pods("").List(ctx, metav1.ListOptions{}); err == nil {
+		if l, ok := oc.podList(); ok {
+			pods = l
+		} else if l, err := conn.Client.CoreV1().Pods("").List(ctx, metav1.ListOptions{}); err == nil {
 			pods = l
 		}
 	})
 	run(func() {
-		if l, err := conn.Client.AppsV1().Deployments("").List(ctx, metav1.ListOptions{}); err == nil {
+		if l, ok := oc.deploymentList(); ok {
+			deps = l
+		} else if l, err := conn.Client.AppsV1().Deployments("").List(ctx, metav1.ListOptions{}); err == nil {
 			deps = l
 		}
 	})
 	run(func() {
-		if l, err := conn.Client.AppsV1().StatefulSets("").List(ctx, metav1.ListOptions{}); err == nil {
+		if l, ok := oc.statefulSetList(); ok {
+			stss = l
+		} else if l, err := conn.Client.AppsV1().StatefulSets("").List(ctx, metav1.ListOptions{}); err == nil {
 			stss = l
 		}
 	})
 	run(func() {
-		if l, err := conn.Client.AppsV1().DaemonSets("").List(ctx, metav1.ListOptions{}); err == nil {
+		if l, ok := oc.daemonSetList(); ok {
+			dss = l
+		} else if l, err := conn.Client.AppsV1().DaemonSets("").List(ctx, metav1.ListOptions{}); err == nil {
 			dss = l
 		}
 	})
 	run(func() {
-		if l, err := conn.Client.CoreV1().Namespaces().List(ctx, metav1.ListOptions{}); err == nil {
+		if l, ok := oc.namespaceList(); ok {
+			nsList = l
+		} else if l, err := conn.Client.CoreV1().Namespaces().List(ctx, metav1.ListOptions{}); err == nil {
 			nsList = l
 		}
 	})
 	run(func() {
-		if l, err := conn.Client.CoreV1().Events("").List(ctx, metav1.ListOptions{}); err == nil {
+		if l, ok := oc.eventList(); ok {
+			events = l
+		} else if l, err := conn.Client.CoreV1().Events("").List(ctx, metav1.ListOptions{}); err == nil {
 			events = l
 		}
 	})

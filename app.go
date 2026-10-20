@@ -38,6 +38,10 @@ func (a *App) shutdown(_ context.Context) {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	// Бэкенд сообщает фронтенду об изменениях кластера (informers) вместо постоянного опроса
+	a.k8sMgr.SetNotifier(func(event string, data ...any) {
+		wailsRuntime.EventsEmit(ctx, event, data...)
+	})
 	if err := k8s.InitKubronDir(); err != nil {
 		println("Error:", err.Error())
 	}
