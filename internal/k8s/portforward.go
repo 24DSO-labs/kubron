@@ -40,6 +40,8 @@ type PortForwardSession struct {
 	PodPort     int    `json:"podPort"`
 	Status      string `json:"status"`
 	Error       string `json:"error,omitempty"`
+	Name        string `json:"name"`   // = ID, нужен списку ресурсов для ключа и открытия панели
+	Target      string `json:"target"` // "pod/nginx" или "svc/nginx:80"
 
 	stopChan chan struct{}
 	stopOnce sync.Once
@@ -61,6 +63,8 @@ func (s *PortForwardSession) snapshot() PortForwardSession {
 		PodPort:     s.PodPort,
 		Status:      s.Status,
 		Error:       s.Error,
+		Name:        s.Name,
+		Target:      s.Target,
 	}
 }
 
@@ -180,6 +184,11 @@ func (pfm *PortForwardManager) start(id, namespace, pod, service string, service
 		return nil, err
 	}
 
+	target := "pod/" + pod
+	if service != "" {
+		target = fmt.Sprintf("svc/%s:%d", service, servicePort)
+	}
+
 	session := &PortForwardSession{
 		ID:          id,
 		Namespace:   namespace,
@@ -190,6 +199,8 @@ func (pfm *PortForwardManager) start(id, namespace, pod, service string, service
 		PodPort:     podPort,
 		Status:      PortForwardStarting,
 		stopChan:    make(chan struct{}),
+		Name:        id,
+		Target:      target,
 	}
 
 	// Проверка и вставка выполняются под одним локом, чтобы два одновременных

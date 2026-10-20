@@ -2,33 +2,27 @@ import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
+import EndpointSubsetsSection from '../../components/resource/sections/EndpointSubsetsSection.vue'
 
 export const endpoint = defineResource<k8s.EndpointListInfo>({
   id: 'endpoint',
-  kind: 'Endpoint',
+  kind: 'Endpoints',
   view: 'endpoints',
   title: 'Endpoints',
   namespaced: true,
   nav: { group: 'network', label: 'Endpoints' },
-  
   autoRefresh: true,
-  // icon: 'endpoint',
-
+  // Endpoints создаёт control plane по Service: удаление не предлагаем
   columns: [
     flatNameCol,
     { ...flatNsCol, link: (e: any) => e.namespace ? { id: 'namespace', ns: '', name: e.namespace } : null },
-    { key: 'addresses', label: 'Addresses' },
-    { key: 'ports', label: 'Ports' },
+    { key: 'endpoints', label: 'Endpoints' },
     ageCol,
   ],
-
   properties: [
-    { label: 'Addresses', value: e => e.addresses },
-    { label: 'Ports', value: e => e.ports },
+    { label: 'Service', value: e => e.name, link: e => ({ id: 'service', ns: e.namespace, name: e.name }) },
+    { label: 'Ready addresses', value: e => e.addresses },
   ],
-
-  // Endpoints управляются control plane (Service-контроллером): удалять вручную не нужно
-  api: {
-    list: ns => callApp('GetEndpoints', ns),
-  },
+  sections: [EndpointSubsetsSection],
+  api: { list: ns => callApp('GetEndpoints', ns) },
 })
