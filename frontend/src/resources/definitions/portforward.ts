@@ -5,6 +5,7 @@ import { callApp } from '../wails'
 import { useK8s } from '../../composables/useK8s'
 import { flatNsCol } from './common'
 import { badgeClass, statusColor } from '../status'
+import { BrowserOpenURL } from '../../../wailsjs/runtime/runtime'
 
 const k8s = useK8s()
 
@@ -15,39 +16,52 @@ export const portForward = defineResource<models.PortForwardSession>({
   title: 'Port Forwarding',
   namespaced: false,
   nav: { group: 'network', label: 'Port Forwarding' },
-  
-  autoRefresh: true,// локальные сессии приложения, не ресурс k8s: без YAML и удаления
+  autoRefresh: true,
+  // локальные сессии приложения, не ресурс k8s: без YAML и удаления
   editable: false,
 
   columns: [
-    { key: 'target', label: 'Target', formatter: (pf: any) => pf.service ? `svc/${pf.service}:${pf.servicePort}` : `pod/${pf.pod}` },
+    { key: 'target', label: 'Target', className: 'resource-name' },
     { ...flatNsCol, link: (pf: any) => pf.namespace ? { id: 'namespace', ns: '', name: pf.namespace } : null },
-    { key: 'localPort', label: 'Local Port' },
-    { key: 'podPort', label: 'Pod Port' },
+    { key: 'localPort', label: 'Local Port', formatter: (pf: any) => `localhost:${pf.localPort}` },
+    { key: 'podPort', label: 'Remote Port' },
     { key: 'status', label: 'Status', colorFn: pf => statusColor(pf.status) },
   ],
 
   properties: [
-    { label: 'Namespace', value: pf => pf.namespace },
-    { label: 'Pod', value: pf => pf.pod },
-    { label: 'Service', value: (pf: any) => pf.service ? `${pf.service}:${pf.servicePort}` : '—' },
+    { label: 'Target', value: (pf: any) => pf.target },
+    { label: 'Namespace', value: pf => pf.namespace, link: (pf: any) => pf.namespace ? { id: 'namespace', ns: '', name: pf.namespace } : null },
+    { label: 'Pod', value: pf => pf.pod, link: (pf: any) => ({ id: 'pod', ns: pf.namespace, name: pf.pod }) },
+    {
+      label: 'Service',
+      value: (pf: any) => (pf.service ? `${pf.service}:${pf.servicePort}` : '—'),
+      link: (pf: any) => (pf.service ? { id: 'service', ns: pf.namespace, name: pf.service } : null),
+    },
     { label: 'Local Port', value: pf => pf.localPort },
-    { label: 'Pod Port', value: pf => pf.podPort },
+    { label: 'Remote Port', value: pf => pf.podPort },
     { label: 'Status', value: pf => pf.status, badge: pf => badgeClass(pf.status) },
     { label: 'Error', value: (pf: any) => pf.error || '—' },
   ],
 
   actions: [
     {
+      id: 'open',
+      permission: Perm.PortForward,
+      label: 'Open in browser',
+      icon: 'open-browser',
+      when: (pf: any) => pf.status === 'active',
+      run: (pf: any) => BrowserOpenURL(`http://localhost:${pf.localPort}`),
+    },
+    {
       id: 'stop',
       permission: Perm.PortForward,
       label: 'Stop',
+      icon: 'stop',
       danger: true,
-      // perform() сам перезагрузит список, а list обновит сессии
-      run: (pf, ctx) =>
+      run: (pf: any, ctx) =>
         ctx.perform(
           () => callApp('StopPortForward', pf.id),
-          `Port forward :${pf.localPort} → ${(pf as any).service || pf.pod}:${pf.podPort} остановлен`,
+          `Port forward :${pf.localPort} → ${pf.target} остановлен`,
         ),
     },
   ],
@@ -56,7 +70,6 @@ export const portForward = defineResource<models.PortForwardSession>({
   refreshOn: () => k8s.portForwards.value,
 
   api: {
-    // Список сессий живёт в useK8s (локальное состояние, не k8s API)
     list: async () => {
       await k8s.refreshPortForwards()
       return [...k8s.portForwards.value]

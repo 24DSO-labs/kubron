@@ -35,6 +35,11 @@ export const service = defineResource<k8s.ServiceInfo, k8s.ServiceDetail>({
     { label: 'Type', value: s => s.type },
     { label: 'Selector', value: s => formatMap(s.selector) },
     { label: 'Finalizers', value: s => s.finalizers?.join(', ') },
+    { label: 'External Name', value: (s: any) => s.externalName },
+    { label: 'Load Balancer', value: (s: any) => (s.loadBalancer ?? []).join(', ') },
+    { label: 'External Traffic Policy', value: (s: any) => s.externalTrafficPolicy },
+    { label: 'Internal Traffic Policy', value: (s: any) => s.internalTrafficPolicy },
+    
   ],
   sections: [],
   tabs: [

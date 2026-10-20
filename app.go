@@ -569,6 +569,13 @@ func (a *App) GetEndpoints(namespace string) ([]k8s.EndpointListInfo, error) {
 	return a.k8sMgr.GetEndpoints(namespace)
 }
 
+func (a *App) GetEndpointSlices(namespace string) ([]k8s.EndpointSliceInfo, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetEndpointSlices(namespace)
+}
+
 // === Network Policies ===
 
 func (a *App) GetNetworkPolicies(namespace string) ([]k8s.NetworkPolicyInfo, error) {

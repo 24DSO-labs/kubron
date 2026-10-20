@@ -74,14 +74,11 @@ function hideMenu() {
 }
 
 /* ─── Actions ─── */
-async function showDetails(item: any) {
+const emit = defineEmits<{ (e: 'open', p: { id: string; ns: string; name: string; item?: any }): void }>()
+
+function showDetails(item: any) {
   hideMenu()
-  try {
-    const yaml = await GetResourceYAML(item.namespace, 'endpointslice', item.name, true)
-    globalTabbedPanel.openYamlTab('endpointslice', item.name, item.namespace, yaml)
-  } catch (e: any) {
-    notifications.notifyError(`Failed to load YAML: ${e?.message || String(e)}`)
-  }
+  emit('open', { id: 'endpointslice', ns: item.namespace, name: item.name, item })
 }
 
 async function editYaml(item: any) {

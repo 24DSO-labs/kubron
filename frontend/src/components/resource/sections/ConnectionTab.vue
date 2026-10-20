@@ -25,12 +25,16 @@
       <div class="rd-value conn-ports">
         <div v-for="p in ports" :key="p.port + '/' + p.protocol" class="conn-port">
           <span class="conn-port-main">{{ formatPort(p) }}</span>
-          <PortForwardControl
-            :namespace="resource.namespace"
-            :resource-name="resource.name"
-            :port="p.port"
-            resource-type="service"
-          />
+          <div v-if="resource.externalName" class="rd-row">
+            <span class="rd-label">External name</span>
+            <span class="rd-value">{{ resource.externalName }}</span>
+          </div>
+          <div v-if="resource.loadBalancer?.length" class="rd-row">
+            <span class="rd-label">Load balancer</span>
+            <span class="rd-value">{{ resource.loadBalancer.join(', ') }}</span>
+          </div>
+          <PortForwardControl :namespace="resource.namespace" :resource-name="resource.name" :port="p.port"
+            resource-type="service" />
         </div>
       </div>
     </div>
@@ -46,18 +50,35 @@ const props = defineProps<{ resource: any }>()
 const ports = computed(() => props.resource?.ports ?? [])
 
 function formatPort(p: any): string {
-  let s = `${p.port}`
-  if (p.nodePort) {
-    s += `:${p.nodePort}`
-  }
-  s += `/${p.protocol || 'TCP'}`
-  return s
+  let s = p.name ? `${p.name}: ` : ''
+  s += `${p.port}`
+  if (p.targetPort && String(p.targetPort) !== String(p.port)) s += `→${p.targetPort}`
+  if (p.nodePort) s += ` (NodePort ${p.nodePort})`
+  return `${s}/${p.protocol || 'TCP'}`
 }
 </script>
 
 <style scoped>
-.conn-tab { padding: 12px 16px; }
-.conn-ports { display: flex; flex-direction: column; gap: 6px; }
-.conn-port { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.conn-port-main { color: #60a5fa; font-weight: 500; font-size: 0.875rem; }
+.conn-tab {
+  padding: 12px 16px;
+}
+
+.conn-ports {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.conn-port {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.conn-port-main {
+  color: #60a5fa;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
 </style>
