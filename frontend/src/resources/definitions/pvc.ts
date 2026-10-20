@@ -6,6 +6,9 @@ import { badgeClass, statusColor } from '../status'
 import PVCMetricsSection from '../../components/resource/sections/PVCMetricsSection.vue'
 import PVCSelectorSection from '../../components/resource/sections/PVCSelectorSection.vue'
 
+  
+import { expandAccessModes } from '../utils'
+
 const MODES: Record<string, string> = {
   RWO: 'ReadWriteOnce',
   ROX: 'ReadOnlyMany',
@@ -48,7 +51,7 @@ export const persistentVolumeClaim = defineResource<k8s.PVCInfo>({
   // Name / Namespace / Age / Created выводит шапка панели; Labels и Annotations — общие секции
   properties: [
     { label: 'Finalizers', value: (p: any) => (p.finalizers ?? []).join(', ') },
-    { label: 'Access Modes', value: accessModes },
+    { label: 'Access Modes', value: (p: any) => expandAccessModes(p.accessModes) },
     { label: 'Storage Class Name', value: (p: any) => p.storageClass, link: scLink },
     { label: 'Storage', value: size },
     { label: 'Volume Mode', value: (p: any) => p.volumeMode },

@@ -11,15 +11,37 @@ import (
 )
 
 type PVInfo struct {
-	Name          string `json:"name"`
-	Capacity      string `json:"capacity"`
-	AccessModes   string `json:"accessModes"`
-	ReclaimPolicy string `json:"reclaimPolicy"`
-	Status        string `json:"status"`
-	Claim         string `json:"claim"`
-	StorageClass  string `json:"storageClass"`
-	Age           string `json:"age"`
+	Name           string `json:"name"`
+	Capacity       string `json:"capacity"`
+	AccessModes    string `json:"accessModes"`
+	ReclaimPolicy  string `json:"reclaimPolicy"`
+	Status         string `json:"status"`
+	Claim          string `json:"claim"` // "ns/name" или "—"
+	ClaimNamespace string `json:"claimNamespace"`
+	ClaimName      string `json:"claimName"`
+	StorageClass   string `json:"storageClass"`
+	VolumeMode     string `json:"volumeMode"`
+
+	Age         string            `json:"age"`
+	Created     string            `json:"created"`
+	Labels      map[string]string `json:"labels"`
+	Annotations map[string]string `json:"annotations"`
+	Finalizers  []string          `json:"finalizers"`
+	Provider    *PVProviderInfo   `json:"provider"`
 }
+
+// PVField — строка вкладки Provider (имя, значение), порядок сохраняется.
+type PVField struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+// PVProviderInfo — откуда берётся том и его параметры.
+type PVProviderInfo struct {
+	Source string    `json:"source"` // Container Storage Interface, NFS, HostPath ...
+	Fields []PVField `json:"fields"`
+}
+
 type PVCSelectorInfo struct {
 	MatchLabels      map[string]string `json:"matchLabels"`
 	MatchExpressions []MatchExpression `json:"matchExpressions"`
@@ -57,40 +79,99 @@ func (m *Manager) GetPersistentVolumes() ([]PVInfo, error) {
 		return nil, err
 	}
 
-	var items []PVInfo
+	items := make([]PVInfo, 0, len(list.Items))
 	for _, pv := range list.Items {
 		capacity := ""
-		if storage, ok := pv.Spec.Capacity["storage"]; ok {
-			capacity = storage.String()
+		if q, ok := pv.Spec.Capacity[corev1.ResourceStorage]; ok {
+			capacity = q.String()
 		}
 
 		var modes []string
-		for _, m := range pv.Spec.AccessModes {
-			modes = append(modes, string(m))
+		for _, am := range pv.Spec.AccessModes {
+			modes = append(modes, string(am))
 		}
 
-		claim := "—"
-		if pv.Spec.ClaimRef != nil {
-			claim = fmt.Sprintf("%s/%s", pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name)
+		claim, claimNS, claimName := "—", "", ""
+		if ref := pv.Spec.ClaimRef; ref != nil {
+			claimNS, claimName = ref.Namespace, ref.Name
+			claim = ref.Namespace + "/" + ref.Name
 		}
 
-		sc := ""
-		if pv.Spec.StorageClassName != "" {
-			sc = pv.Spec.StorageClassName
+		volumeMode := ""
+		if pv.Spec.VolumeMode != nil {
+			volumeMode = string(*pv.Spec.VolumeMode)
 		}
 
 		items = append(items, PVInfo{
-			Name:          pv.Name,
-			Capacity:      capacity,
-			AccessModes:   joinShort(modes),
-			ReclaimPolicy: string(pv.Spec.PersistentVolumeReclaimPolicy),
-			Status:        string(pv.Status.Phase),
-			Claim:         claim,
-			StorageClass:  sc,
-			Age:           formatAge(pv.CreationTimestamp.Time),
+			Name:           pv.Name,
+			Capacity:       capacity,
+			AccessModes:    joinShort(modes),
+			ReclaimPolicy:  string(pv.Spec.PersistentVolumeReclaimPolicy),
+			Status:         string(pv.Status.Phase),
+			Claim:          claim,
+			ClaimNamespace: claimNS,
+			ClaimName:      claimName,
+			StorageClass:   pv.Spec.StorageClassName,
+			VolumeMode:     volumeMode,
+			Provider:       pvProvider(pv.Spec.PersistentVolumeSource),
+			Age:            formatAge(pv.CreationTimestamp.Time),
+			Created:        pv.CreationTimestamp.Format(time.RFC3339),
+			Labels:         pv.Labels,
+			Annotations:    pv.Annotations,
+			Finalizers:     pv.Finalizers,
 		})
 	}
 	return items, nil
+}
+
+func pvProvider(s corev1.PersistentVolumeSource) *PVProviderInfo {
+	var p *PVProviderInfo
+	add := func(name, value string) {
+		if value != "" {
+			p.Fields = append(p.Fields, PVField{Name: name, Value: value})
+		}
+	}
+
+	switch {
+	case s.CSI != nil:
+		p = &PVProviderInfo{Source: "Container Storage Interface"}
+		add("Driver", s.CSI.Driver)
+		keys := make([]string, 0, len(s.CSI.VolumeAttributes))
+		for k := range s.CSI.VolumeAttributes {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			add(k, s.CSI.VolumeAttributes[k])
+		}
+		add("FS Type", s.CSI.FSType)
+		add("Read Only", fmt.Sprintf("%t", s.CSI.ReadOnly))
+	case s.NFS != nil:
+		p = &PVProviderInfo{Source: "NFS"}
+		add("Server", s.NFS.Server)
+		add("Path", s.NFS.Path)
+		add("Read Only", fmt.Sprintf("%t", s.NFS.ReadOnly))
+	case s.HostPath != nil:
+		p = &PVProviderInfo{Source: "HostPath"}
+		add("Path", s.HostPath.Path)
+		if s.HostPath.Type != nil {
+			add("Type", string(*s.HostPath.Type))
+		}
+	case s.Local != nil:
+		p = &PVProviderInfo{Source: "Local"}
+		add("Path", s.Local.Path)
+		if s.Local.FSType != nil {
+			add("FS Type", *s.Local.FSType)
+		}
+	case s.ISCSI != nil:
+		p = &PVProviderInfo{Source: "iSCSI"}
+		add("Target Portal", s.ISCSI.TargetPortal)
+		add("IQN", s.ISCSI.IQN)
+		add("LUN", fmt.Sprintf("%d", s.ISCSI.Lun))
+		add("FS Type", s.ISCSI.FSType)
+		add("Read Only", fmt.Sprintf("%t", s.ISCSI.ReadOnly))
+	}
+	return p
 }
 
 // pvcPods: "ns/claim" -> имена активных подов, монтирующих claim. Ошибка не ломает список.
