@@ -119,7 +119,7 @@ func (m *Manager) GetNetworkPolicies(namespace string) ([]NetworkPolicyInfo, err
 			Name:        np.Name,
 			Namespace:   np.Namespace,
 			PodSelector: orAll(formatSelector(&np.Spec.PodSelector)),
-			PolicyTypes: []string{},
+			PolicyTypes: policyTypesOf(&np),
 			Ingress:     []NetworkPolicyRuleInfo{},
 			Egress:      []NetworkPolicyRuleInfo{},
 			Age:         formatAge(np.CreationTimestamp.Time),
@@ -130,15 +130,6 @@ func (m *Manager) GetNetworkPolicies(namespace string) ([]NetworkPolicyInfo, err
 		if info.PodSelector == "all" {
 			info.PodSelector = "All pods"
 		}
-		for _, t := range np.Spec.PolicyTypes {
-			info.PolicyTypes = append(info.PolicyTypes, string(t))
-		}
-		if len(info.PolicyTypes) == 0 { // значение по умолчанию из спецификации
-			info.PolicyTypes = append(info.PolicyTypes, "Ingress")
-			if len(np.Spec.Egress) > 0 {
-				info.PolicyTypes = append(info.PolicyTypes, "Egress")
-			}
-		}
 		for _, r := range np.Spec.Ingress {
 			info.Ingress = append(info.Ingress, NetworkPolicyRuleInfo{Peers: policyPeers(r.From), Ports: policyPorts(r.Ports)})
 		}
@@ -148,4 +139,19 @@ func (m *Manager) GetNetworkPolicies(namespace string) ([]NetworkPolicyInfo, err
 		items = append(items, info)
 	}
 	return items, nil
+}
+
+// policyTypesOf: policyTypes с учётом значения по умолчанию из спецификации.
+func policyTypesOf(np *networkingv1.NetworkPolicy) []string {
+	out := []string{}
+	for _, t := range np.Spec.PolicyTypes {
+		out = append(out, string(t))
+	}
+	if len(out) == 0 {
+		out = append(out, "Ingress")
+		if len(np.Spec.Egress) > 0 {
+			out = append(out, "Egress")
+		}
+	}
+	return out
 }
