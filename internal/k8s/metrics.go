@@ -51,12 +51,19 @@ type ContainerMetrics struct {
 	Memory string `json:"memory"`
 }
 
+// NodeMetrics — текущая загрузка ноды. CPU в ядрах, память и диск в байтах, проценты 0..100.
+// Нулевая ёмкость означает «данных нет».
 type NodeMetrics struct {
-	Name     string `json:"name"`
-	CPUUsage string `json:"cpuUsage"`
-	MemUsage string `json:"memUsage"`
-	CPUPct   int    `json:"cpuPct"`
-	MemPct   int    `json:"memPct"`
+	Name          string  `json:"name"`
+	CPUPercent    float64 `json:"cpuPercent"`
+	CPUUsedCores  float64 `json:"cpuUsedCores"`
+	CPUCores      float64 `json:"cpuCores"`
+	MemoryPercent float64 `json:"memoryPercent"`
+	MemoryUsed    float64 `json:"memoryUsedBytes"`
+	MemoryTotal   float64 `json:"memoryTotalBytes"`
+	DiskPercent   float64 `json:"diskPercent"`
+	DiskUsed      float64 `json:"diskUsedBytes"`
+	DiskTotal     float64 `json:"diskTotalBytes"`
 }
 
 type MetricsSnapshot struct {

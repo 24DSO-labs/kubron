@@ -7,6 +7,7 @@
         :percent="nodeData?.cpuPercent ?? 0"
         :used="nodeData?.cpuUsage ?? 0"
         :total="nodeData?.cpuCapacity ?? 0"
+        :format="formatCores"
         unit="cores"
       />
       <GaugeCard
@@ -14,14 +15,14 @@
         :percent="nodeData?.memoryPercent ?? 0"
         :used="nodeData?.memoryUsage ?? 0"
         :total="nodeData?.memoryCapacity ?? 0"
-        unit="bytes"
+        :format="formatBytes"
       />
       <GaugeCard
         title="Disk"
         :percent="nodeData?.diskPercent ?? 0"
         :used="nodeData?.diskUsage ?? 0"
         :total="nodeData?.diskCapacity ?? 0"
-        unit="bytes"
+        :format="formatBytes"
       />
     </div>
 
@@ -66,6 +67,7 @@
 import { onMounted, onBeforeUnmount, computed } from 'vue'
 import GaugeCard from './GaugeCard.vue'
 import MetricsChart from './MetricsChart.vue'
+import { formatBytes, formatCores } from '../overview/format'
 import {
   useMetricsStatus,
   useNodeMetrics,

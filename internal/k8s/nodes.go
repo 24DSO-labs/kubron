@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"sort"
 	"strings"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 type NodeInfo struct {
 	Name           string `json:"name"`
 	Status         string `json:"status"`
+	Conditions     string `json:"conditions"`
 	Roles          string `json:"roles"`
 	Version        string `json:"version"`
 	OS             string `json:"os"`
@@ -21,6 +23,7 @@ type NodeInfo struct {
 	InternalIP     string `json:"internalIP"`
 	Age            string `json:"age"`
 	PodCIDR        string `json:"podCIDR"`
+	Taints         int    `json:"taints"`
 }
 
 func (m *Manager) GetNodes() ([]NodeInfo, error) {
@@ -55,6 +58,14 @@ func convertNode(node corev1.Node) NodeInfo {
 		}
 	}
 
+	// Conditions: Ready/NotReady плюс активные проблемные (MemoryPressure, DiskPressure, ...)
+	conds := []string{status}
+	for _, cond := range node.Status.Conditions {
+		if cond.Type != corev1.NodeReady && cond.Status == corev1.ConditionTrue {
+			conds = append(conds, string(cond.Type))
+		}
+	}
+
 	// Роли
 	var roles []string
 	for label := range node.Labels {
@@ -65,6 +76,7 @@ func convertNode(node corev1.Node) NodeInfo {
 			}
 		}
 	}
+	sort.Strings(roles)
 	rolesStr := strings.Join(roles, ", ")
 	if rolesStr == "" {
 		rolesStr = "<none>"
@@ -85,6 +97,7 @@ func convertNode(node corev1.Node) NodeInfo {
 	return NodeInfo{
 		Name:           node.Name,
 		Status:         status,
+		Conditions:     strings.Join(conds, ", "),
 		Roles:          rolesStr,
 		Version:        node.Status.NodeInfo.KubeletVersion,
 		OS:             node.Status.NodeInfo.OSImage,
@@ -94,6 +107,7 @@ func convertNode(node corev1.Node) NodeInfo {
 		InternalIP:     internalIP,
 		Age:            formatAge(node.CreationTimestamp.Time),
 		PodCIDR:        node.Spec.PodCIDR,
+		Taints:         len(node.Spec.Taints),
 	}
 }
 

@@ -80,7 +80,7 @@ export function useClusterMetrics(clusterName: string) {
   return { snapshot, loading, fetch }
 }
 
-// Node Metrics
+// Node Metrics: CPU в ядрах, память и диск в байтах (см. k8s.NodeMetrics в Go)
 export function useNodeMetrics(clusterName: string) {
   const metrics = ref<NodeMetricSnapshot[]>([])
 
@@ -90,15 +90,15 @@ export function useNodeMetrics(clusterName: string) {
       if (Array.isArray(data)) {
         metrics.value = (data as any[]).map((item: any) => ({
           name: item.name || '',
-          cpuUsage: parseFloat(item.cpuUsage) || 0,
-          cpuPercent: item.cpuPct || 0,
-          cpuCapacity: 100,
-          memoryUsage: parseFloat(item.memUsage) || 0,
-          memoryPercent: item.memPct || 0,
-          memoryCapacity: 100,
-          diskPercent: 0,
-          diskUsage: 0,
-          diskCapacity: 100,
+          cpuPercent: item.cpuPercent || 0,
+          cpuUsage: item.cpuUsedCores || 0,
+          cpuCapacity: item.cpuCores || 0,
+          memoryPercent: item.memoryPercent || 0,
+          memoryUsage: item.memoryUsedBytes || 0,
+          memoryCapacity: item.memoryTotalBytes || 0,
+          diskPercent: item.diskPercent || 0,
+          diskUsage: item.diskUsedBytes || 0,
+          diskCapacity: item.diskTotalBytes || 0,
         }))
       }
     } catch (e: any) {
