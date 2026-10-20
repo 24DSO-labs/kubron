@@ -398,6 +398,29 @@ export interface PVInfo {
   finalizers?: string[]
 }
 
+export interface StorageClassInfo {
+  name: string
+  provisioner: string
+  reclaimPolicy: string
+  volumeBindingMode: string
+  allowVolumeExpansion: boolean
+  default: boolean
+  mountOptions: string[]
+  parameters: Record<string, string>
+  volumes: StorageClassVolume[]
+  finalizers?: string[]
+  labels?: Record<string, string>
+  annotations?: Record<string, string>
+  age: string
+  created: string
+}
+
+export interface StorageClassVolume {
+  name: string
+  capacity: string
+  status: string
+}
+
 export interface PVCInfo {
   name: string
   namespace: string
