@@ -481,6 +481,8 @@ export interface PortForwardSession {
   podPort: number
   status: string
   error?: string
+  name: string
+  target: string
 }
 
 export interface ServiceDetail {
