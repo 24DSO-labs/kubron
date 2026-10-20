@@ -40,7 +40,9 @@ function menuFor(item: any): MenuItemDef[] {
   const containers = containersOf(item)
   return [
     { label: 'Show Details', action: 'select' },
-    ...(props.def.actions ?? []).filter(actionAllowed).map(a => ({
+    ...(props.def.actions ?? [])
+  .filter(a => actionAllowed(a) && (!a.when || a.when(item)))
+  .map(a => ({
       label: a.label,
       action: a.id,
       danger: a.danger,
