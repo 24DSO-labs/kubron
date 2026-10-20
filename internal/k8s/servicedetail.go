@@ -9,23 +9,27 @@ import (
 )
 
 type ServiceDetail struct {
-	Name            string              `json:"name"`
-	Namespace       string              `json:"namespace"`
-	Type            string              `json:"type"`
-	ClusterIP       string              `json:"clusterIP"`
-	ClusterIPs      []string            `json:"clusterIPs"`
-	ExternalIPs     []string            `json:"externalIPs"`
-	IPFamilies      string              `json:"ipFamilies"`
-	IPFamilyPolicy  string              `json:"ipFamilyPolicy"`
-	SessionAffinity string              `json:"sessionAffinity"`
-	Ports           []ServicePortInfo   `json:"ports"`
-	Selector        map[string]string   `json:"selector"`
-	Labels          map[string]string   `json:"labels"`
-	Annotations     map[string]string   `json:"annotations"`
-	Finalizers      []string            `json:"finalizers"`
-	Age             string              `json:"age"`
-	Endpoints       []EndpointInfo      `json:"endpoints"`
-	EndpointSlices  []EndpointSliceInfo `json:"endpointSlices"`
+	Name                  string              `json:"name"`
+	Namespace             string              `json:"namespace"`
+	Type                  string              `json:"type"`
+	ClusterIP             string              `json:"clusterIP"`
+	ClusterIPs            []string            `json:"clusterIPs"`
+	ExternalIPs           []string            `json:"externalIPs"`
+	IPFamilies            string              `json:"ipFamilies"`
+	IPFamilyPolicy        string              `json:"ipFamilyPolicy"`
+	SessionAffinity       string              `json:"sessionAffinity"`
+	Ports                 []ServicePortInfo   `json:"ports"`
+	Selector              map[string]string   `json:"selector"`
+	Labels                map[string]string   `json:"labels"`
+	Annotations           map[string]string   `json:"annotations"`
+	Finalizers            []string            `json:"finalizers"`
+	Age                   string              `json:"age"`
+	Endpoints             []EndpointInfo      `json:"endpoints"`
+	EndpointSlices        []EndpointSliceInfo `json:"endpointSlices"`
+	ExternalName          string              `json:"externalName"`
+	LoadBalancer          []string            `json:"loadBalancer"`
+	ExternalTrafficPolicy string              `json:"externalTrafficPolicy"`
+	InternalTrafficPolicy string              `json:"internalTrafficPolicy"`
 }
 
 type ServicePortInfo struct {
@@ -41,17 +45,6 @@ type ServicePortInfo struct {
 type EndpointInfo struct {
 	Name      string   `json:"name"`
 	Addresses []string `json:"addresses"`
-}
-
-type EndpointSliceInfo struct {
-	Name        string   `json:"name"`
-	Namespace   string   `json:"namespace"`
-	Addresses   []string `json:"addresses"`
-	Ports       []string `json:"ports"`
-	Zone        string   `json:"zone"`
-	Endpoints   string   `json:"endpoints"`
-	AddressType string   `json:"addressType"`
-	Age         string   `json:"age"`
 }
 
 func (m *Manager) GetServiceDetail(namespace, name string) (*ServiceDetail, error) {
@@ -122,72 +115,44 @@ func (m *Manager) GetServiceDetail(namespace, name string) (*ServiceDetail, erro
 	})
 	if err == nil {
 		for _, es := range esList.Items {
-			var addrs []string
-			var ports []string
-			var zone string
-			readyCount := 0
-			totalCount := 0
-			for _, endpoint := range es.Endpoints {
-				totalCount++
-				if endpoint.Conditions.Ready != nil && *endpoint.Conditions.Ready {
-					readyCount++
-				}
-				for _, addr := range endpoint.Addresses {
-					addrs = append(addrs, addr)
-				}
-				if endpoint.Zone != nil && zone == "" {
-					zone = *endpoint.Zone
-				}
-			}
-			for _, p := range es.Ports {
-				portStr := ""
-				if p.Name != nil {
-					portStr = *p.Name + ":"
-				}
-				if p.Port != nil {
-					portStr += fmt.Sprintf("%d", *p.Port)
-				}
-				if p.Protocol != nil {
-					portStr += "/" + string(*p.Protocol)
-				}
-				if portStr != "" {
-					ports = append(ports, portStr)
-				}
-			}
-			addressType := string(es.AddressType)
-			if addressType == "" {
-				addressType = "IPv4"
-			}
-			endpointSlices = append(endpointSlices, EndpointSliceInfo{
-				Name:        es.Name,
-				Namespace:   es.Namespace,
-				Addresses:   addrs,
-				Ports:       ports,
-				Zone:        zone,
-				Endpoints:   fmt.Sprintf("%d/%d", readyCount, totalCount),
-				AddressType: addressType,
-				Age:         formatAge(es.CreationTimestamp.Time),
-			})
+			endpointSlices = append(endpointSlices, convertEndpointSlice(es))
 		}
 	}
 
+	var lb []string
+	for _, ing := range svc.Status.LoadBalancer.Ingress {
+		if ing.IP != "" {
+			lb = append(lb, ing.IP)
+		} else if ing.Hostname != "" {
+			lb = append(lb, ing.Hostname)
+		}
+	}
+	internalPolicy := ""
+	if p := svc.Spec.InternalTrafficPolicy; p != nil {
+		internalPolicy = string(*p)
+	}
+
 	return &ServiceDetail{
-		Name:            svc.Name,
-		Namespace:       svc.Namespace,
-		Type:            string(svc.Spec.Type),
-		ClusterIP:       svc.Spec.ClusterIP,
-		ClusterIPs:      clusterIPs,
-		ExternalIPs:     svc.Spec.ExternalIPs,
-		IPFamilies:      ipFamilies,
-		IPFamilyPolicy:  ipFamilyPolicy,
-		SessionAffinity: string(svc.Spec.SessionAffinity),
-		Ports:           ports,
-		Selector:        svc.Spec.Selector,
-		Labels:          svc.Labels,
-		Annotations:     svc.Annotations,
-		Finalizers:      svc.Finalizers,
-		Age:             formatAge(svc.CreationTimestamp.Time),
-		Endpoints:       endpoints,
-		EndpointSlices:  endpointSlices,
+		Name:                  svc.Name,
+		Namespace:             svc.Namespace,
+		Type:                  string(svc.Spec.Type),
+		ClusterIP:             svc.Spec.ClusterIP,
+		ClusterIPs:            clusterIPs,
+		ExternalIPs:           svc.Spec.ExternalIPs,
+		IPFamilies:            ipFamilies,
+		IPFamilyPolicy:        ipFamilyPolicy,
+		SessionAffinity:       string(svc.Spec.SessionAffinity),
+		Ports:                 ports,
+		Selector:              svc.Spec.Selector,
+		Labels:                svc.Labels,
+		Annotations:           svc.Annotations,
+		Finalizers:            svc.Finalizers,
+		Age:                   formatAge(svc.CreationTimestamp.Time),
+		Endpoints:             endpoints,
+		EndpointSlices:        endpointSlices,
+		ExternalName:          svc.Spec.ExternalName,
+		LoadBalancer:          lb,
+		ExternalTrafficPolicy: string(svc.Spec.ExternalTrafficPolicy),
+		InternalTrafficPolicy: internalPolicy,
 	}, nil
 }
