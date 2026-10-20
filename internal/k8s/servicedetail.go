@@ -3,33 +3,78 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 type ServiceDetail struct {
-	Name                  string              `json:"name"`
-	Namespace             string              `json:"namespace"`
-	Type                  string              `json:"type"`
-	ClusterIP             string              `json:"clusterIP"`
-	ClusterIPs            []string            `json:"clusterIPs"`
-	ExternalIPs           []string            `json:"externalIPs"`
-	IPFamilies            string              `json:"ipFamilies"`
-	IPFamilyPolicy        string              `json:"ipFamilyPolicy"`
-	SessionAffinity       string              `json:"sessionAffinity"`
-	Ports                 []ServicePortInfo   `json:"ports"`
-	Selector              map[string]string   `json:"selector"`
-	Labels                map[string]string   `json:"labels"`
-	Annotations           map[string]string   `json:"annotations"`
-	Finalizers            []string            `json:"finalizers"`
-	Age                   string              `json:"age"`
-	Endpoints             []EndpointInfo      `json:"endpoints"`
-	EndpointSlices        []EndpointSliceInfo `json:"endpointSlices"`
-	ExternalName          string              `json:"externalName"`
-	LoadBalancer          []string            `json:"loadBalancer"`
-	ExternalTrafficPolicy string              `json:"externalTrafficPolicy"`
-	InternalTrafficPolicy string              `json:"internalTrafficPolicy"`
+	Name                  string                 `json:"name"`
+	Namespace             string                 `json:"namespace"`
+	Type                  string                 `json:"type"`
+	ClusterIP             string                 `json:"clusterIP"`
+	ClusterIPs            []string               `json:"clusterIPs"`
+	ExternalIPs           []string               `json:"externalIPs"`
+	IPFamilies            string                 `json:"ipFamilies"`
+	IPFamilyPolicy        string                 `json:"ipFamilyPolicy"`
+	SessionAffinity       string                 `json:"sessionAffinity"`
+	Ports                 []ServicePortInfo      `json:"ports"`
+	Selector              map[string]string      `json:"selector"`
+	Labels                map[string]string      `json:"labels"`
+	Annotations           map[string]string      `json:"annotations"`
+	Finalizers            []string               `json:"finalizers"`
+	Age                   string                 `json:"age"`
+	Endpoints             []EndpointInfo         `json:"endpoints"`
+	EndpointSlices        []EndpointSliceInfo    `json:"endpointSlices"`
+	ExternalName          string                 `json:"externalName"`
+	LoadBalancer          []string               `json:"loadBalancer"`
+	ExternalTrafficPolicy string                 `json:"externalTrafficPolicy"`
+	InternalTrafficPolicy string                 `json:"internalTrafficPolicy"`
+	NetworkPolicies       []ServiceNetworkPolicy `json:"networkPolicies"`
+}
+
+// ServiceNetworkPolicy — политика, выбирающая хотя бы один под сервиса.
+type ServiceNetworkPolicy struct {
+	Name        string   `json:"name"`
+	Namespace   string   `json:"namespace"`
+	PolicyTypes []string `json:"policyTypes"`
+}
+
+// serviceNetworkPolicies: политики namespace, чей podSelector подходит к подам сервиса.
+// Ошибки (например, нет прав на NetworkPolicy) не ломают панель: возвращается пустой список.
+func serviceNetworkPolicies(ctx context.Context, conn *ClusterConnection, svc *corev1.Service) []ServiceNetworkPolicy {
+	out := []ServiceNetworkPolicy{}
+	if len(svc.Spec.Selector) == 0 {
+		return out
+	}
+	pods, err := conn.Client.CoreV1().Pods(svc.Namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: labels.SelectorFromSet(svc.Spec.Selector).String(),
+	})
+	if err != nil || len(pods.Items) == 0 {
+		return out
+	}
+	nps, err := conn.Client.NetworkingV1().NetworkPolicies(svc.Namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return out
+	}
+	for i := range nps.Items {
+		np := &nps.Items[i]
+		sel, err := metav1.LabelSelectorAsSelector(&np.Spec.PodSelector) // пустой селектор = все поды
+		if err != nil {
+			continue
+		}
+		for j := range pods.Items {
+			if sel.Matches(labels.Set(pods.Items[j].Labels)) {
+				out = append(out, ServiceNetworkPolicy{Name: np.Name, Namespace: np.Namespace, PolicyTypes: policyTypesOf(np)})
+				break
+			}
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
 }
 
 type ServicePortInfo struct {
@@ -154,5 +199,6 @@ func (m *Manager) GetServiceDetail(namespace, name string) (*ServiceDetail, erro
 		LoadBalancer:          lb,
 		ExternalTrafficPolicy: string(svc.Spec.ExternalTrafficPolicy),
 		InternalTrafficPolicy: internalPolicy,
+		NetworkPolicies:       serviceNetworkPolicies(ctx, conn, svc),
 	}, nil
 }
