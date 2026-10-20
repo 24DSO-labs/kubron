@@ -194,7 +194,7 @@ func (m *Manager) StartTerminalSession(sessionID, namespace, pod, container, she
 
 		stdoutW.Close()
 		stdinR.Close()
-
+		deleteNodeShellPod(conn, namespace, pod)
 		if m.terminalSessions != nil {
 			m.terminalSessions.Remove(sessionID)
 		}
