@@ -75,6 +75,8 @@ export interface ActionContext {
 
 export interface PropertyDef<T = any> {
   label: string
+  /** Значение многострочное (переводы строк \n сохраняются): например, Addresses узла */
+  multiline?: boolean
   value: (item: T) => string | number | null | undefined
   /** Показать значение бейджем: функция возвращает css-класс (см. resources/status.ts) */
   badge?: (item: T) => string
