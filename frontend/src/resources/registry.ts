@@ -28,6 +28,7 @@ import { podDisruptionBudget } from './definitions/pdb'
 import { priorityClass } from './definitions/priorityclass'
 import { runtimeClass } from './definitions/runtimeclass'
 import { lease } from './definitions/lease'
+import { mutatingWebhookConfiguration, validatingWebhookConfiguration } from './definitions/webhook'
 import { endpoint } from './definitions/endpoint'
 import { event } from './definitions/event'
 import { node } from './definitions/node'
@@ -57,6 +58,8 @@ export const resources: ResourceDefinition[] = [
   priorityClass,
   runtimeClass,
   lease,
+  mutatingWebhookConfiguration,
+  validatingWebhookConfiguration,
   // network
   service,
   endpoint,
