@@ -1,7 +1,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, flatNsCol, ageCol } from './common'
+import { flatNameCol, flatNsCol, ageCol, controlledByProp, managedByProp } from './common'
 import EndpointSliceEntriesSection from '../../components/resource/sections/EndpointSliceEntriesSection.vue'
 
 export const endpointSlice = defineResource<k8s.EndpointSliceInfo>({
@@ -31,6 +31,8 @@ export const endpointSlice = defineResource<k8s.EndpointSliceInfo>({
     { label: 'Address Type', value: (e: any) => e.addressType },
     { label: 'Ports', value: (e: any) => (e.ports ?? []).join(', ') },
     { label: 'Ready endpoints', value: (e: any) => e.endpoints },
+    controlledByProp,
+    managedByProp,
   ],
   sections: [EndpointSliceEntriesSection],
 

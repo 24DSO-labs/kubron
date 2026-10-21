@@ -2,7 +2,7 @@ import { defineResource } from '../types'
 import { Perm } from '../../types/auth'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, flatNsCol, ageCol } from './common'
+import { flatNameCol, flatNsCol, ageCol, controlledByProp, managedByProp } from './common'
 import { badgeClass, statusColor } from '../status'
 import { workloadMetrics } from '../workloadMetrics'
 
@@ -66,6 +66,8 @@ export const deployment = defineResource<k8s.DeploymentInfo>({
     { label: 'Node Selector', value: d => d.nodeSelector },
     { label: 'Strategy Type', value: d => d.strategy },
     { label: 'Status', value: deploymentStatus, badge: d => badgeClass(deploymentStatus(d)) },
+    controlledByProp,
+    managedByProp,
   ],
   sections: [ImagesSection, ConditionsSection, PodAntiAffinitySection],
   tabs: [

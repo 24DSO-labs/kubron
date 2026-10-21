@@ -114,6 +114,7 @@ type PodInfo struct {
 	Created         string                  `json:"created"`
 
 	PriorityClassName string `json:"priorityClassName"`
+	RuntimeClassName  string `json:"runtimeClassName"`
 }
 
 func (m *Manager) GetPods(namespace string) ([]PodInfo, error) {
@@ -381,6 +382,7 @@ func convertPod(pod corev1.Pod) PodInfo {
 		Volumes:           volumes,
 		QOS:               qos,
 		PriorityClassName: pod.Spec.PriorityClassName,
+		RuntimeClassName:  derefStr(pod.Spec.RuntimeClassName),
 		Created:           created,
 	}
 }

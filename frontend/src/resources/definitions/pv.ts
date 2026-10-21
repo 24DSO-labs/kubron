@@ -1,7 +1,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, ageCol } from './common'
+import { flatNameCol, ageCol, controlledByProp, managedByProp } from './common'
 import { badgeClass, statusColor } from '../status'
 import { expandAccessModes } from '../utils'
 import PVMetricsSection from '../../components/resource/sections/PVMetricsSection.vue'
@@ -44,6 +44,8 @@ export const persistentVolume = defineResource<k8s.PVInfo>({
     
     { label: 'Claim', value: p => p.claim, link: claimLink },
     { label: 'Status', value: p => p.status, badge: p => badgeClass(p.status) },
+    controlledByProp,
+    managedByProp,
   ],
   tabs: [
     { id: 'provider', label: 'Provider', component: PVProviderTab },
