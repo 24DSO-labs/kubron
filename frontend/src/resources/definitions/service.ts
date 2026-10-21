@@ -1,7 +1,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, flatNsCol, ageCol } from './common'
+import { flatNameCol, flatNsCol, ageCol, controlledByProp, managedByProp } from './common'
 import { formatMap } from '../utils'
 import { statusColor } from '../status'
 import ConnectionTab from '../../components/resource/sections/ConnectionTab.vue'
@@ -40,6 +40,8 @@ export const service = defineResource<k8s.ServiceInfo, k8s.ServiceDetail>({
     { label: 'External Traffic Policy', value: (s: any) => s.externalTrafficPolicy },
     { label: 'Internal Traffic Policy', value: (s: any) => s.internalTrafficPolicy },
     
+    controlledByProp,
+    managedByProp,
   ],
   sections: [],
   tabs: [

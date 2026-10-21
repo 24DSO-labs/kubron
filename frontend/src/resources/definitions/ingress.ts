@@ -1,7 +1,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, flatNsCol, ageCol } from './common'
+import { flatNameCol, flatNsCol, ageCol, controlledByProp, managedByProp } from './common'
 import IngressRulesSection from '../../components/resource/sections/IngressRulesSection.vue'
 
 const classLink = (i: any) => (i.class ? { id: 'ingressclass', ns: '', name: i.class } : null)
@@ -31,6 +31,8 @@ export const ingress = defineResource<k8s.IngressInfo>({
     { label: 'Load Balancers', value: (i: any) => i.address },
     { label: 'Hosts', value: (i: any) => [...new Set(i.hosts ?? [])].join(', ') },
     { label: 'TLS', value: (i: any) => (i.tls ? 'True' : 'False') },
+    controlledByProp,
+    managedByProp,
   ],
   sections: [IngressRulesSection],
 

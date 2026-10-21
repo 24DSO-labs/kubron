@@ -9,13 +9,15 @@ import (
 )
 
 type ConfigMapInfo struct {
-	Name        string            `json:"name"`
-	Namespace   string            `json:"namespace"`
-	DataCount   int               `json:"dataCount"`
-	Age         string            `json:"age"`
-	Labels      map[string]string `json:"labels"`
-	Annotations map[string]string `json:"annotations"`
-	Data        map[string]string `json:"data"`
+	Name         string            `json:"name"`
+	Namespace    string            `json:"namespace"`
+	DataCount    int               `json:"dataCount"`
+	Age          string            `json:"age"`
+	Labels       map[string]string `json:"labels"`
+	ControlledBy string            `json:"controlledBy"`
+	ManagedBy    string            `json:"managedBy"`
+	Annotations  map[string]string `json:"annotations"`
+	Data         map[string]string `json:"data"`
 }
 
 func (m *Manager) GetConfigMaps(namespace string) ([]ConfigMapInfo, error) {
@@ -35,12 +37,14 @@ func (m *Manager) GetConfigMaps(namespace string) ([]ConfigMapInfo, error) {
 	var configmaps []ConfigMapInfo
 	for _, cm := range cmList.Items {
 		configmaps = append(configmaps, ConfigMapInfo{
-			Name:        cm.Name,
-			Namespace:   cm.Namespace,
-			DataCount:   len(cm.Data),
-			Age:         formatAge(cm.CreationTimestamp.Time),
-			Labels:      cm.Labels,
-			Annotations: cm.Annotations,
+			Name:         cm.Name,
+			Namespace:    cm.Namespace,
+			DataCount:    len(cm.Data),
+			Age:          formatAge(cm.CreationTimestamp.Time),
+			Labels:       cm.Labels,
+			ControlledBy: controlledByOf(cm.OwnerReferences),
+			ManagedBy:    managedByOf(cm.ObjectMeta),
+			Annotations:  cm.Annotations,
 		})
 	}
 
@@ -62,13 +66,15 @@ func (m *Manager) GetConfigMapDetail(namespace, name string) (*ConfigMapInfo, er
 	}
 
 	return &ConfigMapInfo{
-		Name:        cm.Name,
-		Namespace:   cm.Namespace,
-		DataCount:   len(cm.Data),
-		Age:         formatAge(cm.CreationTimestamp.Time),
-		Labels:      cm.Labels,
-		Annotations: cm.Annotations,
-		Data:        cm.Data,
+		Name:         cm.Name,
+		Namespace:    cm.Namespace,
+		DataCount:    len(cm.Data),
+		Age:          formatAge(cm.CreationTimestamp.Time),
+		Labels:       cm.Labels,
+		Annotations:  cm.Annotations,
+		ControlledBy: controlledByOf(cm.OwnerReferences),
+		ManagedBy:    managedByOf(cm.ObjectMeta),
+		Data:         cm.Data,
 	}, nil
 }
 
