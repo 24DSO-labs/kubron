@@ -1,7 +1,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, flatNsCol, ageCol } from './common'
+import { flatNameCol, flatNsCol, ageCol, controlledByProp, managedByProp } from './common'
 import EndpointSubsetsSection from '../../components/resource/sections/EndpointSubsetsSection.vue'
 
 export const endpoint = defineResource<k8s.EndpointListInfo>({
@@ -22,6 +22,8 @@ export const endpoint = defineResource<k8s.EndpointListInfo>({
   properties: [
     { label: 'Service', value: e => e.name, link: e => ({ id: 'service', ns: e.namespace, name: e.name }) },
     { label: 'Ready addresses', value: e => e.addresses },
+    controlledByProp,
+    managedByProp,
   ],
   sections: [EndpointSubsetsSection],
   api: { list: ns => callApp('GetEndpoints', ns) },

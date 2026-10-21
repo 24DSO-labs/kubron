@@ -18,6 +18,8 @@ type PriorityClassInfo struct {
 	Description      string            `json:"description"`
 	Created          string            `json:"created"`
 	Labels           map[string]string `json:"labels"`
+	ControlledBy     string            `json:"controlledBy"`
+	ManagedBy        string            `json:"managedBy"`
 	Annotations      map[string]string `json:"annotations"`
 	Finalizers       []string          `json:"finalizers"`
 }
@@ -59,6 +61,8 @@ func convertPriorityClass(pc schedulingv1.PriorityClass) PriorityClassInfo {
 		Description:      pc.Description,
 		Created:          meta.Created,
 		Labels:           meta.Labels,
+		ControlledBy:     controlledByOf(pc.OwnerReferences),
+		ManagedBy:        managedByOf(pc.ObjectMeta),
 		Annotations:      meta.Annotations,
 		Finalizers:       meta.Finalizers,
 	}
