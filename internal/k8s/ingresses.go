@@ -46,6 +46,28 @@ type IngressInfo struct {
 	Rules          []IngressRuleInfo   `json:"rules"`
 	TLSEntries     []IngressTLSInfo    `json:"tlsEntries"`
 	DefaultBackend *IngressBackendInfo `json:"defaultBackend"`
+	Ports          string              `json:“ports”`
+}
+
+// ingressPorts: порты, на которых Ingress принимает трафик (как в Lens): 80 для HTTP-правил, 443 при TLS.
+func ingressPorts(ing *networkingv1.Ingress) string {
+	var ports []string
+	switch {
+	case len(ing.Spec.Rules) > 0:
+		for _, r := range ing.Spec.Rules {
+			if r.HTTP != nil {
+				ports = append(ports, "80")
+				break
+			}
+		}
+	case ing.Spec.DefaultBackend != nil && ing.Spec.DefaultBackend.Service != nil &&
+		ing.Spec.DefaultBackend.Service.Port.Number != 0:
+		ports = append(ports, strconv.Itoa(int(ing.Spec.DefaultBackend.Service.Port.Number)))
+	}
+	if len(ing.Spec.TLS) > 0 {
+		ports = append(ports, "443")
+	}
+	return strings.Join(ports, ", ")
 }
 
 func ingressBackend(b networkingv1.IngressBackend) IngressBackendInfo {
@@ -132,6 +154,8 @@ func convertIngress(ing networkingv1.Ingress) IngressInfo {
 		}
 	}
 	info.Address = strings.Join(lbs, ", ")
+	info.Ports = ingressPorts(&ing)
+
 	return info
 }
 

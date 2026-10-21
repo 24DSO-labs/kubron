@@ -74,5 +74,7 @@ export const portForward = defineResource<models.PortForwardSession>({
       await k8s.refreshPortForwards()
       return [...k8s.portForwards.value]
     },
+    // «Удалить» сессию = остановить туннель и убрать запись; name сессии равен её id
+    remove: (_ns, name) => callApp('StopPortForward', name),
   },
 })

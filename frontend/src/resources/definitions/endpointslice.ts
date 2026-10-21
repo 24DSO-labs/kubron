@@ -18,7 +18,7 @@ export const endpointSlice = defineResource<k8s.EndpointSliceInfo>({
     { ...flatNsCol, link: (e: any) => e.namespace ? { id: 'namespace', ns: '', name: e.namespace } : null },
     { key: 'addressType', label: 'Address Type' },
     { key: 'ports', label: 'Ports', formatter: (e: any) => (e.ports ?? []).join(', ') || '—' },
-    { key: 'endpoints', label: 'Endpoints' },
+        { key: 'endpointList', label: 'Endpoints', formatter: (e: any) => e.endpointList || '<none>' },
     ageCol,
   ],
 

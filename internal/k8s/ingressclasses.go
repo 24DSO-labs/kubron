@@ -2,8 +2,11 @@ package k8s
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"time"
+
+	"k8s.io/apimachinery/pkg/types"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -31,6 +34,55 @@ type IngressClassInfo struct {
 	Created         string            `json:"created"`
 	Labels          map[string]string `json:"labels"`
 	Annotations     map[string]string `json:"annotations"`
+}
+
+// SetDefaultIngressClass делает класс default (makeDefault=true) или снимает признак (false).
+// Default-класс в кластере должен быть один, поэтому у остальных признак снимается первым.
+func (m *Manager) SetDefaultIngressClass(name string, makeDefault bool) error {
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	ics := conn.Client.NetworkingV1().IngressClasses()
+	patch := func(n string, on bool) error {
+		val := "null" // merge patch: null удаляет аннотацию
+		if on {
+			val = `"true"`
+		}
+		body := fmt.Sprintf(`{"metadata":{"annotations":{%q:%s}}}`, defaultIngressClassAnnotation, val)
+		if _, err := ics.Patch(ctx, n, types.MergePatchType, []byte(body), metav1.PatchOptions{}); err != nil {
+			return fmt.Errorf("не удалось изменить IngressClass %s: %w", n, err)
+		}
+		return nil
+	}
+
+	list, err := ics.List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	found := false
+	var others []string
+	for _, ic := range list.Items {
+		if ic.Name == name {
+			found = true
+		} else if ic.Annotations[defaultIngressClassAnnotation] == "true" {
+			others = append(others, ic.Name)
+		}
+	}
+	if !found {
+		return fmt.Errorf("IngressClass %s не найден", name)
+	}
+	if makeDefault {
+		for _, n := range others {
+			if err := patch(n, false); err != nil {
+				return err
+			}
+		}
+	}
+	return patch(name, makeDefault)
 }
 
 func (m *Manager) GetIngressClasses() ([]IngressClassInfo, error) {

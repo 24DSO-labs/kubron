@@ -608,6 +608,13 @@ func (a *App) GetIngressClasses() ([]k8s.IngressClassInfo, error) {
 	return a.k8sMgr.GetIngressClasses()
 }
 
+func (a *App) SetDefaultIngressClass(name string, makeDefault bool) error {
+	if err := a.authz(auth.PermWrite, "name", name, "default", makeDefault); err != nil {
+		return err
+	}
+	return a.k8sMgr.SetDefaultIngressClass(name, makeDefault)
+}
+
 // === Access Control ===
 
 func (a *App) GetServiceAccounts(namespace string) (interface{}, error) {
