@@ -1,7 +1,6 @@
 package k8s
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -28,27 +27,6 @@ func metaOf(o metav1.ObjectMeta) objectMeta {
 		Annotations: o.Annotations,
 		Finalizers:  o.Finalizers,
 	}
-}
-
-// TODO: дубль formatSelector с networkpolicies
-// formatSelector — selector в одну строку: "a=1, b=2, key In (x, y)". Порядок детерминирован.
-func formatSelectorcm(sel *metav1.LabelSelector) string {
-	if sel == nil {
-		return ""
-	}
-	parts := make([]string, 0, len(sel.MatchLabels)+len(sel.MatchExpressions))
-	for k, v := range sel.MatchLabels {
-		parts = append(parts, k+"="+v)
-	}
-	sort.Strings(parts)
-	for _, e := range sel.MatchExpressions {
-		if len(e.Values) > 0 {
-			parts = append(parts, fmt.Sprintf("%s %s (%s)", e.Key, e.Operator, strings.Join(e.Values, ", ")))
-		} else {
-			parts = append(parts, fmt.Sprintf("%s %s", e.Key, e.Operator))
-		}
-	}
-	return strings.Join(parts, ", ")
 }
 
 // labelSelectorInfo — структурный selector для секции Selector в панели.
