@@ -63,6 +63,7 @@ const ACTION_LABELS: Record<string, string> = {
   InstallMetricsStack: 'Установка стека метрик',
   UninstallMetricsStack: 'Удаление стека метрик',
   GetAuditLog: 'Просмотр журнала',
+  SetDefaultIngressClass: 'Класс Ingress по умолчанию',
 }
 
 const ACTION_VERBS: [string, string][] = [
