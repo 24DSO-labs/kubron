@@ -1,7 +1,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, flatNsCol, ageCol } from './common'
+import { flatNameCol, flatNsCol, ageCol, controlledByProp, managedByProp } from './common'
 
 export const lease = defineResource<k8s.LeaseInfo>({
   id: 'lease',
@@ -29,6 +29,8 @@ export const lease = defineResource<k8s.LeaseInfo>({
     { label: 'Acquire Time', value: (l: any) => l.acquireTime },
     { label: 'Renew Time', value: (l: any) => l.renewTime },
     { label: 'Finalizers', value: (l: any) => (l.finalizers ?? []).join(', ') },
+    controlledByProp,
+    managedByProp,
   ],
 
   api: {

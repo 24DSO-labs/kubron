@@ -1,7 +1,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, flatNsCol, ageCol } from './common'
+import { flatNameCol, flatNsCol, ageCol, controlledByProp, managedByProp } from './common'
 import LimitRangeLimitsSection from '../../components/resource/sections/LimitRangeLimitsSection.vue'
 
 export const limitRange = defineResource<k8s.LimitRangeInfo>({
@@ -23,6 +23,8 @@ export const limitRange = defineResource<k8s.LimitRangeInfo>({
 
   properties: [
     { label: 'Finalizers', value: (lr: any) => (lr.finalizers ?? []).join(', ') },
+    controlledByProp,
+    managedByProp,
   ],
   sections: [LimitRangeLimitsSection],
 

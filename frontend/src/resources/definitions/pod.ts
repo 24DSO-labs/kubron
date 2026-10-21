@@ -3,7 +3,7 @@ import { Perm } from '../../types/auth'
 import type { k8s as models } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { useK8s } from '../../composables/useK8s'
-import { flatNameCol, flatNsCol, ageCol } from './common'
+import { flatNameCol, flatNsCol, ageCol, managedByProp } from './common'
 import { badgeClass, statusColor } from '../status'
 import { containersOf } from '../utils'
 
@@ -116,6 +116,7 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
     },
     { label: 'Service Account', value: p => p.serviceAccount, link: p => p.serviceAccount ? { id: 'serviceaccount', ns: p.namespace, name: p.serviceAccount } : null },
     { label: 'QoS', value: p => p.qos },
+    managedByProp,
   ],
   sections: [PodVolumesSection, TolerationsSection, ConditionsSection],
   tabs: [

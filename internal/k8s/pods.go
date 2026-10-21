@@ -112,6 +112,9 @@ type PodInfo struct {
 	Volumes         []VolumeInfo            `json:"volumes"`
 	QOS             string                  `json:"qos"`
 	Created         string                  `json:"created"`
+
+	PriorityClassName string `json:"priorityClassName"`
+	RuntimeClassName  string `json:"runtimeClassName"`
 }
 
 func (m *Manager) GetPods(namespace string) ([]PodInfo, error) {
@@ -359,26 +362,28 @@ func convertPod(pod corev1.Pod) PodInfo {
 	}
 
 	return PodInfo{
-		Name:            pod.Name,
-		Namespace:       pod.Namespace,
-		Status:          status,
-		Ready:           fmt.Sprintf("%d/%d", readyCount, len(pod.Spec.Containers)),
-		Restarts:        totalRestarts,
-		Age:             formatAge(pod.CreationTimestamp.Time),
-		Node:            pod.Spec.NodeName,
-		IP:              pod.Status.PodIP,
-		Labels:          pod.Labels,
-		Annotations:     pod.Annotations,
-		ControlledBy:    controlledBy,
-		ServiceAccount:  pod.Spec.ServiceAccountName,
-		NodeSelector:    pod.Spec.NodeSelector,
-		Conditions:      conditions,
-		Tolerations:     tolerations,
-		PodAntiAffinity: podAntiAffinity,
-		Containers:      containers,
-		Volumes:         volumes,
-		QOS:             qos,
-		Created:         created,
+		Name:              pod.Name,
+		Namespace:         pod.Namespace,
+		Status:            status,
+		Ready:             fmt.Sprintf("%d/%d", readyCount, len(pod.Spec.Containers)),
+		Restarts:          totalRestarts,
+		Age:               formatAge(pod.CreationTimestamp.Time),
+		Node:              pod.Spec.NodeName,
+		IP:                pod.Status.PodIP,
+		Labels:            pod.Labels,
+		Annotations:       pod.Annotations,
+		ControlledBy:      controlledBy,
+		ServiceAccount:    pod.Spec.ServiceAccountName,
+		NodeSelector:      pod.Spec.NodeSelector,
+		Conditions:        conditions,
+		Tolerations:       tolerations,
+		PodAntiAffinity:   podAntiAffinity,
+		Containers:        containers,
+		Volumes:           volumes,
+		QOS:               qos,
+		PriorityClassName: pod.Spec.PriorityClassName,
+		RuntimeClassName:  derefStr(pod.Spec.RuntimeClassName),
+		Created:           created,
 	}
 }
 

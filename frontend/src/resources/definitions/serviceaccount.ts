@@ -1,6 +1,6 @@
 import { defineResource } from '../types'
 import { callApp } from '../wails'
-import { nameCol, nsCol, ageCol } from './common'
+import { nameCol, nsCol, ageCol, controlledByProp, managedByProp } from './common'
 
 export const serviceAccount = defineResource({
   id: 'serviceaccount',
@@ -15,6 +15,8 @@ export const serviceAccount = defineResource({
   properties: [
     { label: 'Secrets', value: r => r.secrets?.length ?? 0 },
     { label: 'Image pull secrets', value: r => r.imagePullSecrets?.length ?? 0 },
+    controlledByProp,
+    managedByProp,
   ],
   api: {
     list: ns => callApp('GetServiceAccounts', ns),
