@@ -17,6 +17,16 @@ type PDBInfo struct {
 	CurrentHealthy     int32  `json:"currentHealthy"`
 	DesiredHealthy     int32  `json:"desiredHealthy"`
 	Age                string `json:"age"`
+
+	ExpectedPods               int32             `json:"expectedPods"`
+	UnhealthyPodEvictionPolicy string            `json:"unhealthyPodEvictionPolicy"`
+	Selector                   *PVCSelectorInfo  `json:"selector"`
+	SelectorText               string            `json:"selectorText"`
+	Conditions                 []ConditionInfo   `json:"conditions"`
+	Created                    string            `json:"created"`
+	Labels                     map[string]string `json:"labels"`
+	Annotations                map[string]string `json:"annotations"`
+	Finalizers                 []string          `json:"finalizers"`
 }
 
 func (m *Manager) GetPodDisruptionBudgets(namespace string) ([]PDBInfo, error) {
@@ -33,7 +43,7 @@ func (m *Manager) GetPodDisruptionBudgets(namespace string) ([]PDBInfo, error) {
 		return nil, err
 	}
 
-	var pdbs []PDBInfo
+	pdbs := make([]PDBInfo, 0, len(list.Items))
 	for _, pdb := range list.Items {
 		pdbs = append(pdbs, convertPDB(pdb))
 	}
@@ -52,14 +62,40 @@ func convertPDB(pdb policyv1.PodDisruptionBudget) PDBInfo {
 		maxUnav = pdb.Spec.MaxUnavailable.String()
 	}
 
+	policy := ""
+	if pdb.Spec.UnhealthyPodEvictionPolicy != nil {
+		policy = string(*pdb.Spec.UnhealthyPodEvictionPolicy)
+	}
+
+	conditions := make([]ConditionInfo, 0, len(pdb.Status.Conditions))
+	for _, c := range pdb.Status.Conditions {
+		conditions = append(conditions, ConditionInfo{
+			Type:               c.Type,
+			Status:             string(c.Status),
+			LastTransitionTime: formatTime(c.LastTransitionTime),
+			Reason:             c.Reason,
+			Message:            c.Message,
+		})
+	}
+
+	meta := metaOf(pdb.ObjectMeta)
 	return PDBInfo{
-		Name:               pdb.Name,
-		Namespace:          pdb.Namespace,
-		MinAvailable:       minAvail,
-		MaxUnavailable:     maxUnav,
-		DisruptionsAllowed: pdb.Status.DisruptionsAllowed,
-		CurrentHealthy:     pdb.Status.CurrentHealthy,
-		DesiredHealthy:     pdb.Status.DesiredHealthy,
-		Age:                formatAge(pdb.CreationTimestamp.Time),
+		Name:                       pdb.Name,
+		Namespace:                  pdb.Namespace,
+		MinAvailable:               minAvail,
+		MaxUnavailable:             maxUnav,
+		DisruptionsAllowed:         pdb.Status.DisruptionsAllowed,
+		CurrentHealthy:             pdb.Status.CurrentHealthy,
+		DesiredHealthy:             pdb.Status.DesiredHealthy,
+		Age:                        meta.Age,
+		ExpectedPods:               pdb.Status.ExpectedPods,
+		UnhealthyPodEvictionPolicy: policy,
+		Selector:                   labelSelectorInfo(pdb.Spec.Selector),
+		SelectorText:               formatSelector(pdb.Spec.Selector),
+		Conditions:                 conditions,
+		Created:                    meta.Created,
+		Labels:                     meta.Labels,
+		Annotations:                meta.Annotations,
+		Finalizers:                 meta.Finalizers,
 	}
 }
