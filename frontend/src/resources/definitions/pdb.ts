@@ -2,6 +2,8 @@ import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
+import ConditionsSection from '../../components/resource/sections/ConditionsSection.vue'
+import PVCSelectorSection from '../../components/resource/sections/PVCSelectorSection.vue'
 
 export const podDisruptionBudget = defineResource<k8s.PDBInfo>({
   id: 'poddisruptionbudget',
@@ -10,9 +12,8 @@ export const podDisruptionBudget = defineResource<k8s.PDBInfo>({
   title: 'PodDisruptionBudgets',
   namespaced: true,
   nav: { group: 'config', label: 'Pod Disruption Budgets' },
-  
+
   autoRefresh: true,
-  // icon: 'configmap',
 
   columns: [
     flatNameCol,
@@ -26,12 +27,16 @@ export const podDisruptionBudget = defineResource<k8s.PDBInfo>({
   ],
 
   properties: [
-    { label: 'Min Available', value: p => p.minAvailable },
-    { label: 'Max Unavailable', value: p => p.maxUnavailable },
-    { label: 'Current Healthy', value: p => p.currentHealthy },
-    { label: 'Desired Healthy', value: p => p.desiredHealthy },
-    { label: 'Allowed Disruptions', value: p => p.disruptionsAllowed },
+    { label: 'Min Available', value: (p: any) => p.minAvailable },
+    { label: 'Max Unavailable', value: (p: any) => p.maxUnavailable },
+    { label: 'Current Healthy', value: (p: any) => p.currentHealthy },
+    { label: 'Desired Healthy', value: (p: any) => p.desiredHealthy },
+    { label: 'Allowed Disruptions', value: (p: any) => p.disruptionsAllowed },
+    { label: 'Expected Pods', value: (p: any) => p.expectedPods },
+    { label: 'Unhealthy Pod Eviction', value: (p: any) => p.unhealthyPodEvictionPolicy },
+    { label: 'Finalizers', value: (p: any) => (p.finalizers ?? []).join(', ') },
   ],
+  sections: [ConditionsSection, PVCSelectorSection],
 
   api: {
     list: ns => callApp('GetPodDisruptionBudgets', ns),
