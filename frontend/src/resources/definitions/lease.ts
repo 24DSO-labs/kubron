@@ -10,9 +10,8 @@ export const lease = defineResource<k8s.LeaseInfo>({
   title: 'Leases',
   namespaced: true,
   nav: { group: 'config', label: 'Leases' },
-  
+
   autoRefresh: true,
-  // icon: 'configmap',
 
   columns: [
     flatNameCol,
@@ -22,7 +21,14 @@ export const lease = defineResource<k8s.LeaseInfo>({
   ],
 
   properties: [
-    { label: 'Holder', value: l => l.holder },
+    { label: 'Holder', value: (l: any) => l.holder },
+    { label: 'Preferred Holder', value: (l: any) => l.preferredHolder },
+    { label: 'Strategy', value: (l: any) => l.strategy },
+    { label: 'Lease Duration', value: (l: any) => (l.leaseDurationSeconds ? `${l.leaseDurationSeconds}s` : '') },
+    { label: 'Lease Transitions', value: (l: any) => l.leaseTransitions },
+    { label: 'Acquire Time', value: (l: any) => l.acquireTime },
+    { label: 'Renew Time', value: (l: any) => l.renewTime },
+    { label: 'Finalizers', value: (l: any) => (l.finalizers ?? []).join(', ') },
   ],
 
   api: {
