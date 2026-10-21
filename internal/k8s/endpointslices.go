@@ -22,19 +22,20 @@ type SliceEndpointInfo struct {
 }
 
 type EndpointSliceInfo struct {
-	Name        string              `json:"name"`
-	Namespace   string              `json:"namespace"`
-	Addresses   []string            `json:"addresses"`
-	Ports       []string            `json:"ports"`
-	Zone        string              `json:"zone"`
-	Endpoints   string              `json:"endpoints"` // ready/total
-	AddressType string              `json:"addressType"`
-	Service     string              `json:"service"`
-	Age         string              `json:"age"`
-	Created     string              `json:"created"`
-	Labels      map[string]string   `json:"labels"`
-	Annotations map[string]string   `json:"annotations"`
-	Entries     []SliceEndpointInfo `json:"entries"`
+	Name         string              `json:"name"`
+	Namespace    string              `json:"namespace"`
+	Addresses    []string            `json:"addresses"`
+	Ports        []string            `json:"ports"`
+	Zone         string              `json:"zone"`
+	Endpoints    string              `json:"endpoints"` // ready/total
+	AddressType  string              `json:"addressType"`
+	Service      string              `json:"service"`
+	Age          string              `json:"age"`
+	Created      string              `json:"created"`
+	Labels       map[string]string   `json:"labels"`
+	Annotations  map[string]string   `json:"annotations"`
+	Entries      []SliceEndpointInfo `json:"entries"`
+	EndpointList string              `json:"endpointList"` // "ip:port, ip:port +N"
 }
 
 // По спецификации nil в ready/serving означает true.
@@ -57,6 +58,14 @@ func convertEndpointSlice(es discoveryv1.EndpointSlice) EndpointSliceInfo {
 	if info.AddressType == "" {
 		info.AddressType = "IPv4"
 	}
+
+	var portNums []int32
+	for _, p := range es.Ports {
+		if p.Port != nil {
+			portNums = append(portNums, *p.Port)
+		}
+	}
+	var flat []string
 
 	ready := 0
 	for _, ep := range es.Endpoints {
@@ -83,11 +92,21 @@ func convertEndpointSlice(es discoveryv1.EndpointSlice) EndpointSliceInfo {
 		}
 		if e.Ready {
 			ready++
+			for _, a := range ep.Addresses {
+				if len(portNums) == 0 {
+					flat = append(flat, a)
+					continue
+				}
+				for _, p := range portNums {
+					flat = append(flat, hostPort(a, p))
+				}
+			}
 		}
 		info.Addresses = append(info.Addresses, ep.Addresses...)
 		info.Entries = append(info.Entries, e)
 	}
 	info.Endpoints = fmt.Sprintf("%d/%d", ready, len(es.Endpoints))
+	info.EndpointList = formatEndpointList(flat)
 
 	for _, p := range es.Ports {
 		s := ""
