@@ -8,6 +8,8 @@ import ArgoConditionsSection from '../../../components/resource/sections/ArgoCon
 import ArgoResourcesTab from '../../../components/resource/sections/ArgoResourcesTab.vue'
 import ArgoHistoryTab from '../../../components/resource/sections/ArgoHistoryTab.vue'
 import ArgoSourcesTab from '../../../components/resource/sections/ArgoSourcesTab.vue'
+import { Perm } from '../../../types/auth'
+import { openArgoUI, refreshArgoApps, requestArgoSync, terminateArgoOperation, } from '../../argoActions'
 
 const syncPolicy = (a: ArgoApplicationInfo) =>
   a.autoSync
@@ -75,7 +77,30 @@ export const argoApplication = defineResource<ArgoApplicationInfo>({
     { id: 'argoHistory', label: 'History', component: ArgoHistoryTab },
     { id: 'argoSources', label: 'Sources', component: ArgoSourcesTab },
   ],
-
+  actions: [
+    {
+      id: 'sync', label: 'Sync', icon: 'refresh', permission: Perm.Operate,
+      when: a => !a.operationOn,
+      run: a => requestArgoSync([a as ArgoApplicationInfo]),
+    },
+    {
+      id: 'refresh', label: 'Refresh', icon: 'restart', permission: Perm.Operate,
+      run: a => refreshArgoApps([a as ArgoApplicationInfo], false),
+    },
+    {
+      id: 'hardrefresh', label: 'Hard Refresh', icon: 'restart', permission: Perm.Operate,
+      run: a => refreshArgoApps([a as ArgoApplicationInfo], true),
+    },
+    {
+      id: 'terminate', label: 'Terminate operation', icon: 'stop', danger: true, permission: Perm.Operate,
+      when: a => !!a.operationOn,
+      run: a => terminateArgoOperation([a as ArgoApplicationInfo]),
+    },
+    {
+      id: 'argoui', label: 'Open Argo UI', icon: 'open-browser', permission: Perm.PortForward,
+      run: () => openArgoUI(),
+    },
+  ],
   api: {
     // Пустой namespace = все namespace (Application может жить в любом)
     list: ns => callApp('GetArgoApplications', ns) as Promise<ArgoApplicationInfo[]>,

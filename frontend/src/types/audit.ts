@@ -64,6 +64,11 @@ const ACTION_LABELS: Record<string, string> = {
   UninstallMetricsStack: 'Удаление стека метрик',
   GetAuditLog: 'Просмотр журнала',
   SetDefaultIngressClass: 'Класс Ingress по умолчанию',
+  SyncArgoApplication: 'Argo CD: синхронизация',
+  RefreshArgoApplication: 'Argo CD: обновление (Refresh)',
+  TerminateArgoOperation: 'Argo CD: остановка операции',
+  RollbackArgoApplication: 'Argo CD: откат',
+  OpenArgoUI: 'Argo CD: открытие UI',
 }
 
 const ACTION_VERBS: [string, string][] = [
