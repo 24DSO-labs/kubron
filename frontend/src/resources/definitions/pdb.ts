@@ -1,7 +1,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, flatNsCol, ageCol } from './common'
+import { flatNameCol, flatNsCol, ageCol, controlledByProp, managedByProp } from './common'
 import ConditionsSection from '../../components/resource/sections/ConditionsSection.vue'
 import PVCSelectorSection from '../../components/resource/sections/PVCSelectorSection.vue'
 
@@ -35,6 +35,8 @@ export const podDisruptionBudget = defineResource<k8s.PDBInfo>({
     { label: 'Expected Pods', value: (p: any) => p.expectedPods },
     { label: 'Unhealthy Pod Eviction', value: (p: any) => p.unhealthyPodEvictionPolicy },
     { label: 'Finalizers', value: (p: any) => (p.finalizers ?? []).join(', ') },
+    controlledByProp,
+    managedByProp,
   ],
   sections: [ConditionsSection, PVCSelectorSection],
 

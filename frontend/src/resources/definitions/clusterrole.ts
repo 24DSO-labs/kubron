@@ -1,6 +1,6 @@
 import { defineResource } from '../types'
 import { callApp } from '../wails'
-import { nameCol, ageCol } from './common'
+import { nameCol, ageCol, controlledByProp, managedByProp } from './common'
 import RulesSection from '../../components/resource/sections/RulesSection.vue'
 
 export const clusterRole = defineResource({
@@ -12,7 +12,7 @@ export const clusterRole = defineResource({
   namespaced: false,
   nav: { group: 'access', label: 'Cluster Roles' },
   columns: [nameCol, ageCol],
-  properties: [{ label: 'Rules', value: r => r.rules?.length ?? 0 }],
+  properties: [{ label: 'Rules', value: r => r.rules?.length ?? 0 }, controlledByProp, managedByProp],
   sections: [RulesSection],
   api: {
     list: () => callApp('GetClusterRoles'),

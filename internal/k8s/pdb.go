@@ -25,6 +25,8 @@ type PDBInfo struct {
 	Conditions                 []ConditionInfo   `json:"conditions"`
 	Created                    string            `json:"created"`
 	Labels                     map[string]string `json:"labels"`
+	ControlledBy               string            `json:"controlledBy"`
+	ManagedBy                  string            `json:"managedBy"`
 	Annotations                map[string]string `json:"annotations"`
 	Finalizers                 []string          `json:"finalizers"`
 }
@@ -95,6 +97,8 @@ func convertPDB(pdb policyv1.PodDisruptionBudget) PDBInfo {
 		Conditions:                 conditions,
 		Created:                    meta.Created,
 		Labels:                     meta.Labels,
+		ControlledBy:               controlledByOf(pdb.OwnerReferences),
+		ManagedBy:                  managedByOf(pdb.ObjectMeta),
 		Annotations:                meta.Annotations,
 		Finalizers:                 meta.Finalizers,
 	}

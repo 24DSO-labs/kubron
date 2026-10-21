@@ -1,7 +1,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, flatNsCol, ageCol } from './common'
+import { flatNameCol, flatNsCol, ageCol, controlledByProp, managedByProp } from './common'
 import { badgeClass, statusColor } from '../status'
 import PVCMetricsSection from '../../components/resource/sections/PVCMetricsSection.vue'
 import PVCSelectorSection from '../../components/resource/sections/PVCSelectorSection.vue'
@@ -66,6 +66,8 @@ export const persistentVolumeClaim = defineResource<k8s.PVCInfo>({
       links: (p: any) => (p.pods ?? []).map((n: string) => ({ id: 'pod', ns: p.namespace, name: n })),
     },
     { label: 'Status', value: p => p.status, badge: p => badgeClass(p.status) },
+    controlledByProp,
+    managedByProp,
   ],
   sections: [PVCSelectorSection],
 
