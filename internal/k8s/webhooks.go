@@ -50,6 +50,9 @@ type WebhookConfigurationInfo struct {
 	Labels      map[string]string `json:"labels"`
 	Annotations map[string]string `json:"annotations"`
 	Finalizers  []string          `json:"finalizers"`
+
+	ControlledBy string `json:"controlledBy"`
+	ManagedBy    string `json:"managedBy"`
 }
 
 func (m *Manager) GetMutatingWebhookConfigurations() ([]WebhookConfigurationInfo, error) {
@@ -119,6 +122,9 @@ func newWebhookConfigurationInfo(om metav1.ObjectMeta, hooks []WebhookInfo) Webh
 		Labels:       meta.Labels,
 		Annotations:  meta.Annotations,
 		Finalizers:   meta.Finalizers,
+
+		ControlledBy: controlledByOf(om.OwnerReferences),
+		ManagedBy:    managedByOf(om),
 	}
 }
 
