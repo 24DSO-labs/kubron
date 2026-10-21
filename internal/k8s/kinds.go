@@ -51,6 +51,9 @@ var kindTable = map[string]kindInfo{
 	"runtimeclass":            {gvr("node.k8s.io", "v1", "runtimeclasses"), false},
 	"lease":                   {gvr("coordination.k8s.io", "v1", "leases"), true},
 	"endpointslice":           {gvr("discovery.k8s.io", "v1", "endpointslices"), true},
+
+	"mutatingwebhookconfiguration":   {gvr("admissionregistration.k8s.io", "v1", "mutatingwebhookconfigurations"), false},
+	"validatingwebhookconfiguration": {gvr("admissionregistration.k8s.io", "v1", "validatingwebhookconfigurations"), false},
 }
 
 func init() {
