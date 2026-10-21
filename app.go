@@ -262,6 +262,22 @@ func (a *App) GetArgoProjects(namespace string) ([]k8s.ArgoProjectInfo, error) {
 	return a.k8sMgr.GetArgoProjects(namespace)
 }
 
+// GetArgoRepositories возвращает репозитории Argo CD (санитизировано: без паролей, токенов и ключей).
+func (a *App) GetArgoRepositories(namespace string) ([]k8s.ArgoRepositoryInfo, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetArgoRepositories(namespace)
+}
+
+// GetArgoClusters возвращает кластеры Argo CD (санитизировано: без config с токенами и сертификатами).
+func (a *App) GetArgoClusters(namespace string) ([]k8s.ArgoClusterInfo, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetArgoClusters(namespace)
+}
+
 // OpenArgoUI пробрасывает порт на argocd-server и возвращает URL для браузера.
 func (a *App) OpenArgoUI() (*k8s.ArgoUIInfo, error) {
 	if err := a.authz(auth.PermPortForward); err != nil {
