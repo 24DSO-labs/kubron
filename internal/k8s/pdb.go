@@ -93,7 +93,7 @@ func convertPDB(pdb policyv1.PodDisruptionBudget) PDBInfo {
 		ExpectedPods:               pdb.Status.ExpectedPods,
 		UnhealthyPodEvictionPolicy: policy,
 		Selector:                   labelSelectorInfo(pdb.Spec.Selector),
-		SelectorText:               formatSelectorcm(pdb.Spec.Selector),
+		SelectorText:               formatSelector(pdb.Spec.Selector),
 		Conditions:                 conditions,
 		Created:                    meta.Created,
 		Labels:                     meta.Labels,
