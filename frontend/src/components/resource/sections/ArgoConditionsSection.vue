@@ -15,16 +15,19 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
-import type { ArgoApplicationInfo } from '../../../types/argocd'
+import type { ArgoApplicationInfo, ArgoApplicationSetInfo } from '../../../types/argocd'
 
-const props = defineProps<{ resource: Partial<ArgoApplicationInfo> }>()
-const conditions = computed(() => props.resource?.conditions ?? [])
+// Application (condition = «активно», status всегда True) и ApplicationSet (у condition есть status True/False)
+const props = defineProps<{ resource: Partial<ArgoApplicationInfo | ArgoApplicationSetInfo> }>()
+const conditions = computed(() => (props.resource?.conditions ?? []).filter(c => c.status !== 'False'))
 
 /**
- * У Application condition нет status: присутствие уже означает проблему.
- * Типы *Error — ошибка (красный), остальные (*Warning, ExcludedResourceWarning, OrphanedResourceWarning) — предупреждение.
+ * Application: присутствие condition уже означает проблему (*Error — красный, остальные — предупреждение).
+ * ApplicationSet: ErrorOccurred — ошибка, штатные ResourcesUpToDate/ParametersGenerated/RolloutProgressing — норма.
  */
+const NORMAL = ['ResourcesUpToDate', 'ParametersGenerated', 'RolloutProgressing']
 function toneOf(type: string): string {
-  return /error$/i.test(type) ? 'rd-err' : 'rd-warn'
+  if (/error/i.test(type)) return 'rd-err'
+  return NORMAL.includes(type) ? 'rd-ok' : 'rd-warn'
 }
 </script>
