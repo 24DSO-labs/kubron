@@ -13,6 +13,17 @@ type LeaseInfo struct {
 	Namespace string `json:"namespace"`
 	Holder    string `json:"holder"`
 	Age       string `json:"age"`
+
+	LeaseDurationSeconds int32             `json:"leaseDurationSeconds"`
+	AcquireTime          string            `json:"acquireTime"`
+	RenewTime            string            `json:"renewTime"`
+	LeaseTransitions     int32             `json:"leaseTransitions"`
+	PreferredHolder      string            `json:"preferredHolder"`
+	Strategy             string            `json:"strategy"`
+	Created              string            `json:"created"`
+	Labels               map[string]string `json:"labels"`
+	Annotations          map[string]string `json:"annotations"`
+	Finalizers           []string          `json:"finalizers"`
 }
 
 func (m *Manager) GetLeases(namespace string) ([]LeaseInfo, error) {
@@ -29,7 +40,7 @@ func (m *Manager) GetLeases(namespace string) ([]LeaseInfo, error) {
 		return nil, err
 	}
 
-	var leases []LeaseInfo
+	leases := make([]LeaseInfo, 0, len(list.Items))
 	for _, lease := range list.Items {
 		leases = append(leases, convertLease(lease))
 	}
@@ -38,15 +49,27 @@ func (m *Manager) GetLeases(namespace string) ([]LeaseInfo, error) {
 }
 
 func convertLease(lease coordinationv1.Lease) LeaseInfo {
-	holder := ""
-	if lease.Spec.HolderIdentity != nil {
-		holder = *lease.Spec.HolderIdentity
+	spec := lease.Spec
+	strategy := ""
+	if spec.Strategy != nil {
+		strategy = string(*spec.Strategy)
 	}
 
+	meta := metaOf(lease.ObjectMeta)
 	return LeaseInfo{
-		Name:      lease.Name,
-		Namespace: lease.Namespace,
-		Holder:    holder,
-		Age:       formatAge(lease.CreationTimestamp.Time),
+		Name:                 lease.Name,
+		Namespace:            lease.Namespace,
+		Holder:               derefStr(spec.HolderIdentity),
+		Age:                  meta.Age,
+		LeaseDurationSeconds: derefInt32(spec.LeaseDurationSeconds),
+		AcquireTime:          formatMicroTime(spec.AcquireTime),
+		RenewTime:            formatMicroTime(spec.RenewTime),
+		LeaseTransitions:     derefInt32(spec.LeaseTransitions),
+		PreferredHolder:      derefStr(spec.PreferredHolder),
+		Strategy:             strategy,
+		Created:              meta.Created,
+		Labels:               meta.Labels,
+		Annotations:          meta.Annotations,
+		Finalizers:           meta.Finalizers,
 	}
 }
