@@ -25,11 +25,13 @@ type LimitRangeInfo struct {
 	Age       string `json:"age"`
 	Items     int    `json:"items"`
 
-	Created     string            `json:"created"`
-	Labels      map[string]string `json:"labels"`
-	Annotations map[string]string `json:"annotations"`
-	Finalizers  []string          `json:"finalizers"`
-	Limits      []LimitRangeLimit `json:"limits"`
+	Created      string            `json:"created"`
+	Labels       map[string]string `json:"labels"`
+	ControlledBy string            `json:"controlledBy"`
+	ManagedBy    string            `json:"managedBy"`
+	Annotations  map[string]string `json:"annotations"`
+	Finalizers   []string          `json:"finalizers"`
+	Limits       []LimitRangeLimit `json:"limits"`
 }
 
 func (m *Manager) GetLimitRanges(namespace string) ([]LimitRangeInfo, error) {
@@ -81,15 +83,17 @@ func convertLimitRange(lr v1.LimitRange) LimitRangeInfo {
 	}
 
 	return LimitRangeInfo{
-		Name:        lr.Name,
-		Namespace:   lr.Namespace,
-		Age:         meta.Age,
-		Items:       len(lr.Spec.Limits),
-		Created:     meta.Created,
-		Labels:      meta.Labels,
-		Annotations: meta.Annotations,
-		Finalizers:  meta.Finalizers,
-		Limits:      rows,
+		Name:         lr.Name,
+		Namespace:    lr.Namespace,
+		Age:          meta.Age,
+		Items:        len(lr.Spec.Limits),
+		Created:      meta.Created,
+		Labels:       meta.Labels,
+		ControlledBy: controlledByOf(lr.OwnerReferences),
+		ManagedBy:    managedByOf(lr.ObjectMeta),
+		Annotations:  meta.Annotations,
+		Finalizers:   meta.Finalizers,
+		Limits:       rows,
 	}
 }
 

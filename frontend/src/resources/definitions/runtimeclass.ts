@@ -1,7 +1,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, ageCol } from './common'
+import { flatNameCol, ageCol, controlledByProp, managedByProp } from './common'
 import KeyValueSection from '../../components/resource/sections/KeyValueSection.vue'
 import TolerationsSection from '../../components/resource/sections/TolerationsSection.vue'
 import { h, defineComponent } from 'vue'
@@ -33,6 +33,8 @@ export const runtimeClass = defineResource<k8s.RuntimeClassInfo>({
   properties: [
     { label: 'Handler', value: (r: any) => r.handler },
     { label: 'Finalizers', value: (r: any) => (r.finalizers ?? []).join(', ') },
+    controlledByProp,
+    managedByProp,
   ],
   sections: [mapSection('Overhead', 'overhead'), mapSection('Node Selector', 'nodeSelector'), TolerationsSection],
 
