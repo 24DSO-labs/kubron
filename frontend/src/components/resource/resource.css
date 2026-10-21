@@ -3,6 +3,8 @@
 .rd-links { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 .rd-props { display: flex; flex-direction: column; }
 
+.rd-pre { white-space: pre-line; }
+
 .rd-row {
   display: grid;
   grid-template-columns: 150px 1fr;
