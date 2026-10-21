@@ -2,11 +2,13 @@ import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, ageCol, controlledByProp, managedByProp } from './common'
-import { badgeClass } from '../status'
 import NodeUsageCell from '../../components/resource/sections/NodeUsageCell.vue'
 import NodeMetricsSection from '../../components/resource/sections/NodeMetricsSection.vue'
-import ConditionsSection from '../../components/resource/sections/ConditionsSection.vue'
 import NodeTaintsSection from '../../components/resource/sections/NodeTaintsSection.vue'
+import NodeConditionsSection from '../../components/resource/sections/NodeConditionsSection.vue'
+import NodeCapacityTab from '../../components/resource/sections/NodeCapacityTab.vue'
+import NodeAllocatableTab from '../../components/resource/sections/NodeAllocatableTab.vue'
+import NodePodsTab from '../../components/resource/sections/NodePodsTab.vue'
 import { Perm } from '../../types/auth'
 
 /** Цвет Conditions: зелёный — Ready без проблем, жёлтый — Ready с pressure, красный — NotReady */
@@ -63,27 +65,30 @@ export const node = defineResource<k8s.NodeInfo, k8s.NodeDetail>({
     }) as any[]
   },
 
+  // Панель: Metrics -> Labels -> Annotations -> properties -> sections (Taints, Conditions)
+  headSections: [NodeMetricsSection],
   properties: [
-    { label: 'Status', value: n => n.status, badge: n => badgeClass(n.status) },
-    { label: 'Role', value: n => n.roles },
-    { label: 'Kubernetes Version', value: n => n.kubeVersion },
-    { label: 'Container Runtime', value: n => n.containerRuntime },
+    {
+      label: 'Addresses',
+      multiline: true,
+      value: n => (n.addresses ?? []).map(a => `${a.type}: ${a.address}`).join('\n'),
+    },
+    { label: 'OS', value: n => (n.operatingSystem ? `${n.operatingSystem} (${n.architecture})` : n.architecture) },
     { label: 'OS Image', value: n => n.osImage },
-    { label: 'Architecture', value: n => n.architecture },
-    { label: 'Internal IP', value: n => n.internalIP },
-    { label: 'External IP', value: n => n.externalIP },
-    { label: 'Pod CIDR', value: n => n.podCIDR },
-    { label: 'Allocatable CPU', value: n => n.allocatableCPU },
-    { label: 'Allocatable Memory', value: n => n.allocatableMemory },
-    { label: 'Allocatable Pods', value: n => n.allocatablePods },
-     { label: 'Scheduling', value: n => (n.unschedulable ? 'Disabled (cordoned)' : 'Enabled') },
-  
+    { label: 'Kernel version', value: n => n.kernelVersion },
+    { label: 'Container runtime', value: n => n.containerRuntime },
+    { label: 'Kubelet version', value: n => n.kubeVersion },
     controlledByProp,
     managedByProp,
   ],
-  sections: [NodeMetricsSection, ConditionsSection, NodeTaintsSection],
+  sections: [NodeTaintsSection, NodeConditionsSection],
+  tabs: [
+    { id: 'capacity', label: 'Capacity', component: NodeCapacityTab },
+    { id: 'allocatable', label: 'Allocatable', component: NodeAllocatableTab },
+    { id: 'pods', label: 'Pods', component: NodePodsTab },
+  ],
 
-   actions: [
+  actions: [
     {
       id: 'shell',
       label: 'Shell',
@@ -138,5 +143,4 @@ export const node = defineResource<k8s.NodeInfo, k8s.NodeDetail>({
     get: (_ns, name) => callApp('GetNodeDetail', name),
     remove: (_ns, name) => callApp('DeleteResource', 'node', '', name),
   },
-
 })

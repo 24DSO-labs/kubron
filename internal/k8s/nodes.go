@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -130,30 +131,49 @@ type NodeConditionInfo struct {
 	Message string `json:"message"`
 }
 
-// NodeDetail — полные данные узла для панели деталей
+// NodeAddressInfo — адрес узла (InternalIP, ExternalIP, Hostname)
+type NodeAddressInfo struct {
+	Type    string `json:"type"`
+	Address string `json:"address"`
+}
+
+// NodeResourceField — одна колонка таблицы Capacity / Allocatable.
+// Name — заголовок колонки, Value — уже отформатированное значение («7.6GiB»).
+type NodeResourceField struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+// NodeDetail — полные данные узла для панели деталей.
+// KubeVersion — версия kubelet; CPUCores и MemoryBytes — числовая ёмкость узла
+// (вкладка Pods считает по ней долю CPU и памяти пода).
 type NodeDetail struct {
-	Name              string              `json:"name"`
-	Status            string              `json:"status"`
-	Roles             string              `json:"roles"`
-	KubeVersion       string              `json:"kubeVersion"`
-	ContainerRuntime  string              `json:"containerRuntime"`
-	OSImage           string              `json:"osImage"`
-	Architecture      string              `json:"architecture"`
-	InternalIP        string              `json:"internalIP"`
-	ExternalIP        string              `json:"externalIP"`
-	PodCIDR           string              `json:"podCIDR"`
-	CPUCapacity       string              `json:"cpuCapacity"`
-	MemoryCapacity    string              `json:"memoryCapacity"`
-	AllocatableCPU    string              `json:"allocatableCPU"`
-	AllocatableMemory string              `json:"allocatableMemory"`
-	AllocatablePods   string              `json:"allocatablePods"`
-	Age               string              `json:"age"`
-	Created           string              `json:"created"`
-	Labels            map[string]string   `json:"labels"`
-	Annotations       map[string]string   `json:"annotations"`
-	Taints            []NodeTaintInfo     `json:"taints"`
-	Conditions        []NodeConditionInfo `json:"conditions"`
-	Unschedulable     bool                `json:"unschedulable"`
+	Name             string              `json:"name"`
+	Status           string              `json:"status"`
+	Roles            string              `json:"roles"`
+	KubeVersion      string              `json:"kubeVersion"`
+	KernelVersion    string              `json:"kernelVersion"`
+	ContainerRuntime string              `json:"containerRuntime"`
+	OperatingSystem  string              `json:"operatingSystem"`
+	OSImage          string              `json:"osImage"`
+	Architecture     string              `json:"architecture"`
+	InternalIP       string              `json:"internalIP"`
+	ExternalIP       string              `json:"externalIP"`
+	Addresses        []NodeAddressInfo   `json:"addresses"`
+	PodCIDR          string              `json:"podCIDR"`
+	CPUCapacity      string              `json:"cpuCapacity"`
+	MemoryCapacity   string              `json:"memoryCapacity"`
+	Capacity         []NodeResourceField `json:"capacity"`
+	Allocatable      []NodeResourceField `json:"allocatable"`
+	CPUCores         float64             `json:"cpuCores"`
+	MemoryBytes      float64             `json:"memoryBytes"`
+	Age              string              `json:"age"`
+	Created          string              `json:"created"`
+	Labels           map[string]string   `json:"labels"`
+	Annotations      map[string]string   `json:"annotations"`
+	Taints           []NodeTaintInfo     `json:"taints"`
+	Conditions       []NodeConditionInfo `json:"conditions"`
+	Unschedulable    bool                `json:"unschedulable"`
 }
 
 func (m *Manager) GetNodeDetail(name string) (*NodeDetail, error) {
@@ -173,7 +193,9 @@ func (m *Manager) GetNodeDetail(name string) (*NodeDetail, error) {
 	info := convertNode(*node)
 
 	internalIP, externalIP := "", ""
+	addresses := make([]NodeAddressInfo, 0, len(node.Status.Addresses))
 	for _, addr := range node.Status.Addresses {
+		addresses = append(addresses, NodeAddressInfo{Type: string(addr.Type), Address: addr.Address})
 		switch addr.Type {
 		case corev1.NodeInternalIP:
 			if internalIP == "" {
@@ -184,12 +206,6 @@ func (m *Manager) GetNodeDetail(name string) (*NodeDetail, error) {
 				externalIP = addr.Address
 			}
 		}
-	}
-
-	// "containerd://1.7.2" -> "1.7.2"
-	runtime := node.Status.NodeInfo.ContainerRuntimeVersion
-	if i := strings.Index(runtime, "://"); i >= 0 {
-		runtime = runtime[i+3:]
 	}
 
 	taints := make([]NodeTaintInfo, 0, len(node.Spec.Taints))
@@ -207,28 +223,100 @@ func (m *Manager) GetNodeDetail(name string) (*NodeDetail, error) {
 		})
 	}
 
+	cpu := node.Status.Capacity.Cpu()
+	mem := node.Status.Capacity.Memory()
+
 	return &NodeDetail{
-		Name:              info.Name,
-		Status:            info.Status,
-		Roles:             info.Roles,
-		KubeVersion:       info.Version,
-		ContainerRuntime:  runtime,
-		OSImage:           info.OS,
-		Architecture:      info.Arch,
-		InternalIP:        internalIP,
-		ExternalIP:        externalIP,
-		PodCIDR:           info.PodCIDR,
-		CPUCapacity:       info.CPUCapacity,
-		MemoryCapacity:    info.MemoryCapacity,
-		AllocatableCPU:    node.Status.Allocatable.Cpu().String(),
-		AllocatableMemory: formatMemory(node.Status.Allocatable.Memory().Value()),
-		AllocatablePods:   node.Status.Allocatable.Pods().String(),
-		Age:               info.Age,
-		Created:           node.CreationTimestamp.UTC().Format(time.RFC3339),
-		Labels:            node.Labels,
-		Annotations:       node.Annotations,
-		Taints:            taints,
-		Conditions:        conditions,
-		Unschedulable:     node.Spec.Unschedulable,
+		Name:             info.Name,
+		Status:           info.Status,
+		Roles:            info.Roles,
+		KubeVersion:      info.Version,
+		KernelVersion:    node.Status.NodeInfo.KernelVersion,
+		ContainerRuntime: node.Status.NodeInfo.ContainerRuntimeVersion,
+		OperatingSystem:  node.Status.NodeInfo.OperatingSystem,
+		OSImage:          info.OS,
+		Architecture:     info.Arch,
+		InternalIP:       internalIP,
+		ExternalIP:       externalIP,
+		Addresses:        addresses,
+		PodCIDR:          info.PodCIDR,
+		CPUCapacity:      info.CPUCapacity,
+		MemoryCapacity:   info.MemoryCapacity,
+		Capacity:         nodeResourceFields(node.Status.Capacity),
+		Allocatable:      nodeResourceFields(node.Status.Allocatable),
+		CPUCores:         float64(cpu.MilliValue()) / 1000,
+		MemoryBytes:      float64(mem.Value()),
+		Age:              info.Age,
+		Created:          node.CreationTimestamp.UTC().Format(time.RFC3339),
+		Labels:           node.Labels,
+		Annotations:      node.Annotations,
+		Taints:           taints,
+		Conditions:       conditions,
+		Unschedulable:    node.Spec.Unschedulable,
 	}, nil
+}
+
+// standardNodeResources — колонки, которые показываются всегда и в этом порядке
+// (hugepages-* даже при нулевом значении: так делают Lens и kubectl describe).
+var standardNodeResources = []struct {
+	name  corev1.ResourceName
+	label string
+	bytes bool // значение в байтах: форматируем как 7.6GiB
+}{
+	{corev1.ResourceCPU, "CPU", false},
+	{corev1.ResourceMemory, "Memory", true},
+	{corev1.ResourceEphemeralStorage, "Ephemeral Storage", true},
+	{"hugepages-1Gi", "Hugepages-1Gi", true},
+	{"hugepages-2Mi", "Hugepages-2Mi", true},
+	{corev1.ResourcePods, "Pods", false},
+}
+
+// nodeResourceFields превращает ResourceList узла в упорядоченные колонки:
+// сначала стандартные, затем остальные (например, nvidia.com/gpu) по алфавиту.
+func nodeResourceFields(rl corev1.ResourceList) []NodeResourceField {
+	out := make([]NodeResourceField, 0, len(rl)+len(standardNodeResources))
+	seen := make(map[corev1.ResourceName]bool, len(standardNodeResources))
+
+	for _, s := range standardNodeResources {
+		seen[s.name] = true
+		value := "0"
+		if q, ok := rl[s.name]; ok {
+			if s.bytes {
+				value = formatBytesIEC(q.Value())
+			} else {
+				value = q.String()
+			}
+		}
+		out = append(out, NodeResourceField{Name: s.label, Value: value})
+	}
+
+	var extra []string
+	for name := range rl {
+		if !seen[name] {
+			extra = append(extra, string(name))
+		}
+	}
+	sort.Strings(extra)
+	for _, name := range extra {
+		q := rl[corev1.ResourceName(name)]
+		out = append(out, NodeResourceField{Name: name, Value: q.String()})
+	}
+	return out
+}
+
+// formatBytesIEC: 8160000000 -> "7.6GiB", 0 -> "0".
+func formatBytesIEC(b int64) string {
+	if b <= 0 {
+		return "0"
+	}
+	units := []string{"B", "KiB", "MiB", "GiB", "TiB", "PiB"}
+	v, i := float64(b), 0
+	for v >= 1024 && i < len(units)-1 {
+		v /= 1024
+		i++
+	}
+	if i == 0 {
+		return fmt.Sprintf("%dB", b)
+	}
+	return fmt.Sprintf("%.1f%s", v, units[i])
 }
