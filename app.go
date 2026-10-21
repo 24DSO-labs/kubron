@@ -560,6 +560,20 @@ func (a *App) GetLeases(namespace string) ([]k8s.LeaseInfo, error) {
 	return a.k8sMgr.GetLeases(namespace)
 }
 
+func (a *App) GetMutatingWebhookConfigurations() ([]k8s.WebhookConfigurationInfo, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetMutatingWebhookConfigurations()
+}
+
+func (a *App) GetValidatingWebhookConfigurations() ([]k8s.WebhookConfigurationInfo, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetValidatingWebhookConfigurations()
+}
+
 // === Endpoints ===
 
 func (a *App) GetEndpoints(namespace string) ([]k8s.EndpointListInfo, error) {
