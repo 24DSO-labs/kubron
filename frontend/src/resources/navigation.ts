@@ -9,6 +9,8 @@ export interface NavGroupMeta {
   parent?: NavGroupId
   /** Группа показывается, только если выполнено условие (например, в кластере есть Argo CD) */
   requires?: 'argocd'
+  /** Пункты-кастомные view (viewRegistry), которые стоят в группе перед пунктами ресурсов */
+  views?: NavItem[]
 }
 
 export const NAV_GROUPS: Record<NavGroupId, NavGroupMeta> = {
@@ -18,7 +20,12 @@ export const NAV_GROUPS: Record<NavGroupId, NavGroupMeta> = {
   storage: { title: 'Storage', expanded: false },
   helm: { title: 'Helm', expanded: false },
   access: { title: 'Access Control', expanded: false },
-  argocd: { title: 'Argo CD', expanded: true, requires: 'argocd' },
+  argocd: {
+    title: 'Argo CD',
+    expanded: true,
+    requires: 'argocd',
+    views: [{ view: 'argo-dashboard', label: 'Dashboard' }],
+  },
 }
 
 /**
@@ -72,9 +79,12 @@ export function buildNav(): NavEntry[] {
 
 /** Группа с пунктами и вложенными группами; пустая (без пунктов и детей) не показывается */
 function buildGroup(id: NavGroupId): NavGroup | null {
-  const items = resources
-    .filter(r => r.nav?.group === id)
-    .map(r => ({ view: r.view, label: r.nav!.label, icon: r.icon }))
+  const items: NavItem[] = [
+    ...(NAV_GROUPS[id].views ?? []),
+    ...resources
+      .filter(r => r.nav?.group === id)
+      .map(r => ({ view: r.view, label: r.nav!.label, icon: r.icon })),
+  ]
   const children = (Object.keys(NAV_GROUPS) as NavGroupId[])
     .filter(child => NAV_GROUPS[child].parent === id)
     .map(buildGroup)
