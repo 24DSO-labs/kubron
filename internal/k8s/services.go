@@ -9,16 +9,18 @@ import (
 )
 
 type ServiceInfo struct {
-	Name       string            `json:"name"`
-	Namespace  string            `json:"namespace"`
-	Type       string            `json:"type"`
-	ClusterIP  string            `json:"clusterIP"`
-	ExternalIP string            `json:"externalIP"`
-	Ports      []string          `json:"ports"`
-	Age        string            `json:"age"`
-	Labels     map[string]string `json:"labels"`
-	Selector   map[string]string `json:"selector"`
-	Status     string            `json:"status"`
+	Name         string            `json:"name"`
+	Namespace    string            `json:"namespace"`
+	Type         string            `json:"type"`
+	ClusterIP    string            `json:"clusterIP"`
+	ExternalIP   string            `json:"externalIP"`
+	Ports        []string          `json:"ports"`
+	Age          string            `json:"age"`
+	Labels       map[string]string `json:"labels"`
+	ControlledBy string            `json:"controlledBy"`
+	ManagedBy    string            `json:"managedBy"`
+	Selector     map[string]string `json:"selector"`
+	Status       string            `json:"status"`
 }
 
 func (m *Manager) GetServices(namespace string) ([]ServiceInfo, error) {
@@ -65,16 +67,18 @@ func (m *Manager) GetServices(namespace string) ([]ServiceInfo, error) {
 		}
 
 		services = append(services, ServiceInfo{
-			Name:       svc.Name,
-			Namespace:  svc.Namespace,
-			Type:       string(svc.Spec.Type),
-			ClusterIP:  svc.Spec.ClusterIP,
-			ExternalIP: externalIP,
-			Ports:      ports,
-			Age:        formatAge(svc.CreationTimestamp.Time),
-			Labels:     svc.Labels,
-			Selector:   svc.Spec.Selector,
-			Status:     status,
+			Name:         svc.Name,
+			Namespace:    svc.Namespace,
+			Type:         string(svc.Spec.Type),
+			ClusterIP:    svc.Spec.ClusterIP,
+			ExternalIP:   externalIP,
+			Ports:        ports,
+			Age:          formatAge(svc.CreationTimestamp.Time),
+			Labels:       svc.Labels,
+			ControlledBy: controlledByOf(svc.OwnerReferences),
+			ManagedBy:    managedByOf(svc.ObjectMeta),
+			Selector:     svc.Spec.Selector,
+			Status:       status,
 		})
 	}
 
