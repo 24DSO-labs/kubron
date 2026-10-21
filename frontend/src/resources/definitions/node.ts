@@ -1,7 +1,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, ageCol } from './common'
+import { flatNameCol, ageCol, controlledByProp, managedByProp } from './common'
 import { badgeClass } from '../status'
 import NodeUsageCell from '../../components/resource/sections/NodeUsageCell.vue'
 import NodeMetricsSection from '../../components/resource/sections/NodeMetricsSection.vue'
@@ -78,6 +78,8 @@ export const node = defineResource<k8s.NodeInfo, k8s.NodeDetail>({
     { label: 'Allocatable Pods', value: n => n.allocatablePods },
      { label: 'Scheduling', value: n => (n.unschedulable ? 'Disabled (cordoned)' : 'Enabled') },
   
+    controlledByProp,
+    managedByProp,
   ],
   sections: [NodeMetricsSection, ConditionsSection, NodeTaintsSection],
 

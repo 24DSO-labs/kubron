@@ -1,7 +1,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, ageCol } from './common'
+import { flatNameCol, ageCol, controlledByProp, managedByProp } from './common'
 import { badgeClass, statusColor } from '../status'
 import NamespaceMetricsSection from '../../components/resource/sections/NamespaceMetricsSection.vue'
 
@@ -24,7 +24,7 @@ export const namespaceResource = defineResource<k8s.NamespaceInfo>({
     ageCol,
   ],
   headSections: [NamespaceMetricsSection],
-  properties: [{ label: 'Status', value: n => n.status, badge: n => badgeClass(n.status) }],
+  properties: [{ label: 'Status', value: n => n.status, badge: n => badgeClass(n.status) }, controlledByProp, managedByProp],
 
   api: {
     list: () => callApp('GetNamespaces'),

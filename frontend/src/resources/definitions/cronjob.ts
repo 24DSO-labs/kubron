@@ -1,7 +1,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, flatNsCol, ageCol } from './common'
+import { flatNameCol, flatNsCol, ageCol, controlledByProp, managedByProp } from './common'
 import CronJobHistoryTab from '../../components/resource/sections/CronJobHistoryTab.vue'
 
 export const cronJob = defineResource<k8s.CronJobInfo>({
@@ -38,6 +38,8 @@ export const cronJob = defineResource<k8s.CronJobInfo>({
     { label: 'Last Schedule', value: c => c.lastSchedule },
     { label: 'Next Execution', value: c => c.nextExecution },
     { label: 'Time Zone', value: c => c.timeZone },
+    controlledByProp,
+    managedByProp,
   ],
 
   tabs: [

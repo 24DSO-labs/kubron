@@ -3,7 +3,7 @@ import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, ageCol, controlledByProp, managedByProp } from './common'
 import { badgeClass } from '../status'
-import PriorityClassPodsTab from '../../components/resource/sections/PriorityClassPodsTab.vue'
+import { podsByClassTab } from '../podsByClass'
 
 const yesNo = (v: boolean) => (v ? 'True' : 'False')
 
@@ -35,7 +35,7 @@ export const priorityClass = defineResource<k8s.PriorityClassInfo>({
   ],
 
   tabs: [
-    { id: 'pods', label: 'Pods', component: PriorityClassPodsTab },
+    { id: 'pods', label: 'Pods', component: podsByClassTab('priorityClassName') },
   ],
 
   api: {

@@ -1,7 +1,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, flatNsCol, ageCol } from './common'
+import { flatNameCol, flatNsCol, ageCol, controlledByProp, managedByProp } from './common'
 import NetworkPolicyRulesSection from '../../components/resource/sections/NetworkPolicyRulesSection.vue'
 
 export const networkPolicy = defineResource<k8s.NetworkPolicyInfo>({
@@ -26,6 +26,8 @@ export const networkPolicy = defineResource<k8s.NetworkPolicyInfo>({
     { label: 'Policy Types', value: (np: any) => (np.policyTypes ?? []).join(', ') },
     { label: 'Ingress rules', value: (np: any) => (np.policyTypes ?? []).includes('Ingress') ? (np.ingress?.length ?? 0) : '—' },
     { label: 'Egress rules', value: (np: any) => (np.policyTypes ?? []).includes('Egress') ? (np.egress?.length ?? 0) : '—' },
+    controlledByProp,
+    managedByProp,
   ],
   sections: [NetworkPolicyRulesSection],
 

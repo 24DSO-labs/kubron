@@ -2,7 +2,7 @@ import { defineResource } from '../types'
 import { Perm } from '../../types/auth'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, flatNsCol, ageCol } from './common'
+import { flatNameCol, flatNsCol, ageCol, controlledByProp, managedByProp } from './common'
 import { badgeClass } from '../status'
 import { workloadMetrics } from '../workloadMetrics'
 
@@ -49,6 +49,8 @@ export const daemonSet = defineResource<k8s.DaemonSetInfo>({
     { label: 'Node Selector', value: d => d.nodeSelector },
     { label: 'Strategy Type', value: d => d.strategy },
     { label: 'Status', value: daemonsetStatus, badge: d => badgeClass(daemonsetStatus(d)) },
+    controlledByProp,
+    managedByProp,
   ],
   sections: [ImagesSection, TolerationsSection, NodeAffinitySection],
   tabs: [{ id: 'pods', label: 'Pods', component: PodsTab }],

@@ -1,6 +1,6 @@
 import { defineResource } from '../types'
 import { callApp } from '../wails'
-import { nameCol, nsCol, ageCol } from './common'
+import { nameCol, nsCol, ageCol, controlledByProp, managedByProp } from './common'
 import BindingSection from '../../components/resource/sections/BindingSection.vue'
 
 export const roleBinding = defineResource({
@@ -12,6 +12,7 @@ export const roleBinding = defineResource({
   namespaced: true,
   nav: { group: 'access', label: 'Role Bindings' },
   columns: [nameCol, { ...nsCol, link: (r: any) => r.metadata?.namespace ? { id: 'namespace', ns: '', name: r.metadata.namespace } : null }, ageCol],
+  properties: [controlledByProp, managedByProp],
   sections: [BindingSection],
   api: {
     list: ns => callApp('GetRoleBindings', ns),

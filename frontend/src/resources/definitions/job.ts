@@ -2,7 +2,7 @@ import { defineResource } from '../types'
 import { Perm } from '../../types/auth'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, flatNsCol, ageCol } from './common'
+import { flatNameCol, flatNsCol, ageCol, controlledByProp, managedByProp } from './common'
 import { statusColor } from '../status'
 import { workloadMetrics } from '../workloadMetrics'
 
@@ -45,6 +45,8 @@ export const job = defineResource<k8s.JobInfo>({
   headSections: [workloadMetrics.job],
   properties: [
     { label: 'Selector', value: j => j.selector },
+    controlledByProp,
+    managedByProp,
   ],
   sections: [ImagesSection, ConditionsSection, JobStatsSection],
   tabs: [{ id: 'pods', label: 'Pods', component: PodsTab }],
