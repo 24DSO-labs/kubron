@@ -30,8 +30,9 @@ func metaOf(o metav1.ObjectMeta) objectMeta {
 	}
 }
 
+// TODO: дубль formatSelector с networkpolicies
 // formatSelector — selector в одну строку: "a=1, b=2, key In (x, y)". Порядок детерминирован.
-func formatSelector(sel *metav1.LabelSelector) string {
+func formatSelectorcm(sel *metav1.LabelSelector) string {
 	if sel == nil {
 		return ""
 	}
