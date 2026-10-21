@@ -1,10 +1,11 @@
 /** Цвета и css-классы статусов: одно место для списков и панелей */
 
-const OK = ['running', 'ready', 'active', 'bound', 'succeeded', 'completed', 'complete', 'available', 'true', 'deployed', 'normal']
-const WARN = ['pending', 'containercreating', 'podinitializing', 'terminating', 'progressing', 'pending-install', 'pending-upgrade', 'pending-rollback', 'pending-delete', 'uninstalling', 'superseded', 'warning', 'released']
+const OK = ['synced', 'healthy', 'running', 'ready', 'active', 'bound', 'succeeded', 'completed', 'complete', 'available', 'true', 'deployed', 'normal']
+const WARN = ['pending', 'containercreating', 'podinitializing', 'terminating', 'progressing', 'pending-install', 'pending-upgrade', 'pending-rollback', 'pending-delete', 'uninstalling', 'superseded', 'warning', 'released', 'outofsync', 'suspended']
 const ERR = [
   'failed', 'error', 'crashloopbackoff', 'crashed', 'imagepullbackoff', 'errimagepull', 'evicted',
   'lost', 'false', 'replicafailure', 'progressdeadlineexceeded',
+  'degraded', 'missing',
 ]
 
 /** Проверяет, является ли статус "N/N Running" — полный, но с числами */
