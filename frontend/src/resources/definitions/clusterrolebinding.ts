@@ -1,6 +1,6 @@
 import { defineResource } from '../types'
 import { callApp } from '../wails'
-import { nameCol, ageCol } from './common'
+import { nameCol, ageCol, controlledByProp, managedByProp } from './common'
 import BindingSection from '../../components/resource/sections/BindingSection.vue'
 
 export const clusterRoleBinding = defineResource({
@@ -12,6 +12,7 @@ export const clusterRoleBinding = defineResource({
   namespaced: false,
   nav: { group: 'access', label: 'Cluster Role Bindings' },
   columns: [nameCol, ageCol],
+  properties: [controlledByProp, managedByProp],
   sections: [BindingSection],
   api: {
     list: () => callApp('GetClusterRoleBindings'),

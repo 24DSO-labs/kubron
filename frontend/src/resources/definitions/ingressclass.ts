@@ -1,7 +1,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, ageCol } from './common'
+import { flatNameCol, ageCol, controlledByProp, managedByProp } from './common'
 import { badgeClass } from '../status'
 
 const yesNo = (v: boolean) => (v ? 'True' : 'False')
@@ -31,6 +31,8 @@ export const ingressClass = defineResource<k8s.IngressClassInfo>({
     { label: 'Parameters API Group', value: (c: any) => c.paramsApiGroup },
     { label: 'Parameters Scope', value: (c: any) => c.paramsScope },
     { label: 'Parameters Namespace', value: (c: any) => c.paramsNamespace },
+    controlledByProp,
+    managedByProp,
   ],
 
   api: {
