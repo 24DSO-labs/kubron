@@ -38,6 +38,8 @@ type HPAInfo struct {
 	LastScaleTime  string            `json:"lastScaleTime"`
 	Created        string            `json:"created"`
 	Labels         map[string]string `json:"labels"`
+	ControlledBy   string            `json:"controlledBy"`
+	ManagedBy      string            `json:"managedBy"`
 	Annotations    map[string]string `json:"annotations"`
 	Finalizers     []string          `json:"finalizers"`
 }
@@ -122,6 +124,8 @@ func convertHPA(hpa autoscalingv2.HorizontalPodAutoscaler) HPAInfo {
 		LastScaleTime:   lastScale,
 		Created:         meta.Created,
 		Labels:          meta.Labels,
+		ControlledBy:    controlledByOf(hpa.OwnerReferences),
+		ManagedBy:       managedByOf(hpa.ObjectMeta),
 		Annotations:     meta.Annotations,
 		Finalizers:      meta.Finalizers,
 	}

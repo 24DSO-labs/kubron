@@ -67,6 +67,8 @@ type PVCInfo struct {
 	Age          string            `json:"age"`
 	Created      string            `json:"created"`
 	Labels       map[string]string `json:"labels"`
+	ControlledBy string            `json:"controlledBy"`
+	ManagedBy    string            `json:"managedBy"`
 	Annotations  map[string]string `json:"annotations"`
 	Finalizers   []string          `json:"finalizers"`
 	Pods         []string          `json:"pods"`
@@ -281,6 +283,8 @@ func (m *Manager) GetPersistentVolumeClaims(namespace string) ([]PVCInfo, error)
 			Age:          formatAge(pvc.CreationTimestamp.Time),
 			Created:      pvc.CreationTimestamp.Format(time.RFC3339),
 			Labels:       pvc.Labels,
+			ControlledBy: controlledByOf(pvc.OwnerReferences),
+			ManagedBy:    managedByOf(pvc.ObjectMeta),
 			Annotations:  pvc.Annotations,
 			Finalizers:   pvc.Finalizers,
 			Pods:         pods,
