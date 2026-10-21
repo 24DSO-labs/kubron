@@ -19,6 +19,9 @@ type SecretInfo struct {
 	Labels      map[string]string `json:"labels"`
 	Annotations map[string]string `json:"annotations"`
 	Keys        []string          `json:"keys"`
+	// ControlledBy — "Kind/name" владельца (ownerReferences), ManagedBy — "Kind/name" системы деплоя
+	ControlledBy string `json:"controlledBy"`
+	ManagedBy    string `json:"managedBy"`
 }
 
 func (m *Manager) GetSecrets(namespace string) ([]SecretInfo, error) {
@@ -51,6 +54,9 @@ func (m *Manager) GetSecrets(namespace string) ([]SecretInfo, error) {
 			Labels:      s.Labels,
 			Annotations: s.Annotations,
 			Keys:        keys,
+
+			ControlledBy: controlledByOf(s.OwnerReferences),
+			ManagedBy:    managedByOf(s.ObjectMeta),
 		})
 	}
 
