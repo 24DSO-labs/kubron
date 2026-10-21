@@ -54,6 +54,11 @@ var kindTable = map[string]kindInfo{
 
 	"mutatingwebhookconfiguration":   {gvr("admissionregistration.k8s.io", "v1", "mutatingwebhookconfigurations"), false},
 	"validatingwebhookconfiguration": {gvr("admissionregistration.k8s.io", "v1", "validatingwebhookconfigurations"), false},
+
+	// Argo CD (CRD; читаются через dynamic client, доступны только если ArgoInstalled)
+	"application":    {gvr(argoGroup, "v1alpha1", "applications"), true},
+	"applicationset": {gvr(argoGroup, "v1alpha1", "applicationsets"), true},
+	"appproject":     {gvr(argoGroup, "v1alpha1", "appprojects"), true},
 }
 
 func init() {
