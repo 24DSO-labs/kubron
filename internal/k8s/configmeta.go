@@ -103,3 +103,38 @@ func sortedKeys[K ~string, V any](m map[K]V) []string {
 	sort.Strings(keys)
 	return keys
 }
+
+// controlledByOf — "Kind/name" контроллера объекта. Если controller=true нет, берётся первый владелец.
+func controlledByOf(refs []metav1.OwnerReference) string {
+	if len(refs) == 0 {
+		return ""
+	}
+	ref := refs[0]
+	for _, r := range refs {
+		if r.Controller != nil && *r.Controller {
+			ref = r
+			break
+		}
+	}
+	return ref.Kind + "/" + ref.Name
+}
+
+// managedByOf — кто управляет объектом через GitOps/Helm: "Application/<app>" для Argo CD
+// (tracking-id вида "app:group/Kind:ns/name" или label argocd.argoproj.io/instance),
+// "Helm/<release>" для Helm. Пустая строка, если определить нельзя.
+func managedByOf(o metav1.ObjectMeta) string {
+	if id := o.Annotations["argocd.argoproj.io/tracking-id"]; id != "" {
+		if app, _, ok := strings.Cut(id, ":"); ok && app != "" {
+			return "Application/" + app
+		}
+	}
+	if app := o.Labels["argocd.argoproj.io/instance"]; app != "" {
+		return "Application/" + app
+	}
+	if o.Labels["app.kubernetes.io/managed-by"] == "Helm" {
+		if rel := o.Annotations["meta.helm.sh/release-name"]; rel != "" {
+			return "Helm/" + rel
+		}
+	}
+	return ""
+}
