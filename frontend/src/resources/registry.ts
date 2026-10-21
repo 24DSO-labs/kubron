@@ -37,6 +37,8 @@ import { helmRelease } from './definitions/helmrelease'
 import { helmChart } from './definitions/helmchart'
 import { endpointSlice } from './definitions/endpointslice'
 import { argoApplication } from './definitions/argocd/application'
+import { argoApplicationSet } from './definitions/argocd/applicationset'
+import { argoProject } from './definitions/argocd/project'
 
 /** Добавляя новый ресурс, достаточно дописать его сюда. */
 export const resources: ResourceDefinition[] = [
@@ -78,6 +80,8 @@ export const resources: ResourceDefinition[] = [
   helmChart,
   // argo cd
   argoApplication,
+  argoApplicationSet,
+  argoProject,
   // access control
   serviceAccount,
   role,
