@@ -3,6 +3,8 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -81,7 +83,7 @@ func convertEndpoints(ep corev1.Endpoints) EndpointListInfo {
 				if ready {
 					info.Addresses++
 					for _, p := range ss.Ports {
-						flat = append(flat, fmt.Sprintf("%s:%d", a.IP, p.Port))
+						flat = append(flat, hostPort(a.IP, p.Port))
 					}
 				}
 			}
@@ -91,15 +93,24 @@ func convertEndpoints(ep corev1.Endpoints) EndpointListInfo {
 		info.Subsets = append(info.Subsets, sub)
 	}
 
+	info.Endpoints = formatEndpointList(flat)
+	return info
+}
+
+func hostPort(ip string, port int32) string {
+	return net.JoinHostPort(ip, strconv.Itoa(int(port)))
+}
+
+// formatEndpointList: "ip:port, ip:port, ip:port +N"
+func formatEndpointList(flat []string) string {
 	switch {
 	case len(flat) == 0:
-		info.Endpoints = "<none>"
+		return "<none>"
 	case len(flat) > 3:
-		info.Endpoints = fmt.Sprintf("%s +%d", strings.Join(flat[:3], ", "), len(flat)-3)
+		return fmt.Sprintf("%s +%d", strings.Join(flat[:3], ", "), len(flat)-3)
 	default:
-		info.Endpoints = strings.Join(flat, ", ")
+		return strings.Join(flat, ", ")
 	}
-	return info
 }
 
 func (m *Manager) GetEndpoints(namespace string) ([]EndpointListInfo, error) {
