@@ -1,7 +1,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, ageCol } from './common'
+import { flatNameCol, ageCol, controlledByProp, managedByProp } from './common'
 import WebhooksSection from '../../components/resource/sections/WebhooksSection.vue'
 
 /** Mutating и Validating конфигурации отличаются только kind и методом списка */
@@ -32,6 +32,8 @@ const webhookConfig = (opts: {
     properties: [
       { label: 'Webhooks', value: (c: any) => c.webhookCount },
       { label: 'Finalizers', value: (c: any) => (c.finalizers ?? []).join(', ') },
+      controlledByProp,
+      managedByProp,
     ],
     sections: [WebhooksSection],
 
