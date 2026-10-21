@@ -5,6 +5,7 @@ import { flatNameCol, ageCol, controlledByProp, managedByProp } from './common'
 import KeyValueSection from '../../components/resource/sections/KeyValueSection.vue'
 import TolerationsSection from '../../components/resource/sections/TolerationsSection.vue'
 import { h, defineComponent } from 'vue'
+import { podsByClassTab } from '../podsByClass'
 
 /** KeyValueSection принимает `data` пропом, а секции получают `resource`: тонкие обёртки над полями */
 const mapSection = (title: string, field: 'overhead' | 'nodeSelector') =>
@@ -37,6 +38,10 @@ export const runtimeClass = defineResource<k8s.RuntimeClassInfo>({
     managedByProp,
   ],
   sections: [mapSection('Overhead', 'overhead'), mapSection('Node Selector', 'nodeSelector'), TolerationsSection],
+
+  tabs: [
+    { id: 'pods', label: 'Pods', component: podsByClassTab('runtimeClassName') },
+  ],
 
   api: {
     list: () => callApp('GetRuntimeClasses'),

@@ -2,7 +2,7 @@ import { defineResource } from '../types'
 import { Perm } from '../../types/auth'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, flatNsCol, ageCol } from './common'
+import { flatNameCol, flatNsCol, ageCol, controlledByProp, managedByProp } from './common'
 import { badgeClass } from '../status'
 import { workloadMetrics } from '../workloadMetrics'
 
@@ -47,6 +47,8 @@ export const statefulSet = defineResource<k8s.StatefulSetInfo>({
     { label: 'Selector', value: s => s.selector },
     { label: 'Node Selector', value: s => s.nodeSelector },
     { label: 'Status', value: stsStatus, badge: s => badgeClass(stsStatus(s)) },
+    controlledByProp,
+    managedByProp,
   ],
   sections: [ImagesSection, TolerationsSection, NodeAffinitySection, PodAntiAffinitySection],
   tabs: [
