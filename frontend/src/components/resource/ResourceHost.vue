@@ -16,6 +16,8 @@
     @scale="resourceActions.confirmScale"
   />
 
+    <SyncDialog v-if="pendingArgoSync" :apps="pendingArgoSync.apps" @close="closeArgoSync()" />
+
   <!-- Подтверждение действий (ctx.confirm): Restart, Evict, Rollback ... -->
   <ConfirmationDialog
     :model-value="!!pendingConfirm"
@@ -50,6 +52,8 @@ import { findLoaded } from '../../resources/store'
 import { itemName, itemNs } from '../../resources/utils'
 import { opened, pendingDelete, scaleTarget, resourceActions } from '../../resources/actions'
 import { pendingConfirm, answerConfirm } from '../../resources/confirm'
+import SyncDialog from '../panels/SyncDialog.vue'
+import { pendingArgoSync, closeArgoSync } from '../../resources/argoActions'
 
 const def = computed(() => (opened.value ? getResourceById(opened.value.id) : undefined))
 const detail = shallowRef<any>(null)
