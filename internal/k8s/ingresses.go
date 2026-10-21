@@ -46,7 +46,7 @@ type IngressInfo struct {
 	Rules          []IngressRuleInfo   `json:"rules"`
 	TLSEntries     []IngressTLSInfo    `json:"tlsEntries"`
 	DefaultBackend *IngressBackendInfo `json:"defaultBackend"`
-	Ports          string              `json:“ports”`
+	Ports          string              `json:"ports"`
 }
 
 // ingressPorts: порты, на которых Ingress принимает трафик (как в Lens): 80 для HTTP-правил, 443 при TLS.
