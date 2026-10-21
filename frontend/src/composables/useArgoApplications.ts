@@ -1,6 +1,7 @@
 import { ref, shallowRef, onMounted, onUnmounted, watch, type Ref } from 'vue'
 import { callApp } from '../resources/wails'
 import type { ArgoApplicationInfo } from '../types/argocd'
+import { argoActionTick } from '../resources/argoActions'
 
 const REFRESH_MS = 30_000
 
@@ -58,6 +59,7 @@ export function useArgoApplications(clusterName: Ref<string>) {
     loading.value = true
     refresh()
   })
+  watch(argoActionTick, () => refresh())
 
   return { apps, loading, refreshing, error, updatedAt, refresh }
 }

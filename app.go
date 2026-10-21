@@ -6,6 +6,7 @@ import (
 	"analog/internal/k8s"
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"strings"
 	"time"
@@ -213,6 +214,61 @@ func (a *App) GetArgoApplications(namespace string) ([]k8s.ArgoApplicationInfo, 
 		return nil, err
 	}
 	return a.k8sMgr.GetArgoApplications(namespace)
+}
+
+// SyncArgoApplication запускает синхронизацию одного или нескольких Application.
+// Результат — по каждому приложению отдельно (одна ошибка не отменяет остальные).
+func (a *App) SyncArgoApplication(apps []k8s.ArgoAppRef, opts k8s.ArgoSyncOptions) ([]k8s.ArgoActionResult, error) {
+	if err := a.authz(auth.PermOperate, "apps", argoAuditApps(apps), "prune", opts.Prune, "force", opts.Force, "dryRun", opts.DryRun, "revision", opts.Revision); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.SyncArgoApplication(apps, opts)
+}
+
+func (a *App) RefreshArgoApplication(apps []k8s.ArgoAppRef, hard bool) ([]k8s.ArgoActionResult, error) {
+	if err := a.authz(auth.PermOperate, "apps", argoAuditApps(apps), "hard", hard); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.RefreshArgoApplication(apps, hard)
+}
+
+func (a *App) TerminateArgoOperation(apps []k8s.ArgoAppRef) ([]k8s.ArgoActionResult, error) {
+	if err := a.authz(auth.PermOperate, "apps", argoAuditApps(apps)); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.TerminateArgoOperation(apps)
+}
+
+func (a *App) RollbackArgoApplication(namespace, name string, id int64, prune, dryRun bool) error {
+	if err := a.authz(auth.PermOperate, "namespace", namespace, "name", name, "id", id, "prune", prune, "dryRun", dryRun); err != nil {
+		return err
+	}
+	return a.k8sMgr.RollbackArgoApplication(namespace, name, id, prune, dryRun)
+}
+
+// OpenArgoUI пробрасывает порт на argocd-server и возвращает URL для браузера.
+func (a *App) OpenArgoUI() (*k8s.ArgoUIInfo, error) {
+	if err := a.authz(auth.PermPortForward); err != nil {
+		return nil, err
+	}
+	return a.pfMgr.OpenArgoUI()
+}
+
+// argoAuditApps — компактная цель действия для журнала: первые приложения и счётчик остальных.
+func argoAuditApps(apps []k8s.ArgoAppRef) string {
+	const show = 5
+	names := make([]string, 0, show)
+	for i, ref := range apps {
+		if i == show {
+			break
+		}
+		names = append(names, ref.Namespace+"/"+ref.Name)
+	}
+	s := strings.Join(names, ",")
+	if len(apps) > show {
+		s += fmt.Sprintf(" +%d", len(apps)-show)
+	}
+	return s
 }
 
 // === Неймспейсы ===
