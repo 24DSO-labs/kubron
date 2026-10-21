@@ -1,6 +1,6 @@
 import { defineResource } from '../types'
 import { callApp } from '../wails'
-import { nameCol, nsCol, ageCol } from './common'
+import { nameCol, nsCol, ageCol, controlledByProp, managedByProp } from './common'
 import RulesSection from '../../components/resource/sections/RulesSection.vue'
 
 export const role = defineResource({
@@ -12,7 +12,7 @@ export const role = defineResource({
   namespaced: true,
   nav: { group: 'access', label: 'Roles' },
   columns: [nameCol, { ...nsCol, link: (r: any) => r.metadata?.namespace ? { id: 'namespace', ns: '', name: r.metadata.namespace } : null }, ageCol],
-  properties: [{ label: 'Rules', value: r => r.rules?.length ?? 0 }],
+  properties: [{ label: 'Rules', value: r => r.rules?.length ?? 0 }, controlledByProp, managedByProp],
   sections: [RulesSection],
   api: {
     list: ns => callApp('GetRoles', ns),

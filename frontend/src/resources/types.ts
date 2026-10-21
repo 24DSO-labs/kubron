@@ -84,6 +84,8 @@ export interface PropertyDef<T = any> {
   linkLabel?: (item: T) => string | null | undefined
   /** Несколько ссылок списком (например, поды PVC). value при этом можно возвращать null */
   links?: (item: T) => { id: string; ns: string; name: string; label?: string }[]
+  /** Не показывать строку, если значение пустое (Controlled By, Managed by) */
+  hideEmpty?: boolean
 }
 
 export interface ActionDef<T = any> {
