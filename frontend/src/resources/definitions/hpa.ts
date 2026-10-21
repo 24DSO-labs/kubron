@@ -1,7 +1,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, flatNsCol, ageCol } from './common'
+import { flatNameCol, flatNsCol, ageCol, controlledByProp, managedByProp } from './common'
 import ConditionsSection from '../../components/resource/sections/ConditionsSection.vue'
 import HpaMetricsSection from '../../components/resource/sections/HpaMetricsSection.vue'
 
@@ -50,6 +50,8 @@ export const horizontalPodAutoscaler = defineResource<k8s.HPAInfo>({
     { label: 'Desired Replicas', value: (h: any) => h.desiredReplicas },
     { label: 'Last Scale', value: (h: any) => h.lastScaleTime },
     { label: 'Finalizers', value: (h: any) => (h.finalizers ?? []).join(', ') },
+    controlledByProp,
+    managedByProp,
   ],
   sections: [ConditionsSection, HpaMetricsSection],
 

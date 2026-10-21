@@ -40,6 +40,8 @@ type IngressInfo struct {
 	Created        string              `json:"created"`
 	TLS            bool                `json:"tls"`
 	Labels         map[string]string   `json:"labels"`
+	ControlledBy   string              `json:"controlledBy"`
+	ManagedBy      string              `json:"managedBy"`
 	Annotations    map[string]string   `json:"annotations"`
 	Rules          []IngressRuleInfo   `json:"rules"`
 	TLSEntries     []IngressTLSInfo    `json:"tlsEntries"`
@@ -71,16 +73,18 @@ func (b IngressBackendInfo) String() string {
 
 func convertIngress(ing networkingv1.Ingress) IngressInfo {
 	info := IngressInfo{
-		Name:        ing.Name,
-		Namespace:   ing.Namespace,
-		Age:         formatAge(ing.CreationTimestamp.Time),
-		Created:     ing.CreationTimestamp.Format(time.RFC3339),
-		TLS:         len(ing.Spec.TLS) > 0,
-		Labels:      ing.Labels,
-		Annotations: ing.Annotations,
-		Hosts:       []string{},
-		Rules:       []IngressRuleInfo{},
-		TLSEntries:  []IngressTLSInfo{},
+		Name:         ing.Name,
+		Namespace:    ing.Namespace,
+		Age:          formatAge(ing.CreationTimestamp.Time),
+		Created:      ing.CreationTimestamp.Format(time.RFC3339),
+		TLS:          len(ing.Spec.TLS) > 0,
+		Labels:       ing.Labels,
+		ControlledBy: controlledByOf(ing.OwnerReferences),
+		ManagedBy:    managedByOf(ing.ObjectMeta),
+		Annotations:  ing.Annotations,
+		Hosts:        []string{},
+		Rules:        []IngressRuleInfo{},
+		TLSEntries:   []IngressTLSInfo{},
 	}
 
 	info.Class = ingressClassOf(&ing)

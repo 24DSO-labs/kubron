@@ -439,6 +439,7 @@ type JobInfo struct {
 	Conditions   []ConditionInfo   `json:"conditions"`
 	PodStatuses  map[string]int32  `json:"podStatuses"`
 	BackoffLimit int32             `json:"backoffLimit"`
+	ControlledBy string            `json:"controlledBy"` // "CronJob/name"
 }
 
 // jobPodStatuses: счётчики подов по фазам для каждого Job ("ns/name" -> phase -> n).
@@ -544,6 +545,7 @@ func convertJob(j *batchv1.Job, podStatuses map[string]int32) JobInfo {
 		Images:       images,
 		Labels:       j.Labels,
 		Annotations:  j.Annotations,
+		ControlledBy: controlledByOf(j.OwnerReferences),
 		Conditions:   conditions,
 		PodStatuses:  podStatuses,
 		BackoffLimit: backoff,

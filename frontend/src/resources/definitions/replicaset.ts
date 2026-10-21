@@ -2,7 +2,7 @@ import { defineResource } from '../types'
 import { Perm } from '../../types/auth'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, flatNsCol, ageCol } from './common'
+import { flatNameCol, flatNsCol, ageCol, managedByProp } from './common'
 import { badgeClass } from '../status'
 import { podStatusSummary } from '../utils'
 import { workloadMetrics } from '../workloadMetrics'
@@ -82,6 +82,7 @@ export const replicaSet = defineResource<k8s.ReplicaSetInfo>({
     { label: 'Selector', value: r => r.selector },
     { label: 'Pod Status', value: podStatusSummary },
     { label: 'Status', value: replicaSetStatus, badge: r => badgeClass(replicaSetStatus(r)) },
+    managedByProp,
   ],
   sections: [ImagesSection],
   tabs: [{ id: 'pods', label: 'Pods', component: PodsTab }],

@@ -26,12 +26,14 @@ type ResourceQuotaInfo struct {
 	MemLimit  string `json:"memLimit"`
 	MemUsed   string `json:"memUsed"`
 
-	Created     string            `json:"created"`
-	Labels      map[string]string `json:"labels"`
-	Annotations map[string]string `json:"annotations"`
-	Finalizers  []string          `json:"finalizers"`
-	Quotas      []QuotaEntry      `json:"quotas"`
-	Scopes      []string          `json:"scopes"`
+	Created      string            `json:"created"`
+	Labels       map[string]string `json:"labels"`
+	ControlledBy string            `json:"controlledBy"`
+	ManagedBy    string            `json:"managedBy"`
+	Annotations  map[string]string `json:"annotations"`
+	Finalizers   []string          `json:"finalizers"`
+	Quotas       []QuotaEntry      `json:"quotas"`
+	Scopes       []string          `json:"scopes"`
 }
 
 func (m *Manager) GetResourceQuotas(namespace string) ([]ResourceQuotaInfo, error) {
@@ -107,18 +109,20 @@ func convertResourceQuota(q v1.ResourceQuota) ResourceQuotaInfo {
 
 	meta := metaOf(q.ObjectMeta)
 	return ResourceQuotaInfo{
-		Name:        q.Name,
-		Namespace:   q.Namespace,
-		Age:         meta.Age,
-		CPULimit:    cpuLimit,
-		CPUUsed:     cpuUsed,
-		MemLimit:    memLimit,
-		MemUsed:     memUsed,
-		Created:     meta.Created,
-		Labels:      meta.Labels,
-		Annotations: meta.Annotations,
-		Finalizers:  meta.Finalizers,
-		Quotas:      entries,
-		Scopes:      scopes,
+		Name:         q.Name,
+		Namespace:    q.Namespace,
+		Age:          meta.Age,
+		CPULimit:     cpuLimit,
+		CPUUsed:      cpuUsed,
+		MemLimit:     memLimit,
+		MemUsed:      memUsed,
+		Created:      meta.Created,
+		Labels:       meta.Labels,
+		ControlledBy: controlledByOf(q.OwnerReferences),
+		ManagedBy:    managedByOf(q.ObjectMeta),
+		Annotations:  meta.Annotations,
+		Finalizers:   meta.Finalizers,
+		Quotas:       entries,
+		Scopes:       scopes,
 	}
 }
