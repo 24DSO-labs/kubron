@@ -2,13 +2,23 @@ import { resources } from './registry'
 import type { NavGroupId } from './types'
 
 /** Заголовки групп и начальное состояние (свёрнута/развёрнута) */
-export const NAV_GROUPS: Record<NavGroupId, { title: string; expanded: boolean }> = {
+export interface NavGroupMeta {
+  title: string
+  expanded: boolean
+  /** Группа вложена в другую (рисуется внутри неё, в NAV_ORDER не указывается) */
+  parent?: NavGroupId
+  /** Группа показывается, только если выполнено условие (например, в кластере есть Argo CD) */
+  requires?: 'argocd'
+}
+
+export const NAV_GROUPS: Record<NavGroupId, NavGroupMeta> = {
   workloads: { title: 'Workloads', expanded: true },
   config: { title: 'Config', expanded: false },
   network: { title: 'Network', expanded: true },
   storage: { title: 'Storage', expanded: false },
   helm: { title: 'Helm', expanded: false },
   access: { title: 'Access Control', expanded: false },
+  argocd: { title: 'Argo CD', expanded: true, requires: 'argocd' },
 }
 
 /**
@@ -19,13 +29,21 @@ const NAV_ORDER: string[] = [
   'nodes', 'events',
   'workloads', 'config', 'network', 'storage',
   'namespaces',
-  'helm', 'access',
+  'helm', 'access', 'argocd',
 ]
 
 export interface NavItem { view: string; label: string; icon?: string }
-export type NavEntry =
-  | { type: 'item'; view: string; label: string; icon?: string }
-  | { type: 'group'; id: NavGroupId; title: string; icon?: string; items: NavItem[] }
+export interface NavGroup {
+  type: 'group'
+  id: NavGroupId
+  title: string
+  icon?: string
+  requires?: NavGroupMeta['requires']
+  items: NavItem[]
+  /** Вложенные группы (рисуются после пунктов) */
+  children: NavGroup[]
+}
+export type NavEntry = { type: 'item'; view: string; label: string; icon?: string } | NavGroup
 
 const isGroup = (id: string): id is NavGroupId => id in NAV_GROUPS
 
@@ -35,10 +53,8 @@ export function buildNav(): NavEntry[] {
 
   for (const id of NAV_ORDER) {
     if (isGroup(id)) {
-      const items = resources
-        .filter(r => r.nav?.group === id)
-        .map(r => ({ view: r.view, label: r.nav!.label, icon: r.icon }))
-      if (items.length) entries.push({ type: 'group', id, title: NAV_GROUPS[id].title, icon: groupIcon(id), items })
+      const group = buildGroup(id)
+      if (group) entries.push(group)
     } else {
       const r = resources.find(x => x.view === id && x.nav && !x.nav.group)
       if (r) entries.push({ type: 'item', view: r.view, label: r.nav!.label, icon: r.icon })
@@ -54,6 +70,20 @@ export function buildNav(): NavEntry[] {
   return entries
 }
 
+/** Группа с пунктами и вложенными группами; пустая (без пунктов и детей) не показывается */
+function buildGroup(id: NavGroupId): NavGroup | null {
+  const items = resources
+    .filter(r => r.nav?.group === id)
+    .map(r => ({ view: r.view, label: r.nav!.label, icon: r.icon }))
+  const children = (Object.keys(NAV_GROUPS) as NavGroupId[])
+    .filter(child => NAV_GROUPS[child].parent === id)
+    .map(buildGroup)
+    .filter((g): g is NavGroup => g !== null)
+  if (!items.length && !children.length) return null
+  const meta = NAV_GROUPS[id]
+  return { type: 'group', id, title: meta.title, icon: groupIcon(id), requires: meta.requires, items, children }
+}
+
 /** Иконки для групп бокового меню */
 function groupIcon(id: NavGroupId): string {
   switch (id) {
@@ -63,6 +93,7 @@ function groupIcon(id: NavGroupId): string {
     case 'storage': return 'pvc'
     case 'helm': return 'documentation'
     case 'access': return 'service-account'
+    case 'argocd': return 'documentation'
     default: return ''
   }
 }
