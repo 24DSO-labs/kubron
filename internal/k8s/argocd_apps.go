@@ -183,15 +183,16 @@ func argoResources(obj map[string]interface{}) []ArgoResourceRef {
 			continue
 		}
 		out = append(out, ArgoResourceRef{
-			Group:     strAt(rm, "group"),
-			Version:   strAt(rm, "version"),
-			Kind:      strAt(rm, "kind"),
-			Namespace: strAt(rm, "namespace"),
-			Name:      strAt(rm, "name"),
-			Status:    strAt(rm, "status"),
-			Health:    strAt(rm, "health", "status"),
-			Message:   strAt(rm, "health", "message"),
-			Hook:      boolAt(rm, "hook"),
+			Group:           strAt(rm, "group"),
+			Version:         strAt(rm, "version"),
+			Kind:            strAt(rm, "kind"),
+			Namespace:       strAt(rm, "namespace"),
+			Name:            strAt(rm, "name"),
+			Status:          strAt(rm, "status"),
+			Health:          strAt(rm, "health", "status"),
+			Message:         strAt(rm, "health", "message"),
+			Hook:            boolAt(rm, "hook"),
+			RequiresPruning: boolAt(rm, "requiresPruning"),
 		})
 	}
 	return out
