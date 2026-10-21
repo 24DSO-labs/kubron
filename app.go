@@ -207,6 +207,14 @@ func (a *App) ArgoInstalled() (bool, error) {
 	return a.k8sMgr.ArgoInstalled()
 }
 
+// GetArgoApplications возвращает Argo CD Application; пустой namespace — из всех namespace.
+func (a *App) GetArgoApplications(namespace string) ([]k8s.ArgoApplicationInfo, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetArgoApplications(namespace)
+}
+
 // === Неймспейсы ===
 
 func (a *App) GetNamespaces() ([]k8s.NamespaceInfo, error) {

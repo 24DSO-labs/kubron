@@ -21,6 +21,16 @@ type ArgoHistoryEntry struct {
 	Source     string `json:"source"` // repoURL@targetRevision (path)
 }
 
+// ArgoSourceInfo — один источник Application (spec.source или элемент spec.sources[]).
+// Helm-параметры и values намеренно не включаются: в них могут быть секреты.
+type ArgoSourceInfo struct {
+	RepoURL        string `json:"repoURL"` // без userinfo (user:token@)
+	Path           string `json:"path"`
+	Chart          string `json:"chart"`
+	TargetRevision string `json:"targetRevision"`
+	Ref            string `json:"ref"` // имя ref-источника (multi-source)
+}
+
 // ArgoApplicationInfo — элемент списка и панели деталей Application.
 // Секреты репозиториев/кластеров сюда не попадают (санитизация на стороне Go).
 type ArgoApplicationInfo struct {
@@ -47,9 +57,14 @@ type ArgoApplicationInfo struct {
 	Prune       bool `json:"prune"`
 	OperationOn bool `json:"operationOn"` // идёт операция (sync/rollback)
 
-	Message   string             `json:"message"`
-	Resources []ArgoResourceRef  `json:"resources"`
-	History   []ArgoHistoryEntry `json:"history"`
+	LastSyncAt    string `json:"lastSyncAt"`    // status.operationState.finishedAt (RFC3339), "" если синков не было
+	LastSyncPhase string `json:"lastSyncPhase"` // Succeeded | Failed | Error | Running | ""
+
+	Message    string             `json:"message"`
+	Sources    []ArgoSourceInfo   `json:"sources"` // все источники; RepoURL/Path/... выше — первый из них
+	Conditions []ConditionInfo    `json:"conditions"`
+	Resources  []ArgoResourceRef  `json:"resources"`
+	History    []ArgoHistoryEntry `json:"history"` // новые записи первыми
 
 	Labels      map[string]string `json:"labels"`
 	Annotations map[string]string `json:"annotations"`
