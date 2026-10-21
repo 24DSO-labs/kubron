@@ -1,6 +1,7 @@
 // composables/useClusterConnection.ts
 
 import { ref, computed, type Ref } from 'vue'
+import { useArgo } from './useArgo'
 
 export function useClusterConnection(deps: {
   clusters: Ref<any[]>
@@ -29,6 +30,7 @@ export function useClusterConnection(deps: {
     deleteCluster, updateCluster, autoConnect,
   } = deps
 
+  const { refreshArgo, resetArgo } = useArgo()
   const connecting = ref(false)
   const showAddCluster = ref(false)
 
@@ -45,6 +47,7 @@ export function useClusterConnection(deps: {
       await loadNamespaces()
       selectedNamespace.value = ''
       currentView.value = 'overview'
+      void refreshArgo()
       await refreshData()
     } catch (e: any) {
       error.value = 'Ошибка подключения: ' + (e.message || e)
@@ -71,6 +74,7 @@ export function useClusterConnection(deps: {
 
   function disconnect() {
     k8sDisconnect()
+    resetArgo()
     activeClusterId.value = ''
     loadClusters()
   }
@@ -81,6 +85,7 @@ export function useClusterConnection(deps: {
     if (connected) {
       await loadNamespaces()
       currentView.value = 'overview'
+      void refreshArgo()
       await refreshData()
     }
   }
