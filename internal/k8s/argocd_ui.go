@@ -55,7 +55,9 @@ func (pfm *PortForwardManager) OpenArgoUI() (*ArgoUIInfo, error) {
 		}
 	}
 
-	for _, s := range pfm.ListPortForwards() {
+	forwards := pfm.ListPortForwards()
+	for i := range forwards {
+		s := &forwards[i]
 		if s.Status == PortForwardActive && s.Namespace == svc.Namespace && s.Service == svc.Name && s.ServicePort == int(port.Port) {
 			return info(s.LocalPort, true), nil
 		}
