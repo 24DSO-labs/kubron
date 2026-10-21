@@ -35,7 +35,7 @@ export interface ColumnDef<T = any> {
 }
 
 /** Группы бокового меню; заголовки и порядок — в resources/navigation.ts */
-export type NavGroupId = 'workloads' | 'config' | 'network' | 'storage' | 'helm' | 'access' | 'argocd'
+export type NavGroupId = 'workloads' | 'config' | 'network' | 'storage' | 'helm' | 'access' | 'argocd' | 'argocd-settings'
 
 /** Пункт бокового меню. Без `nav` ресурс в меню не показывается */
 export interface ResourceNav {

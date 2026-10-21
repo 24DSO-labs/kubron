@@ -150,3 +150,39 @@ export interface ArgoProjectInfo {
   labels: Record<string, string>
   annotations: Record<string, string>
 }
+
+/** Репозиторий Argo CD (из Secret). Санитизировано на Go: паролей, токенов и ключей здесь нет */
+export interface ArgoRepositoryInfo {
+  name: string
+  namespace: string
+  age: string
+  repoName: string
+  url: string
+  /** git | helm | oci */
+  type: string
+  project: string
+  /** anonymous | password | token | ssh | tls | github-app */
+  authType: string
+  insecure: boolean
+  enableLfs: boolean
+  enableOCI: boolean
+  forceHttpBasicAuth: boolean
+  /** задан proxy (адрес не отдаётся) */
+  proxy: boolean
+}
+
+/** Кластер Argo CD (из Secret). Поле config с токенами и сертификатами наружу не отдаётся */
+export interface ArgoClusterInfo {
+  name: string
+  namespace: string
+  age: string
+  clusterName: string
+  server: string
+  project: string
+  /** none | token | tls | basic | aws | exec | unknown */
+  authType: string
+  insecure: boolean
+  namespaces: string
+  clusterResources: boolean
+  inCluster: boolean
+}
