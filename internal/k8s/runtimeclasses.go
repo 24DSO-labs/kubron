@@ -12,6 +12,14 @@ type RuntimeClassInfo struct {
 	Name    string `json:"name"`
 	Handler string `json:"handler"`
 	Age     string `json:"age"`
+
+	Overhead     map[string]string `json:"overhead"` // scheduling.podFixed: ресурс -> значение
+	NodeSelector map[string]string `json:"nodeSelector"`
+	Tolerations  []TolerationInfo  `json:"tolerations"`
+	Created      string            `json:"created"`
+	Labels       map[string]string `json:"labels"`
+	Annotations  map[string]string `json:"annotations"`
+	Finalizers   []string          `json:"finalizers"`
 }
 
 func (m *Manager) GetRuntimeClasses() ([]RuntimeClassInfo, error) {
@@ -28,7 +36,7 @@ func (m *Manager) GetRuntimeClasses() ([]RuntimeClassInfo, error) {
 		return nil, err
 	}
 
-	var rcs []RuntimeClassInfo
+	rcs := make([]RuntimeClassInfo, 0, len(list.Items))
 	for _, rc := range list.Items {
 		rcs = append(rcs, convertRuntimeClass(rc))
 	}
@@ -37,9 +45,39 @@ func (m *Manager) GetRuntimeClasses() ([]RuntimeClassInfo, error) {
 }
 
 func convertRuntimeClass(rc nodesv1.RuntimeClass) RuntimeClassInfo {
+	overhead := map[string]string{}
+	if rc.Overhead != nil {
+		for name, q := range rc.Overhead.PodFixed {
+			overhead[string(name)] = q.String()
+		}
+	}
+
+	var nodeSelector map[string]string
+	tolerations := make([]TolerationInfo, 0)
+	if rc.Scheduling != nil {
+		nodeSelector = rc.Scheduling.NodeSelector
+		for _, t := range rc.Scheduling.Tolerations {
+			tolerations = append(tolerations, TolerationInfo{
+				Key:               t.Key,
+				Operator:          string(t.Operator),
+				Value:             t.Value,
+				Effect:            string(t.Effect),
+				TolerationSeconds: t.TolerationSeconds,
+			})
+		}
+	}
+
+	meta := metaOf(rc.ObjectMeta)
 	return RuntimeClassInfo{
-		Name:    rc.Name,
-		Handler: rc.Handler,
-		Age:     formatAge(rc.CreationTimestamp.Time),
+		Name:         rc.Name,
+		Handler:      rc.Handler,
+		Age:          meta.Age,
+		Overhead:     overhead,
+		NodeSelector: nodeSelector,
+		Tolerations:  tolerations,
+		Created:      meta.Created,
+		Labels:       meta.Labels,
+		Annotations:  meta.Annotations,
+		Finalizers:   meta.Finalizers,
 	}
 }
