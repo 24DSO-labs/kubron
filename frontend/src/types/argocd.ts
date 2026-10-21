@@ -24,6 +24,25 @@ export interface ArgoHistoryEntry {
   source: string
 }
 
+/** Источник Application (spec.source или элемент spec.sources[]); repoURL без user:token@ */
+export interface ArgoSourceInfo {
+  repoURL: string
+  path: string
+  chart: string
+  targetRevision: string
+  /** имя ref-источника (multi-source) */
+  ref: string
+}
+
+/** Condition Application: наличие в списке = активно (поля status у Argo нет, бэкенд ставит "True") */
+export interface ArgoCondition {
+  type: string
+  status: string
+  lastTransitionTime: string
+  reason: string
+  message: string
+}
+
 export interface ArgoApplicationInfo {
   name: string
   namespace: string
@@ -48,9 +67,17 @@ export interface ArgoApplicationInfo {
   prune: boolean
   /** идёт операция (sync/rollback) */
   operationOn: boolean
+  /** status.operationState.finishedAt (RFC3339); '' — синков не было */
+  lastSyncAt: string
+  /** Succeeded | Failed | Error | Running | '' */
+  lastSyncPhase: string
 
   message: string
+  /** все источники; repoURL/path/chart/targetRevision выше — первый из них */
+  sources: ArgoSourceInfo[]
+  conditions: ArgoCondition[]
   resources: ArgoResourceRef[]
+  /** новые записи первыми */
   history: ArgoHistoryEntry[]
 
   labels: Record<string, string>
