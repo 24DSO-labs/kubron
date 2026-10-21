@@ -87,11 +87,7 @@ func convertIngress(ing networkingv1.Ingress) IngressInfo {
 		TLSEntries:   []IngressTLSInfo{},
 	}
 
-	if ing.Spec.IngressClassName != nil {
-		info.Class = *ing.Spec.IngressClassName
-	} else {
-		info.Class = ing.Annotations["kubernetes.io/ingress.class"] // устаревший способ
-	}
+	info.Class = ingressClassOf(&ing)
 
 	var paths, lbs []string
 	for _, rule := range ing.Spec.Rules {
@@ -156,4 +152,12 @@ func (m *Manager) GetIngresses(namespace string) ([]IngressInfo, error) {
 		items = append(items, convertIngress(ing))
 	}
 	return items, nil
+}
+
+// ingressClassOf: spec.ingressClassName, иначе устаревшая аннотация.
+func ingressClassOf(ing *networkingv1.Ingress) string {
+	if ing.Spec.IngressClassName != nil {
+		return *ing.Spec.IngressClassName
+	}
+	return ing.Annotations["kubernetes.io/ingress.class"]
 }
