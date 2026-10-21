@@ -226,6 +226,9 @@ const activeViewProps = computed(() => {
   if (view === 'overview') {
     props.clusterName = activeClusterId.value
   }
+  if (view === 'argo-dashboard') {
+    props.clusterName = activeClusterId.value
+  }
   if (view === 'settings') {
     props.clusterName = activeClusterId.value
   }
@@ -235,6 +238,7 @@ const activeViewProps = computed(() => {
 /** Действия view -> обработчики. Это единственное место, где view связываются с логикой */
 const viewHandlers: Record<string, () => Record<string, (...args: any[]) => void>> = {
   overview: () => ({ navigate: onNavigate }),
+  'argo-dashboard': () => ({ navigate: onNavigate }),
 }
 
 const activeViewEvents = computed(() => ({
