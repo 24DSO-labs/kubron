@@ -148,8 +148,8 @@ func newWebhookInfo(
 		HasCABundle:             len(cc.CABundle) > 0,
 		TimeoutSeconds:          derefInt32(timeout),
 		AdmissionReviewVersions: reviewVersions,
-		NamespaceSelector:       formatSelectorcm(nsSelector),
-		ObjectSelector:          formatSelectorcm(objSelector),
+		NamespaceSelector:       formatSelector(nsSelector),
+		ObjectSelector:          formatSelector(objSelector),
 		Rules:                   make([]WebhookRule, 0, len(rules)),
 		MatchConditions:         make([]string, 0, len(conditions)),
 	}
