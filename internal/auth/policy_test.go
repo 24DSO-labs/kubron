@@ -65,6 +65,7 @@ var exactPermission = map[string]Permission{
 	"CordonNode":              PermOperate,
 	"DrainNode":               PermWrite,
 	"StartNodeShell":          PermExec,
+	"SetDefaultIngressClass":  PermWrite,
 }
 
 // Глаголы, по которым метод считается изменяющим: слабое право чтения для них недопустимо.
