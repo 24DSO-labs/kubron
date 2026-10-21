@@ -246,6 +246,22 @@ func (a *App) RollbackArgoApplication(namespace, name string, id int64, prune, d
 	return a.k8sMgr.RollbackArgoApplication(namespace, name, id, prune, dryRun)
 }
 
+// GetArgoApplicationSets возвращает Argo CD ApplicationSet; пустой namespace — из всех namespace.
+func (a *App) GetArgoApplicationSets(namespace string) ([]k8s.ArgoApplicationSetInfo, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetArgoApplicationSets(namespace)
+}
+
+// GetArgoProjects возвращает Argo CD AppProject; пустой namespace — из всех namespace.
+func (a *App) GetArgoProjects(namespace string) ([]k8s.ArgoProjectInfo, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetArgoProjects(namespace)
+}
+
 // OpenArgoUI пробрасывает порт на argocd-server и возвращает URL для браузера.
 func (a *App) OpenArgoUI() (*k8s.ArgoUIInfo, error) {
 	if err := a.authz(auth.PermPortForward); err != nil {
