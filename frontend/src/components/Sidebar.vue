@@ -11,7 +11,7 @@
         <span class="nav-icon"></span> Overview
       </div>
 
-      <template v-for="entry in navEntries" :key="entry.type === 'group' ? entry.id : entry.view">
+      <template v-for="entry in visibleEntries" :key="entry.type === 'group' ? entry.id : entry.view">
         <div
           v-if="entry.type === 'item'"
           :class="['nav-item', { active: currentView === entry.view }]"
@@ -20,23 +20,15 @@
           <span class="nav-icon"></span> {{ entry.label }}
         </div>
 
-        <div v-else class="nav-group">
-          <div class="nav-group-header" @click="toggle(entry.id)">
-            <span class="nav-arrow" :class="{ open: expanded[entry.id] }">›</span>
-            <span class="nav-group-icon"></span>
-            <span class="nav-group-title">{{ entry.title }}</span>
-          </div>
-          <div v-show="expanded[entry.id]" class="nav-group-items">
-            <div
-              v-for="item in entry.items"
-              :key="item.view"
-              :class="['nav-item', { active: currentView === item.view }]"
-              @click="emit('navigate', item.view)"
-            >
-              <span class="nav-icon"></span> {{ item.label }}
-            </div>
-          </div>
-        </div>
+        <NavGroupNode
+          v-else
+          :group="entry"
+          :expanded="expanded"
+          :current-view="currentView"
+          :available="available"
+          @toggle="toggle"
+          @navigate="emit('navigate', $event)"
+        />
       </template>
 
       <!-- Settings -->
@@ -71,10 +63,12 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive } from 'vue'
+import { computed, reactive } from 'vue'
 import type { NamespaceInfo } from '../types'
 import type { NavGroupId } from '../resources/types'
 import { NAV_GROUPS, buildNav } from '../resources/navigation'
+import NavGroupNode from './nav/NavGroupNode.vue'
+import { useArgo } from '../composables/useArgo'
 import { can } from '../composables/useAuth'
 import { Perm } from '../types/auth'
 
@@ -91,6 +85,13 @@ const emit = defineEmits<{
 }>()
 
 const navEntries = buildNav()
+
+// Условия `requires` у групп меню: сейчас только наличие Argo CD в кластере
+const { argoInstalled } = useArgo()
+const available = computed(() => new Set<string>(argoInstalled.value ? ['argocd'] : []))
+const visibleEntries = computed(() =>
+  navEntries.filter(e => e.type === 'item' || !e.requires || available.value.has(e.requires)),
+)
 
 const expanded = reactive(
   Object.fromEntries(Object.entries(NAV_GROUPS).map(([id, g]) => [id, g.expanded])) as Record<NavGroupId, boolean>,
