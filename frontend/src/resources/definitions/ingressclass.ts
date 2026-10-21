@@ -4,6 +4,7 @@ import { callApp } from '../wails'
 import { flatNameCol, ageCol, controlledByProp, managedByProp } from './common'
 import { badgeClass } from '../status'
 import IngressClassUsedBySection from '../../components/resource/sections/IngressClassUsedBySection.vue'
+import { Perm } from '../../types/auth'
 
 const yesNo = (v: boolean) => (v ? 'True' : 'False')
 
@@ -41,6 +42,32 @@ export const ingressClass = defineResource<k8s.IngressClassInfo>({
     managedByProp,
   ],
   sections: [IngressClassUsedBySection],
+    actions: [
+    {
+      id: 'setdefault',
+      label: 'Set as default',
+      icon: 'star',
+      permission: Perm.Write,
+      when: (c: any) => !c.default,
+      run: (c: any, ctx) =>
+        ctx.perform(
+          () => callApp('SetDefaultIngressClass', c.name, true),
+          `IngressClass ${c.name} is now default`,
+        ),
+    },
+    {
+      id: 'unsetdefault',
+      label: 'Unset default',
+      icon: 'star',
+      permission: Perm.Write,
+      when: (c: any) => !!c.default,
+      run: (c: any, ctx) =>
+        ctx.perform(
+          () => callApp('SetDefaultIngressClass', c.name, false),
+          `IngressClass ${c.name} is no longer default`,
+        ),
+    },
+  ],
   api: {
     list: () => callApp('GetIngressClasses'),
     remove: (_ns, name) => callApp('DeleteResource', 'ingressclass', '', name),

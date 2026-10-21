@@ -74,6 +74,7 @@ import evictIcon from '../../assets/icons/evict.svg'
 import terminalIcon from '../../assets/icons/terminal.svg'
 import timestampIcon from '../../assets/icons/timestamp.svg'
 import wrapLinesIcon from '../../assets/icons/wrap-lines.svg'
+import starIcon from '../../assets/icons/star.svg'
 
 const ICON_MAP: Record<string, string> = {
   create: createIcon, clone: cloneIcon, edit: editIcon,
@@ -103,6 +104,7 @@ const ICON_MAP: Record<string, string> = {
   attach: attachIcon, close: closeIcon, copy: copyIcon,
   download: downloadIcon, evict: evictIcon, terminal: terminalIcon,
   timestamp: timestampIcon, 'wrap-lines': wrapLinesIcon,
+  star: starIcon,
 }
 
 const props = defineProps<{
