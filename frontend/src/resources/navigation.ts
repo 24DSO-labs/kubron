@@ -26,6 +26,7 @@ export const NAV_GROUPS: Record<NavGroupId, NavGroupMeta> = {
     requires: 'argocd',
     views: [{ view: 'argo-dashboard', label: 'Dashboard' }],
   },
+  'argocd-settings': { title: 'Settings', expanded: false, parent: 'argocd' },
 }
 
 /**
@@ -104,6 +105,7 @@ function groupIcon(id: NavGroupId): string {
     case 'helm': return 'documentation'
     case 'access': return 'service-account'
     case 'argocd': return 'documentation'
+    case 'argocd-settings': return 'documentation'
     default: return ''
   }
 }
