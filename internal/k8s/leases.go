@@ -22,6 +22,8 @@ type LeaseInfo struct {
 	Strategy             string            `json:"strategy"`
 	Created              string            `json:"created"`
 	Labels               map[string]string `json:"labels"`
+	ControlledBy         string            `json:"controlledBy"`
+	ManagedBy            string            `json:"managedBy"`
 	Annotations          map[string]string `json:"annotations"`
 	Finalizers           []string          `json:"finalizers"`
 }
@@ -69,6 +71,8 @@ func convertLease(lease coordinationv1.Lease) LeaseInfo {
 		Strategy:             strategy,
 		Created:              meta.Created,
 		Labels:               meta.Labels,
+		ControlledBy:         controlledByOf(lease.OwnerReferences),
+		ManagedBy:            managedByOf(lease.ObjectMeta),
 		Annotations:          meta.Annotations,
 		Finalizers:           meta.Finalizers,
 	}

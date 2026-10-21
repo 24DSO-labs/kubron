@@ -1,7 +1,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, ageCol } from './common'
+import { flatNameCol, ageCol, controlledByProp, managedByProp } from './common'
 import StorageClassParametersTab from '../../components/resource/sections/StorageClassParametersTab.vue'
 import StorageClassVolumesTab from '../../components/resource/sections/StorageClassVolumesTab.vue'
 
@@ -42,6 +42,8 @@ export const storageClass = defineResource<k8s.StorageClassInfo>({
     { label: 'Provisioner', value: s => s.provisioner },
     { label: 'Volume Binding Mode', value: s => s.volumeBindingMode },
     { label: 'Reclaim Policy', value: s => s.reclaimPolicy },
+    controlledByProp,
+    managedByProp,
   ],
   tabs: [
     { id: 'parameters', label: 'Parameters', component: StorageClassParametersTab },

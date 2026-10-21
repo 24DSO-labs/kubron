@@ -18,6 +18,8 @@ type RuntimeClassInfo struct {
 	Tolerations  []TolerationInfo  `json:"tolerations"`
 	Created      string            `json:"created"`
 	Labels       map[string]string `json:"labels"`
+	ControlledBy string            `json:"controlledBy"`
+	ManagedBy    string            `json:"managedBy"`
 	Annotations  map[string]string `json:"annotations"`
 	Finalizers   []string          `json:"finalizers"`
 }
@@ -77,6 +79,8 @@ func convertRuntimeClass(rc nodesv1.RuntimeClass) RuntimeClassInfo {
 		Tolerations:  tolerations,
 		Created:      meta.Created,
 		Labels:       meta.Labels,
+		ControlledBy: controlledByOf(rc.OwnerReferences),
+		ManagedBy:    managedByOf(rc.ObjectMeta),
 		Annotations:  meta.Annotations,
 		Finalizers:   meta.Finalizers,
 	}

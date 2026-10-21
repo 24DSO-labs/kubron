@@ -55,7 +55,7 @@
         <KeyValueSection title="Labels" :data="labels" />
         <KeyValueSection title="Annotations" :data="annotations" />
 
-        <div v-for="p in def.properties" :key="p.label" class="rd-row">
+        <div v-for="p in visibleProperties" :key="p.label" class="rd-row">
           <span class="rd-label">{{ p.label }}</span>
           <span v-if="p.links" class="rd-value rd-links">
             <template v-if="p.links(resource).length">
@@ -145,6 +145,15 @@ const base = computed(() => {
 
 const labels = computed(() => props.resource?.labels ?? props.resource?.metadata?.labels)
 const annotations = computed(() => props.resource?.annotations ?? props.resource?.metadata?.annotations)
+
+/** Строки с hideEmpty скрываются, пока значения нет */
+const visibleProperties = computed(() =>
+  (props.def.properties ?? []).filter(p => {
+    if (!p.hideEmpty) return true
+    const v = p.value(props.resource)
+    return !(v === undefined || v === null || v === '')
+  }),
+)
 
 const visibleActions = computed(() =>
   (props.def.actions ?? []).filter(a => actionAllowed(a) && (!a.when || a.when(props.resource))),

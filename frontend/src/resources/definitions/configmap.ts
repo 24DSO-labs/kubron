@@ -1,7 +1,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, flatNsCol, ageCol } from './common'
+import { flatNameCol, flatNsCol, ageCol, controlledByProp, managedByProp } from './common'
 import ConfigMapDataSection from '../../components/resource/sections/ConfigMapDataSection.vue'
 
 export const configMap = defineResource<k8s.ConfigMapInfo, k8s.ConfigMapInfo>({
@@ -15,6 +15,8 @@ export const configMap = defineResource<k8s.ConfigMapInfo, k8s.ConfigMapInfo>({
 
   autoRefresh: true,
   columns: [flatNameCol, { ...flatNsCol, link: (c: any) => c.namespace ? { id: 'namespace', ns: '', name: c.namespace } : null }, { key: 'dataCount', label: 'Keys' }, ageCol],
+
+  properties: [controlledByProp, managedByProp],
 
   tabs: [
     { id: 'data', label: 'Data', component: ConfigMapDataSection },

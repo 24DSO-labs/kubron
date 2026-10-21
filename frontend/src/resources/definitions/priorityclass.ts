@@ -1,8 +1,9 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, ageCol } from './common'
+import { flatNameCol, ageCol, controlledByProp, managedByProp } from './common'
 import { badgeClass } from '../status'
+import { podsByClassTab } from '../podsByClass'
 
 const yesNo = (v: boolean) => (v ? 'True' : 'False')
 
@@ -29,6 +30,12 @@ export const priorityClass = defineResource<k8s.PriorityClassInfo>({
     { label: 'Preemption Policy', value: (p: any) => p.preemptionPolicy },
     { label: 'Description', value: (p: any) => p.description },
     { label: 'Finalizers', value: (p: any) => (p.finalizers ?? []).join(', ') },
+    controlledByProp,
+    managedByProp,
+  ],
+
+  tabs: [
+    { id: 'pods', label: 'Pods', component: podsByClassTab('priorityClassName') },
   ],
 
   api: {
