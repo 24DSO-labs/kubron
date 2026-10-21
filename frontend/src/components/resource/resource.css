@@ -143,3 +143,7 @@
 .square-red,   .sq-red   { background-color: #ef4444; }
 .square-yellow,.sq-yellow{ background-color: #facc15; }
 .square-gray,  .sq-gray  { background-color: #868d8a; }
+
+/* Argo CD: вертикальные блоки вкладок */
+.rd-stack { display: flex; flex-direction: column; gap: 8px; }
+.rd-subtitle { margin: 8px 0 2px; font-size: 0.8rem; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.03em; }

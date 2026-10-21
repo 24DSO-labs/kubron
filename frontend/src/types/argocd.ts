@@ -90,3 +90,63 @@ export interface ArgoAppRef { namespace: string; name: string }
 export interface ArgoSyncOptions { revision: string; prune: boolean; force: boolean; dryRun: boolean }
 export interface ArgoActionResult { namespace: string; name: string; error: string }
 export interface ArgoUIInfo { url: string; namespace: string; service: string; localPort: number; reused: boolean }
+/** Приложение, созданное ApplicationSet */
+export interface ArgoSetApp {
+  name: string
+  status: string
+  health: string
+  message: string
+}
+
+export interface ArgoApplicationSetInfo {
+  name: string
+  namespace: string
+  age: string
+  created: string
+
+  /** типы генераторов: list, clusters, git, matrix ... */
+  generators: string[]
+  templateProject: string
+  repoURL: string
+  destNamespace: string
+  syncPolicy: string
+  preserveResourcesOnDeletion: boolean
+
+  applications: ArgoSetApp[]
+  appCount: number
+  conditions: ArgoCondition[]
+  /** нет активного ErrorOccurred */
+  healthy: boolean
+
+  labels: Record<string, string>
+  annotations: Record<string, string>
+}
+
+export interface ArgoProjectDestination { server: string; name: string; namespace: string }
+export interface ArgoGroupKind { group: string; kind: string }
+export interface ArgoProjectRole {
+  name: string
+  description: string
+  policies: string[]
+  groups: string[]
+}
+
+export interface ArgoProjectInfo {
+  name: string
+  namespace: string
+  description: string
+  age: string
+  created: string
+
+  sourceRepos: string[]
+  destinations: ArgoProjectDestination[]
+  clusterResourceWhitelist: ArgoGroupKind[]
+  clusterResourceBlacklist: ArgoGroupKind[]
+  namespaceResourceWhitelist: ArgoGroupKind[]
+  namespaceResourceBlacklist: ArgoGroupKind[]
+  roles: ArgoProjectRole[]
+  orphanedResourcesMonitoring: boolean
+
+  labels: Record<string, string>
+  annotations: Record<string, string>
+}
