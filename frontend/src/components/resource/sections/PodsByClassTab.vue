@@ -23,7 +23,7 @@
       </tbody>
     </table>
   </div>
-  <div v-else class="rd-empty">{{ loading ? 'Загрузка...' : 'No pods use this priority class' }}</div>
+  <div v-else class="rd-empty">{{ loading ? 'Загрузка...' : 'No pods use this class' }}</div>
 </template>
 
 <script lang="ts" setup>
@@ -32,7 +32,8 @@ import { callApp } from '../../../resources/wails'
 import { badgeClass } from '../../../resources/status'
 import { itemName } from '../../../resources/utils'
 
-const props = defineProps<{ resource: any }>()
+/** field — поле pod, по которому ищем (priorityClassName / runtimeClassName); значение сравнивается с именем ресурса */
+const props = defineProps<{ resource: any; field: 'priorityClassName' | 'runtimeClassName' }>()
 const emit = defineEmits<{
   (e: 'open', p: { id: string; ns: string; name: string; item?: any }): void
 }>()
@@ -40,7 +41,7 @@ const emit = defineEmits<{
 const pods = ref<any[]>([])
 const loading = ref(false)
 
-/** Поды всех namespace, у которых spec.priorityClassName совпадает с именем класса (PriorityClass глобальный) */
+/** Поды всех namespace, у которых поле класса совпадает с именем ресурса (PriorityClass и RuntimeClass глобальные) */
 async function load() {
   const name = props.resource ? itemName(props.resource) : ''
   if (!name) { pods.value = []; return }
@@ -48,7 +49,7 @@ async function load() {
   try {
     const all = ((await callApp('GetPods', '')) as any[]) ?? []
     // Ответ мог устареть, если за время запроса открыли другой класс
-    if (name === itemName(props.resource)) pods.value = all.filter(p => p.priorityClassName === name)
+    if (name === itemName(props.resource)) pods.value = all.filter(p => p[props.field] === name)
   } catch {
     pods.value = []
   } finally {
