@@ -14,6 +14,7 @@ export interface ArgoResourceRef {
   health: ArgoHealthStatus | ''
   message: string
   hook: boolean
+  requiresPruning: boolean
 }
 
 export interface ArgoHistoryEntry {
@@ -84,3 +85,8 @@ export interface ArgoApplicationInfo {
   annotations: Record<string, string>
   created: string
 }
+/** Параметры и результаты действий (зеркало Go: internal/k8s/argocd_actions.go, argocd_ui.go) */
+export interface ArgoAppRef { namespace: string; name: string }
+export interface ArgoSyncOptions { revision: string; prune: boolean; force: boolean; dryRun: boolean }
+export interface ArgoActionResult { namespace: string; name: string; error: string }
+export interface ArgoUIInfo { url: string; namespace: string; service: string; localPort: number; reused: boolean }

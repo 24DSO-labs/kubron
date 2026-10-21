@@ -66,6 +66,11 @@ var exactPermission = map[string]Permission{
 	"DrainNode":               PermWrite,
 	"StartNodeShell":          PermExec,
 	"SetDefaultIngressClass":  PermWrite,
+	"SyncArgoApplication":     PermOperate,
+	"RefreshArgoApplication":  PermOperate,
+	"TerminateArgoOperation":  PermOperate,
+	"RollbackArgoApplication": PermOperate,
+	"OpenArgoUI":              PermPortForward,
 }
 
 // Глаголы, по которым метод считается изменяющим: слабое право чтения для них недопустимо.
@@ -75,6 +80,7 @@ var mutatingPrefixes = []string{
 	"Exec", "Write", "Resize", "Close",
 
 	"Cordon", "Drain",
+	"Sync", "Refresh", "Terminate",
 }
 
 // Изменяющие по имени методы, которым чтения достаточно (с обоснованием).

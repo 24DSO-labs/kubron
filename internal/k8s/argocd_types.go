@@ -2,15 +2,16 @@ package k8s
 
 // ArgoResourceRef — ресурс, которым управляет Application (status.resources[]).
 type ArgoResourceRef struct {
-	Group     string `json:"group"`
-	Version   string `json:"version"`
-	Kind      string `json:"kind"`
-	Namespace string `json:"namespace"`
-	Name      string `json:"name"`
-	Status    string `json:"status"` // Synced | OutOfSync | Unknown
-	Health    string `json:"health"` // Healthy | Degraded | Progressing | Suspended | Missing | ""
-	Message   string `json:"message"`
-	Hook      bool   `json:"hook"`
+	Group           string `json:"group"`
+	Version         string `json:"version"`
+	Kind            string `json:"kind"`
+	Namespace       string `json:"namespace"`
+	Name            string `json:"name"`
+	Status          string `json:"status"` // Synced | OutOfSync | Unknown
+	Health          string `json:"health"` // Healthy | Degraded | Progressing | Suspended | Missing | ""
+	Message         string `json:"message"`
+	Hook            bool   `json:"hook"`
+	RequiresPruning bool   `json:"requiresPruning"` // есть в кластере, но удалён из Git: удалится при sync с prune
 }
 
 // ArgoHistoryEntry — запись status.history[] (один деплой ревизии).
