@@ -1,7 +1,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
-import { flatNameCol, flatNsCol, ageCol } from './common'
+import { flatNameCol, flatNsCol, ageCol, controlledByProp, managedByProp } from './common'
 import QuotaUsageSection from '../../components/resource/sections/QuotaUsageSection.vue'
 
 export const resourceQuota = defineResource<k8s.ResourceQuotaInfo>({
@@ -22,6 +22,8 @@ export const resourceQuota = defineResource<k8s.ResourceQuotaInfo>({
 
   properties: [
     { label: 'Finalizers', value: (q: any) => (q.finalizers ?? []).join(', ') },
+    controlledByProp,
+    managedByProp,
   ],
   sections: [QuotaUsageSection],
 
