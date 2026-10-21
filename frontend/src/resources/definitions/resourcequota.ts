@@ -2,6 +2,7 @@ import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol } from './common'
+import QuotaUsageSection from '../../components/resource/sections/QuotaUsageSection.vue'
 
 export const resourceQuota = defineResource<k8s.ResourceQuotaInfo>({
   id: 'resourcequota',
@@ -10,9 +11,8 @@ export const resourceQuota = defineResource<k8s.ResourceQuotaInfo>({
   title: 'ResourceQuotas',
   namespaced: true,
   nav: { group: 'config', label: 'Resource Quotas' },
-  
+
   autoRefresh: true,
-  // icon: 'configmap',
 
   columns: [
     flatNameCol,
@@ -21,11 +21,9 @@ export const resourceQuota = defineResource<k8s.ResourceQuotaInfo>({
   ],
 
   properties: [
-    { label: 'CPU Limit', value: q => q.cpuLimit },
-    { label: 'CPU Used', value: q => q.cpuUsed },
-    { label: 'Memory Limit', value: q => q.memLimit },
-    { label: 'Memory Used', value: q => q.memUsed },
+    { label: 'Finalizers', value: (q: any) => (q.finalizers ?? []).join(', ') },
   ],
+  sections: [QuotaUsageSection],
 
   api: {
     list: ns => callApp('GetResourceQuotas', ns),

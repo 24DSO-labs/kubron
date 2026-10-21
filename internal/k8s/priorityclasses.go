@@ -12,6 +12,14 @@ type PriorityClassInfo struct {
 	Name  string `json:"name"`
 	Value int32  `json:"value"`
 	Age   string `json:"age"`
+
+	GlobalDefault    bool              `json:"globalDefault"`
+	PreemptionPolicy string            `json:"preemptionPolicy"`
+	Description      string            `json:"description"`
+	Created          string            `json:"created"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+	Finalizers       []string          `json:"finalizers"`
 }
 
 func (m *Manager) GetPriorityClasses() ([]PriorityClassInfo, error) {
@@ -28,7 +36,7 @@ func (m *Manager) GetPriorityClasses() ([]PriorityClassInfo, error) {
 		return nil, err
 	}
 
-	var pcs []PriorityClassInfo
+	pcs := make([]PriorityClassInfo, 0, len(list.Items))
 	for _, pc := range list.Items {
 		pcs = append(pcs, convertPriorityClass(pc))
 	}
@@ -37,9 +45,21 @@ func (m *Manager) GetPriorityClasses() ([]PriorityClassInfo, error) {
 }
 
 func convertPriorityClass(pc schedulingv1.PriorityClass) PriorityClassInfo {
+	policy := "PreemptLowerPriority" // значение по умолчанию, когда поле не задано
+	if pc.PreemptionPolicy != nil {
+		policy = string(*pc.PreemptionPolicy)
+	}
+	meta := metaOf(pc.ObjectMeta)
 	return PriorityClassInfo{
-		Name:  pc.Name,
-		Value: pc.Value,
-		Age:   formatAge(pc.CreationTimestamp.Time),
+		Name:             pc.Name,
+		Value:            pc.Value,
+		Age:              meta.Age,
+		GlobalDefault:    pc.GlobalDefault,
+		PreemptionPolicy: policy,
+		Description:      pc.Description,
+		Created:          meta.Created,
+		Labels:           meta.Labels,
+		Annotations:      meta.Annotations,
+		Finalizers:       meta.Finalizers,
 	}
 }
