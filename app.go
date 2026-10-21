@@ -197,6 +197,16 @@ func (a *App) StartNodeShell(name string) (*k8s.NodeShellSession, error) {
 	return a.k8sMgr.StartNodeShell(name)
 }
 
+// === Argo CD ===
+
+// ArgoInstalled сообщает, установлен ли Argo CD (CRD Application) в активном кластере.
+func (a *App) ArgoInstalled() (bool, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return false, err
+	}
+	return a.k8sMgr.ArgoInstalled()
+}
+
 // === Неймспейсы ===
 
 func (a *App) GetNamespaces() ([]k8s.NamespaceInfo, error) {
