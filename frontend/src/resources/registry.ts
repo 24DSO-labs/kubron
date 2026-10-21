@@ -36,6 +36,7 @@ import { portForward } from './definitions/portforward'
 import { helmRelease } from './definitions/helmrelease'
 import { helmChart } from './definitions/helmchart'
 import { endpointSlice } from './definitions/endpointslice'
+import { argoApplication } from './definitions/argocd/application'
 
 /** Добавляя новый ресурс, достаточно дописать его сюда. */
 export const resources: ResourceDefinition[] = [
@@ -75,6 +76,8 @@ export const resources: ResourceDefinition[] = [
   // helm
   helmRelease,
   helmChart,
+  // argo cd
+  argoApplication,
   // access control
   serviceAccount,
   role,
