@@ -1,0 +1,67 @@
+<template>
+  <div class="dd-overlay" @click.self="close">
+    <div class="dd" role="dialog" aria-modal="true">
+      <div class="dd-head">
+        <h3>Delete <span class="dd-name">{{ app.namespace }}/{{ app.name }}</span></h3>
+      </div>
+      <div class="dd-body">
+        <label class="dd-check">
+          <input v-model="cascade" type="checkbox" />
+          Cascade — also delete the resources managed by the application
+        </label>
+        <div class="dd-risk" :class="{ danger: cascade }">
+          <template v-if="cascade">
+            All {{ app.resources?.length ?? 0 }} managed resource(s) will be deleted from the cluster.
+          </template>
+          <template v-else>
+            Only the Application object is removed; its resources stay in the cluster unmanaged.
+          </template>
+        </div>
+      </div>
+      <div class="dd-foot">
+        <button class="dd-btn" :disabled="busy" @click="close">Cancel</button>
+        <button class="dd-btn danger" :disabled="busy" @click="submit">{{ busy ? 'Deleting…' : 'Delete' }}</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { ref } from 'vue'
+import { deleteArgoApplication } from '../../resources/argoActions'
+import type { ArgoApplicationInfo } from '../../types/argocd'
+
+const props = defineProps<{ app: ArgoApplicationInfo }>()
+const emit = defineEmits<{ (e: 'close'): void; (e: 'deleted'): void }>()
+
+const cascade = ref(true)
+const busy = ref(false)
+
+const close = () => { if (!busy.value) emit('close') }
+
+async function submit() {
+  busy.value = true
+  const ok = await deleteArgoApplication(props.app, cascade.value)
+  busy.value = false
+  if (ok) emit('deleted')
+  emit('close')
+}
+</script>
+
+<style scoped>
+.dd-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; z-index: 2000; }
+.dd { width: 90%; max-width: 480px; background: #1e1f35; border: 1px solid #3b3d5c; border-radius: 8px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); text-align: left; }
+.dd-head { padding: 16px; background: #0f1017; border-bottom: 1px solid #3b3d5c; border-radius: 8px 8px 0 0; }
+.dd-head h3 { margin: 0; font-size: 1rem; color: #fff; }
+.dd-name { color: #60a5fa; font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+.dd-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+.dd-check { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #d4d4d4; cursor: pointer; }
+.dd-risk { padding: 10px 12px; border-radius: 4px; font-size: 0.8rem; color: #9ca0b8; background: rgba(255, 255, 255, 0.03); border: 1px solid #2a2b40; }
+.dd-risk.danger { color: #fca5a5; background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.4); }
+.dd-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 16px; background: #0f1017; border-top: 1px solid #3b3d5c; border-radius: 0 0 8px 8px; }
+.dd-btn { padding: 8px 16px; border-radius: 4px; border: 1px solid #3b3d5c; background: transparent; color: #d4d4d4; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+.dd-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.06); }
+.dd-btn.danger { background: #dc2626; border-color: #dc2626; color: #fff; }
+.dd-btn.danger:hover:not(:disabled) { background: #b91c1c; }
+.dd-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
