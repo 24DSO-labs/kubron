@@ -221,6 +221,10 @@ func DeleteCluster(id string) error {
 			return fmt.Errorf("не удалось удалить %s: %w", name, err)
 		}
 	}
+	// Токен Argo CD API принадлежит кластеру: после удаления кластера он не должен оставаться на диске.
+	if err := deleteArgoToken(id); err != nil {
+		return err
+	}
 	return nil
 }
 
