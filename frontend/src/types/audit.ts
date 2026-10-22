@@ -69,6 +69,9 @@ const ACTION_LABELS: Record<string, string> = {
   TerminateArgoOperation: 'Argo CD: остановка операции',
   RollbackArgoApplication: 'Argo CD: откат',
   OpenArgoUI: 'Argo CD: открытие UI',
+  SetArgoAPIToken: 'Argo CD: сохранение токена API',
+  DeleteArgoAPIToken: 'Argo CD: удаление токена API',
+  GetArgoApplicationDiff: 'Argo CD: сравнение с git (diff)',
 }
 
 const ACTION_VERBS: [string, string][] = [
