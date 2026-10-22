@@ -168,3 +168,52 @@ func TestNormalizeArgoRefs(t *testing.T) {
 		t.Errorf("%v, %v", got, err)
 	}
 }
+
+func TestSuspendResumeAutoSync(t *testing.T) {
+	obj := argoApp("argocd", "a", map[string]interface{}{"spec": map[string]interface{}{
+		"syncPolicy": map[string]interface{}{"automated": map[string]interface{}{"prune": true, "selfHeal": true}}}})
+	if err := applySuspendAutoSync(obj); err != nil {
+		t.Fatal(err)
+	}
+	if autoSyncEnabled(obj.Object) {
+		t.Fatal("automated должен быть удалён")
+	}
+	if err := applySuspendAutoSync(obj); err == nil {
+		t.Error("повторное отключение должно давать ошибку")
+	}
+	if err := applyResumeAutoSync(obj); err != nil {
+		t.Fatal(err)
+	}
+	if !boolAt(obj.Object, "spec", "syncPolicy", "automated", "prune") || !boolAt(obj.Object, "spec", "syncPolicy", "automated", "selfHeal") {
+		t.Errorf("параметры не восстановлены: %v", obj.Object["spec"])
+	}
+	if _, ok := obj.GetAnnotations()[argoSuspendedAnnotation]; ok {
+		t.Error("аннотация должна быть удалена")
+	}
+	if err := applyResumeAutoSync(obj); err == nil {
+		t.Error("повторное включение должно давать ошибку")
+	}
+
+	plain := argoApp("argocd", "b", nil) // без сохранённых параметров: включится пустой automated
+	if err := applyResumeAutoSync(plain); err != nil || !autoSyncEnabled(plain.Object) {
+		t.Errorf("resume без аннотации: %v", err)
+	}
+}
+
+func TestApplyDeletePolicy(t *testing.T) {
+	obj := argoApp("argocd", "a", nil)
+	obj.SetFinalizers([]string{"other", argoResourcesFinalizer + "/background"})
+
+	applyDeletePolicy(obj, true)
+	if got := obj.GetFinalizers(); len(got) != 2 || got[1] != argoResourcesFinalizer+"/background" {
+		t.Errorf("cascade не должен дублировать финализатор: %v", got)
+	}
+	applyDeletePolicy(obj, false)
+	if got := obj.GetFinalizers(); len(got) != 1 || got[0] != "other" {
+		t.Errorf("без cascade финализатор Argo снимается, чужие остаются: %v", got)
+	}
+	applyDeletePolicy(obj, true)
+	if got := obj.GetFinalizers(); len(got) != 2 || got[1] != argoResourcesFinalizer {
+		t.Errorf("cascade добавляет финализатор: %v", got)
+	}
+}
