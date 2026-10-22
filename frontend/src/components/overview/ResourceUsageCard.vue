@@ -9,6 +9,7 @@
           <div class="metric-text">
             <span class="metric-percent">{{ m.percent }}</span>
             <span class="metric-detail">{{ m.detail }}</span>
+            <span v-if="m.requested" class="metric-detail">{{ m.requested }}</span>
           </div>
           <div class="metric-spark">
             <Sparkline :values="m.series" :color="m.color" :max="100" />
@@ -44,8 +45,11 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import Sparkline from './Sparkline.vue'
 import { formatBytes, formatCores } from './format'
 import { useClusterMetrics, useMetricsStatus, usePrometheusRange } from '../../composables/useMetrics'
+import type { ResourceRequests } from '../../types/overview'
 
-const props = defineProps<{ clusterName: string }>()
+const props = defineProps<{ clusterName: string; requests?: ResourceRequests }>()
+
+
 const emit = defineEmits<{ (e: 'openSettings'): void }>()
 
 const SNAPSHOT_MS = 15_000
@@ -72,6 +76,7 @@ const state = computed<State>(() => {
 
 const percent = (v?: number) => (v === undefined || !isFinite(v) ? '—' : `${Math.round(v)}%`)
 
+const rq = props.requests
 const metrics = computed(() => {
   const s = snapshot.value
   return [
@@ -81,6 +86,10 @@ const metrics = computed(() => {
       detail: s ? `${formatCores(s.cpuUsage)} / ${formatCores(s.cpuCapacity)} cores` : '',
       series: cpuSeries.value,
       color: '#8b5cf6',
+
+      // CPU:
+      requested: rq && rq.cpuAllocatable > 0
+        ? `Requested ${formatCores(rq.cpuRequested)} / ${formatCores(rq.cpuAllocatable)} cores (${Math.round(rq.cpuRequested / rq.cpuAllocatable * 100)}%)` : '',
     },
     {
       label: 'Memory',
@@ -88,6 +97,10 @@ const metrics = computed(() => {
       detail: s ? `${formatBytes(s.memoryUsage)} / ${formatBytes(s.memoryCapacity)}` : '',
       series: memSeries.value,
       color: '#3b82f6',
+
+      // Memory:
+      requested: rq && rq.memoryAllocatable > 0
+        ? `Requested ${formatBytes(rq.memoryRequested)} / ${formatBytes(rq.memoryAllocatable)} (${Math.round(rq.memoryRequested / rq.memoryAllocatable * 100)}%)` : '',
     },
   ]
 })
@@ -135,13 +148,51 @@ watch(() => props.clusterName, start)
 </script>
 
 <style scoped>
-.metrics { display: flex; flex-direction: column; gap: 18px; flex: 1; justify-content: center; }
-.metric-label { font-size: 13px; color: var(--ov-muted); }
-.metric-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-top: 2px; }
-.metric-text { display: flex; flex-direction: column; min-width: 0; }
-.metric-percent { font-size: 28px; font-weight: 600; line-height: 1.15; font-variant-numeric: tabular-nums; }
-.metric-detail { font-size: 12px; color: var(--ov-muted); white-space: nowrap; }
-.metric-spark { width: 55%; height: 44px; flex-shrink: 0; }
+.metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  flex: 1;
+  justify-content: center;
+}
+
+.metric-label {
+  font-size: 13px;
+  color: var(--ov-muted);
+}
+
+.metric-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 2px;
+}
+
+.metric-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.metric-percent {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-detail {
+  font-size: 12px;
+  color: var(--ov-muted);
+  white-space: nowrap;
+}
+
+.metric-spark {
+  width: 55%;
+  height: 44px;
+  flex-shrink: 0;
+}
 
 .empty {
   flex: 1;
@@ -151,7 +202,19 @@ watch(() => props.clusterName, start)
   justify-content: center;
   gap: 6px;
 }
-.empty-title { font-size: 14px; font-weight: 600; }
-.empty-text { font-size: 12px; color: var(--ov-muted); line-height: 1.5; }
-.empty .ov-btn { margin-top: 8px; }
+
+.empty-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.empty-text {
+  font-size: 12px;
+  color: var(--ov-muted);
+  line-height: 1.5;
+}
+
+.empty .ov-btn {
+  margin-top: 8px;
+}
 </style>

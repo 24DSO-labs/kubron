@@ -38,6 +38,31 @@ export interface WorkloadSummary {
   age: string
 }
 
+/** Под, которому нужно внимание (internal/k8s/overview_insights.go) */
+export interface ProblemPod {
+  name: string
+  namespace: string
+  /** CrashLoopBackOff, ImagePullBackOff, Unschedulable, Pending, NotReady, Evicted ... */
+  reason: string
+  node: string
+  restarts: number
+  /** RFC3339: с какого момента под в этом состоянии */
+  since: string
+}
+
+export interface ReasonCount {
+  reason: string
+  count: number
+}
+
+/** CPU в ядрах, память в байтах */
+export interface ResourceRequests {
+  cpuRequested: number
+  cpuAllocatable: number
+  memoryRequested: number
+  memoryAllocatable: number
+}
+
 export interface ClusterOverview {
   totalNodes: number
   readyNodes: number
@@ -51,6 +76,18 @@ export interface ClusterOverview {
   activeNamespaces: number
   totalEvents: number
   warningEvents: number
+
+  /** контейнеры, перезапускавшиеся за 24 ч, и из них OOMKilled */
+  restartsLast24h: number
+  oomKilledLast24h: number
+  /** до 10 самых проблемных подов и их общее число */
+  problemPods: ProblemPod[]
+  problemPodsTotal: number
+  /** Warning-события за последний час и топ причин */
+  warningsLastHour: number
+  warningReasons: ReasonCount[]
+  requests: ResourceRequests
+
   health: ClusterHealth
   recentEvents: OverviewEvent[]
   workloads: WorkloadSummary[]
