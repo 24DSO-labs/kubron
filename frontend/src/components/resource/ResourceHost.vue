@@ -18,6 +18,13 @@
 
     <SyncDialog v-if="pendingArgoSync" :apps="pendingArgoSync.apps" @close="closeArgoSync()" />
 
+    <DeleteAppDialog
+    v-if="pendingArgoDelete"
+    :app="pendingArgoDelete"
+    @close="closeArgoDelete()"
+    @deleted="resourceActions.closeDetail()"
+  />
+
   <!-- Подтверждение действий (ctx.confirm): Restart, Evict, Rollback ... -->
   <ConfirmationDialog
     :model-value="!!pendingConfirm"
@@ -54,6 +61,8 @@ import { opened, pendingDelete, scaleTarget, resourceActions } from '../../resou
 import { pendingConfirm, answerConfirm } from '../../resources/confirm'
 import SyncDialog from '../panels/SyncDialog.vue'
 import { pendingArgoSync, closeArgoSync } from '../../resources/argoActions'
+import DeleteAppDialog from '../panels/DeleteAppDialog.vue'
+import { pendingArgoDelete, closeArgoDelete } from '../../resources/argoActions'
 
 const def = computed(() => (opened.value ? getResourceById(opened.value.id) : undefined))
 const detail = shallowRef<any>(null)
