@@ -78,7 +78,8 @@ const loading = ref(false)
 const error = ref('')
 const kindFilter = ref('')
 const onlyProblems = ref(false)
-const expanded = ref<Set<string>>(new Set())
+const expandedGroups = ref<Set<string>>(new Set())   // было: expanded
+
 
 let seq = 0
 async function load() {
@@ -104,7 +105,7 @@ onMounted(load)
 // Приложение другое: сбросить граф и фильтры; то же приложение изменилось (sync/health/revision, argocd:changed) — перечитать
 watch(() => `${props.resource?.namespace}/${props.resource?.name}`, () => {
   graph.value = null
-  expanded.value = new Set()
+  expandedGroups.value = new Set()
   load()
 })
 watch(
@@ -125,12 +126,12 @@ const filtered = computed<ArgoGraph | null>(() => {
 })
 
 const layout = computed(() =>
-  layoutGraph(filtered.value ?? { nodes: [], edges: [], truncated: false, warnings: [] }, props.resource?.name ?? '', expanded.value))
+  layoutGraph(filtered.value ?? { nodes: [], edges: [], truncated: false, warnings: [] }, props.resource?.name ?? '', expandedGroups.value))
 
 const collapsedGroups = computed(() => layout.value.nodes.filter(n => n.id.startsWith(GROUP_PREFIX)))
 
 function expand(id: string) {
-  expanded.value = new Set(expanded.value).add(id)
+  expandedGroups.value = new Set(expandedGroups.value).add(id)
 }
 
 function nodeTone(n: PlacedNode): string {
