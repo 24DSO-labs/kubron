@@ -23,6 +23,7 @@ func (a *App) initAuth(dir string) {
 	svc.SetOnLogout(func() {
 		a.pfMgr.StopAll()
 		a.k8sMgr.CloseAllTerminals()
+		a.k8sMgr.StopAllLogStreams()
 	})
 	a.auth = svc
 }
@@ -42,8 +43,8 @@ var auditedPermissions = map[auth.Permission]bool{
 // quietMethods — вызываются на каждое нажатие клавиши/опрос терминала: в журнал не пишутся
 // (начало и конец терминальной сессии записываются методами StartTerminalSession / CloseTerminal).
 var quietMethods = map[string]bool{
-	"WriteTerminal":  true,
-	"ReadTerminal":   true,
+	"WriteTerminal": true,
+
 	"ResizeTerminal": true,
 }
 

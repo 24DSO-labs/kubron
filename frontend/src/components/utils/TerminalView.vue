@@ -24,7 +24,7 @@ import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
 import {
   StartTerminalSession,
-  ReadTerminal,
+  
   WriteTerminal,
   CloseTerminal,
   DetectShell,
@@ -32,6 +32,7 @@ import {
 } from '../../../wailsjs/go/main/App'
 import type { TerminalTab } from '../../composables/useTabbedPanel'
 import { uid } from '../../resources/uid'
+import { EventsOn } from '../../../wailsjs/runtime/runtime'
 
 const props = defineProps<{ tab: TerminalTab; active: boolean }>()
 
@@ -48,10 +49,14 @@ interface Session {
   fitAddon: FitAddon
   sessionID: string
   aborted: boolean
+  unsubscribe: Array<() => void>
   resizeObserver?: ResizeObserver
   resizeTimer?: ReturnType<typeof setTimeout>
   onMouse?: () => void
 }
+
+const b64ToBytes = (b64: string) => Uint8Array.from(atob(b64), c => c.charCodeAt(0))
+
 let session: Session | null = null
 let unmounted = false
 
@@ -75,34 +80,39 @@ function debouncedResize(s: Session, cols: number, rows: number) {
   s.resizeTimer = setTimeout(() => { ResizeTerminal(s.sessionID, cols, rows).catch(() => { }) }, 150)
 }
 
-async function readLoop(s: Session) {
-  while (!s.aborted) {
-    try {
-      const result: any = await ReadTerminal(s.sessionID)
-      if (s.aborted) break
-      if (!result) {
-        s.terminal.write('\r\n[Session ended]\r\n')
-        setState('🔴', false)
-        break
-      }
-      if (typeof result === 'string' && result.length > 0) {
-        try { s.terminal.write(atob(result)) } catch { s.terminal.write(result) }
-      }
-    } catch {
-      if (!s.aborted) {
-        s.terminal.write('\r\n[Connection lost]\r\n')
-        setState('🔴', false)
-      }
-      break
-    }
-  }
-}
+// async function readLoop(s: Session) {
+//   while (!s.aborted) {
+//     try {
+//       const result: any = await ReadTerminal(s.sessionID)
+//       if (s.aborted) break
+//       if (!result) {
+//         s.terminal.write('\r\n[Session ended]\r\n')
+//         setState('🔴', false)
+//         break
+//       }
+//       if (typeof result === 'string' && result.length > 0) {
+//         try { s.terminal.write(atob(result)) } catch { s.terminal.write(result) }
+//       }
+//     } catch {
+//       if (!s.aborted) {
+//         s.terminal.write('\r\n[Connection lost]\r\n')
+//         setState('🔴', false)
+//       }
+//       break
+//     }
+//   }
+// }
+
+
+
+// readLoop удалён: данные приходят событиями terminal:data:<id> / terminal:exit:<id>
 
 function disposeSession() {
   const s = session
   session = null
   if (!s) return
   s.aborted = true
+  s.unsubscribe.forEach(off => off())
   if (s.resizeTimer) clearTimeout(s.resizeTimer)
   s.resizeObserver?.disconnect()
   if (s.onMouse) termEl.value?.removeEventListener('mousedown', s.onMouse)
@@ -143,16 +153,36 @@ async function initTerminal() {
     if (unmounted) { terminal.dispose(); return }
     try { fitAddon.fit() } catch { /* скрыт */ }
 
-    const sessionID = `term_${uid()}`
+        const sessionID = `term_${uid()}`
     const sessionMode = tab.mode === 'attach' ? '' : shell
-    await StartTerminalSession(sessionID, tab.namespace, tab.pod, tab.container, sessionMode, terminal.cols, terminal.rows)
+    const s: Session = { terminal, fitAddon, sessionID, aborted: false, unsubscribe: [] }
+
+    // Подписка ДО старта сессии, чтобы не потерять первые байты (приглашение shell)
+    s.unsubscribe.push(
+      EventsOn(`terminal:data:${sessionID}`, (b64: string) => {
+        if (!s.aborted) terminal.write(b64ToBytes(b64))
+      }),
+      EventsOn(`terminal:exit:${sessionID}`, () => {
+        if (s.aborted) return
+        terminal.write('\r\n[Session ended]\r\n')
+        setState('🔴', false)
+      }),
+    )
+    try {
+      await StartTerminalSession(sessionID, tab.namespace, tab.pod, tab.container, sessionMode, terminal.cols, terminal.rows)
+    } catch (e) {
+      s.aborted = true
+      s.unsubscribe.forEach(off => off())
+      terminal.dispose()
+      throw e // обработает общий catch ниже
+    }
     if (unmounted) {
+      s.aborted = true
+      s.unsubscribe.forEach(off => off())
       CloseTerminal(sessionID).catch(() => { })
       terminal.dispose()
       return
     }
-
-    const s: Session = { terminal, fitAddon, sessionID, aborted: false }
     session = s
     setState('🟢', false)
 
@@ -169,7 +199,7 @@ async function initTerminal() {
 
     await new Promise(r => setTimeout(r, 100))
     safeFit()
-    readLoop(s)
+    if (props.active) terminal.focus()
     if (props.active) terminal.focus()
   } catch (e) {
     console.error('Terminal init error:', e)

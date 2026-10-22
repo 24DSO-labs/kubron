@@ -997,13 +997,6 @@ func (a *App) WriteTerminal(sessionID string, data []byte) error {
 	return a.k8sMgr.WriteTerminal(sessionID, data)
 }
 
-func (a *App) ReadTerminal(sessionID string) ([]byte, error) {
-	if err := a.authz(auth.PermExec); err != nil {
-		return nil, err
-	}
-	return a.k8sMgr.ReadTerminalBytes(sessionID)
-}
-
 func (a *App) ResizeTerminal(sessionID string, cols, rows uint16) error {
 	if err := a.authz(auth.PermExec); err != nil {
 		return err
@@ -1025,4 +1018,37 @@ func (a *App) DeleteResource(kind, namespace, name string) error {
 		return err
 	}
 	return a.k8sMgr.DeleteResource(kind, namespace, name)
+}
+
+// === Custom Resources ===
+
+func (a *App) GetCRDs() ([]k8s.CRDInfo, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetCRDs()
+}
+
+func (a *App) GetCustomResources(group, version, plural, namespace string) ([]k8s.CustomResourceInfo, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetCustomResources(group, version, plural, namespace)
+}
+
+// === Streaming ===
+
+func (a *App) StartLogStream(streamID, namespace, pod, container string, tail int64) error {
+	if err := a.authz(auth.PermRead); err != nil {
+		return err
+	}
+	return a.k8sMgr.StartLogStream(streamID, namespace, pod, container, tail)
+}
+
+func (a *App) StopLogStream(streamID string) error {
+	if err := a.authz(auth.PermRead); err != nil {
+		return err
+	}
+	a.k8sMgr.StopLogStream(streamID)
+	return nil
 }

@@ -2,6 +2,8 @@
 
 import { ref, computed, type Ref } from 'vue'
 import { useArgo } from './useArgo'
+import { loadCustomResources, resetCustomResources } from '../resources/customResources'
+
 
 export function useClusterConnection(deps: {
   clusters: Ref<any[]>
@@ -45,8 +47,11 @@ export function useClusterConnection(deps: {
       error.value = ''
       await connectToCluster(id)
       await loadNamespaces()
+
       selectedNamespace.value = ''
       currentView.value = 'overview'
+       resetCustomResources()
+      void loadCustomResources()
       void refreshArgo()
       await refreshData()
     } catch (e: any) {
@@ -75,6 +80,7 @@ export function useClusterConnection(deps: {
   function disconnect() {
     k8sDisconnect()
     resetArgo()
+    resetCustomResources()
     activeClusterId.value = ''
     loadClusters()
   }
@@ -86,6 +92,7 @@ export function useClusterConnection(deps: {
       await loadNamespaces()
       currentView.value = 'overview'
       void refreshArgo()
+      void loadCustomResources()
       await refreshData()
     }
   }
