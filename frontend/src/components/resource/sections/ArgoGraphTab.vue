@@ -7,6 +7,12 @@
       </select>
       <label class="ag-check"><input v-model="onlyProblems" type="checkbox" /> Only unhealthy / out of sync</label>
       <button class="rd-btn" :disabled="loading" @click="load">Refresh</button>
+      <button
+        class="rd-btn"
+        :title="expanded ? 'Restore panel width' : 'Expand the panel to the full content width'"
+        :aria-pressed="expanded"
+        @click="toggleExpanded"
+      >{{ expanded ? 'Collapse' : 'Expand' }}</button>
       <span class="ag-legend">
         <span class="ag-leg ag-owns">owns</span>
         <span class="ag-leg ag-selects">selects</span>
@@ -42,9 +48,9 @@
       <div v-else class="rd-empty">No resources reported by Argo CD</div>
 
       <div v-if="collapsedGroups.length" class="ag-note">
-        Large pod groups are collapsed:
+        Collapsed groups (click a group or a button to expand):
         <button v-for="g in collapsedGroups" :key="g.id" class="rd-btn ag-expand" @click="expand(g.id)">
-          expand {{ g.count }} pods
+          {{ g.name }}
         </button>
       </div>
     </template>
@@ -55,7 +61,8 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { callApp } from '../../../resources/wails'
 import { getResourceById } from '../../../resources/registry'
-import { filterGraph, layoutGraph, GROUP_PREFIX, type PlacedNode } from '../../../resources/argoGraph'
+import { filterGraph, layoutGraph, needsAttention, GROUP_PREFIX, type PlacedNode } from '../../../resources/argoGraph'
+import { useDetailPanelSize } from '../../../composables/useDetailPanelSize'
 import { argoLiveTick } from '../../../composables/useArgoLive'
 import type { ArgoApplicationInfo, ArgoGraph } from '../../../types/argocd'
 
@@ -63,6 +70,8 @@ const props = defineProps<{ resource: Partial<ArgoApplicationInfo> }>()
 const emit = defineEmits<{
   (e: 'open', p: { id: string; ns: string; name: string; item?: any }): void
 }>()
+
+const { expanded, toggleExpanded } = useDetailPanelSize()
 
 const graph = ref<ArgoGraph | null>(null)
 const loading = ref(false)
@@ -105,8 +114,7 @@ watch(
 
 const kinds = computed(() => [...new Set((graph.value?.nodes ?? []).map(n => n.kind))].sort())
 
-const isProblem = (n: { status: string; health: string }) =>
-  n.status === 'OutOfSync' || (!!n.health && n.health !== 'Healthy' && n.health !== 'Suspended')
+const isProblem = needsAttention
 
 const filtered = computed<ArgoGraph | null>(() => {
   const g = graph.value
@@ -143,8 +151,9 @@ function target(n: PlacedNode): { id: string; ns: string; name: string } | null 
   if (def.namespaced && !n.namespace) return null
   return { id: def.id, ns: def.namespaced ? n.namespace : '', name: n.name }
 }
-const isClickable = (n: PlacedNode) => !!target(n)
+const isClickable = (n: PlacedNode) => n.id.startsWith(GROUP_PREFIX) || !!target(n)
 function onNodeClick(n: PlacedNode) {
+  if (n.id.startsWith(GROUP_PREFIX)) return expand(n.id)
   const t = target(n)
   if (t) emit('open', t)
 }
@@ -170,7 +179,7 @@ const truncate = (s: string, max: number) => (s.length > max ? s.slice(0, max - 
 .ag-note { padding: 6px 0; font-size: 0.8rem; color: #9ca3af; }
 .ag-warn { color: #facc15; }
 .ag-expand { margin-left: 6px; }
-.ag-scroll { overflow: auto; max-height: 560px; border: 1px solid #2a2f47; border-radius: 6px; padding: 10px; background: #12141f; }
+.ag-scroll { overflow: auto; max-height: calc(100vh - 340px); min-height: 240px; border: 1px solid #2a2f47; border-radius: 6px; padding: 10px; background: #12141f; }
 .ag-svg { display: block; }
 
 .ag-edge { fill: none; stroke: #6b6d8a; stroke-width: 1.4; }
