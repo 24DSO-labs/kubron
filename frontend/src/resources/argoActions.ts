@@ -104,3 +104,35 @@ export async function openArgoUI(): Promise<void> {
     notifications.notifyError(`Argo CD UI: ${errText(e)}`)
   }
 }
+
+/** Приложение, для которого открыт диалог удаления (рисует ResourceHost) */
+export const pendingArgoDelete = shallowRef<ArgoApplicationInfo | null>(null)
+export const requestArgoDelete = (app: ArgoApplicationInfo) => { pendingArgoDelete.value = app }
+export const closeArgoDelete = () => { pendingArgoDelete.value = null }
+
+/** true — удалено (вызывающий закрывает панель деталей) */
+export async function deleteArgoApplication(app: ArgoApplicationInfo, cascade: boolean): Promise<boolean> {
+  try {
+    await callApp('DeleteArgoApplication', app.namespace, app.name, cascade)
+    notifications.notifySuccess(`${app.name}: deleted${cascade ? ' with its resources' : ' (resources kept)'}`)
+    changed()
+    return true
+  } catch (e) {
+    notifications.notifyError(`Delete: ${errText(e)}`)
+    return false
+  }
+}
+
+export async function setArgoAutoSync(apps: ArgoApplicationInfo[], enabled: boolean): Promise<void> {
+  if (enabled) {
+    const what = apps.length === 1 ? apps[0].name : `${apps.length} applications`
+    if (!(await askConfirm(`Enable automated sync for ${what}? Out-of-sync resources will be applied automatically.`))) return
+  }
+  try {
+    const res = await callApp(enabled ? 'ResumeArgoAutoSync' : 'SuspendArgoAutoSync', apps.map(refOf))
+    report(res, enabled ? 'auto-sync enabled' : 'auto-sync disabled')
+    changed()
+  } catch (e) {
+    notifications.notifyError(`Auto-sync: ${errText(e)}`)
+  }
+}

@@ -72,6 +72,9 @@ const ACTION_LABELS: Record<string, string> = {
   SetArgoAPIToken: 'Argo CD: сохранение токена API',
   DeleteArgoAPIToken: 'Argo CD: удаление токена API',
   GetArgoApplicationDiff: 'Argo CD: сравнение с git (diff)',
+  SuspendArgoAutoSync: 'Argo CD: отключение автосинхронизации',
+  ResumeArgoAutoSync: 'Argo CD: включение автосинхронизации',
+  DeleteArgoApplication: 'Argo CD: удаление приложения',
 }
 
 const ACTION_VERBS: [string, string][] = [
