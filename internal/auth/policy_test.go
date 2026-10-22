@@ -29,11 +29,11 @@ var publicMethods = map[string]bool{
 
 // Точные требования для особых методов.
 var exactPermission = map[string]Permission{
-	"GetSecretValue":          PermSecretsRead,
-	"DetectShell":             PermExec,
-	"StartTerminalSession":    PermExec,
-	"WriteTerminal":           PermExec,
-	"ReadTerminal":            PermExec,
+	"GetSecretValue":       PermSecretsRead,
+	"DetectShell":          PermExec,
+	"StartTerminalSession": PermExec,
+	"WriteTerminal":        PermExec,
+
 	"ResizeTerminal":          PermExec,
 	"CloseTerminal":           PermExec,
 	"StartPortForward":        PermPortForward,
@@ -77,6 +77,8 @@ var exactPermission = map[string]Permission{
 	"SuspendArgoAutoSync":     PermWrite,
 	"ResumeArgoAutoSync":      PermWrite,
 	"DeleteArgoApplication":   PermWrite,
+	"StartLogStream":          PermRead,
+	"StopLogStream":           PermRead,
 }
 
 // Глаголы, по которым метод считается изменяющим: слабое право чтения для них недопустимо.
