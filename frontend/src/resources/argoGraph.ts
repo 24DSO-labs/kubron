@@ -10,8 +10,12 @@ export const GAP_X = 70
 export const GAP_Y = 14
 /** Больше стольких одинаковых «листовых» подов под одним родителем схлопываются в одну вершину */
 export const COLLAPSE_AT = 6
+/** Больше стольких одиночных ресурсов одного Kind (ConfigMap, ClusterRole ...) схлопываются в одну вершину */
+export const KIND_COLLAPSE_AT = 4
 export const ROOT_ID = '__app__'
 export const GROUP_PREFIX = 'group:'
+/** id группы по Kind: `group:kind:ConfigMap` (группы подов — `group:<id родителей>`) */
+export const KIND_GROUP_PREFIX = GROUP_PREFIX + 'kind:'
 
 export interface PlacedNode {
   id: string
@@ -140,9 +144,55 @@ export function collapseLeaves(g: ArgoGraph, expanded: ReadonlySet<string>): { n
   return { nodes: [...g.nodes.filter(n => !remap.has(n.id)), ...synthetic], edges }
 }
 
+/** Вершина, которую нельзя прятать в группу: ей нужно внимание (проблемный health или расхождение с git) */
+export function needsAttention(n: Pick<ArgoGraphNode, 'status' | 'health'>): boolean {
+  return n.status === 'OutOfSync' || (!!n.health && n.health !== 'Healthy' && n.health !== 'Suspended')
+}
+
+/**
+ * Схлопывает «одиночные» ресурсы (без входящих и исходящих рёбер: ClusterRole, ConfigMap, CRD ...)
+ * по Kind, если их больше KIND_COLLAPSE_AT. Проблемные ресурсы остаются отдельными вершинами,
+ * чтобы их не пришлось искать внутри группы. Развёрнутые группы (id в expanded) не схлопываются.
+ */
+export function collapseKinds(
+  nodes: GNode[], edges: ArgoGraphEdge[], expanded: ReadonlySet<string>,
+): { nodes: GNode[]; edges: ArgoGraphEdge[] } {
+  const connected = new Set<string>()
+  for (const e of edges) {
+    connected.add(e.from)
+    connected.add(e.to)
+  }
+
+  const byKind = new Map<string, GNode[]>()
+  for (const n of nodes) {
+    if (n.id.startsWith(GROUP_PREFIX) || connected.has(n.id) || needsAttention(n)) continue
+    const list = byKind.get(n.kind)
+    if (list) list.push(n)
+    else byKind.set(n.kind, [n])
+  }
+
+  const grouped = new Set<string>()
+  const synthetic: GNode[] = []
+  for (const [kind, members] of byKind) {
+    const id = KIND_GROUP_PREFIX + kind
+    if (members.length <= KIND_COLLAPSE_AT || expanded.has(id)) continue
+    let health = ''
+    for (const m of members) health = worstHealth(health, m.health)
+    synthetic.push({
+      id, group: '', kind, namespace: '', name: `${members.length} × ${kind}`,
+      status: '', health, message: '', hook: false, managed: false,
+      count: members.length, members: members.map(m => m.id).sort(),
+    })
+    for (const m of members) grouped.add(m.id)
+  }
+  if (!grouped.size) return { nodes, edges }
+  return { nodes: [...nodes.filter(n => !grouped.has(n.id)), ...synthetic], edges }
+}
+
 /** Раскладывает граф; приложение — виртуальный корень слева, к нему подвешены вершины без входящих рёбер */
 export function layoutGraph(g: ArgoGraph, appName: string, expanded: ReadonlySet<string> = new Set()): GraphLayout {
-  const { nodes: gnodes, edges: gedges } = collapseLeaves(g, expanded)
+  const pods = collapseLeaves(g, expanded)
+  const { nodes: gnodes, edges: gedges } = collapseKinds(pods.nodes, pods.edges, expanded)
 
   const root: GNode = {
     id: ROOT_ID, group: '', kind: 'Application', namespace: '', name: appName, status: '', health: '',
