@@ -74,6 +74,9 @@ var exactPermission = map[string]Permission{
 	"SetArgoAPIToken":         PermClusterManage,
 	"DeleteArgoAPIToken":      PermClusterManage,
 	"GetArgoApplicationDiff":  PermPortForward,
+	"SuspendArgoAutoSync":     PermWrite,
+	"ResumeArgoAutoSync":      PermWrite,
+	"DeleteArgoApplication":   PermWrite,
 }
 
 // Глаголы, по которым метод считается изменяющим: слабое право чтения для них недопустимо.
@@ -84,6 +87,7 @@ var mutatingPrefixes = []string{
 
 	"Cordon", "Drain",
 	"Sync", "Refresh", "Terminate",
+	"Suspend", "Resume",
 }
 
 // Изменяющие по имени методы, которым чтения достаточно (с обоснованием).

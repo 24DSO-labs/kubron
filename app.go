@@ -199,6 +199,27 @@ func (a *App) StartNodeShell(name string) (*k8s.NodeShellSession, error) {
 
 // === Argo CD ===
 
+func (a *App) SuspendArgoAutoSync(apps []k8s.ArgoAppRef) ([]k8s.ArgoActionResult, error) {
+	if err := a.authz(auth.PermWrite, "apps", argoAuditApps(apps)); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.SuspendArgoAutoSync(apps)
+}
+
+func (a *App) ResumeArgoAutoSync(apps []k8s.ArgoAppRef) ([]k8s.ArgoActionResult, error) {
+	if err := a.authz(auth.PermWrite, "apps", argoAuditApps(apps)); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.ResumeArgoAutoSync(apps)
+}
+
+func (a *App) DeleteArgoApplication(namespace, name string, cascade bool) error {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name, "cascade", cascade); err != nil {
+		return err
+	}
+	return a.k8sMgr.DeleteArgoApplication(namespace, name, cascade)
+}
+
 // ArgoInstalled сообщает, установлен ли Argo CD (CRD Application) в активном кластере.
 func (a *App) ArgoInstalled() (bool, error) {
 	if err := a.authz(auth.PermRead); err != nil {
