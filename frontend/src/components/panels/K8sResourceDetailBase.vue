@@ -109,6 +109,13 @@
 import { ref, computed, onBeforeUnmount } from 'vue'
 import K8sIcon from '../icons/K8sIcon.vue'
 import { DETAIL_DEFAULT_WIDTH, useDetailPanelSize } from '../../composables/useDetailPanelSize'
+import { useSidebarWidth } from '../../composables/useSidebarWidth'
+const { width: sidebarWidth } = useSidebarWidth()
+
+const panelStyle = computed(() => {
+  if (expanded.value) return { width: 'auto', left: `${sidebarWidth.value}px` }
+  return { width: `${width.value}px` }
+})
 
 interface DetailTab {
   id: string
@@ -138,14 +145,14 @@ const activeTab = ref('properties')
 // ─── Ширина панели ───
 const { width, expanded, setWidth, toggleExpanded, collapse } = useDetailPanelSize()
 
-/** В развёрнутом виде панель занимает всё правее бокового меню */
-const panelStyle = computed(() => {
-  if (expanded.value) {
-    const sidebar = document.querySelector('.sidebar') as HTMLElement | null
-    return { width: 'auto', left: `${sidebar?.offsetWidth ?? 0}px` }
-  }
-  return { width: `${width.value}px` }
-})
+// /** В развёрнутом виде панель занимает всё правее бокового меню */
+// const panelStyle = computed(() => {
+//   if (expanded.value) {
+//     const sidebar = document.querySelector('.sidebar') as HTMLElement | null
+//     return { width: 'auto', left: `${sidebar?.offsetWidth ?? 0}px` }
+//   }
+//   return { width: `${width.value}px` }
+// })
 
 let dragStartX = 0
 let dragStartWidth = 0
