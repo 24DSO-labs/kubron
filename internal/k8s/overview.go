@@ -82,6 +82,14 @@ type ClusterOverview struct {
 	Health       ClusterHealth     `json:"health"`
 	RecentEvents []OverviewEvent   `json:"recentEvents"`
 	Workloads    []WorkloadSummary `json:"workloads"`
+
+	RestartsLast24h  int              `json:"restartsLast24h"`
+	OOMKilledLast24h int              `json:"oomKilledLast24h"`
+	ProblemPods      []ProblemPod     `json:"problemPods"`
+	ProblemPodsTotal int              `json:"problemPodsTotal"`
+	WarningsLastHour int              `json:"warningsLastHour"`
+	WarningReasons   []ReasonCount    `json:"warningReasons"`
+	Requests         ResourceRequests `json:"requests"`
 }
 
 // GetClusterOverview собирает данные для главного экрана.
@@ -177,8 +185,10 @@ func (m *Manager) GetClusterOverview() (*ClusterOverview, error) {
 	wg.Wait()
 
 	overview := &ClusterOverview{
-		RecentEvents: []OverviewEvent{},
-		Workloads:    []WorkloadSummary{},
+		RecentEvents:   []OverviewEvent{},
+		Workloads:      []WorkloadSummary{},
+		ProblemPods:    []ProblemPod{},
+		WarningReasons: []ReasonCount{},
 	}
 
 	// Nodes
@@ -271,6 +281,26 @@ func (m *Manager) GetClusterOverview() (*ClusterOverview, error) {
 		}
 		overview.RecentEvents = recentEvents(events.Items, overviewEventsLimit)
 	}
+
+	// Сигналы для главного экрана (только по данным API, без Prometheus)
+	now := time.Now()
+	if pods != nil {
+		ins := analyzePods(pods.Items, now)
+		overview.RestartsLast24h, overview.OOMKilledLast24h = ins.Restarts, ins.OOMKilled
+		overview.ProblemPods, overview.ProblemPodsTotal = ins.Problems, ins.ProblemsTotal
+	}
+	if events != nil {
+		overview.WarningsLastHour, overview.WarningReasons = warningsByReason(events.Items, now)
+	}
+	var nodeItems []corev1.Node
+	if nodes != nil {
+		nodeItems = nodes.Items
+	}
+	var podItems []corev1.Pod
+	if pods != nil {
+		podItems = pods.Items
+	}
+	overview.Requests = clusterRequests(nodeItems, podItems)
 
 	// Health
 	var systemPods []corev1.Pod
