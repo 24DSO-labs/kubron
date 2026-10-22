@@ -1,5 +1,5 @@
 <template>
-  <aside class="sidebar">
+  <aside class="sidebar" :style="{ width: width + 'px' }">
     <!-- Cluster name -->
     <div class="sidebar-cluster-name" v-if="clusterName">
       <span class="cluster-name-text">{{ clusterName }}</span>
