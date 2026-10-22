@@ -219,3 +219,31 @@ export interface ArgoGraph {
   /** что не удалось прочитать (например, нет прав на pods) */
   warnings: string[]
 }
+
+/** Состояние опционального провайдера Argo CD API; сам токен фронтенду не отдаётся */
+export interface ArgoAPIStatus {
+  configured: boolean
+}
+
+export type ArgoDiffState = 'InSync' | 'Modified' | 'Missing' | 'Extra'
+
+export interface ArgoResourceDiff {
+  group: string
+  kind: string
+  namespace: string
+  name: string
+  hook: boolean
+  state: ArgoDiffState
+  /** unified diff «текущее → желаемое (git)»; значения Secret скрыты на бэкенде */
+  diff: string
+  /** diff обрезан или не построен из-за размера */
+  truncated: boolean
+}
+
+export interface ArgoDiff {
+  resources: ArgoResourceDiff[]
+  total: number
+  changed: number
+  /** список ресурсов обрезан */
+  truncated: boolean
+}
