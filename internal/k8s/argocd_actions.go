@@ -8,6 +8,8 @@ import (
 	"time"
 	"unicode"
 
+	"encoding/json"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -316,4 +318,115 @@ func applyRollback(obj *unstructured.Unstructured, id int64, prune, dryRun bool)
 		return errors.New("в записи истории нет ревизии")
 	}
 	return setArgoOperation(obj, sync)
+}
+
+const (
+	argoResourcesFinalizer  = "resources-finalizer.argocd.argoproj.io"
+	argoSuspendedAnnotation = "kubron.io/suspended-automated"
+)
+
+// SuspendArgoAutoSync отключает автосинхронизацию, запоминая прежние параметры в аннотации.
+func (m *Manager) SuspendArgoAutoSync(apps []ArgoAppRef) ([]ArgoActionResult, error) {
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), argoActionTimeout)
+	defer cancel()
+	return forEachArgoApp(conn.DynamicClient, apps, func(ri dynamic.ResourceInterface, ref ArgoAppRef) error {
+		return updateArgoApp(ctx, ri, ref.Name, applySuspendAutoSync)
+	})
+}
+
+// ResumeArgoAutoSync включает автосинхронизацию с параметрами, сохранёнными при отключении.
+func (m *Manager) ResumeArgoAutoSync(apps []ArgoAppRef) ([]ArgoActionResult, error) {
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), argoActionTimeout)
+	defer cancel()
+	return forEachArgoApp(conn.DynamicClient, apps, func(ri dynamic.ResourceInterface, ref ArgoAppRef) error {
+		return updateArgoApp(ctx, ri, ref.Name, applyResumeAutoSync)
+	})
+}
+
+// DeleteArgoApplication удаляет Application. cascade=true: вместе с управляемыми ресурсами
+// (финализатор Argo CD), false: ресурсы остаются в кластере.
+func (m *Manager) DeleteArgoApplication(namespace, name string, cascade bool) error {
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return err
+	}
+	namespace, name = strings.TrimSpace(namespace), strings.TrimSpace(name)
+	if namespace == "" || name == "" {
+		return errors.New("не указано приложение")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), argoActionTimeout)
+	defer cancel()
+	ri := conn.DynamicClient.Resource(kindTable["application"].gvr).Namespace(namespace)
+	if err := updateArgoApp(ctx, ri, name, func(obj *unstructured.Unstructured) error {
+		applyDeletePolicy(obj, cascade)
+		return nil
+	}); err != nil {
+		return err
+	}
+	policy := metav1.DeletePropagationBackground
+	return ri.Delete(ctx, name, metav1.DeleteOptions{PropagationPolicy: &policy})
+}
+
+func applySuspendAutoSync(obj *unstructured.Unstructured) error {
+	cur, found, _ := unstructured.NestedFieldNoCopy(obj.Object, "spec", "syncPolicy", "automated")
+	if !found || cur == nil {
+		return errors.New("автосинхронизация уже отключена")
+	}
+	raw, err := json.Marshal(cur)
+	if err != nil {
+		return err
+	}
+	ann := obj.GetAnnotations()
+	if ann == nil {
+		ann = map[string]string{}
+	}
+	ann[argoSuspendedAnnotation] = string(raw)
+	obj.SetAnnotations(ann)
+	unstructured.RemoveNestedField(obj.Object, "spec", "syncPolicy", "automated")
+	return nil
+}
+
+func applyResumeAutoSync(obj *unstructured.Unstructured) error {
+	if autoSyncEnabled(obj.Object) {
+		return errors.New("автосинхронизация уже включена")
+	}
+	automated := map[string]interface{}{}
+	ann := obj.GetAnnotations()
+	if raw, ok := ann[argoSuspendedAnnotation]; ok {
+		var saved map[string]interface{}
+		if json.Unmarshal([]byte(raw), &saved) == nil && saved != nil {
+			automated = saved
+		}
+		delete(ann, argoSuspendedAnnotation)
+		obj.SetAnnotations(ann)
+	}
+	return unstructured.SetNestedField(obj.Object, automated, "spec", "syncPolicy", "automated")
+}
+
+// applyDeletePolicy ставит (cascade) или снимает финализатор каскадного удаления Argo CD,
+// включая варианты с суффиксом /foreground и /background.
+func applyDeletePolicy(obj *unstructured.Unstructured, cascade bool) {
+	out := make([]string, 0, len(obj.GetFinalizers())+1)
+	has := false
+	for _, f := range obj.GetFinalizers() {
+		if strings.HasPrefix(f, argoResourcesFinalizer) {
+			if !cascade {
+				continue
+			}
+			has = true
+		}
+		out = append(out, f)
+	}
+	if cascade && !has {
+		out = append(out, argoResourcesFinalizer)
+	}
+	obj.SetFinalizers(out)
 }

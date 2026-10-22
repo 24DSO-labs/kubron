@@ -12,7 +12,7 @@ import ArgoDiffTab from '../../../components/resource/sections/ArgoDiffTab.vue'
 import ArgoSourcesTab from '../../../components/resource/sections/ArgoSourcesTab.vue'
 import { Perm } from '../../../types/auth'
 import { argoLiveTick } from '../../../composables/useArgoLive'
-import { openArgoUI, refreshArgoApps, requestArgoSync, terminateArgoOperation, } from '../../argoActions'
+import { openArgoUI, refreshArgoApps, requestArgoDelete, setArgoAutoSync, requestArgoSync, terminateArgoOperation, } from '../../argoActions'
 
 const syncPolicy = (a: ArgoApplicationInfo) =>
   a.autoSync
@@ -107,10 +107,24 @@ export const argoApplication = defineResource<ArgoApplicationInfo>({
       id: 'argoui', label: 'Open Argo UI', icon: 'open-browser', permission: Perm.PortForward,
       run: () => openArgoUI(),
     },
+        {
+      id: 'disableAutoSync', label: 'Disable auto-sync', icon: 'pause', permission: Perm.Write,
+      when: a => !!a.autoSync,
+      run: a => setArgoAutoSync([a as ArgoApplicationInfo], false),
+    },
+    {
+      id: 'enableAutoSync', label: 'Enable auto-sync', icon: 'play', permission: Perm.Write,
+      when: a => !a.autoSync,
+      run: a => setArgoAutoSync([a as ArgoApplicationInfo], true),
+    },
+    {
+      id: 'delete', label: 'Delete', icon: 'delete', danger: true, permission: Perm.Write,
+      run: a => requestArgoDelete(a as ArgoApplicationInfo),
+    },
   ],
   api: {
     // Пустой namespace = все namespace (Application может жить в любом)
     list: ns => callApp('GetArgoApplications', ns) as Promise<ArgoApplicationInfo[]>,
-    // Мутирующих операций в MVP нет: Delete не объявлен (remove отсутствует)
+    // remove не объявлен намеренно: удаление идёт через действие delete (выбор cascade)
   },
 })

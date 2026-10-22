@@ -34,13 +34,18 @@
 
       <div class="ov-row ov-row-3">
         <ClusterHealthCard :health="data.health" />
-        <ResourceUsageCard :cluster-name="clusterName" @open-settings="emit('navigate', 'settings')" />
-        <RecentEventsCard :events="data.recentEvents" @view-all="emit('navigate', 'events')" />
+        <ResourceUsageCard :cluster-name="clusterName" :requests="data.requests" @open-settings="emit('navigate', 'settings')" />
+        <WarningsCard :reasons="data.warningReasons ?? []" @view-all="emit('navigate', 'events')" />
       </div>
 
       <div class="ov-row ov-row-main">
         <WorkloadsCard :workloads="data.workloads" @open="openWorkload" />
-        <ShortcutsCard @navigate="view => emit('navigate', view)" />
+        <ProblemPodsCard
+          :pods="data.problemPods ?? []"
+          :total="data.problemPodsTotal"
+          @open="openPod"
+          @view-all="emit('navigate', 'pods')"
+        />
       </div>
     </template>
   </div>
@@ -51,12 +56,13 @@ import { computed, toRef } from 'vue'
 import StatCard from '../overview/StatCard.vue'
 import ClusterHealthCard from '../overview/ClusterHealthCard.vue'
 import ResourceUsageCard from '../overview/ResourceUsageCard.vue'
-import RecentEventsCard from '../overview/RecentEventsCard.vue'
+import WarningsCard from '../overview/WarningsCard.vue'
 import WorkloadsCard from '../overview/WorkloadsCard.vue'
-import ShortcutsCard from '../overview/ShortcutsCard.vue'
+import ProblemPodsCard from '../overview/ProblemPodsCard.vue'
 import { useOverview } from '../../composables/useOverview'
+import { useViewHotkeys } from '../../composables/useViewHotkeys'
 import { resourceActions } from '../../resources/actions'
-import type { WorkloadSummary } from '../../types/overview'
+import type { ProblemPod, WorkloadSummary } from '../../types/overview'
 import '../overview/overview.css'
 
 const props = withDefaults(defineProps<{ clusterName?: string }>(), { clusterName: '' })
@@ -64,48 +70,36 @@ const emit = defineEmits<{ (e: 'navigate', view: string): void }>()
 
 const { data, loading, refreshing, error, updatedAt, refresh } = useOverview(toRef(props, 'clusterName'))
 
+// Alt+P / D / N / E / S: раньше их регистрировала карточка Shortcuts
+useViewHotkeys(view => emit('navigate', view))
+
 type Tone = 'ok' | 'warn' | 'danger'
 
 const stats = computed(() => {
   const o = data.value
   if (!o) return []
 
-  const podExtra = [
-    o.failedPods > 0 ? `Failed: ${o.failedPods}` : '',
-    o.pendingPods > 0 ? `Pending: ${o.pendingPods}` : '',
-  ].filter(Boolean)
-
   const nodesTone: Tone = o.totalNodes > 0 && o.readyNodes === 0 ? 'danger' : o.readyNodes < o.totalNodes ? 'warn' : 'ok'
-  const podsTone: Tone = o.failedPods > 0 ? 'danger' : o.pendingPods > 0 ? 'warn' : 'ok'
+  const podsTone: Tone = o.failedPods > 0 ? 'danger' : o.problemPodsTotal > 0 ? 'warn' : 'ok'
+  const podsSub = o.problemPodsTotal > 0 ? `Problems: ${o.problemPodsTotal} · Running: ${o.runningPods}` : `Running: ${o.runningPods}`
+  const restartsTone: Tone = o.oomKilledLast24h > 0 ? 'danger' : o.restartsLast24h > 0 ? 'warn' : 'ok'
+  const topReason = o.warningReasons?.[0]
 
   return [
     { title: 'Nodes', value: o.totalNodes, sub: `Ready: ${o.readyNodes}`, tone: nodesTone, view: 'nodes' },
+    { title: 'Pods', value: o.totalPods, sub: podsSub, tone: podsTone, view: 'pods' },
     {
-      title: 'Pods',
-      value: o.totalPods,
-      sub: [`Running: ${o.runningPods}`, ...podExtra].join(' · '),
-      tone: podsTone,
+      title: 'Restarts (24h)',
+      value: o.restartsLast24h,
+      sub: o.oomKilledLast24h > 0 ? `OOMKilled: ${o.oomKilledLast24h}` : o.restartsLast24h > 0 ? 'Containers restarted' : 'No restarts',
+      tone: restartsTone,
       view: 'pods',
     },
     {
-      title: 'Deployments',
-      value: o.totalDeployments,
-      sub: `Ready: ${o.readyDeployments}`,
-      tone: (o.readyDeployments < o.totalDeployments ? 'warn' : 'ok') as Tone,
-      view: 'deployments',
-    },
-    {
-      title: 'Namespaces',
-      value: o.totalNamespaces,
-      sub: o.activeNamespaces === o.totalNamespaces ? 'Active' : `Active: ${o.activeNamespaces}`,
-      tone: (o.activeNamespaces < o.totalNamespaces ? 'warn' : 'ok') as Tone,
-      view: 'namespaces',
-    },
-    {
-      title: 'Events',
-      value: o.warningEvents,
-      sub: o.warningEvents > 0 ? 'Warning' : 'No warnings',
-      tone: (o.warningEvents > 0 ? 'warn' : 'ok') as Tone,
+      title: 'Warnings (1h)',
+      value: o.warningsLastHour,
+      sub: topReason ? `${topReason.reason} ×${topReason.count}` : 'No warnings',
+      tone: (o.warningsLastHour > 0 ? 'warn' : 'ok') as Tone,
       view: 'events',
     },
   ]
@@ -113,6 +107,10 @@ const stats = computed(() => {
 
 function openWorkload(w: WorkloadSummary) {
   resourceActions.open(w.kind.toLowerCase(), w.namespace, w.name)
+}
+
+function openPod(p: ProblemPod) {
+  resourceActions.open('pod', p.namespace, p.name)
 }
 </script>
 
@@ -129,15 +127,13 @@ function openWorkload(w: WorkloadSummary) {
 .ov-state-detail { font-size: 12px; color: var(--ov-muted); }
 .ov-state-error .ov-btn { margin-top: 8px; }
 
-.ov-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.ov-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 14px; }
 .ov-row { display: grid; gap: 14px; margin-bottom: 14px; }
 .ov-row-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.ov-row-main { grid-template-columns: minmax(0, 1fr) 260px; margin-bottom: 0; }
+.ov-row-main { grid-template-columns: minmax(0, 1fr) 320px; margin-bottom: 0; }
 
-/* Адаптация по ширине самого экрана, а не окна: боковые панели съедают место */
 @container (max-width: 900px) {
   .ov-row-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  /* последняя карточка занимает всю строку, чтобы не оставалось пустой ячейки */
   .ov-row-3 > :last-child { grid-column: 1 / -1; }
 }
 @container (max-width: 700px) {
