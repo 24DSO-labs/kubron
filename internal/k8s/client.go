@@ -34,6 +34,10 @@ type ClusterConnection struct {
 
 	cacheMu  sync.Mutex
 	overview *overviewCache
+
+	argoMu      sync.Mutex
+	argo        *argoCache
+	argoRetryAt time.Time
 }
 
 // overviewCache лениво запускает informers для главного экрана (только у активного кластера).
@@ -48,6 +52,7 @@ func (c *ClusterConnection) overviewCache(onChange func()) *overviewCache {
 
 // Close останавливает фоновые informers подключения.
 func (c *ClusterConnection) Close() {
+	c.closeArgoCache()
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 	if c.overview != nil {
