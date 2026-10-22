@@ -71,6 +71,9 @@ var exactPermission = map[string]Permission{
 	"TerminateArgoOperation":  PermOperate,
 	"RollbackArgoApplication": PermOperate,
 	"OpenArgoUI":              PermPortForward,
+	"SetArgoAPIToken":         PermClusterManage,
+	"DeleteArgoAPIToken":      PermClusterManage,
+	"GetArgoApplicationDiff":  PermPortForward,
 }
 
 // Глаголы, по которым метод считается изменяющим: слабое право чтения для них недопустимо.
