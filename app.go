@@ -285,6 +285,40 @@ func (a *App) GetArgoApplicationGraph(namespace, name string) (*k8s.ArgoGraph, e
 	return a.k8sMgr.GetArgoApplicationGraph(namespace, name)
 }
 
+// GetArgoAPIStatus сообщает, задан ли токен Argo CD API для активного кластера (сам токен наружу не отдаётся).
+func (a *App) GetArgoAPIStatus() (*k8s.ArgoAPIStatus, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetArgoAPIStatus()
+}
+
+// SetArgoAPIToken сохраняет токен Argo CD API для активного кластера.
+// Токен нельзя передавать в authz: аргументы попадают в журнал аудита.
+func (a *App) SetArgoAPIToken(token string) error {
+	if err := a.authz(auth.PermClusterManage); err != nil {
+		return err
+	}
+	return a.k8sMgr.SetArgoAPIToken(token)
+}
+
+// DeleteArgoAPIToken удаляет токен Argo CD API активного кластера.
+func (a *App) DeleteArgoAPIToken() error {
+	if err := a.authz(auth.PermClusterManage); err != nil {
+		return err
+	}
+	return a.k8sMgr.DeleteArgoAPIToken()
+}
+
+// GetArgoApplicationDiff сравнивает желаемое (git) и текущее состояние ресурсов Application через Argo CD API.
+// Поднимает туннель к argocd-server, поэтому требует права на проброс портов.
+func (a *App) GetArgoApplicationDiff(namespace, name string) (*k8s.ArgoDiff, error) {
+	if err := a.authz(auth.PermPortForward, "namespace", namespace, "name", name); err != nil {
+		return nil, err
+	}
+	return a.pfMgr.GetArgoApplicationDiff(namespace, name)
+}
+
 // OpenArgoUI пробрасывает порт на argocd-server и возвращает URL для браузера.
 func (a *App) OpenArgoUI() (*k8s.ArgoUIInfo, error) {
 	if err := a.authz(auth.PermPortForward); err != nil {
