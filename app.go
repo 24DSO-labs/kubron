@@ -277,6 +277,14 @@ func (a *App) GetArgoClusters(namespace string) ([]k8s.ArgoClusterInfo, error) {
 	return a.k8sMgr.GetArgoClusters(namespace)
 }
 
+// GetArgoApplicationGraph возвращает граф ресурсов Application (владение, Service → Pod, Ingress → Service).
+func (a *App) GetArgoApplicationGraph(namespace, name string) (*k8s.ArgoGraph, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetArgoApplicationGraph(namespace, name)
+}
+
 // OpenArgoUI пробрасывает порт на argocd-server и возвращает URL для браузера.
 func (a *App) OpenArgoUI() (*k8s.ArgoUIInfo, error) {
 	if err := a.authz(auth.PermPortForward); err != nil {
