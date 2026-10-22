@@ -70,6 +70,7 @@ const ACTION_LABELS: Record<string, string> = {
   RollbackArgoApplication: 'Argo CD: откат',
   OpenArgoUI: 'Argo CD: открытие UI',
   SetArgoAPIToken: 'Argo CD: сохранение токена API',
+  GenerateArgoAPIToken: 'Argo CD: выдача токена API',
   DeleteArgoAPIToken: 'Argo CD: удаление токена API',
   GetArgoApplicationDiff: 'Argo CD: сравнение с git (diff)',
   SuspendArgoAutoSync: 'Argo CD: отключение автосинхронизации',

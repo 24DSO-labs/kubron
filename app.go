@@ -323,6 +323,16 @@ func (a *App) SetArgoAPIToken(token string) error {
 	return a.k8sMgr.SetArgoAPIToken(token)
 }
 
+// GenerateArgoAPIToken получает токен Argo CD API для аккаунта и сохраняет его для активного кластера.
+// Логин и пароль Argo CD нужны только для этого вызова: они не сохраняются и не передаются в authz
+// (аргументы authz попадают в журнал аудита); токен фронтенду не возвращается.
+func (a *App) GenerateArgoAPIToken(account, username, password string, days int) error {
+	if err := a.authz(auth.PermClusterManage, "account", account); err != nil {
+		return err
+	}
+	return a.pfMgr.GenerateArgoAPIToken(account, username, password, days)
+}
+
 // DeleteArgoAPIToken удаляет токен Argo CD API активного кластера.
 func (a *App) DeleteArgoAPIToken() error {
 	if err := a.authz(auth.PermClusterManage); err != nil {
