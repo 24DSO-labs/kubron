@@ -186,3 +186,36 @@ export interface ArgoClusterInfo {
   clusterResources: boolean
   inCluster: boolean
 }
+
+/** Вершина графа ресурсов приложения (internal/k8s/argocd_graph.go) */
+export interface ArgoGraphNode {
+  /** group/kind/namespace/name */
+  id: string
+  group: string
+  kind: string
+  namespace: string
+  name: string
+  status: string
+  health: string
+  message: string
+  hook: boolean
+  /** есть в status.resources приложения; false — найден по связям (ReplicaSet, Pod, чужой Service у Ingress) */
+  managed: boolean
+}
+
+export type ArgoEdgeType = 'owns' | 'selects' | 'routes'
+
+export interface ArgoGraphEdge {
+  from: string
+  to: string
+  type: ArgoEdgeType
+}
+
+export interface ArgoGraph {
+  nodes: ArgoGraphNode[]
+  edges: ArgoGraphEdge[]
+  /** достигнут предел числа вершин */
+  truncated: boolean
+  /** что не удалось прочитать (например, нет прав на pods) */
+  warnings: string[]
+}
