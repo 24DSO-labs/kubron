@@ -9,6 +9,7 @@ import ArgoResourcesTab from '../../../components/resource/sections/ArgoResource
 import ArgoHistoryTab from '../../../components/resource/sections/ArgoHistoryTab.vue'
 import ArgoSourcesTab from '../../../components/resource/sections/ArgoSourcesTab.vue'
 import { Perm } from '../../../types/auth'
+import { argoLiveTick } from '../../../composables/useArgoLive'
 import { openArgoUI, refreshArgoApps, requestArgoSync, terminateArgoOperation, } from '../../argoActions'
 
 const syncPolicy = (a: ArgoApplicationInfo) =>
@@ -26,6 +27,8 @@ export const argoApplication = defineResource<ArgoApplicationInfo>({
   nav: { group: 'argocd', label: 'Applications' },
 
   autoRefresh: true,
+  // Список перезагружается по событию argocd:changed (informer), таймер остаётся страховкой
+  refreshOn: () => argoLiveTick.value,
 
   columns: [
     flatNameCol,
