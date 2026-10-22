@@ -73,7 +73,7 @@ var exactPermission = map[string]Permission{
 	"OpenArgoUI":              PermPortForward,
 	"SetArgoAPIToken":         PermClusterManage,
 	"GenerateArgoAPIToken":    PermClusterManage,
-	"DeleteArgoAPIToken":      PermClusterManage,
+	"DeleteArgoAPIToken":      PermWrite,
 	"GetArgoApplicationDiff":  PermPortForward,
 	"SuspendArgoAutoSync":     PermWrite,
 	"ResumeArgoAutoSync":      PermWrite,

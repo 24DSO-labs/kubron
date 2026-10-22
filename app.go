@@ -335,7 +335,7 @@ func (a *App) GenerateArgoAPIToken(account, username, password string, days int)
 
 // DeleteArgoAPIToken удаляет токен Argo CD API активного кластера.
 func (a *App) DeleteArgoAPIToken() error {
-	if err := a.authz(auth.PermClusterManage); err != nil {
+	if err := a.authz(auth.PermWrite); err != nil {
 		return err
 	}
 	return a.k8sMgr.DeleteArgoAPIToken()
