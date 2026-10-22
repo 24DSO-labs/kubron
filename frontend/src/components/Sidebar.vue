@@ -60,11 +60,22 @@
         <option v-for="ns in namespaces" :key="ns.name" :value="ns.name">{{ ns.name }}</option>
       </select>
     </div>
+    <!-- Ручка ширины на правой границе: мышь/touch или стрелки ← → -->
+  <div
+    class="sidebar-resizer"
+    role="separator"
+    aria-orientation="vertical"
+    aria-label="Resize sidebar"
+    tabindex="0"
+    @pointerdown="startResize"
+    @keydown="onResizerKey"
+    @dblclick="setWidth(SIDEBAR_DEFAULT_WIDTH, true)"
+  ></div>
   </aside>
 </template>
 
 <script lang="ts" setup>
-import { computed, reactive } from 'vue'
+import { computed, reactive, onBeforeUnmount } from 'vue'
 import type { NamespaceInfo } from '../types'
 import type { NavGroupId } from '../resources/types'
 import { NAV_GROUPS, buildNav } from '../resources/navigation'
@@ -73,6 +84,48 @@ import { useArgo } from '../composables/useArgo'
 import { can } from '../composables/useAuth'
 import { Perm } from '../types/auth'
 import CustomResourcesNav from './nav/CustomResourcesNav.vue'
+import { SIDEBAR_DEFAULT_WIDTH, useSidebarWidth } from '../composables/useSidebarWidth'
+
+const { width, setWidth } = useSidebarWidth()
+
+let dragStartX = 0
+let dragStartWidth = 0
+
+function startResize(e: PointerEvent) {
+  dragStartX = e.clientX
+  dragStartWidth = width.value
+  const el = e.currentTarget as HTMLElement
+  el.setPointerCapture(e.pointerId)
+  el.addEventListener('pointermove', onResizeMove)
+  el.addEventListener('pointerup', stopResize)
+  el.addEventListener('pointercancel', stopResize)
+  document.body.style.userSelect = 'none'
+  document.body.style.cursor = 'col-resize'
+  e.preventDefault()
+}
+
+// Меню слева: тянем вправо — шире
+function onResizeMove(e: PointerEvent) {
+  setWidth(dragStartWidth + (e.clientX - dragStartX))
+}
+
+function stopResize(e: PointerEvent) {
+  const el = e.currentTarget as HTMLElement
+  el.removeEventListener('pointermove', onResizeMove)
+  el.removeEventListener('pointerup', stopResize)
+  el.removeEventListener('pointercancel', stopResize)
+  if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId)
+  document.body.style.userSelect = ''
+  document.body.style.cursor = ''
+  setWidth(width.value, true) // запоминаем итоговую ширину
+}
+
+function onResizerKey(e: KeyboardEvent) {
+  const step = e.shiftKey ? 40 : 10
+  if (e.key === 'ArrowRight') { setWidth(width.value + step, true); e.preventDefault() }
+  if (e.key === 'ArrowLeft') { setWidth(width.value - step, true); e.preventDefault() }
+}
+
 
 defineProps<{
   currentView: string
@@ -102,4 +155,30 @@ const expanded = reactive(
 function toggle(group: NavGroupId) {
   expanded[group] = !expanded[group]
 }
+
+onBeforeUnmount(() => {
+  document.body.style.userSelect = ''
+  document.body.style.cursor = ''
+})
+
 </script>
+
+<style scoped>
+.sidebar { position: relative; }
+.sidebar-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 2;
+  touch-action: none;
+}
+.sidebar-resizer:hover,
+.sidebar-resizer:focus-visible,
+.sidebar-resizer:active {
+  background: rgba(139, 92, 246, 0.45);
+  outline: none;
+}
+</style>
