@@ -105,6 +105,9 @@ func analyzePods(pods []corev1.Pod, now time.Time) podInsights {
 // Это число перезапустившихся контейнеров, а не сумма restartCount: у контейнера в crash loop
 // счётчик растёт каждые минуты и перекрыл бы все остальные сигналы.
 func recentRestarts(p *corev1.Pod, now time.Time) (restarts, oom int) {
+	if p.DeletionTimestamp != nil {
+		return 0, 0
+	}
 	for _, cs := range p.Status.ContainerStatuses {
 		t := cs.LastTerminationState.Terminated
 		if t == nil || t.FinishedAt.IsZero() || now.Sub(t.FinishedAt.Time) > restartWindow {
