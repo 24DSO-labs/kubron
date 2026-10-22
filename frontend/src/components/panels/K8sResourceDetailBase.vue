@@ -1,11 +1,32 @@
 <template>
-  <div class="detail-panel">
+  <div class="detail-panel" :class="{ 'detail-expanded': expanded }" :style="panelStyle">
+    <!-- Ручка ширины на левой границе: перетаскивание мышью или стрелки ← → с клавиатуры -->
+    <div
+      v-if="!expanded"
+      class="detail-resizer"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Resize details panel"
+      tabindex="0"
+      @pointerdown="startResize"
+      @keydown="onResizerKey"
+      @dblclick="setWidth(DETAIL_DEFAULT_WIDTH, true)"
+    ></div>
     <!-- Header with title and action menu -->
     <div class="detail-header">
       <span class="rd-label">{{ resourceType }}</span> 
       <div class="detail-actions-bar">
         <!-- Custom action menu items (slot or prop-based) -->
         <slot name="actions" :resource="resource"></slot>
+
+        <!-- Развернуть панель на всю область контента / вернуть ширину -->
+        <button
+          class="btn-action btn-expand"
+          :title="expanded ? 'Restore panel width' : 'Expand panel'"
+          :aria-label="expanded ? 'Restore panel width' : 'Expand panel'"
+          :aria-pressed="expanded"
+          @click="toggleExpanded"
+        >{{ expanded ? '⤡' : '⤢' }}</button>
 
         <!-- Edit button -->
         <button v-if="showEdit !== false" class="btn-action" @click="emit('edit')" title="Edit">
@@ -85,8 +106,9 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onBeforeUnmount } from 'vue'
 import K8sIcon from '../icons/K8sIcon.vue'
+import { DETAIL_DEFAULT_WIDTH, useDetailPanelSize } from '../../composables/useDetailPanelSize'
 
 interface DetailTab {
   id: string
@@ -112,6 +134,60 @@ const emit = defineEmits<{
 }>()
 
 const activeTab = ref('properties')
+
+// ─── Ширина панели ───
+const { width, expanded, setWidth, toggleExpanded, collapse } = useDetailPanelSize()
+
+/** В развёрнутом виде панель занимает всё правее бокового меню */
+const panelStyle = computed(() => {
+  if (expanded.value) {
+    const sidebar = document.querySelector('.sidebar') as HTMLElement | null
+    return { width: 'auto', left: `${sidebar?.offsetWidth ?? 0}px` }
+  }
+  return { width: `${width.value}px` }
+})
+
+let dragStartX = 0
+let dragStartWidth = 0
+
+function startResize(e: PointerEvent) {
+  dragStartX = e.clientX
+  dragStartWidth = width.value
+  const el = e.currentTarget as HTMLElement
+  el.setPointerCapture(e.pointerId)
+  el.addEventListener('pointermove', onResizeMove)
+  el.addEventListener('pointerup', stopResize)
+  el.addEventListener('pointercancel', stopResize)
+  document.body.style.userSelect = 'none'
+  e.preventDefault()
+}
+
+// Панель прижата к правому краю: тянем влево — шире
+function onResizeMove(e: PointerEvent) {
+  setWidth(dragStartWidth + (dragStartX - e.clientX))
+}
+
+function stopResize(e: PointerEvent) {
+  const el = e.currentTarget as HTMLElement
+  el.removeEventListener('pointermove', onResizeMove)
+  el.removeEventListener('pointerup', stopResize)
+  el.removeEventListener('pointercancel', stopResize)
+  if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId)
+  document.body.style.userSelect = ''
+  setWidth(width.value, true) // запоминаем итоговую ширину
+}
+
+function onResizerKey(e: KeyboardEvent) {
+  const step = e.shiftKey ? 80 : 20
+  if (e.key === 'ArrowLeft') { setWidth(width.value + step, true); e.preventDefault() }
+  if (e.key === 'ArrowRight') { setWidth(width.value - step, true); e.preventDefault() }
+}
+
+// Режим «развернуть» относится к открытой панели: после закрытия следующая открывается обычной ширины
+onBeforeUnmount(() => {
+  collapse()
+  document.body.style.userSelect = ''
+})
 
 const showMetaInfo = computed(() => {
   return props.resource && props.resource.name
@@ -157,6 +233,7 @@ function formatAgeAbsolute(created: string): string {
 
 <style scoped>
 .detail-panel {
+  /* position/right/top/bottom/width заданы глобально (assets/style.css), ширину переопределяет :style */
   background: #1a1b2e;
   color: #d4d4d4;
   display: flex;
@@ -459,5 +536,31 @@ function formatAgeAbsolute(created: string): string {
 .age-absolute {
   font-size: 0.8rem;
   color: #868d8a;
+}
+</style>
+<style scoped>
+.detail-resizer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 2;
+  touch-action: none;
+}
+.detail-resizer:hover,
+.detail-resizer:focus-visible,
+.detail-resizer:active {
+  background: rgba(139, 92, 246, 0.45);
+  outline: none;
+}
+.detail-expanded {
+  box-shadow: none;
+}
+.btn-expand {
+  font-size: 1rem;
+  line-height: 1;
+  color: #d4d4d4;
 }
 </style>
