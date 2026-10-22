@@ -70,6 +70,7 @@ type Manager struct {
 
 	notifyMu sync.RWMutex
 	notifier func(event string, data ...any)
+	logs     logStreams
 }
 
 // SetNotifier задаёт функцию, которой бэкенд сообщает фронтенду о событиях (Wails EventsEmit).
