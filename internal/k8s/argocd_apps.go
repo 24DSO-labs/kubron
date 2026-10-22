@@ -22,6 +22,12 @@ func (m *Manager) GetArgoApplications(namespace string) ([]ArgoApplicationInfo, 
 	if err != nil {
 		return nil, err
 	}
+	// После синхронизации informer список строится из памяти без LIST к API-серверу.
+	if ac := conn.argoCache(func() { m.emit(EventArgoChanged, conn.Name) }); ac != nil {
+		if apps, ok := ac.list(namespace); ok {
+			return apps, nil
+		}
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	return listArgoApplications(ctx, conn.DynamicClient, namespace)
@@ -36,12 +42,7 @@ func listArgoApplications(ctx context.Context, dyn dynamic.Interface, namespace 
 	for i := range list.Items {
 		apps = append(apps, parseArgoApplication(&list.Items[i]))
 	}
-	sort.SliceStable(apps, func(i, j int) bool {
-		if apps[i].Namespace != apps[j].Namespace {
-			return apps[i].Namespace < apps[j].Namespace
-		}
-		return apps[i].Name < apps[j].Name
-	})
+	sortArgoApplications(apps)
 	return apps, nil
 }
 
