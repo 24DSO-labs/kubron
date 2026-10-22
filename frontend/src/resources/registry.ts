@@ -41,6 +41,8 @@ import { argoApplicationSet } from './definitions/argocd/applicationset'
 import { argoProject } from './definitions/argocd/project'
 import { argoRepository } from './definitions/argocd/repository'
 import { argoCluster } from './definitions/argocd/cluster'
+import { dynamicById, dynamicByView } from './dynamicRegistry'
+import { customResourceDefinition } from './definitions/crd'
 
 /** Добавляя новый ресурс, достаточно дописать его сюда. */
 export const resources: ResourceDefinition[] = [
@@ -96,10 +98,13 @@ export const resources: ResourceDefinition[] = [
   node,
   event,
   namespaceResource,
+    // custom resources
+  customResourceDefinition,
 ]
 
 const byView = new Map(resources.map(r => [r.view, r]))
 const byId = new Map(resources.map(r => [r.id, r]))
 
-export const getResourceByView = (view: string) => byView.get(view)
-export const getResourceById = (id: string) => byId.get(id.toLowerCase())
+
+export const getResourceByView = (view: string) => byView.get(view) ?? dynamicByView.get(view)
+export const getResourceById = (id: string) => byId.get(id.toLowerCase()) ?? dynamicById.get(id.toLowerCase())
