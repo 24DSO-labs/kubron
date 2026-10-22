@@ -7,6 +7,7 @@ import { argoDestination, argoPathOrChart, shortRepo, shortRevision } from '../.
 import ArgoConditionsSection from '../../../components/resource/sections/ArgoConditionsSection.vue'
 import ArgoResourcesTab from '../../../components/resource/sections/ArgoResourcesTab.vue'
 import ArgoHistoryTab from '../../../components/resource/sections/ArgoHistoryTab.vue'
+import ArgoGraphTab from '../../../components/resource/sections/ArgoGraphTab.vue'
 import ArgoSourcesTab from '../../../components/resource/sections/ArgoSourcesTab.vue'
 import { Perm } from '../../../types/auth'
 import { argoLiveTick } from '../../../composables/useArgoLive'
@@ -78,6 +79,7 @@ export const argoApplication = defineResource<ArgoApplicationInfo>({
   tabs: [
     { id: 'argoResources', label: 'Resources', component: ArgoResourcesTab },
     { id: 'argoHistory', label: 'History', component: ArgoHistoryTab },
+    { id: 'argoGraph', label: 'Graph', component: ArgoGraphTab },
     { id: 'argoSources', label: 'Sources', component: ArgoSourcesTab },
   ],
   actions: [
