@@ -44,7 +44,7 @@ body {
 
 /* Sidebar */
 .sidebar {
-  width: 220px; background: #181825; border-right: 1px solid #313244;
+  background: #181825; border-right: 1px solid #313244;
   display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden;
 }
 
