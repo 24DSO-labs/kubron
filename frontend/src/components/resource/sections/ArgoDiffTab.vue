@@ -6,26 +6,81 @@
     <!-- Токен не задан: объяснение и форма -->
     <div v-else-if="!configured" class="ad-setup">
       <p>
-        Diff между git и кластером считает сам Argo CD, поэтому нужен токен его API.
-        Создайте его командой <code>argocd account generate-token --account &lt;имя&gt;</code>
-        (аккаунту нужно право <code>get</code> на приложения).
+        Diff между git и кластером считает сам Argo CD, поэтому нужен токен его API (аккаунту достаточно права
+        <code>get</code> на приложения). Kubron может получить токен у Argo CD сам или принять готовый.
       </p>
       <p class="rd-muted">
         Токен хранится только на этом компьютере в файле с правами 0600, не показывается в интерфейсе
         и не попадает в журнал аудита. Значения Secret в diff скрываются.
       </p>
-      <form v-if="canManage" class="ad-form" @submit.prevent="saveToken">
-        <input
-          v-model="tokenInput"
-          class="ad-input"
-          type="password"
-          autocomplete="off"
-          spellcheck="false"
-          placeholder="Argo CD API token"
-          aria-label="Argo CD API token"
-        />
-        <button class="rd-btn" type="submit" :disabled="saving || !tokenInput.trim()">Save token</button>
-      </form>
+
+      <template v-if="canManage">
+        <h4 class="ad-title">Получить токен у Argo CD</h4>
+        <form class="ad-grid" autocomplete="off" @submit.prevent="generateToken">
+          <label class="ad-field">
+            <span>Argo CD user</span>
+            <input v-model="genUser" class="ad-input" autocomplete="off" spellcheck="false" aria-label="Argo CD user" />
+          </label>
+          <label class="ad-field">
+            <span>Password</span>
+            <input
+              v-model="genPassword"
+              class="ad-input"
+              type="password"
+              autocomplete="new-password"
+              spellcheck="false"
+              aria-label="Argo CD password"
+            />
+          </label>
+          <label class="ad-field">
+            <span>Token for account</span>
+            <input v-model="genAccount" class="ad-input" autocomplete="off" spellcheck="false" aria-label="Account for the token" />
+          </label>
+          <label class="ad-field">
+            <span>Valid for</span>
+            <select v-model.number="genDays" class="ad-input" aria-label="Token lifetime">
+              <option v-for="d in DAY_OPTIONS" :key="d" :value="d">{{ d }} days</option>
+            </select>
+          </label>
+          <div class="ad-actions">
+            <button class="rd-btn" type="submit" :disabled="generating || !canGenerate">
+              {{ generating ? 'Generating…' : 'Generate token' }}
+            </button>
+          </div>
+        </form>
+        <p class="rd-muted ad-fine">
+          Пароль уходит только в Argo CD через локальный туннель и нигде не сохраняется; сохраняется лишь выданный токен.
+          Откроется проброс порта к argocd-server.
+        </p>
+
+        <details class="ad-help">
+          <summary>Что настроить в Argo CD заранее</summary>
+          <p>
+            Аккаунту нужна возможность <code>apiKey</code>, а лучше отдельный аккаунт только для чтения вместо
+            <code>admin</code>:
+          </p>
+          <pre class="ad-code">{{ HELP_YAML }}</pre>
+          <p>
+            Если токен создаёт пользователь, отличный от аккаунта токена, у него должно быть право
+            <code>accounts, update</code>. Тот же токен можно создать вручную:
+            <code>argocd account generate-token --account kubron</code>.
+          </p>
+        </details>
+
+        <h4 class="ad-title">Или вставить готовый токен</h4>
+        <form class="ad-form" @submit.prevent="saveToken">
+          <input
+            v-model="tokenInput"
+            class="ad-input"
+            type="password"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Argo CD API token"
+            aria-label="Argo CD API token"
+          />
+          <button class="rd-btn" type="submit" :disabled="saving || !tokenInput.trim()">Save token</button>
+        </form>
+      </template>
       <p v-else class="rd-muted">Сохранить токен может пользователь с правом «Управление кластерами».</p>
       <p v-if="error" class="ad-error">{{ error }}</p>
     </div>
@@ -78,6 +133,24 @@ const configured = ref<boolean | null>(null)
 const statusError = ref('')
 const tokenInput = ref('')
 const saving = ref(false)
+
+// Получение токена у Argo CD. Пароль живёт только в этом ref и очищается после каждой попытки
+const DAY_OPTIONS = [7, 30, 90, 365]
+const HELP_YAML = `# argocd-cm
+data:
+  accounts.kubron: apiKey
+
+# argocd-rbac-cm
+data:
+  policy.csv: |
+    p, role:kubron-readonly, applications, get, */*, allow
+    g, kubron, role:kubron-readonly`
+const genUser = ref('admin')
+const genPassword = ref('')
+const genAccount = ref('kubron')
+const genDays = ref(30)
+const generating = ref(false)
+const canGenerate = computed(() => !!genUser.value.trim() && !!genPassword.value && !!genAccount.value.trim())
 const loading = ref(false)
 const error = ref('')
 const diff = ref<ArgoDiff | null>(null)
@@ -111,6 +184,21 @@ async function saveToken() {
   } finally {
     tokenInput.value = '' // токен не остаётся в состоянии компонента ни при успехе, ни при ошибке
     saving.value = false
+  }
+}
+
+async function generateToken() {
+  const password = genPassword.value
+  generating.value = true
+  error.value = ''
+  try {
+    await callApp('GenerateArgoAPIToken', genAccount.value.trim(), genUser.value.trim(), password, genDays.value)
+    configured.value = true
+  } catch (e: any) {
+    error.value = errText(e)
+  } finally {
+    genPassword.value = '' // пароль не остаётся в состоянии компонента ни при успехе, ни при ошибке
+    generating.value = false
   }
 }
 
@@ -183,6 +271,18 @@ const lineClass = (l: string) =>
 .ad-setup p { margin: 0 0 10px; line-height: 1.5; font-size: 0.85rem; }
 .ad-setup code { font-family: 'Courier New', monospace; background: #1a1d2e; padding: 1px 5px; border-radius: 3px; }
 .ad-form { display: flex; gap: 8px; margin: 12px 0; }
+.ad-title { margin: 16px 0 6px; font-size: 0.8rem; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.03em; }
+.ad-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 8px 0; }
+.ad-field { display: flex; flex-direction: column; gap: 4px; font-size: 0.78rem; color: #9ca3af; }
+.ad-field .ad-input { flex: none; min-width: 0; width: 100%; box-sizing: border-box; }
+.ad-actions { display: flex; align-items: flex-end; }
+.ad-fine { font-size: 0.78rem; margin: 4px 0 10px; }
+.ad-help { margin: 8px 0 12px; font-size: 0.85rem; }
+.ad-help summary { cursor: pointer; color: #60a5fa; }
+.ad-code {
+  margin: 8px 0; padding: 8px 10px; background: #12141f; border: 1px solid #2a2f47; border-radius: 4px;
+  font-family: 'Courier New', monospace; font-size: 0.8rem; color: #e5e7eb; overflow-x: auto;
+}
 .ad-input {
   flex: 1; min-width: 200px; padding: 6px 10px; background: #1a1b2e; color: #d4d4d4;
   border: 1px solid #3b3d5c; border-radius: 4px; font: inherit;

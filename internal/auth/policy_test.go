@@ -72,6 +72,7 @@ var exactPermission = map[string]Permission{
 	"RollbackArgoApplication": PermOperate,
 	"OpenArgoUI":              PermPortForward,
 	"SetArgoAPIToken":         PermClusterManage,
+	"GenerateArgoAPIToken":    PermClusterManage,
 	"DeleteArgoAPIToken":      PermClusterManage,
 	"GetArgoApplicationDiff":  PermPortForward,
 	"SuspendArgoAutoSync":     PermWrite,
@@ -88,7 +89,7 @@ var mutatingPrefixes = []string{
 	"Exec", "Write", "Resize", "Close",
 
 	"Cordon", "Drain",
-	"Sync", "Refresh", "Terminate",
+	"Sync", "Refresh", "Terminate", "Generate",
 	"Suspend", "Resume",
 }
 
