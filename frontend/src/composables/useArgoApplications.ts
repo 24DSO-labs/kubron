@@ -2,8 +2,16 @@ import { ref, shallowRef, onMounted, onUnmounted, watch, type Ref } from 'vue'
 import { callApp } from '../resources/wails'
 import type { ArgoApplicationInfo } from '../types/argocd'
 import { argoActionTick } from '../resources/argoActions'
+import { argoLiveTick } from './useArgoLive'
 
-const REFRESH_MS = 30_000
+// Основное обновление приходит событием argocd:changed; таймер — подстраховка (informer мог не стартовать)
+const REFRESH_MS = 60_000
+// Сколько подсвечивать приложение, у которого только что поменялось состояние
+const FLASH_MS = 3_000
+
+const appKey = (a: ArgoApplicationInfo) => `${a.namespace}/${a.name}`
+const appState = (a: ArgoApplicationInfo) =>
+  [a.syncStatus, a.healthStatus, a.revision, a.lastSyncPhase, a.operationOn].join('|')
 
 /**
  * Application из всех namespace для дашборда Argo CD.
@@ -16,8 +24,28 @@ export function useArgoApplications(clusterName: Ref<string>) {
   const refreshing = ref(false)
   const error = ref('')
   const updatedAt = ref<Date | null>(null)
+  /** Ключи namespace/name приложений, у которых состояние изменилось при последнем обновлении */
+  const changedKeys = ref<ReadonlySet<string>>(new Set())
 
   let seq = 0
+  let flashTimer: ReturnType<typeof setTimeout> | null = null
+
+  function markChanged(prev: ArgoApplicationInfo[] | null, next: ArgoApplicationInfo[]) {
+    if (!prev) return // первая загрузка: подсвечивать нечего
+    const before = new Map(prev.map(a => [appKey(a), appState(a)]))
+    const changed = new Set<string>()
+    for (const a of next) {
+      const old = before.get(appKey(a))
+      // новое приложение тоже считается изменением
+      if (old === undefined || old !== appState(a)) changed.add(appKey(a))
+    }
+    if (flashTimer) clearTimeout(flashTimer)
+    changedKeys.value = changed
+    if (changed.size) {
+      flashTimer = setTimeout(() => { changedKeys.value = new Set() }, FLASH_MS)
+    }
+  }
+
   let timer: ReturnType<typeof setInterval> | null = null
 
   async function refresh() {
@@ -26,7 +54,9 @@ export function useArgoApplications(clusterName: Ref<string>) {
     try {
       const res = (await callApp('GetArgoApplications', '')) as ArgoApplicationInfo[]
       if (mySeq !== seq) return
-      apps.value = res ?? []
+      const next = res ?? []
+      markChanged(apps.value, next)
+      apps.value = next
       updatedAt.value = new Date()
       error.value = ''
     } catch (e: any) {
@@ -50,16 +80,19 @@ export function useArgoApplications(clusterName: Ref<string>) {
   onUnmounted(() => {
     seq++
     if (timer) clearInterval(timer)
+    if (flashTimer) clearTimeout(flashTimer)
     document.removeEventListener('visibilitychange', onVisibility)
   })
 
   watch(clusterName, () => {
     apps.value = null
+    changedKeys.value = new Set()
     error.value = ''
     loading.value = true
     refresh()
   })
   watch(argoActionTick, () => refresh())
+  watch(argoLiveTick, () => refresh())
 
-  return { apps, loading, refreshing, error, updatedAt, refresh }
+  return { apps, loading, refreshing, error, updatedAt, changedKeys, refresh }
 }

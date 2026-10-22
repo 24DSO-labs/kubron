@@ -37,7 +37,7 @@
           <p v-if="!summary.problems.length" class="argo-empty">All applications are synced and healthy</p>
           <ul v-else class="argo-list">
             <li v-for="a in summary.problems.slice(0, 10)" :key="key(a)">
-              <button type="button" class="argo-row" @click="open(a)">
+              <button type="button" class="argo-row" :class="{ 'argo-row-flash': changedKeys.has(key(a)) }" @click="open(a)">
                 <span class="argo-name">{{ a.name }}</span>
                 <span class="argo-sub">{{ a.project }} · {{ argoDestination(a) }}</span>
                 <span class="argo-tags">
@@ -60,7 +60,7 @@
           <p v-if="!summary.recentSyncs.length" class="argo-empty">No syncs yet</p>
           <ul v-else class="argo-list">
             <li v-for="a in summary.recentSyncs" :key="key(a)">
-              <button type="button" class="argo-row" @click="open(a)">
+              <button type="button" class="argo-row" :class="{ 'argo-row-flash': changedKeys.has(key(a)) }" @click="open(a)">
                 <span class="argo-name">{{ a.name }}</span>
                 <span class="argo-sub">{{ formatWhen(a.lastSyncAt) }} · {{ shortRevision(a.revision) || '—' }}</span>
                 <span class="argo-tags"><span class="argo-tag" :class="tone(a.lastSyncPhase)">{{ a.lastSyncPhase || '—'
@@ -95,7 +95,7 @@ import { openArgoUI, requestArgoSync } from '../../resources/argoActions'
 const props = withDefaults(defineProps<{ clusterName?: string }>(), { clusterName: '' })
 const emit = defineEmits<{ (e: 'navigate', view: string): void }>()
 
-const { apps, loading, refreshing, error, updatedAt, refresh } = useArgoApplications(toRef(props, 'clusterName'))
+const { apps, loading, refreshing, error, updatedAt, changedKeys, refresh } = useArgoApplications(toRef(props, 'clusterName'))
 
 const summary = computed(() => summarizeArgo(apps.value ?? []))
 
@@ -255,6 +255,20 @@ function open(a: ArgoApplicationInfo) {
 
 .argo-row:hover {
   background: var(--ov-card-hover);
+}
+
+/* Приложение только что изменилось (событие argocd:changed): короткая подсветка, без перерисовки списка */
+.argo-row-flash {
+  animation: argo-flash 3s ease-out;
+}
+
+@keyframes argo-flash {
+  from { background: color-mix(in srgb, var(--ov-accent) 28%, transparent); }
+  to { background: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .argo-row-flash { animation: none; }
 }
 
 .argo-row:focus-visible {
