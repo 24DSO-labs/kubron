@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { ArgoEdgeType, ArgoGraph, ArgoGraphNode } from '../types/argocd'
 import {
-  COLLAPSE_AT, GROUP_PREFIX, NODE_H, NODE_W, ROOT_ID, collapseLeaves, filterGraph, layoutGraph, worstHealth,
+  COLLAPSE_AT, GROUP_PREFIX, KIND_COLLAPSE_AT, KIND_GROUP_PREFIX, NODE_H, NODE_W, ROOT_ID,
+  collapseKinds, collapseLeaves, filterGraph, layoutGraph, needsAttention, worstHealth,
 } from './argoGraph'
 
 const node = (kind: string, name: string, p: Partial<ArgoGraphNode> = {}): ArgoGraphNode => {
@@ -156,5 +157,64 @@ describe('worstHealth', () => {
     expect(worstHealth('Progressing', 'Degraded')).toBe('Degraded')
     expect(worstHealth('Degraded', 'Healthy')).toBe('Degraded')
     expect(worstHealth('Healthy', 'Whatever')).toBe('Healthy')
+  })
+})
+
+describe('collapseKinds', () => {
+  const cms = (n: number, p: (i: number) => Partial<ArgoGraphNode> = () => ({})) =>
+    Array.from({ length: n }, (_, i) => node('ConfigMap', `cm-${i}`, p(i)))
+
+  it(`схлопывает больше ${KIND_COLLAPSE_AT} одиночных ресурсов одного Kind в одну вершину`, () => {
+    const items = cms(KIND_COLLAPSE_AT + 1)
+    const r = collapseKinds(items, [], new Set())
+    expect(r.nodes).toHaveLength(1)
+    const g = r.nodes[0] as ArgoGraphNode & { count?: number; members?: string[] }
+    expect(g.id).toBe(KIND_GROUP_PREFIX + 'ConfigMap')
+    expect(g.kind).toBe('ConfigMap')
+    expect(g.name).toBe(`${KIND_COLLAPSE_AT + 1} × ConfigMap`)
+    expect(g.count).toBe(KIND_COLLAPSE_AT + 1)
+    expect(g.members).toHaveLength(KIND_COLLAPSE_AT + 1)
+  })
+
+  it('не трогает небольшие группы и развёрнутые', () => {
+    expect(collapseKinds(cms(KIND_COLLAPSE_AT), [], new Set()).nodes).toHaveLength(KIND_COLLAPSE_AT)
+    const items = cms(KIND_COLLAPSE_AT + 3)
+    const r = collapseKinds(items, [], new Set([KIND_GROUP_PREFIX + 'ConfigMap']))
+    expect(r.nodes).toHaveLength(KIND_COLLAPSE_AT + 3)
+  })
+
+  it('оставляет на виду проблемные ресурсы и считает порог без них', () => {
+    const items = cms(KIND_COLLAPSE_AT + 2, i => (i === 0 ? { status: 'OutOfSync' } : i === 1 ? { health: 'Degraded' } : {}))
+    // Здоровых ровно KIND_COLLAPSE_AT: группа не создаётся, все видны
+    expect(collapseKinds(items, [], new Set()).nodes).toHaveLength(KIND_COLLAPSE_AT + 2)
+
+    const more = [...items, node('ConfigMap', 'extra')]
+    const r = collapseKinds(more, [], new Set())
+    // 2 проблемных остаются отдельно + одна группа здоровых
+    expect(r.nodes).toHaveLength(3)
+    expect(r.nodes.filter(n => needsAttention(n))).toHaveLength(2)
+  })
+
+  it('не прячет ресурсы, у которых есть связи', () => {
+    const items = cms(KIND_COLLAPSE_AT + 1)
+    const owner = node('Deployment', 'd', { group: 'apps' })
+    const r = collapseKinds([owner, ...items], [edge(owner, items[0])], new Set())
+    expect(r.nodes.some(n => n.id === items[0].id)).toBe(true)
+    // остальных (без связей) на одного меньше порога: группы нет
+    expect(r.nodes).toHaveLength(items.length + 1)
+  })
+
+  it('layoutGraph подвешивает группу к корню одним ребром', () => {
+    const items = cms(10)
+    const l = layoutGraph(graph(items, []), 'app')
+    expect(l.nodes).toHaveLength(2) // корень + группа
+    expect(l.edges.filter(e => e.from === ROOT_ID)).toHaveLength(1)
+    expect(l.nodes.find(n => n.id.startsWith(GROUP_PREFIX))?.count).toBe(10)
+  })
+
+  it('layoutGraph разворачивает группу по id', () => {
+    const items = cms(10)
+    const l = layoutGraph(graph(items, []), 'app', new Set([KIND_GROUP_PREFIX + 'ConfigMap']))
+    expect(l.nodes).toHaveLength(11)
   })
 })
