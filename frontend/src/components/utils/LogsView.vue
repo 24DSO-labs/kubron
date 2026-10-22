@@ -37,21 +37,21 @@
           class="icon-svg" /></button>
     </div>
   </div>
-  <div class="logs-info"><span>Namespace: <strong>{{ tab.namespace }}</strong> | {{ tab.resourceType }}:
-      <strong>{{ tab.resourceName }}</strong> | Pods: <strong>{{ tab.pods.length }}</strong></span>
-  </div>
-  <div class="logs-content">
-    <div v-if="tab.loading" class="logs-loading">⏳ Loading...</div>
-    <pre v-else-if="tab.rawLogs" class="logs-text" :class="{ 'no-wrap': !wrapLines }"
-      v-html="highlightedLogs"></pre>
-    <div v-else class="logs-empty">{{ tab.pods.length ? 'No logs' : 'No pods found' }}</div>
-  </div>
+<div class="logs-info"><span>Namespace: <strong>{{ tab.namespace }}</strong> | {{ tab.resourceType }}:
+    <strong>{{ tab.resourceName }}</strong> | Pods: <strong>{{ tab.pods.length }}</strong></span>
+  <span v-if="live" class="live-dot">● live</span>
+  <button v-if="!follow" class="btn-action" @click="jumpToEnd">↓ to end</button>
+</div>
+<div ref="contentEl" class="logs-content" @scroll="onScroll">
+  <div v-if="tab.loading" class="logs-loading">⏳ Loading...</div>
+  <pre v-else-if="tab.rawLogs" class="logs-text" :class="{ 'no-wrap': !wrapLines }" v-html="highlightedLogs"></pre>
+  <div v-else class="logs-empty">{{ live ? 'Waiting for logs…' : tab.pods.length ? 'No logs' : 'No pods found' }}</div>
+</div>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, watch, onBeforeUnmount } from 'vue'
-import { GetPodLogs } from '../../../wailsjs/go/main/App'
+
 import { getWorkloadPods } from '../../resources/workloadPods'
 import { containersOf } from '../../resources/utils'
 import type { LogsTab } from '../../composables/useTabbedPanel'
@@ -59,10 +59,14 @@ import restartIcon from '../../assets/icons/restart.svg'
 import downloadIcon from '../../assets/icons/download.svg'
 import timestampIcon from '../../assets/icons/timestamp.svg'
 import wrapLinesIcon from '../../assets/icons/wrap-lines.svg'
+import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
+import { StartLogStream, StopLogStream } from '../../../wailsjs/go/main/App'
+import { EventsOn } from '../../../wailsjs/runtime/runtime'
+import { uid } from '../../resources/uid'
 
 const props = defineProps<{ tab: LogsTab; active: boolean }>()
 
-const AUTO_REFRESH_MS = 45000
+
 const TS_RE = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z[+-]?\d{0,2}:?\d{0,2})\s+(.*)$/
 
 // Настройки просмотра относятся к конкретной вкладке
@@ -151,31 +155,6 @@ async function onContainerChange(event: Event) {
   await loadLogs()
 }
 
-async function loadLogs() {
-  const tab = props.tab
-  if (!tab.selectedPodName && tab.pods.length === 0) return
-  try {
-    tab.loading = true
-    if (tab.selectedPodName) {
-      const pod = tab.pods.find(p => p.name === tab.selectedPodName)
-      const container = tab.selectedContainer || defaultContainer(pod)
-      tab.rawLogs = await GetPodLogs(tab.namespace, tab.selectedPodName, container, logLines.value)
-    } else {
-      // Все поды сразу: запросы идут параллельно, ошибка одного пода не ломает остальные
-      const parts = await Promise.all(tab.pods.map(async pod => {
-        const container = tab.selectedContainer || defaultContainer(pod)
-        try {
-          const logs = await GetPodLogs(tab.namespace, pod.name, container, logLines.value)
-          return logs ? `\n=== ${pod.name} ===\n${logs}` : ''
-        } catch (e: any) {
-          return `\n=== ${pod.name} (error) ===\n${e}`
-        }
-      }))
-      tab.rawLogs = parts.join('')
-    }
-  } catch (e: any) { tab.rawLogs = `Error: ${e}` }
-  finally { tab.loading = false }
-}
 
 function downloadLogs() {
   const tab = props.tab
@@ -188,16 +167,109 @@ function downloadLogs() {
   document.body.removeChild(element)
 }
 
-// Первая загрузка — когда вкладка впервые становится активной
+
+
+const MAX_LOG_CHARS = 2_000_000
+const TS_PREFIXED = /^(\d{4}-\d{2}-\d{2}T\S+)\s(.*)$/gm
+
+interface LiveStream { id: string; unsubscribe: Array<() => void> }
+let streams: LiveStream[] = []
+let generation = 0
+let started = false
+
+const live = ref(false)
+const follow = ref(true)
+const contentEl = ref<HTMLElement | null>(null)
+
+function stopStream(s: LiveStream) {
+  s.unsubscribe.forEach(off => off())
+  StopLogStream(s.id).catch(() => { })
+}
+function stopStreams() {
+  generation++
+  streams.forEach(stopStream)
+  streams = []
+  live.value = false
+}
+function dropStream(s: LiveStream) {
+  s.unsubscribe.forEach(off => off())
+  streams = streams.filter(x => x !== s)
+  live.value = streams.length > 0
+}
+
+function append(text: string) {
+  let next = (props.tab.rawLogs ?? '') + text
+  if (next.length > MAX_LOG_CHARS) {
+    // ограничиваем буфер, режем по границе строки
+    const from = next.length - MAX_LOG_CHARS
+    const cut = next.indexOf('\n', from)
+    next = next.slice(cut < 0 ? from : cut + 1)
+  }
+  props.tab.rawLogs = next
+}
+
+/** Несколько подов: имя пода вставляем после timestamp, чтобы не ломать его разбор (TS_RE) */
+const tagPod = (pod: string, chunk: string) => chunk.replace(TS_PREFIXED, `$1 [${pod}] $2`)
+
+/** (Пере)запуск потоков: один под — один поток */
+async function loadLogs() {
+  const tab = props.tab
+  stopStreams()
+  const gen = generation
+  tab.rawLogs = ''
+  follow.value = true
+  const targets = tab.selectedPodName ? tab.pods.filter(p => p.name === tab.selectedPodName) : tab.pods
+  if (!targets.length) return
+  const multi = !tab.selectedPodName && targets.length > 1
+
+  for (const pod of targets) {
+    const container = tab.selectedContainer || defaultContainer(pod)
+    const id = `log_${uid()}`
+    const s: LiveStream = { id, unsubscribe: [] }
+    s.unsubscribe.push(
+      EventsOn(`logs:data:${id}`, (chunk: string) => append(multi ? tagPod(pod.name, chunk) : chunk)),
+      EventsOn(`logs:end:${id}`, (reason: string) => {
+        const why = reason && reason !== 'eof' ? `: ${reason}` : ''
+        append(`\n[${multi ? pod.name + ' ' : ''}stream closed${why}]\n`)
+        dropStream(s)
+      }),
+    )
+    streams.push(s)
+    try {
+      await StartLogStream(id, tab.namespace, pod.name, container, logLines.value)
+    } catch (e: any) {
+      if (gen === generation) append(`\n[${pod.name}: ${e?.message || e}]\n`)
+      dropStream(s)
+    }
+    if (gen !== generation) { stopStream(s); return } // пока ждали, запустили новую загрузку
+  }
+  live.value = streams.length > 0
+}
+
+function onScroll() {
+  const el = contentEl.value
+  if (el) follow.value = el.scrollHeight - el.scrollTop - el.clientHeight < 40
+}
+function jumpToEnd() {
+  follow.value = true
+  const el = contentEl.value
+  if (el) el.scrollTop = el.scrollHeight
+}
+watch(() => props.tab.rawLogs, async () => {
+  if (!follow.value) return
+  await nextTick()
+  jumpToEnd()
+})
+
+// Первая загрузка — когда вкладка впервые становится активной; потоки живут, пока вкладка открыта
 watch(() => props.active, active => {
-  if (active && !props.tab.rawLogs && !props.tab.loading) loadResourcePods()
+  if (active && !started) { started = true; loadResourcePods() }
 }, { immediate: true })
 
-// Автообновление только для видимой вкладки
-const refreshTimer = setInterval(() => {
-  if (props.active && !props.tab.loading) loadLogs()
-}, AUTO_REFRESH_MS)
-onBeforeUnmount(() => clearInterval(refreshTimer))
+onBeforeUnmount(stopStreams)
+
+
+
 </script>
 
 <style scoped>
@@ -346,4 +418,5 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
   color: #ffd700;
   font-weight: bold;
 }
+.live-dot { margin-left: 12px; color: #a6e3a1; }
 </style>

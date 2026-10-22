@@ -30,6 +30,7 @@
           @navigate="emit('navigate', $event)"
         />
       </template>
+ <CustomResourcesNav :current-view="currentView" @navigate="emit('navigate', $event)" />
 
       <!-- Settings -->
       <div class="nav-separator"></div>
@@ -71,6 +72,7 @@ import NavGroupNode from './nav/NavGroupNode.vue'
 import { useArgo } from '../composables/useArgo'
 import { can } from '../composables/useAuth'
 import { Perm } from '../types/auth'
+import CustomResourcesNav from './nav/CustomResourcesNav.vue'
 
 defineProps<{
   currentView: string

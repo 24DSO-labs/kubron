@@ -111,6 +111,7 @@ import NotificationToast from './components/NotificationToast.vue'
 import ResourceList from './components/resource/ResourceList.vue'
 import ResourceHost from './components/resource/ResourceHost.vue'
 import TabbedPanel from './components/utils/TabbedPanel.vue'
+import { navigationRequest } from './resources/customResources'
 
 // ═══════════════════════════════════════════════
 // Composables
@@ -300,6 +301,12 @@ watch(
   },
   { immediate: true },
 )
+
+watch(navigationRequest, view => {
+  if (!view) return
+  navigationRequest.value = null
+  onNavigate(view)
+})
 
 onMounted(() => auth.init())
 </script>

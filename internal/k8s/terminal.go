@@ -175,6 +175,8 @@ func (m *Manager) StartTerminalSession(sessionID, namespace, pod, container, she
 	}
 	m.terminalSessions.Add(session)
 
+	go m.pumpTerminal(session)
+
 	go func() {
 		opts := remotecommand.StreamOptions{
 			Stdout:            stdoutW,
@@ -233,34 +235,6 @@ func (m *Manager) WriteTerminal(sessionID string, data []byte) error {
 }
 
 // ─── ReadTerminalBytes ─────────────────────────────────────
-
-func (m *Manager) ReadTerminalBytes(sessionID string) ([]byte, error) {
-	if m.terminalSessions == nil {
-		return nil, fmt.Errorf("session not found: %s", sessionID)
-	}
-
-	session := m.terminalSessions.Get(sessionID)
-	if session == nil {
-		return nil, fmt.Errorf("session not found: %s", sessionID)
-	}
-
-	buf := make([]byte, 4096)
-	n, err := session.stdoutR.Read(buf)
-
-	if n > 0 {
-		return buf[:n], nil
-	}
-
-	if err == io.EOF {
-		return nil, nil
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("read error: %w", err)
-	}
-
-	return nil, nil
-}
 
 // ─── ResizeTerminal ────────────────────────────────────────
 

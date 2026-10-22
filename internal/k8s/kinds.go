@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"fmt"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -56,10 +57,13 @@ var kindTable = map[string]kindInfo{
 	"validatingwebhookconfiguration": {gvr("admissionregistration.k8s.io", "v1", "validatingwebhookconfigurations"), false},
 
 	// Argo CD (CRD; читаются через dynamic client, доступны только если ArgoInstalled)
-	"application":    {gvr(argoGroup, "v1alpha1", "applications"), true},
-	"applicationset": {gvr(argoGroup, "v1alpha1", "applicationsets"), true},
-	"appproject":     {gvr(argoGroup, "v1alpha1", "appprojects"), true},
+	"application":              {gvr(argoGroup, "v1alpha1", "applications"), true},
+	"applicationset":           {gvr(argoGroup, "v1alpha1", "applicationsets"), true},
+	"appproject":               {gvr(argoGroup, "v1alpha1", "appprojects"), true},
+	"customresourcedefinition": {gvr("apiextensions.k8s.io", "v1", "customresourcedefinitions"), false},
 }
+
+const customKindPrefix = "cr:" // "cr:group/version/plural", проверяется через CRD (см. customKindFor)
 
 func init() {
 	kindTable["hpa"] = kindTable["horizontalpodautoscaler"]
@@ -70,7 +74,13 @@ func init() {
 func resourceClient(conn *ClusterConnection, kind, namespace string) (dynamic.ResourceInterface, kindInfo, error) {
 	info, ok := kindTable[kind]
 	if !ok {
-		return nil, kindInfo{}, fmt.Errorf("тип ресурса %q не поддерживается", kind)
+		if !strings.HasPrefix(kind, customKindPrefix) {
+			return nil, kindInfo{}, fmt.Errorf("тип ресурса %q не поддерживается", kind)
+		}
+		var err error
+		if info, err = customKindInfo(conn, kind); err != nil {
+			return nil, kindInfo{}, err
+		}
 	}
 	if !info.namespaced {
 		return conn.DynamicClient.Resource(info.gvr), info, nil
