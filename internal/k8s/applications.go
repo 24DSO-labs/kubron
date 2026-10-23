@@ -2,7 +2,6 @@ package k8s
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"time"
 
@@ -24,10 +23,19 @@ const (
 
 // ApplicationWorkload — workload (Deployment/StatefulSet/DaemonSet), входящий в приложение.
 type ApplicationWorkload struct {
-	Kind     string `json:"kind"`
-	Name     string `json:"name"`
-	Replicas int32  `json:"replicas"`
-	Ready    int32  `json:"ready"`
+	Kind      string `json:"kind"`
+	Name      string `json:"name"`
+	Component string `json:"component"`
+	Replicas  int32  `json:"replicas"`
+	Ready     int32  `json:"ready"`
+}
+
+// ApplicationResource — прочий ресурс приложения (Service, ServiceAccount, ConfigMap ...),
+// найденный по тем же labels, что и поды.
+type ApplicationResource struct {
+	Kind      string `json:"kind"`
+	Name      string `json:"name"`
+	Component string `json:"component"`
 }
 
 // ApplicationInfo — приложение: группа workload-ов одного namespace с общими
@@ -51,6 +59,8 @@ type ApplicationInfo struct {
 	Created string `json:"created"`
 
 	Workloads []ApplicationWorkload `json:"workloads"`
+	// Resources — остальные ресурсы приложения (без workload-ов)
+	Resources []ApplicationResource `json:"resources"`
 	Images    []string              `json:"images"`
 	// Selector — labels, по которым у пода определяется принадлежность приложению
 	Selector     map[string]string `json:"selector"`
@@ -93,7 +103,52 @@ func (m *Manager) GetApplications(namespace string) ([]ApplicationInfo, error) {
 		ings = l.Items
 	}
 
-	return buildApplications(deps.Items, stss.Items, dss.Items, svcs, ings), nil
+	// Прочие ресурсы приложения: недоступные по RBAC виды просто пропускаются
+	var others []labeledObject
+	add := func(kind string, items []metav1.ObjectMeta) {
+		for _, o := range items {
+			others = append(others, labeledObject{kind: kind, name: o.Name, namespace: o.Namespace, labels: o.Labels})
+		}
+	}
+	for _, sv := range svcs {
+		add("Service", []metav1.ObjectMeta{sv.ObjectMeta})
+	}
+	for _, ing := range ings {
+		add("Ingress", []metav1.ObjectMeta{ing.ObjectMeta})
+	}
+	if l, err := conn.Client.CoreV1().ServiceAccounts(namespace).List(ctx, opts); err == nil {
+		for _, o := range l.Items {
+			add("ServiceAccount", []metav1.ObjectMeta{o.ObjectMeta})
+		}
+	}
+	if l, err := conn.Client.CoreV1().ConfigMaps(namespace).List(ctx, opts); err == nil {
+		for _, o := range l.Items {
+			add("ConfigMap", []metav1.ObjectMeta{o.ObjectMeta})
+		}
+	}
+	if l, err := conn.Client.CoreV1().PersistentVolumeClaims(namespace).List(ctx, opts); err == nil {
+		for _, o := range l.Items {
+			add("PersistentVolumeClaim", []metav1.ObjectMeta{o.ObjectMeta})
+		}
+	}
+	if l, err := conn.Client.RbacV1().Roles(namespace).List(ctx, opts); err == nil {
+		for _, o := range l.Items {
+			add("Role", []metav1.ObjectMeta{o.ObjectMeta})
+		}
+	}
+	if l, err := conn.Client.RbacV1().RoleBindings(namespace).List(ctx, opts); err == nil {
+		for _, o := range l.Items {
+			add("RoleBinding", []metav1.ObjectMeta{o.ObjectMeta})
+		}
+	}
+
+	return buildApplications(deps.Items, stss.Items, dss.Items, svcs, ings, others), nil
+}
+
+// labeledObject — ресурс, у которого важны только вид, имя и labels.
+type labeledObject struct {
+	kind, name, namespace string
+	labels                map[string]string
 }
 
 // appWorkload — единая форма Deployment/StatefulSet/DaemonSet для группировки.
@@ -178,7 +233,7 @@ type appKey struct{ namespace, instance, application string }
 // из сервисов (внутренние) и ингрессов (внешние). Чистая функция: вся работа с API — в GetApplications.
 func buildApplications(
 	deps []appsv1.Deployment, stss []appsv1.StatefulSet, dss []appsv1.DaemonSet,
-	svcs []corev1.Service, ings []networkingv1.Ingress,
+	svcs []corev1.Service, ings []networkingv1.Ingress, others []labeledObject,
 ) []ApplicationInfo {
 	groups := map[appKey][]appWorkload{}
 	for _, w := range workloadsFrom(deps, stss, dss) {
@@ -233,6 +288,7 @@ func buildApplications(
 			Instance:     k.instance,
 			Application:  k.application,
 			Workloads:    make([]ApplicationWorkload, 0, len(ws)),
+			Resources:    []ApplicationResource{},
 			Images:       []string{},
 			InternalURLs: []string{},
 			ExposedURLs:  []string{},
@@ -241,16 +297,26 @@ func buildApplications(
 		if nameCount[[2]string{k.namespace, k.application}] > 1 {
 			app.Name = k.instance + "/" + k.application
 		}
-		if k.instance != "" {
-			app.Selector[labelAppInstance] = k.instance
+		// В селектор попадают только labels, которые реально есть у всех workload-ов:
+		// подставленное по умолчанию имя instance у подов не встретится
+		for _, label := range []string{labelAppInstance, labelAppName} {
+			all := true
+			for _, w := range ws {
+				if w.labels[label] == "" {
+					all = false
+					break
+				}
+			}
+			if all {
+				app.Selector[label] = ws[0].labels[label]
+			}
 		}
-		app.Selector[labelAppName] = k.application
 
 		var desired, ready int32
 		var created time.Time
 		seenImage := map[string]bool{}
 		for i, w := range ws {
-			app.Workloads = append(app.Workloads, ApplicationWorkload{Kind: w.kind, Name: w.name, Replicas: w.desired, Ready: w.ready})
+			app.Workloads = append(app.Workloads, ApplicationWorkload{Kind: w.kind, Name: w.name, Component: w.labels[labelAppComponent], Replicas: w.desired, Ready: w.ready})
 			desired += w.desired
 			ready += w.ready
 			if created.IsZero() || w.created.Before(created) {
@@ -298,9 +364,10 @@ func buildApplications(
 				continue
 			}
 			svcNames[svc.Name] = true
-			app.InternalURLs = append(app.InternalURLs, serviceInternalURLs(svc)...)
+			app.InternalURLs = append(app.InternalURLs, serviceInternalURL(svc))
 		}
 		app.ExposedURLs = exposedURLs(k.namespace, svcNames, ings)
+		app.Resources = matchResources(k.namespace, app.Selector, others)
 		apps = append(apps, app)
 	}
 	return apps
@@ -326,13 +393,39 @@ func serviceSelectsAny(svc corev1.Service, ws []appWorkload) bool {
 	return false
 }
 
-// serviceInternalURLs — адреса сервиса внутри кластера: "name.namespace:port".
-func serviceInternalURLs(svc corev1.Service) []string {
-	urls := make([]string, 0, len(svc.Spec.Ports))
-	for _, p := range svc.Spec.Ports {
-		urls = append(urls, fmt.Sprintf("%s.%s:%d", svc.Name, svc.Namespace, p.Port))
+// serviceInternalURL — адрес сервиса внутри кластера (как в Lens): "name.namespace.svc.cluster.local".
+func serviceInternalURL(svc corev1.Service) string {
+	return svc.Name + "." + svc.Namespace + ".svc.cluster.local"
+}
+
+// matchResources — ресурсы namespace, у которых есть все labels селектора приложения.
+func matchResources(namespace string, selector map[string]string, objs []labeledObject) []ApplicationResource {
+	out := []ApplicationResource{}
+	if len(selector) == 0 {
+		return out
 	}
-	return urls
+	for _, o := range objs {
+		if o.namespace != namespace {
+			continue
+		}
+		match := true
+		for k, v := range selector {
+			if o.labels[k] != v {
+				match = false
+				break
+			}
+		}
+		if match {
+			out = append(out, ApplicationResource{Kind: o.kind, Name: o.name, Component: o.labels[labelAppComponent]})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Kind != out[j].Kind {
+			return out[i].Kind < out[j].Kind
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out
 }
 
 // exposedURLs — адреса из ингрессов, чей backend — один из сервисов приложения.
