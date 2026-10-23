@@ -873,6 +873,19 @@ func (a *App) ApplyYAML(namespace, kind, name, jsonData string) error {
 	return a.k8sMgr.ApplyYAML(namespace, kind, name, jsonData)
 }
 
+// CreateResourceYAML создаёт новый объект из манифеста (кнопка «+» в списках) и возвращает его имя.
+// kind — ключ типа (id определения ресурса на фронтенде). namespace — запасное значение,
+// если в манифесте metadata.namespace не указан.
+func (a *App) CreateResourceYAML(namespace, kind, yamlData string) (string, error) {
+	// authz — первый оператор (его проверяет policy_test). namespace и name в журнал берём из самого
+	// манифеста: именно их увидит кластер.
+	if err := a.authz(auth.PermWrite, "namespace", k8s.ManifestNamespace(yamlData, namespace),
+		"kind", kind, "name", k8s.ManifestName(yamlData)); err != nil {
+		return "", err
+	}
+	return a.k8sMgr.CreateResourceYAML(namespace, kind, yamlData)
+}
+
 // === Exec ===
 
 // === Metrics ===
