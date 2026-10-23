@@ -1,16 +1,7 @@
 <template>
   <div>
     <div v-if="menu" class="menu-overlay" @click="hideMenu" @contextmenu.prevent="hideMenu"></div>
-    <ContentHeader :icon="icon" :title="title" :count="items.length" :search="search" :refreshing="refreshing" :updated-at="updatedAt" showSearch @refresh="emit('refresh')" @search="v => emit('search', v)">
-      <ColumnsMenu
-        :ordered="resolved.ordered"
-        :hidden="prefs.hidden"
-        :required="columns[0]?.key ?? ''"
-        @toggle="toggleColumn"
-        @move="moveColumn"
-        @reset="resetColumns"
-      />
-    </ContentHeader>
+    <ContentHeader :icon="icon" :title="title" :count="items.length" :search="search" :refreshing="refreshing" :updated-at="updatedAt" showSearch @refresh="emit('refresh')" @search="v => emit('search', v)" />
 
     <table
   v-if="items.length > 0"
@@ -52,7 +43,16 @@
         @dblclick.stop="resetWidths"
       ></span>
     </th>
-    <th></th>
+    <th class="col-actions">
+      <ColumnsMenu
+        :ordered="resolved.ordered"
+        :hidden="prefs.hidden"
+        :required="columns[0]?.key ?? ''"
+        @toggle="toggleColumn"
+        @move="moveColumn"
+        @reset="resetColumns"
+      />
+    </th>
   </tr>
 </thead>
       <tbody>
@@ -526,6 +526,7 @@ function choose(action: string, arg?: string) {
 .ctx-menu-danger { color: #ef4444; }
 .ctx-menu-danger:hover { background: rgba(239, 68, 68, 0.2); }
 
+.col-actions { text-align: center; padding-left: 0; padding-right: 0; }
 .col-select { width: 40px; text-align: center; padding-left: 0; padding-right: 0; }
 .row-check { accent-color: #89b4fa; cursor: pointer; margin: 0; vertical-align: middle; }
 .row-selected { background: rgba(137, 180, 250, 0.08); }
