@@ -6,6 +6,7 @@ import { useK8s } from '../../composables/useK8s'
 import { flatNameCol, flatNsCol, ageCol, managedByProp } from './common'
 import { badgeClass, statusColor } from '../status'
 import { containersOf } from '../utils'
+import { podCpuCol, podMemoryCol } from '../podUsage'
 
 import PodContainersCell from '../../components/resource/sections/PodContainersCell.vue'
 import PodMetricsSection from '../../components/resource/sections/PodMetricsSection.vue'
@@ -54,16 +55,8 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
   columns: [
     flatNameCol,
     { ...flatNsCol, link: (p: any) => p.namespace ? { id: 'namespace', ns: '', name: p.namespace } : null },
-    {
-  key: 'cpu', label: 'CPU', className: 'mono metric-cell',
-  animated: true, width: 100,
-  formatter: (p: any) => k8s.formatCpu(p.cpu),
-},
-{
-  key: 'memory', label: 'MEMORY', className: 'mono metric-cell',
-  animated: true, width: 110,
-  formatter: (p: any) => k8s.formatMemory(p.memory),
-},
+    podCpuCol,
+    podMemoryCol,
     {
       key: 'containers',
       label: 'CONTAINERS',
@@ -76,7 +69,7 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
       formatter: podStatus,
       colorFn: p => statusColor(podStatus(p)),
     },
-    { key: 'restarts', label: 'RESTARTS' },
+    { key: 'restarts', label: 'RESTARTS', sortValue: (p: any) => Number.parseInt(p.restarts, 10) },
     ageCol,
     { key: 'node', label: 'NODE', link: (p: any) => p.node ? { id: 'node', ns: '', name: p.node } : null },
     {
@@ -86,7 +79,6 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
       formatter: (p: any) => p.controlledBy?.split('/')[0] || '—',
       link: controlledByLink,
     },
-    
     { key: 'qos', label: 'QOS' },
   ],
 

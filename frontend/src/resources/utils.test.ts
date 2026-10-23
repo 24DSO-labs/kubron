@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ageToMinutes,
   containersOf,
   expandAccessModes,
   formatMap,
@@ -135,5 +136,20 @@ describe('expandAccessModes', () => {
   it('пусто для undefined и пустой строки', () => {
     expect(expandAccessModes(undefined)).toBe('')
     expect(expandAccessModes('')).toBe('')
+  })
+})
+
+describe('ageToMinutes', () => {
+  it('разбирает формат Go formatAge', () => {
+    expect(ageToMinutes('1d2h')).toBe(1560)
+    expect(ageToMinutes('3h5m')).toBe(185)
+    expect(ageToMinutes('7m')).toBe(7)
+    expect(ageToMinutes('0m')).toBe(0)
+  })
+  it('нераспознанное значение даёт null', () => {
+    expect(ageToMinutes('—')).toBeNull()
+    expect(ageToMinutes('')).toBeNull()
+    expect(ageToMinutes(undefined)).toBeNull()
+    expect(ageToMinutes(null)).toBeNull()
   })
 })
