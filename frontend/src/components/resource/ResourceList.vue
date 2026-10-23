@@ -40,9 +40,12 @@ import { resourceActions, opened, bulkDeleted } from '../../resources/actions'
 import { actionAllowed, canBulkDelete, canCreate, canDelete, canEditYaml } from '../../resources/access'
 import { useSelection } from '../../resources/selection'
 import { containersOf, itemName, itemNs } from '../../resources/utils'
+import { useK8s } from '../../composables/useK8s'
 import { computed, watch } from 'vue'
 
 const props = defineProps<{ def: ResourceDefinition }>()
+
+const { selectedNamespace, onNamespaceChange } = useK8s()
 
 const { items, initialLoading, reload, refreshing, updatedAt, search } = useResourceList(() => props.def)
 
@@ -95,7 +98,17 @@ function open(item: any) {
   resourceActions.open(props.def.id, itemNs(item), itemName(item), item)
 }
 
+/**
+ * Клик по ссылке в ячейке. Для колонки Namespace детали NS не открываем, а задаём отбор:
+ * selectedNamespace общий для приложения, поэтому он же выставляется в селекторе Sidebar,
+ * а списки namespaced-ресурсов перезагружаются по watch в store.ts.
+ */
 function onOpen(data: { id: string; ns: string; name: string }) {
+  if (data.id === 'namespace') {
+    selectedNamespace.value = data.name
+    onNamespaceChange()
+    return
+  }
   resourceActions.open(data.id, data.ns, data.name)
 }
 
