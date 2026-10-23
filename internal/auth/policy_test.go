@@ -52,6 +52,7 @@ var exactPermission = map[string]Permission{
 	"ResetUserPassword":       PermUsersManage,
 	"DeleteUser":              PermUsersManage,
 	"ApplyYAML":               PermWrite,
+	"CreateResourceYAML":      PermWrite,
 	"ScaleDeployment":         PermOperate,
 	"RestartDeployment":       PermOperate,
 	"RollbackDeployment":      PermOperate,
@@ -252,7 +253,7 @@ func TestDestructiveMethodsRequireWrite(t *testing.T) {
 			continue
 		}
 
-		destructive := strings.HasPrefix(m.name, "Delete") || strings.HasPrefix(m.name, "Evict") || strings.HasPrefix(m.name, "Drain") || m.name == "ApplyYAML"
+		destructive := strings.HasPrefix(m.name, "Delete") || strings.HasPrefix(m.name, "Evict") || strings.HasPrefix(m.name, "Drain") || m.name == "ApplyYAML" || m.name == "CreateResourceYAML"
 		if !destructive || m.name == "DeleteCluster" || m.name == "DeleteUser" {
 			continue // у этих особые права из exactPermission
 		}
