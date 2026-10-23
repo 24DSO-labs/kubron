@@ -5,6 +5,7 @@
     :items="items"
     :search="search"
     :title="def.title"
+    :prefs-key="def.view"
     :icon="def.icon"
     :empty-message="`Нет ${def.title}`"
     :columns="def.columns"

@@ -10,6 +10,7 @@
     <input v-if="showSearch" :value="search" @input="$emit('search', ($event.target as HTMLInputElement).value)" placeholder="Поиск..." class="search-input"/>
     <span v-if="updatedAt" class="content-updated">Updated {{ updatedAt }}</span>
     <span v-else class="content-updated content-updated--empty">&nbsp;</span>
+    <slot />
     <button type="button" :disabled="refreshing" @click="$emit('refresh')" class="ov-btn">
       {{ refreshing ? 'Refreshing…' : 'Refresh' }}
     </button>

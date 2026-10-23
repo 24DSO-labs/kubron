@@ -7,6 +7,7 @@ import {
   ListPortForwards,
 } from '../../wailsjs/go/main/App'
 import { useNotifications } from './useNotifications'
+import { formatCpu, formatMemory, mergePodMetrics } from '../resources/podUsage'
 
 import type {
   NamespaceInfo,
@@ -52,33 +53,6 @@ const currentView = ref('overview')
 const search = ref('')
 const error = ref('')
 const loading = ref(false)
-
-// ─── Helpers ───
-
-function formatCpu(cpuStr: string | undefined): string {
-  if (!cpuStr) return '—'
-  const m = parseFloat(cpuStr)   // millicores
-  if (isNaN(m)) return '—'
-  if (m >= 1000) return (m / 1000).toFixed(2)   // ядра
-  return m.toFixed(1) + 'm'
-}
-
-function formatMemory(memStr: string | undefined): string {
-  if (!memStr) return '—'
-  const bytes = parseFloat(memStr)
-  if (isNaN(bytes)) return '—'
-  return (bytes / 1024 / 1024).toFixed(1) + 'MiB'
-}
-
-function mergePodMetrics<P extends { name: string; namespace: string }>(
-  list: P[],
-  metrics: PodMetricsInfo[],
-): (P & { cpu: string; memory: string })[] {
-  return list.map(pod => {
-    const metric = metrics.find(m => m.name === pod.name && m.namespace === pod.namespace)
-    return { ...pod, cpu: formatCpu(metric?.totalCpu), memory: formatMemory(metric?.totalMem) }
-  })
-}
 
 // ─── Фильтрация по поиску ───
 // (списки нового каркаса фильтруются в resources/store.ts)
