@@ -11,11 +11,22 @@
   :style="fixed ? { width: totalWidth + 'px' } : undefined"
 >
   <colgroup v-if="fixed">
+  <col v-if="selectable" :style="{ width: SELECT_COL + 'px' }" />
   <col v-for="col in columns" :key="col.key" :style="{ width: widths[col.key] + 'px' }" />
   <col :style="{ width: ACTION_COL + 'px' }" />
 </colgroup>
 <thead>
   <tr>
+    <th v-if="selectable" class="col-select" @click.stop>
+      <input
+        ref="allBox"
+        type="checkbox"
+        class="row-check"
+        title="Выбрать все"
+        :checked="allSelected"
+        @change="emit('toggle-all')"
+      />
+    </th>
     <th v-for="col in columns" :key="col.key" :data-col="col.key">
       {{ col.label }}
       <span
@@ -33,7 +44,17 @@
   </tr>
 </thead>
       <tbody>
-        <tr v-for="item in items" :key="itemKey(item)" class="clickable-row" @click="emit('select', item)" @contextmenu.prevent="openMenuAt(item, $event)">
+        <tr
+          v-for="item in items"
+          :key="itemKey(item)"
+          class="clickable-row"
+          :class="{ 'row-selected': selectable && isSelected(item) }"
+          @click="emit('select', item)"
+          @contextmenu.prevent="openMenuAt(item, $event)"
+        >
+          <td v-if="selectable" class="col-select" @click.stop>
+            <input type="checkbox" class="row-check" :checked="isSelected(item)" @change="emit('toggle', item)" />
+          </td>
           <td v-for="col in columns" :key="col.key" :class="col.className">
             <component :is="col.component" v-if="col.component" :item="item" :col="col" />
 <span v-else-if="col.animated" :style="cellStyle(col, item)">
@@ -59,6 +80,30 @@
       </tbody>
     </table>
     <div v-else class="empty">{{ emptyMessage }}</div>
+
+    <!-- Как в Lens: «−» удаляет выбранные строки, «+» открывает редактор с базовым манифестом -->
+    <div v-if="!hideFab && (selectable || showCreate)" class="fab-group">
+      <button
+        v-if="selectable"
+        type="button"
+        class="fab fab-minus"
+        :class="{ 'fab-danger': selectedCount > 0 }"
+        :disabled="selectedCount === 0"
+        :title="selectedCount > 0 ? `Удалить выбранные (${selectedCount})` : 'Выберите строки чекбоксами, чтобы удалить их'"
+        @click="emit('delete-selected')"
+      >
+        −<span v-if="selectedCount > 0" class="fab-badge">{{ selectedCount }}</span>
+      </button>
+      <button
+        v-if="showCreate"
+        type="button"
+        class="fab fab-plus"
+        :title="createTitle ?? 'Создать'"
+        @click="emit('create')"
+      >
+        +
+      </button>
+    </div>
 
     <!-- Контекстное меню целиком строится из menuFor(item): подменю контейнеров задают сами пункты -->
     <div v-if="menu" :style="menuStyle" class="cluster-context-menu" @click.stop>
@@ -109,6 +154,17 @@ const props = defineProps<{
   getItemKey?: (item: any) => string
   refreshing?: boolean
   updatedAt?: string
+  /** Колонка чекбоксов + кнопка «−» */
+  selectable?: boolean
+  /** Ключи выбранных строк (getItemKey) */
+  selected?: ReadonlySet<string>
+  allSelected?: boolean
+  someSelected?: boolean
+  /** Кнопка «+» */
+  showCreate?: boolean
+  createTitle?: string
+  /** Скрыть плавающие кнопки (например, пока открыта панель деталей) */
+  hideFab?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -119,6 +175,10 @@ const emit = defineEmits<{
   (e: 'open', data: { id: string; ns: string; name: string }): void
   /** arg — выбранный элемент подменю (имя контейнера) */
   (e: 'action', action: string, item: any, arg?: string): void
+  (e: 'toggle', item: any): void
+  (e: 'toggle-all'): void
+  (e: 'delete-selected'): void
+  (e: 'create'): void
 }>()
 
 
@@ -127,6 +187,7 @@ const emit = defineEmits<{
 // ─── Ширина колонок ───
 const MIN_COL = 50
 const ACTION_COL = 56
+const SELECT_COL = 40
 const storageKey = () => `kubron:colwidths:${props.title}`
 
 const tableRef = ref<HTMLTableElement | null>(null)
@@ -135,7 +196,7 @@ const fixed = ref(false)
 const resizingKey = ref<string | null>(null)
 
 const totalWidth = computed(() =>
-  props.columns.reduce((s, c) => s + (widths[c.key] ?? MIN_COL), ACTION_COL),
+  props.columns.reduce((s, c) => s + (widths[c.key] ?? MIN_COL), ACTION_COL + (props.selectable ? SELECT_COL : 0)),
 )
 
 function loadSaved() {
@@ -215,6 +276,19 @@ function getCellValue(item: any, key: string): string {
 const cellValue = (col: ColumnDef, item: any) => (col.formatter ? col.formatter(item) : getCellValue(item, col.key))
 const cellStyle = (col: ColumnDef, item: any) => (col.colorFn ? { color: col.colorFn(item) } : {})
 const itemKey = (item: any) => (props.getItemKey ? props.getItemKey(item) : `${item.namespace ?? ''}/${item.name}`)
+
+// ─── Выбор строк ───
+
+const isSelected = (item: any) => !!props.selected?.has(itemKey(item))
+const selectedCount = computed(() => props.selected?.size ?? 0)
+
+// «Выбраны некоторые»: у чекбокса нет атрибута indeterminate, только свойство
+const allBox = ref<HTMLInputElement | null>(null)
+watch(
+  () => [props.someSelected, props.items.length] as const,
+  () => { if (allBox.value) allBox.value.indeterminate = !!props.someSelected },
+  { flush: 'post', immediate: true },
+)
 
 // ─── Контекстное меню ───
 
@@ -366,6 +440,55 @@ function choose(action: string, arg?: string) {
 
 .ctx-menu-danger { color: #ef4444; }
 .ctx-menu-danger:hover { background: rgba(239, 68, 68, 0.2); }
+
+.col-select { width: 40px; text-align: center; padding-left: 0; padding-right: 0; }
+.row-check { accent-color: #89b4fa; cursor: pointer; margin: 0; vertical-align: middle; }
+.row-selected { background: rgba(137, 180, 250, 0.08); }
+.row-selected:hover { background: rgba(137, 180, 250, 0.12) !important; }
+
+/* Плавающие кнопки: выше TabbedPanel (z-index 100), ниже диалогов (10000) */
+.fab-group {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  display: flex;
+  gap: 12px;
+  z-index: 101;
+}
+.fab {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  border: none;
+  border-radius: 50%;
+  font-size: 26px;
+  line-height: 1;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  transition: background 0.15s, opacity 0.15s, transform 0.1s;
+}
+.fab:active:not(:disabled) { transform: scale(0.95); }
+.fab-plus { background: #3b82f6; }
+.fab-plus:hover { background: #2563eb; }
+.fab-minus { background: #3b3d5c; }
+.fab-minus:disabled { opacity: 0.55; cursor: not-allowed; }
+.fab-minus.fab-danger { background: #dc2626; }
+.fab-minus.fab-danger:hover { background: #b91c1c; }
+.fab-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #1e1f35;
+  border: 1px solid #dc2626;
+  font-size: 11px;
+  line-height: 16px;
+  color: #fff;
+}
 
 .clickable-row { cursor: pointer; }
 .clickable-row:hover { background: rgba(255, 255, 255, 0.02); }

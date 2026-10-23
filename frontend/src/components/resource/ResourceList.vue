@@ -12,6 +12,17 @@
     :get-item-key="itemKey"
     :refreshing="refreshing"
     :updated-at="updatedAt ? updatedAt.toLocaleTimeString() : undefined"
+    :selectable="selectable"
+    :selected="selection.selected.value"
+    :all-selected="selection.allSelected.value"
+    :some-selected="selection.someSelected.value"
+    :show-create="creatable"
+    :create-title="`Создать ${def.kind}`"
+    :hide-fab="!!opened"
+    @toggle="selection.toggle"
+    @toggle-all="selection.toggleAll"
+    @delete-selected="deleteSelected"
+    @create="resourceActions.create(def.id)"
     @refresh="reload"
     @search="(v: string) => (search = v)"
     @select="(item: any) => open(item)"
@@ -24,9 +35,11 @@
 import ResourceTable from './ResourceTable.vue'
 import type { MenuItemDef, ResourceDefinition } from '../../resources/types'
 import { useResourceList } from '../../resources/store'
-import { resourceActions } from '../../resources/actions'
-import { actionAllowed, canDelete, canEditYaml } from '../../resources/access'
+import { resourceActions, opened } from '../../resources/actions'
+import { actionAllowed, canBulkDelete, canCreate, canDelete, canEditYaml } from '../../resources/access'
+import { useSelection } from '../../resources/selection'
 import { containersOf, itemName, itemNs } from '../../resources/utils'
+import { computed } from 'vue'
 
 const props = defineProps<{ def: ResourceDefinition }>()
 
@@ -59,6 +72,18 @@ function menuFor(item: any): MenuItemDef[] {
 
 // Ключ строки: у элементов с metadata.name простой item.name был бы пустым
 const itemKey = (item: any) => `${itemNs(item)}/${itemName(item)}`
+
+// Выбор строк для массового удаления
+const selection = useSelection(() => items.value, itemKey)
+const selectable = computed(() => canBulkDelete(props.def))
+const creatable = computed(() => canCreate(props.def))
+
+function deleteSelected() {
+  resourceActions.requestBulkDelete(
+    props.def.id,
+    selection.selectedItems.value.map(i => ({ ns: itemNs(i), name: itemName(i) })),
+  )
+}
 
 function open(item: any) {
   resourceActions.open(props.def.id, itemNs(item), itemName(item), item)
