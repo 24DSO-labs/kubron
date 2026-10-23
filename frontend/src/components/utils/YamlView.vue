@@ -2,14 +2,22 @@
 <div class="yaml-view">
   <div class="editor-header">
     <div class="editor-title">
-      <span>{{ tab.resourceType }} <strong>{{ tab.resourceName }}</strong></span>
+      <span v-if="isCreate">New <strong>{{ tab.kindLabel }}</strong></span>
+      <span v-else>{{ tab.resourceType }} <strong>{{ tab.resourceName }}</strong></span>
       <span v-if="tab.namespace" class="editor-namespace">in <a href="#" class="ns-link">{{ tab.namespace
           }}</a></span>
-      <span v-if="isDirty" class="editor-dirty" title="Есть несохранённые изменения">●</span>
+      <span v-if="isDirty && !isCreate" class="editor-dirty" title="Есть несохранённые изменения">●</span>
       <span v-if="tab.view === 'diff'" class="editor-mode">Review changes</span>
     </div>
     <div class="editor-actions">
-      <template v-if="tab.view === 'diff'">
+      <template v-if="isCreate">
+        <span class="editor-hint">Измените манифест и создайте объект</span>
+        <button class="btn btn-sm btn-save"
+          :disabled="tab.saving || !hasContent"
+          title="Создать объект в кластере (Ctrl+S)"
+          @click="applyChanges()">{{ tab.saving ? '⏳ Creating...' : '✓ Create' }}</button>
+      </template>
+      <template v-else-if="tab.view === 'diff'">
         <button class="btn btn-sm btn-secondary" @click="backToEdit()">← Back to editing</button>
         <button class="btn btn-sm btn-save"
           :disabled="tab.saving || !isDirty"
@@ -51,6 +59,9 @@ const notifications = useNotifications()
 // Без права на запись YAML открывается только для просмотра
 const canEdit = computed(() => can(Perm.Write))
 const isDirty = computed(() => props.tab.content !== props.tab.originalContent)
+// Новый объект: сравнивать не с чем, сразу создаём (без просмотра diff)
+const isCreate = computed(() => props.tab.mode === 'create')
+const hasContent = computed(() => props.tab.content.trim() !== '')
 
 const editorEl = ref<HTMLDivElement | null>(null)
 const diffEl = ref<HTMLDivElement | null>(null)
@@ -149,13 +160,15 @@ watch(isDirty, dirty => {
 
 /** Сохранение начинается с просмотра изменений (Save / Ctrl+S) */
 function reviewChanges() {
+  if (isCreate.value) return applyChanges()
   if (!canEdit.value || props.tab.saving || !isDirty.value) return
   props.tab.view = 'diff'
 }
 
 /** Применить в кластере (кнопка Apply в режиме diff); результат обрабатывает App.vue */
 function applyChanges() {
-  if (!canEdit.value || props.tab.saving || !isDirty.value) return
+  if (!canEdit.value || props.tab.saving) return
+  if (isCreate.value ? !hasContent.value : !isDirty.value) return
   emit('apply', props.tab.id)
 }
 
@@ -231,6 +244,8 @@ async function reloadYaml() {
   border-radius: 999px;
   padding: 2px 10px;
 }
+
+.editor-hint { font-size: 12px; color: #6b6d8a; }
 
 .editor-namespace {
   color: #6b6d8a;
