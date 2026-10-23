@@ -35,11 +35,11 @@
 import ResourceTable from './ResourceTable.vue'
 import type { MenuItemDef, ResourceDefinition } from '../../resources/types'
 import { useResourceList } from '../../resources/store'
-import { resourceActions, opened } from '../../resources/actions'
+import { resourceActions, opened, bulkDeleted } from '../../resources/actions'
 import { actionAllowed, canBulkDelete, canCreate, canDelete, canEditYaml } from '../../resources/access'
 import { useSelection } from '../../resources/selection'
 import { containersOf, itemName, itemNs } from '../../resources/utils'
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 
 const props = defineProps<{ def: ResourceDefinition }>()
 
@@ -77,6 +77,11 @@ const itemKey = (item: any) => `${itemNs(item)}/${itemName(item)}`
 const selection = useSelection(() => items.value, itemKey)
 const selectable = computed(() => canBulkDelete(props.def))
 const creatable = computed(() => canCreate(props.def))
+
+// Удалённые пачкой объекты ещё некоторое время видны в списке (Terminating): выбор снимаем сразу
+watch(bulkDeleted, v => {
+  if (v && v.id === props.def.id) selection.drop(v.items.map(i => `${i.ns}/${i.name}`))
+})
 
 function deleteSelected() {
   resourceActions.requestBulkDelete(
