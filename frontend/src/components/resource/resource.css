@@ -55,6 +55,10 @@
 .rd-block-head:hover { background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.1) 100%); }
 .rd-block-body { padding: 16px; max-height: 600px; overflow-y: auto; border-top: 1px solid #2a2b40; }
 
+/* Секция с заголовком, всегда раскрытая (Pods в панели приложения) */
+.rd-section { margin-top: 16px; }
+.rd-section-title { padding: 8px 0; font-weight: 600; font-size: 1rem; color: #d4d4d4; }
+
 /* Таблицы (поды, ревизии, tolerations) */
 .rd-table-wrap { width: 100%; overflow-x: auto; }
 .rd-table { width: 100%; border-collapse: collapse; background: #1a1b2e; color: #d4d4d4; font-size: 0.9rem; }

@@ -34,6 +34,7 @@ export const NAV_GROUPS: Record<NavGroupId, NavGroupMeta> = {
  * Элемент — id группы или view ресурса верхнего уровня (у него в `nav` нет group).
  */
 const NAV_ORDER: string[] = [
+  'applications',
   'nodes', 'events',
   'namespaces',
   'workloads', 'config', 'network', 'storage',

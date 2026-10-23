@@ -40,16 +40,25 @@ const props = defineProps<{
   ownerKind?: string
   /** regex для owner_name (в Prometheus он всегда с якорями) */
   ownerRegex?: string
+  /** несколько владельцев сразу (приложение из нескольких workload-ов); объединяются с ownerKind/ownerRegex */
+  owners?: { kind: string; regex: string }[]
 }>()
 
 const { queryRange } = usePrometheusRange(props.clusterName)
 
 const ns = () => `namespace="${props.namespace}"`
-const owner = () =>
-  `kube_pod_owner{${ns()},owner_kind="${props.ownerKind}",owner_name=~"${props.ownerRegex}",owner_is_controller="true"}`
+const ownerSelector = (kind: string, regex: string) =>
+  `kube_pod_owner{${ns()},owner_kind="${kind}",owner_name=~"${regex}",owner_is_controller="true"}`
+/** Все владельцы одним выражением: серии kube_pod_owner объединяются через `or` */
+const owner = () => {
+  const list = [...(props.ownerKind ? [{ kind: props.ownerKind, regex: props.ownerRegex ?? '' }] : []), ...(props.owners ?? [])]
+  return list.length ? `(${list.map(o => ownerSelector(o.kind, o.regex)).join(' or ')})` : ''
+}
 /** Оставляет только серии подов нужного владельца (значение kube_pod_owner всегда 1); без владельца — как есть */
-const own = (expr: string) =>
-  props.ownerKind ? `${expr} * on(namespace,pod) group_left() ${owner()}` : expr
+const own = (expr: string) => {
+  const o = owner()
+  return o ? `${expr} * on(namespace,pod) group_left() ${o}` : expr
+}
 
   
 interface Line { label: string; expr: () => string }
