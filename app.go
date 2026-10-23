@@ -174,6 +174,13 @@ func (a *App) GetClusterOverview() (*k8s.ClusterOverview, error) {
 	return a.k8sMgr.GetClusterOverview()
 }
 
+func (a *App) GetOverviewHotspots() (*k8s.OverviewHotspots, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetOverviewHotspots()
+}
+
 // === Node actions ===
 
 func (a *App) CordonNode(name string, cordon bool) error {
