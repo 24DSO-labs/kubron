@@ -35,8 +35,9 @@ export const NAV_GROUPS: Record<NavGroupId, NavGroupMeta> = {
  */
 const NAV_ORDER: string[] = [
   'nodes', 'events',
-  'workloads', 'config', 'network', 'storage',
   'namespaces',
+  'workloads', 'config', 'network', 'storage',
+  
   'helm', 'access', 'argocd',
 ]
 
