@@ -27,6 +27,12 @@ export const pendingBulkDelete = ref<{
   items: { ns: string; name: string }[]
 } | null>(null)
 
+/**
+ * Объекты, на которые массовое удаление успешно отправлено. Под при удалении ещё какое-то время
+ * (graceful termination) остаётся в списке, поэтому список по нему выбор не снимет: это делает ResourceList.
+ */
+export const bulkDeleted = shallowRef<{ id: string; items: { ns: string; name: string }[] } | null>(null)
+
 /** Сколько имён с причиной ошибки показываем в тосте; остальные — счётчиком */
 const MAX_FAILURES_SHOWN = 3
 
@@ -122,6 +128,8 @@ export const resourceActions: ActionContext & {
 
     // Ошибка одного объекта не должна обрывать остальные
     const res = await runBatch(p.items, it => remove(it.ns, it.name))
+
+    if (res.done.length) bulkDeleted.value = { id: p.id, items: res.done }
 
     const o = opened.value
     if (o && o.id === p.id && res.done.some(it => it.ns === o.ns && it.name === o.name)) opened.value = null
