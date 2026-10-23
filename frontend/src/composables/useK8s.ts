@@ -2,6 +2,7 @@ import { ref, type Ref } from 'vue'
 import {
   GetNamespaces,
   ApplyYAML,
+  CreateResourceYAML,
   GetPodMetrics,
   ListPortForwards,
 } from '../../wailsjs/go/main/App'
@@ -163,6 +164,11 @@ async function applyYAML(content: string, kind: string, namespace: string, name:
   await ApplyYAML(namespace, kind, name, content)
 }
 
+/** Создаёт новый объект из манифеста и возвращает его имя */
+function createResourceYAML(content: string, kind: string, namespace: string): Promise<string> {
+  return CreateResourceYAML(namespace, kind, content)
+}
+
 // ─── Метрики ───
 
 async function loadPodMetrics() {
@@ -202,6 +208,7 @@ export function useK8s() {
 
     // YAML
     applyYAML,
+    createResourceYAML,
 
     // Metrics / port forward
     loadPodMetrics,

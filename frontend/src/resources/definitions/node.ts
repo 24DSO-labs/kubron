@@ -138,6 +138,9 @@ export const node = defineResource<k8s.NodeInfo, k8s.NodeDetail>({
     },
   ],
 
+  // Узлы удаляют осознанно и по одному
+  bulkDelete: false,
+
   api: {
     list: () => callApp('GetNodes'),
     get: (_ns, name) => callApp('GetNodeDetail', name),

@@ -35,6 +35,17 @@
     @cancel="answerConfirm(false)"
   />
 
+  <!-- Массовое удаление: чекбоксы в списке + «−» -->
+  <ConfirmationDialog
+    :model-value="!!pendingBulkDelete"
+    :resource-type="pendingBulkDelete?.kind ?? ''"
+    resource-name=""
+    :title="bulkTitle"
+    :items="bulkItems"
+    @confirm="resourceActions.confirmBulkDelete()"
+    @cancel="resourceActions.cancelBulkDelete()"
+  />
+
   <ConfirmationDialog
     v-model="confirmOpen"
     :resource-type="pendingDelete?.kind ?? ''"
@@ -57,7 +68,7 @@ import ScaleDialog from '../panels/ScaleDialog.vue'
 import { getResourceById } from '../../resources/registry'
 import { findLoaded } from '../../resources/store'
 import { itemName, itemNs } from '../../resources/utils'
-import { opened, pendingDelete, scaleTarget, resourceActions } from '../../resources/actions'
+import { opened, pendingDelete, pendingBulkDelete, scaleTarget, resourceActions } from '../../resources/actions'
 import { pendingConfirm, answerConfirm } from '../../resources/confirm'
 import SyncDialog from '../panels/SyncDialog.vue'
 import { pendingArgoSync, closeArgoSync } from '../../resources/argoActions'
@@ -119,6 +130,14 @@ watch(
     }
   },
   { immediate: true },
+)
+
+const bulkTitle = computed(() => {
+  const p = pendingBulkDelete.value
+  return p ? `Delete ${p.items.length} selected ${p.kind} objects?` : ''
+})
+const bulkItems = computed(() =>
+  (pendingBulkDelete.value?.items ?? []).map(i => (i.ns ? `${i.ns}/${i.name}` : i.name)),
 )
 
 // Модель диалога удаления синхронизируется с pendingDelete; чистят её только confirm/cancel

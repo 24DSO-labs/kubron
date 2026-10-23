@@ -32,6 +32,10 @@ export interface YamlTab extends BaseTab {
   loading?: boolean
   /** edit — редактор, diff — просмотр изменений перед применением */
   view?: 'edit' | 'diff'
+  /** create — манифест нового объекта (кнопка «+»): создаётся, а не заменяет существующий */
+  mode?: 'edit' | 'create'
+  /** Отображаемое имя типа для заголовка вкладки создания: 'Deployment' */
+  kindLabel?: string
 }
 
 export interface TerminalTab extends BaseTab {
@@ -185,6 +189,32 @@ function openYamlTab(resourceType: string, resourceName: string, namespace: stri
   }
 }
 
+/**
+ * Вкладка с манифестом нового объекта. Каждый вызов открывает отдельную вкладку:
+ * у черновика ещё нет имени, по которому её можно было бы найти.
+ * resourceType — ключ типа (ResourceDefinition.id): с ним манифест уйдёт в CreateResourceYAML.
+ */
+function openCreateYamlTab(resourceType: string, kindLabel: string, content: string) {
+  const id = `yaml-new-${uid()}`
+  const newTab: YamlTab = {
+    id,
+    type: 'yaml',
+    icon: '➕',
+    title: `New ${kindLabel}`,
+    resourceType,
+    resourceName: '',
+    // namespace задаёт сам манифест, поэтому в заголовке его не показываем
+    namespace: '',
+    content,
+    originalContent: '',
+    view: 'edit',
+    mode: 'create',
+    kindLabel,
+  }
+  tabs.value.push(newTab)
+  activeTabId.value = id
+}
+
 function closeTab(tabId: string) {
   const index = tabs.value.findIndex(t => t.id === tabId)
   if (index !== -1) {
@@ -215,6 +245,7 @@ export const globalTabbedPanel = {
   activeTabId,
   openLogsTab,
   openYamlTab,
+  openCreateYamlTab,
   openTerminalTab,
   closeTab,
   closeAllTabs,
