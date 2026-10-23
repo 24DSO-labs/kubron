@@ -600,6 +600,15 @@ func (a *App) GetNodeDetail(name string) (*k8s.NodeDetail, error) {
 	return a.k8sMgr.GetNodeDetail(name)
 }
 
+// === Applications ===
+
+func (a *App) GetApplications(namespace string) ([]k8s.ApplicationInfo, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetApplications(namespace)
+}
+
 // === Helm ===
 
 func (a *App) GetHelmReleases() ([]k8s.HelmReleaseInfo, error) {
