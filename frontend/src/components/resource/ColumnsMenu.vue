@@ -1,15 +1,22 @@
 <template>
   <div ref="root" class="cm">
     <button
+      ref="btn"
       class="cm-btn"
       type="button"
+      title="Колонки"
+      aria-label="Настройка колонок"
       aria-haspopup="true"
       :aria-expanded="open"
-      @click="open = !open"
+      :class="{ active: open }"
+      @click.stop="toggle"
     >
-      Колонки
+      <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.5" />
+        <path d="M6 2.75v10.5M10.25 2.75v10.5" />
+      </svg>
     </button>
-    <div v-if="open" class="cm-pop" role="dialog" aria-label="Настройка колонок">
+    <div v-if="open" class="cm-pop" :style="popStyle" role="dialog" aria-label="Настройка колонок" @click.stop>
       <ul class="cm-list">
         <li
           v-for="(c, i) in ordered"
@@ -62,6 +69,8 @@ const emit = defineEmits<{
 
 const open = ref(false)
 const root = ref<HTMLElement | null>(null)
+const btn = ref<HTMLButtonElement | null>(null)
+const popStyle = ref<Record<string, string>>({})
 const dragFrom = ref<number | null>(null)
 const overIdx = ref<number | null>(null)
 
@@ -78,6 +87,22 @@ function onDrop(to: number) {
   dragFrom.value = overIdx.value = null
 }
 
+const POP_WIDTH = 240
+
+/**
+ * Меню позиционируется через fixed: кнопка стоит в th, а у ячеек таблицы overflow: hidden,
+ * обычное absolute-меню было бы обрезано.
+ */
+function toggle() {
+  if (open.value) { open.value = false; return }
+  const r = btn.value!.getBoundingClientRect()
+  const left = Math.max(8, Math.min(r.right - POP_WIDTH, window.innerWidth - POP_WIDTH - 8))
+  popStyle.value = { top: `${r.bottom + 6}px`, left: `${left}px`, maxHeight: `${Math.max(160, window.innerHeight - r.bottom - 20)}px` }
+  open.value = true
+}
+
+const close = () => { open.value = false }
+
 const onDocClick = (e: MouseEvent) => {
   if (!root.value?.contains(e.target as Node)) open.value = false
 }
@@ -87,41 +112,47 @@ const onKey = (e: KeyboardEvent) => {
 onMounted(() => {
   document.addEventListener('click', onDocClick)
   document.addEventListener('keydown', onKey)
+  window.addEventListener('resize', close)
+  window.addEventListener('scroll', close, true) // меню fixed: при прокрутке уехало бы от кнопки
 })
 onUnmounted(() => {
   document.removeEventListener('click', onDocClick)
   document.removeEventListener('keydown', onKey)
+  window.removeEventListener('resize', close)
+  window.removeEventListener('scroll', close, true)
 })
 </script>
 
 <style scoped>
-.cm { position: relative; }
+.cm { display: inline-flex; }
 .cm-btn {
-  padding: 7px 14px;
-  background: #1a1d2e;
-  border: 1px solid #3b3d5c;
-  border-radius: 8px;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  color: #e6e8f5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: #a6adc8;
   cursor: pointer;
-  transition: border-color 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
-.cm-btn:hover { border-color: #89b4fa; }
+.cm-btn:hover, .cm-btn.active { background: rgba(255, 255, 255, 0.1); color: #89b4fa; }
 .cm-pop {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  z-index: 200;
-  min-width: 240px;
-  max-height: 60vh;
+  position: fixed;
+  z-index: 10000;
+  width: 240px;
   overflow: auto;
   background: #1e1f35;
   border: 1px solid #3b3d5c;
   border-radius: 6px;
   padding: 6px;
   text-align: left;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 .cm-list { list-style: none; margin: 0; padding: 0; }
