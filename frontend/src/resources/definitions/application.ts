@@ -7,6 +7,7 @@ import { applicationReplicas, urlsText } from '../applications'
 
 import ApplicationMetricsSection from '../../components/resource/sections/ApplicationMetricsSection.vue'
 import ApplicationPodsSection from '../../components/resource/sections/ApplicationPodsSection.vue'
+import ApplicationResourcesSection from '../../components/resource/sections/ApplicationResourcesSection.vue'
 
 /** «ready/desired» по подам всех workload-ов приложения */
 const podsText = (a: any) => {
@@ -55,8 +56,8 @@ export const application = defineResource<k8s.ApplicationInfo>({
   properties: [
     { label: 'Status', value: a => a.status, badge: a => badgeClass(a.status) },
     { label: 'Application', value: a => a.application },
-    { label: 'Version', value: a => a.version, hideEmpty: true },
-    { label: 'Managed By', value: a => a.managedBy, hideEmpty: true },
+    { label: 'Version', value: a => a.version },
+    { label: 'Managed By', value: a => a.managedBy },
     { label: 'Component', value: a => a.component, hideEmpty: true },
     { label: 'Part Of', value: a => a.partOf, hideEmpty: true },
     { label: 'Internal URLs', multiline: true, value: a => urlsText(a.internalUrls) },
@@ -68,7 +69,7 @@ export const application = defineResource<k8s.ApplicationInfo>({
       link: a => (a.namespace ? { id: 'namespace', ns: '', name: a.namespace } : null),
     },
   ],
-  sections: [ApplicationPodsSection],
+  sections: [ApplicationPodsSection, ApplicationResourcesSection],
 
   api: {
     list: ns => callApp('GetApplications', ns),
