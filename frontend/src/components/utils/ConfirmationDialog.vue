@@ -4,6 +4,9 @@
       <div class="dialog-content">
         <p class="dialog-title">{{ title }}</p>
         <p v-if="resourceName" class="resource-name">{{ resourceName }}</p>
+        <ul v-if="items?.length" class="item-list">
+          <li v-for="it in items" :key="it">{{ it }}</li>
+        </ul>
       </div>
       
       <div class="dialog-actions">
@@ -26,6 +29,8 @@ const props = defineProps<{
   resourceName: string
   namespace?: string
   title?: string
+  /** Список объектов под заголовком (массовое удаление) */
+  items?: string[]
   isDeleting?: boolean
 }>()
 
@@ -97,6 +102,22 @@ function handleOverlayClick() {
   color: #60a5fa;
   word-break: break-all;
   margin: 0;
+}
+
+.item-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 12px;
+  color: #60a5fa;
+}
+
+.item-list li {
+  padding: 2px 0;
+  word-break: break-all;
 }
 
 .dialog-actions {

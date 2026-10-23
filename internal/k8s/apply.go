@@ -23,14 +23,9 @@ func (m *Manager) ApplyYAML(namespace, kind, name, yamlData string) error {
 		return err
 	}
 
-	// YAML -> JSON -> Unstructured: так числа получаются int64, а не float64
-	jsonData, err := yaml.YAMLToJSON([]byte(yamlData))
+	obj, err := parseSingleManifest(yamlData)
 	if err != nil {
-		return fmt.Errorf("ошибка парсинга YAML: %w", err)
-	}
-	obj := &unstructured.Unstructured{}
-	if err := obj.UnmarshalJSON(jsonData); err != nil {
-		return fmt.Errorf("некорректный манифест: %w", err)
+		return err
 	}
 
 	// Защита от применения не к тому объекту
@@ -64,4 +59,94 @@ func (m *Manager) ApplyYAML(namespace, kind, name, yamlData string) error {
 		return err
 	}
 	return nil
+}
+
+// defaultNamespace — namespace для нового объекта, если он не указан ни в манифесте, ни в вызове.
+const defaultNamespace = "default"
+
+// ManifestNamespace — metadata.namespace манифеста, а если он не указан или манифест не разбирается,
+// fallback. Нужен для журнала аудита, поэтому в кластер не ходит и ошибок не возвращает.
+func ManifestNamespace(yamlData, fallback string) string {
+	if obj, err := parseSingleManifest(yamlData); err == nil && obj.GetNamespace() != "" {
+		return obj.GetNamespace()
+	}
+	return fallback
+}
+
+// ManifestName — metadata.name манифеста (пусто, если не указан или манифест не разбирается).
+func ManifestName(yamlData string) string {
+	obj, err := parseSingleManifest(yamlData)
+	if err != nil {
+		return ""
+	}
+	return obj.GetName()
+}
+
+func parseSingleManifest(yamlData string) (*unstructured.Unstructured, error) {
+	// YAML -> JSON -> Unstructured: так числа получаются int64, а не float64
+	jsonData, err := yaml.YAMLToJSON([]byte(yamlData))
+	if err != nil {
+		return nil, fmt.Errorf("ошибка парсинга YAML: %w", err)
+	}
+	obj := &unstructured.Unstructured{}
+	if err := obj.UnmarshalJSON(jsonData); err != nil {
+		return nil, fmt.Errorf("некорректный манифест: %w", err)
+	}
+	return obj, nil
+}
+
+// CreateResourceYAML создаёт новый объект из манифеста редактора и возвращает его имя.
+// kind — ключ типа (ResourceDefinition.id на фронтенде). Namespace берётся из metadata.namespace,
+// затем из аргумента, затем "default"; для кластерных ресурсов он игнорируется.
+// Если объект с таким именем уже есть, возвращается ошибка: существующие объекты Create не трогает.
+func (m *Manager) CreateResourceYAML(namespace, kind, yamlData string) (string, error) {
+	conn, err := m.GetActiveConnection()
+	if err != nil {
+		return "", err
+	}
+
+	obj, err := parseSingleManifest(yamlData)
+	if err != nil {
+		return "", err
+	}
+
+	ns := obj.GetNamespace()
+	if ns == "" {
+		ns = namespace
+	}
+	if ns == "" {
+		ns = defaultNamespace
+	}
+
+	ri, info, err := resourceClient(conn, kind, ns)
+	if err != nil {
+		return "", err
+	}
+
+	if obj.GetKind() == "" {
+		return "", fmt.Errorf("в манифесте не указан kind")
+	}
+	if want := info.gvr.GroupVersion().String(); obj.GetAPIVersion() != want {
+		return "", fmt.Errorf("apiVersion должен быть %q, а не %q", want, obj.GetAPIVersion())
+	}
+	if obj.GetName() == "" && obj.GetGenerateName() == "" {
+		return "", fmt.Errorf("в манифесте не указан metadata.name")
+	}
+	if info.namespaced {
+		obj.SetNamespace(ns)
+	} else {
+		obj.SetNamespace("") // для кластерного ресурса API-сервер отклонил бы заданный namespace
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	created, err := ri.Create(ctx, obj, metav1.CreateOptions{})
+	if err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			return "", fmt.Errorf("%s %q уже существует: %w", obj.GetKind(), obj.GetName(), err)
+		}
+		return "", err
+	}
+	return created.GetName(), nil
 }

@@ -95,6 +95,7 @@ import { viewRegistry } from './composables/useViewRegistry'
 import { globalTabbedPanel } from './composables/useTabbedPanel'
 import { getResourceByView, getResourceById } from './resources/registry'
 import { resourceActions } from './resources/actions'
+import { DEFAULT_NAMESPACE } from './resources/templates'
 import { clusterNameKey } from './resources/context'
 import { clearResourceStore, reloadActive } from './resources/store'
 import { answerConfirm } from './resources/confirm'
@@ -261,12 +262,20 @@ async function applyYAMLTabbed(tabId: string) {
   tab.saving = true
   const applied = tab.content
   try {
+    // Кнопка «+»: вкладка с новым манифестом создаёт объект, а не заменяет существующий
+    if (tab.mode === 'create') {
+      const name = await k8s.createResourceYAML(applied, tab.resourceType, DEFAULT_NAMESPACE)
+      notifications.notifySuccess(`${tab.kindLabel ?? tab.resourceType} "${name}" создан`)
+      globalTabbedPanel.closeTab(tab.id)
+      await refreshAll()
+      return
+    }
     await k8s.applyYAML(applied, tab.resourceType, tab.namespace, tab.resourceName)
     tab.originalContent = applied
     notifications.notifySuccess(`${tab.resourceType} ${tab.resourceName} updated`)
     await refreshAll()
   } catch (e: any) {
-    notifications.notifyError(`Apply error: ${e?.message || e}`)
+    notifications.notifyError(`${tab.mode === 'create' ? 'Ошибка создания' : 'Apply error'}: ${e?.message || e}`)
   } finally {
     tab.saving = false
   }
