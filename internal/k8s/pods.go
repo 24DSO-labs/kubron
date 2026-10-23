@@ -277,6 +277,10 @@ func convertPod(pod corev1.Pod) PodInfo {
 			break
 		}
 	}
+	// Как у kubectl: удаляемый под (graceful termination) остаётся в списке, пока не остановятся контейнеры
+	if pod.DeletionTimestamp != nil {
+		status = "Terminating"
+	}
 
 	var volumes []VolumeInfo
 	for _, vol := range pod.Spec.Volumes {
