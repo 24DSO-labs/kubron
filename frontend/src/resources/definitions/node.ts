@@ -31,8 +31,8 @@ export const node = defineResource<k8s.NodeInfo, k8s.NodeDetail>({
   columns: [
     flatNameCol,
     { key: 'cpu', label: 'CPU', width: 100, component: NodeUsageCell },
-    { key: 'memory', label: 'Memory', width: 100, component: NodeUsageCell },
-    { key: 'disk', label: 'Disk', width: 100, component: NodeUsageCell },
+    { key: 'memory', label: 'Memory', width: 100, component: NodeUsageCell, sortValue: (n: any) => n.usage?.memory?.pct },
+    { key: 'disk', label: 'Disk', width: 100, component: NodeUsageCell, sortValue: (n: any) => n.usage?.disk?.pct },
     { key: 'taints', label: 'Taints', width: 80 },
     // kubectl показывает <none> для worker, в списке оставляем пусто
     { key: 'roles', label: 'Roles', formatter: n => (n.roles === '<none>' ? '' : n.roles) },

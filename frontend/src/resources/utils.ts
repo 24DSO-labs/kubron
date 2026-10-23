@@ -7,6 +7,16 @@ export function itemNs(item: any): string {
   return item?.namespace ?? item?.metadata?.namespace ?? ''
 }
 
+/**
+ * Возраст из формата Go formatAge ("3d4h", "5h12m", "7m") в минуты: для сортировки.
+ * null — не удалось разобрать («—», пусто).
+ */
+export function ageToMinutes(age?: string | null): number | null {
+  const m = /^(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?$/.exec((age ?? '').trim())
+  if (!m || !m[0]) return null
+  return Number(m[1] ?? 0) * 1440 + Number(m[2] ?? 0) * 60 + Number(m[3] ?? 0)
+}
+
 /** Map labels/selector -> 'a=b, c=d' (в панели объект иначе показывается как [object Object]) */
 export function formatMap(m?: Record<string, string> | null): string {
   return m ? Object.entries(m).map(([k, v]) => `${k}=${v}`).join(', ') : ''
