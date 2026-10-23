@@ -38,6 +38,13 @@ export function useSelection<T>(items: () => readonly T[], keyOf: (item: T) => s
     selected.value = allSelected.value ? new Set() : new Set(items().map(keyOf))
   }
 
+  /** Снять выбор с указанных ключей (например, с только что удалённых объектов) */
+  function drop(keys: Iterable<string>) {
+    const gone = new Set(keys)
+    const kept = [...selected.value].filter(k => !gone.has(k))
+    if (kept.length !== selected.value.size) selected.value = new Set(kept)
+  }
+
   function clear() {
     if (selected.value.size) selected.value = new Set()
   }
@@ -48,5 +55,5 @@ export function useSelection<T>(items: () => readonly T[], keyOf: (item: T) => s
     selected.value = prunedKeys(selected.value, list.map(keyOf))
   })
 
-  return { selected, selectedItems, count, allSelected, someSelected, isSelected, toggle, toggleAll, clear }
+  return { selected, selectedItems, count, allSelected, someSelected, isSelected, toggle, toggleAll, drop, clear }
 }
