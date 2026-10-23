@@ -43,6 +43,7 @@ import { argoRepository } from './definitions/argocd/repository'
 import { argoCluster } from './definitions/argocd/cluster'
 import { dynamicById, dynamicByView } from './dynamicRegistry'
 import { customResourceDefinition } from './definitions/crd'
+import { application } from './definitions/application'
 
 /** Добавляя новый ресурс, достаточно дописать его сюда. */
 export const resources: ResourceDefinition[] = [
@@ -95,6 +96,7 @@ export const resources: ResourceDefinition[] = [
   clusterRole,
   clusterRoleBinding,
   // верхний уровень
+  application,
   node,
   event,
   namespaceResource,
