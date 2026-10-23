@@ -4,6 +4,7 @@
       <h1>Overview</h1>
       <div class="ov-header-right">
         <span v-if="data && error" class="ov-stale" :title="error">Update failed, showing last data</span>
+        <ClusterHealthChip v-if="data" :health="data.health" />
         <span v-else-if="updatedAt" class="ov-updated">Updated {{ updatedAt.toLocaleTimeString() }}</span>
         <button type="button" class="ov-btn" :disabled="refreshing" @click="refresh">
           {{ refreshing ? 'Refreshing…' : 'Refresh' }}
@@ -33,10 +34,15 @@
       </div>
 
       <div class="ov-row ov-row-3">
-        <ClusterHealthCard :health="data.health" />
-        <ResourceUsageCard :cluster-name="clusterName" :requests="data.requests" @open-settings="emit('navigate', 'settings')" />
-        <WarningsCard :reasons="data.warningReasons ?? []" @view-all="emit('navigate', 'events')" />
-      </div>
+  <ResourceUsageCard :cluster-name="clusterName" :requests="data.requests" @open-settings="emit('navigate', 'settings')" />
+  <TopPodsCard :data="hot" :state="hotState" @open="openHotPod" />
+  <StorageCard :data="hot" :state="hotState" />
+</div>
+
+<div class="side">
+  <ProblemPodsCard :pods="data.problemPods ?? []" :total="data.problemPodsTotal" @open="openPod" @view-all="emit('navigate', 'pods')" />
+  <WarningsCard :reasons="data.warningReasons ?? []" @view-all="emit('navigate', 'events')" />
+</div>
 
       <div class="ov-row ov-row-main">
         <WorkloadsCard :workloads="data.workloads" @open="openWorkload" />
@@ -64,9 +70,18 @@ import { useViewHotkeys } from '../../composables/useViewHotkeys'
 import { resourceActions } from '../../resources/actions'
 import type { ProblemPod, WorkloadSummary } from '../../types/overview'
 import '../overview/overview.css'
+import ClusterHealthChip from '../overview/ClusterHealthChip.vue'
+import TopPodsCard from '../overview/TopPodsCard.vue'
+import StorageCard from '../overview/StorageCard.vue'
+import { useHotspots } from '../../composables/useHotspots'
+import type { HotPod } from '../../types/hotspots'
+
 
 const props = withDefaults(defineProps<{ clusterName?: string }>(), { clusterName: '' })
 const emit = defineEmits<{ (e: 'navigate', view: string): void }>()
+
+const { data: hot, state: hotState } = useHotspots(toRef(props, 'clusterName'))
+const openHotPod = (p: HotPod) => resourceActions.open('pod', p.namespace, p.name)
 
 const { data, loading, refreshing, error, updatedAt, refresh } = useOverview(toRef(props, 'clusterName'))
 
@@ -139,4 +154,6 @@ function openPod(p: ProblemPod) {
 @container (max-width: 700px) {
   .ov-row-3, .ov-row-main { grid-template-columns: minmax(0, 1fr); }
 }
+
+.side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 </style>
