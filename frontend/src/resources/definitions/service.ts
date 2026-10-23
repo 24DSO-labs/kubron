@@ -17,7 +17,7 @@ export const service = defineResource<k8s.ServiceInfo, k8s.ServiceDetail>({
   namespaced: true,
   nav: { group: 'network', label: 'Services' },
 
-  autoRefresh: true, icon: 'service',
+  autoRefresh: true,
 
   columns: [
     flatNameCol,
