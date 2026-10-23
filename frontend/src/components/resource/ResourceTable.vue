@@ -1,7 +1,16 @@
 <template>
   <div>
     <div v-if="menu" class="menu-overlay" @click="hideMenu" @contextmenu.prevent="hideMenu"></div>
-    <ContentHeader :icon="icon" :title="title" :count="items.length" :search="search" :refreshing="refreshing" :updated-at="updatedAt" showSearch @refresh="emit('refresh')" @search="v => emit('search', v)" />
+    <ContentHeader :icon="icon" :title="title" :count="items.length" :search="search" :refreshing="refreshing" :updated-at="updatedAt" showSearch @refresh="emit('refresh')" @search="v => emit('search', v)">
+      <ColumnsMenu
+        :ordered="resolved.ordered"
+        :hidden="prefs.hidden"
+        :required="columns[0]?.key ?? ''"
+        @toggle="toggleColumn"
+        @move="moveColumn"
+        @reset="resetColumns"
+      />
+    </ContentHeader>
 
     <table
   v-if="items.length > 0"
@@ -12,7 +21,7 @@
 >
   <colgroup v-if="fixed">
   <col v-if="selectable" :style="{ width: SELECT_COL + 'px' }" />
-  <col v-for="col in columns" :key="col.key" :style="{ width: widths[col.key] + 'px' }" />
+  <col v-for="col in visibleColumns" :key="col.key" :style="{ width: widths[col.key] + 'px' }" />
   <col :style="{ width: ACTION_COL + 'px' }" />
 </colgroup>
 <thead>
@@ -27,8 +36,11 @@
         @change="emit('toggle-all')"
       />
     </th>
-    <th v-for="col in columns" :key="col.key" :data-col="col.key">
-      {{ col.label }}
+    <th v-for="col in visibleColumns" :key="col.key" :data-col="col.key" :aria-sort="ariaSort(col)">
+      <button v-if="isSortable(col)" type="button" class="th-sort" @click="onSort(col)">
+        {{ col.label }}<span class="sort-ind" aria-hidden="true">{{ sortIndicator(col) }}</span>
+      </button>
+      <template v-else>{{ col.label }}</template>
       <span
         class="col-resizer"
         :class="{ active: resizingKey === col.key }"
@@ -45,7 +57,7 @@
 </thead>
       <tbody>
         <tr
-          v-for="item in items"
+          v-for="item in sortedItems"
           :key="itemKey(item)"
           class="clickable-row"
           :class="{ 'row-selected': selectable && isSelected(item) }"
@@ -55,7 +67,7 @@
           <td v-if="selectable" class="col-select" @click.stop>
             <input type="checkbox" class="row-check" :checked="isSelected(item)" @change="emit('toggle', item)" />
           </td>
-          <td v-for="col in columns" :key="col.key" :class="col.className">
+          <td v-for="col in visibleColumns" :key="col.key" :class="col.className">
             <component :is="col.component" v-if="col.component" :item="item" :col="col" />
 <span v-else-if="col.animated" :style="cellStyle(col, item)">
   <RollingValue :value="String(cellValue(col, item))" />
@@ -142,11 +154,18 @@ import type { ColumnDef, MenuItemDef } from '../../resources/types'
 import './resource.css'
 import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import RollingValue from './RollingValue.vue'
+import ColumnsMenu from './ColumnsMenu.vue'
+import {
+  isSortable, loadPrefs, nextSort, resolveColumns, savePrefs, sortItems,
+  type ColumnPrefs, type SortValue,
+} from '../../resources/columns'
 
 const props = defineProps<{
   items: any[]
   search: string
   title: string
+  /** Ключ сохранённых настроек колонок (по умолчанию title); у списков ресурсов это view */
+  prefsKey?: string
   icon?: string
   emptyMessage: string
   columns: ColumnDef[]
@@ -186,6 +205,7 @@ const emit = defineEmits<{
 
 // ─── Ширина колонок ───
 const MIN_COL = 50
+const DEFAULT_COL = 140 // ширина колонки, показанной уже после замера раскладки
 const ACTION_COL = 56
 const SELECT_COL = 40
 const storageKey = () => `kubron:colwidths:${props.title}`
@@ -195,14 +215,61 @@ const widths = reactive<Record<string, number>>({})
 const fixed = ref(false)
 const resizingKey = ref<string | null>(null)
 
+// ─── Порядок, видимость и сортировка колонок ───
+const prefsId = props.prefsKey ?? props.title
+const prefs = ref<ColumnPrefs>(loadPrefs(prefsId))
+watch(prefs, p => savePrefs(prefsId, p), { deep: true })
+
+const resolved = computed(() => resolveColumns(props.columns, prefs.value))
+const visibleColumns = computed(() => resolved.value.visible)
+
+function toggleColumn(key: string) {
+  if (key === props.columns[0]?.key) return
+  const hidden = new Set(prefs.value.hidden)
+  if (!hidden.delete(key)) hidden.add(key)
+  prefs.value = { ...prefs.value, hidden: [...hidden] }
+}
+
+function moveColumn(from: number, to: number) {
+  const keys = resolved.value.ordered.map(c => c.key)
+  if (from === to || to < 0 || to >= keys.length) return
+  const [k] = keys.splice(from, 1)
+  keys.splice(to, 0, k)
+  prefs.value = { ...prefs.value, order: keys }
+}
+
+// Сортировку оставляем: «сбросить колонки» меняет вид таблицы, а не порядок строк
+const resetColumns = () => { prefs.value = { order: [], hidden: [], sort: prefs.value.sort } }
+
+const sortValueOf = (col: ColumnDef, item: any): SortValue =>
+  col.sortValue ? col.sortValue(item) : col.formatter ? col.formatter(item) : getCellValue(item, col.key)
+
+// Сортировка по скрытой колонке не действует, но остаётся в настройках до явного клика
+const activeSort = computed(() => {
+  const s = prefs.value.sort
+  const col = s && visibleColumns.value.find(c => c.key === s.key)
+  return s && col && isSortable(col) ? { col, dir: s.dir } : null
+})
+
+const sortedItems = computed(() => {
+  const a = activeSort.value
+  return a ? sortItems(props.items, it => sortValueOf(a.col, it), a.dir) : props.items
+})
+
+const onSort = (col: ColumnDef) => { prefs.value = { ...prefs.value, sort: nextSort(prefs.value.sort, col.key) } }
+const sortIndicator = (col: ColumnDef) =>
+  activeSort.value?.col.key === col.key ? (activeSort.value.dir === 'asc' ? ' ▲' : ' ▼') : ''
+const ariaSort = (col: ColumnDef) =>
+  activeSort.value?.col.key !== col.key ? undefined : activeSort.value.dir === 'asc' ? 'ascending' : 'descending'
+
 const totalWidth = computed(() =>
-  props.columns.reduce((s, c) => s + (widths[c.key] ?? MIN_COL), ACTION_COL + (props.selectable ? SELECT_COL : 0)),
+  visibleColumns.value.reduce((s, c) => s + (widths[c.key] ?? MIN_COL), ACTION_COL + (props.selectable ? SELECT_COL : 0)),
 )
 
 function loadSaved() {
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey()) || 'null')
-    if (saved && props.columns.every(c => typeof saved[c.key] === 'number')) {
+    if (saved && visibleColumns.value.every(c => typeof saved[c.key] === 'number')) {
       Object.assign(widths, saved)
       fixed.value = true
     }
@@ -224,13 +291,18 @@ async function freeze() {
     widths[key] = def?.width ?? Math.max(MIN_COL, Math.ceil(th.getBoundingClientRect().width))
   })
 
-  const avail = table.parentElement?.clientWidth ?? 0
+  fitToContainer()
+  fixed.value = true
+}
+
+/** Самая широкая колонка отдаёт излишек, чтобы таблица не вылезала за контейнер */
+function fitToContainer() {
+  const avail = tableRef.value?.parentElement?.clientWidth ?? 0
   const excess = totalWidth.value - avail
-  if (avail && excess > 0) {
-    const widest = props.columns.reduce((a, c) => (widths[c.key] > widths[a.key] ? c : a))
+  if (avail && excess > 0 && visibleColumns.value.length) {
+    const widest = visibleColumns.value.reduce((a, c) => (widths[c.key] > widths[a.key] ? c : a))
     widths[widest.key] = Math.max(MIN_COL, widths[widest.key] - excess)
   }
-  fixed.value = true
 }
 
 function resetWidths() {
@@ -263,6 +335,19 @@ function stopDrag() {
 }
 
 loadSaved()
+
+// Показали или скрыли колонку: раскладку не перемеряем (ширины пользователя сохраняются),
+// новым колонкам даём ширину по умолчанию
+watch(
+  () => visibleColumns.value.map(c => c.key).join('|'),
+  () => {
+    if (!fixed.value) return // авто-раскладка сама замерит
+    for (const c of visibleColumns.value) if (widths[c.key] === undefined) widths[c.key] = c.width ?? DEFAULT_COL
+    fitToContainer()
+    saveWidths()
+  },
+)
+
 onMounted(() => { if (props.items.length && !fixed.value) freeze() })
 watch(() => props.items.length, n => { if (n > 0 && !fixed.value) freeze() })
 
@@ -520,6 +605,20 @@ td { text-align: left; }
 .table-fixed th, .table-fixed td {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.th-sort {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+.th-sort:hover { color: #89b4fa; }
+.sort-ind { margin-left: 4px; font-size: 0.7em; }
 .col-resizer {
   position: absolute; top: 0; bottom: 0; right: 0; width: 8px;
   cursor: col-resize; touch-action: none;

@@ -32,6 +32,14 @@ export interface ColumnDef<T = any> {
   animated?: boolean
   /** Начальная ширина в px (иначе замеряется по содержимому) */
   width?: number
+  /** false — колонку нельзя сортировать (по умолчанию можно; колонки с `component` — только если задан sortValue) */
+  sortable?: boolean
+  /**
+   * Значение для сортировки. По умолчанию formatter(item) или значение по key.
+   * Нужен, когда показываемый текст не сортируется как есть: «1.5 GiB», возраст «3h5m», полоски-компоненты.
+   * null/undefined — «нет данных», такие строки всегда внизу.
+   */
+  sortValue?: (item: T) => string | number | null | undefined
 }
 
 /** Группы бокового меню; заголовки и порядок — в resources/navigation.ts */

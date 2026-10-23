@@ -1,4 +1,5 @@
 import type { ColumnDef, PropertyDef } from '../types'
+import { ageToMinutes } from '../utils'
 
 // Элементы Role/RoleBinding/... приходят в k8s-формате (metadata.name)
 export const nameCol: ColumnDef = { key: 'metadata.name', label: 'Name', className: 'resource-name' }
@@ -8,7 +9,7 @@ export const nsCol: ColumnDef = { key: 'metadata.namespace', label: 'Namespace',
 export const flatNameCol: ColumnDef = { key: 'name', label: 'Name', className: 'resource-name' }
 export const flatNsCol: ColumnDef = { key: 'namespace', label: 'Namespace', className: 'ns-label' }
 
-export const ageCol: ColumnDef = { key: 'age', label: 'Age' }
+export const ageCol: ColumnDef = { key: 'age', label: 'Age', sortValue: (r: any) => ageToMinutes(r.age) }
 
 // ─── Controlled By / Managed by ───
 // Бэкенд отдаёт оба поля строкой "Kind/name" (controlledBy — владелец из ownerReferences,
