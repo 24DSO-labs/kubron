@@ -62,7 +62,7 @@ func TestBuildApplicationsGroupsByInstanceAndName(t *testing.T) {
 		},
 	}}
 
-	apps := buildApplications(deps, nil, nil, svcs, ings)
+	apps := buildApplications(deps, nil, nil, svcs, ings, nil)
 	if len(apps) != 2 {
 		t.Fatalf("ожидалось 2 приложения, получено %d: %+v", len(apps), apps)
 	}
@@ -74,7 +74,7 @@ func TestBuildApplicationsGroupsByInstanceAndName(t *testing.T) {
 	if hook.Name != "external-secrets-webhook" || hook.Status != "Progressing" {
 		t.Errorf("webhook: %+v", hook)
 	}
-	if !reflect.DeepEqual(hook.InternalURLs, []string{"external-secrets-webhook.es:443"}) {
+	if !reflect.DeepEqual(hook.InternalURLs, []string{"external-secrets-webhook.es.svc.cluster.local"}) {
 		t.Errorf("internal urls: %v", hook.InternalURLs)
 	}
 	if !reflect.DeepEqual(hook.ExposedURLs, []string{"https://hook.example.com"}) {
@@ -92,7 +92,7 @@ func TestBuildApplicationsStatusAndNameCollision(t *testing.T) {
 	mk := func(instance string, replicas, ready int32) appsv1.Deployment {
 		return testDeployment("ns", "dep-"+instance, map[string]string{labelAppInstance: instance, labelAppName: "web"}, replicas, ready)
 	}
-	apps := buildApplications([]appsv1.Deployment{mk("a", 0, 0), mk("b", 2, 0)}, nil, nil, nil, nil)
+	apps := buildApplications([]appsv1.Deployment{mk("a", 0, 0), mk("b", 2, 0)}, nil, nil, nil, nil, nil)
 	if len(apps) != 2 {
 		t.Fatalf("got %d", len(apps))
 	}
@@ -101,5 +101,29 @@ func TestBuildApplicationsStatusAndNameCollision(t *testing.T) {
 	}
 	if apps[1].Name != "b/web" || apps[1].Status != "Degraded" {
 		t.Errorf("b: %+v", apps[1])
+	}
+}
+
+// У argocd нет label instance: селектор не должен содержать подставленный instance, иначе поды не найдутся.
+func TestBuildApplicationsSelectorOnlyRealLabels(t *testing.T) {
+	labels := map[string]string{labelAppName: "argocd-server", labelAppComponent: "server", labelAppPartOf: "argocd"}
+	deps := []appsv1.Deployment{testDeployment("argocd", "argocd-server", labels, 1, 1)}
+	others := []labeledObject{
+		{kind: "ServiceAccount", name: "argocd-server", namespace: "argocd", labels: labels},
+		{kind: "Service", name: "other", namespace: "argocd", labels: map[string]string{labelAppName: "x"}},
+		{kind: "Service", name: "argocd-server", namespace: "elsewhere", labels: labels},
+	}
+	apps := buildApplications(deps, nil, nil, nil, nil, others)
+	if len(apps) != 1 {
+		t.Fatalf("got %d", len(apps))
+	}
+	if want := map[string]string{labelAppName: "argocd-server"}; !reflect.DeepEqual(apps[0].Selector, want) {
+		t.Errorf("selector: %v", apps[0].Selector)
+	}
+	if want := []ApplicationResource{{Kind: "ServiceAccount", Name: "argocd-server", Component: "server"}}; !reflect.DeepEqual(apps[0].Resources, want) {
+		t.Errorf("resources: %+v", apps[0].Resources)
+	}
+	if apps[0].Workloads[0].Component != "server" {
+		t.Errorf("component: %+v", apps[0].Workloads)
 	}
 }
