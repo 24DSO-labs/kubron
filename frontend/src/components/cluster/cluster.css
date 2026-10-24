@@ -1,0 +1,380 @@
+/* Оформление кластеров: аватар и диалоги добавления/правки. Все классы с префиксом cl-. */
+
+/* ───────── Аватар ───────── */
+.cl-avatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  user-select: none;
+  box-sizing: border-box;
+}
+.cl-avatar-glyph { width: 56%; height: 56%; }
+.cl-avatar-env {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--cl-ring, #11111b);
+}
+
+/* ───────── Диалог ───────── */
+.cl-overlay {
+  --cl-surface: #1e1e2e;
+  --cl-sunken: #181825;
+  --cl-border: #313244;
+  --cl-border-strong: #45475a;
+  --cl-text: #cdd6f4;
+  --cl-muted: #a6adc8;
+  --cl-faint: #7f849c;
+  --cl-accent: #89b4fa;
+  --cl-danger: #f38ba8;
+  --cl-ok: #a6e3a1;
+  --cl-warn: #f9e2af;
+
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(8, 8, 14, 0.66);
+  backdrop-filter: blur(2px);
+  animation: cl-fade 0.14s ease-out;
+}
+
+.cl-dialog {
+  display: flex;
+  flex-direction: column;
+  width: 540px;
+  max-width: 100%;
+  max-height: 100%;
+  color: var(--cl-text);
+  background: var(--cl-surface);
+  border: 1px solid var(--cl-border);
+  border-radius: 10px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  animation: cl-rise 0.16s ease-out;
+}
+
+@keyframes cl-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cl-rise { from { opacity: 0; transform: translateY(6px) scale(0.99); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .cl-overlay, .cl-dialog { animation: none; }
+}
+
+.cl-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px 16px 24px;
+  border-bottom: 1px solid var(--cl-border);
+}
+.cl-head-text { flex: 1; min-width: 0; }
+.cl-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--cl-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cl-subtitle {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--cl-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cl-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--cl-faint);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.cl-close:hover { color: var(--cl-text); background: var(--cl-border); }
+.cl-close svg { width: 14px; height: 14px; }
+
+.cl-body {
+  flex: 1;
+  min-height: 0;
+  padding: 4px 24px 8px;
+  overflow-y: auto;
+}
+
+.cl-section { padding: 18px 0; border-bottom: 1px solid var(--cl-border); }
+.cl-section:last-child { border-bottom: 0; }
+.cl-section-title {
+  margin-bottom: 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cl-faint);
+}
+
+.cl-field { margin-bottom: 14px; }
+.cl-field:last-child { margin-bottom: 0; }
+.cl-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--cl-muted);
+}
+.cl-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--cl-faint);
+}
+.cl-hint.is-error { color: var(--cl-danger); }
+.cl-hint.is-warn { color: var(--cl-warn); }
+.cl-mono { font-family: 'Cascadia Mono', 'Consolas', 'SF Mono', monospace; }
+
+/* ───────── Поля ввода ───────── */
+.cl-input, .cl-select, .cl-textarea {
+  width: 100%;
+  padding: 0 11px;
+  height: 34px;
+  font-size: 13px;
+  color: var(--cl-text);
+  background: var(--cl-sunken);
+  border: 1px solid var(--cl-border);
+  border-radius: 6px;
+  transition: border-color 0.12s, box-shadow 0.12s;
+  box-sizing: border-box;
+}
+.cl-input::placeholder, .cl-textarea::placeholder { color: #585b70; }
+.cl-input:hover, .cl-select:hover, .cl-textarea:hover { border-color: var(--cl-border-strong); }
+.cl-input:focus, .cl-select:focus, .cl-textarea:focus {
+  outline: none;
+  border-color: var(--cl-accent);
+  box-shadow: 0 0 0 3px rgba(137, 180, 250, 0.16);
+}
+.cl-input.is-invalid { border-color: var(--cl-danger); }
+.cl-select { cursor: pointer; }
+.cl-textarea {
+  height: auto;
+  min-height: 150px;
+  padding: 10px 11px;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+/* ───────── Сегментный переключатель ───────── */
+.cl-segment {
+  display: inline-flex;
+  max-width: 100%;
+  padding: 2px;
+  background: var(--cl-sunken);
+  border: 1px solid var(--cl-border);
+  border-radius: 8px;
+}
+.cl-segment-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+  color: var(--cl-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
+}
+.cl-segment-item:hover { color: var(--cl-text); }
+.cl-segment-item.on { color: var(--cl-text); background: var(--cl-border-strong); }
+.cl-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+/* ───────── Значки и цвета ───────── */
+.cl-glyphs, .cl-swatches { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cl-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  color: var(--cl-muted);
+  background: var(--cl-sunken);
+  border: 1px solid var(--cl-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+}
+.cl-glyph:hover { color: var(--cl-text); border-color: var(--cl-border-strong); }
+/* --cl-pick — выбранный цвет кластера: значок сразу показывает, как он будет выглядеть */
+.cl-glyph.on { color: var(--cl-pick, var(--cl-accent)); border-color: var(--cl-pick, var(--cl-accent)); background: var(--cl-border); }
+.cl-glyph svg { width: 18px; height: 18px; }
+.cl-glyph-mono { font-size: 12px; font-weight: 600; letter-spacing: 0.02em; }
+
+.cl-swatch {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.cl-swatch:hover { transform: scale(1.1); }
+.cl-swatch.on { box-shadow: 0 0 0 2px var(--cl-surface), 0 0 0 4px var(--cl-text); }
+.cl-swatch-custom {
+  display: inline-block;
+  overflow: hidden;
+  background: conic-gradient(#f7768e, #e0af68, #9ece6a, #73daca, #7aa2f7, #bb9af7, #f7768e);
+}
+.cl-swatch-custom input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* ───────── Kubeconfig ───────── */
+.cl-kc {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--cl-sunken);
+  border: 1px solid var(--cl-border);
+  border-radius: 8px;
+}
+.cl-kc-info { min-width: 0; }
+.cl-kc-name {
+  font-size: 12px;
+  color: var(--cl-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cl-kc-state { margin-top: 2px; font-size: 12px; color: var(--cl-faint); }
+.cl-kc-state.is-changed { color: var(--cl-warn); }
+.cl-kc-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+.cl-method { margin-bottom: 12px; }
+
+.cl-pick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.cl-pick-path {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--cl-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl; /* при нехватке места теряется начало пути, а не имя файла */
+  text-align: left;
+}
+
+/* ───────── Проверка подключения ───────── */
+.cl-test { display: flex; align-items: flex-start; gap: 12px; margin-top: 4px; }
+.cl-test-result { flex: 1; min-width: 0; padding-top: 6px; font-size: 12px; line-height: 1.45; }
+.cl-test-result.is-ok { color: var(--cl-ok); }
+.cl-test-result.is-warn { color: var(--cl-warn); }
+.cl-test-result.is-fail { color: var(--cl-danger); }
+.cl-test-detail {
+  max-height: 72px;
+  margin-top: 4px;
+  overflow: auto;
+  font-size: 11px;
+  color: var(--cl-muted);
+  word-break: break-word;
+}
+
+/* ───────── Кнопки ───────── */
+.cl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--cl-text);
+  background: transparent;
+  border: 1px solid var(--cl-border-strong);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.cl-btn:hover:not(:disabled) { background: var(--cl-border); }
+.cl-btn:disabled { opacity: 0.45; cursor: default; }
+.cl-btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }
+.cl-btn-primary { color: #11111b; font-weight: 600; background: var(--cl-accent); border-color: var(--cl-accent); }
+.cl-btn-primary:hover:not(:disabled) { background: #a6c4fb; border-color: #a6c4fb; }
+.cl-btn-quiet { border-color: transparent; color: var(--cl-muted); }
+.cl-btn-quiet:hover:not(:disabled) { color: var(--cl-text); }
+.cl-btn-danger { border-color: transparent; color: var(--cl-danger); }
+.cl-btn-danger:hover:not(:disabled) { background: rgba(243, 139, 168, 0.12); }
+
+.cl-close:focus-visible, .cl-btn:focus-visible, .cl-segment-item:focus-visible,
+.cl-glyph:focus-visible, .cl-swatch:focus-visible, .cl-swatch-custom:focus-within {
+  outline: 2px solid rgba(137, 180, 250, 0.7);
+  outline-offset: 2px;
+}
+
+.cl-spin {
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: cl-rotate 0.7s linear infinite;
+}
+@keyframes cl-rotate { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .cl-spin { animation-duration: 1.6s; } }
+
+/* ───────── Ошибка и подвал ───────── */
+.cl-error {
+  margin: 4px 0 14px;
+  padding: 9px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--cl-danger);
+  background: rgba(243, 139, 168, 0.08);
+  border: 1px solid rgba(243, 139, 168, 0.28);
+  border-radius: 6px;
+  word-break: break-word;
+}
+
+.cl-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--cl-border);
+}
+.cl-foot-spacer { flex: 1; }

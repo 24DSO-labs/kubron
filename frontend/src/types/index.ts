@@ -1,27 +1,75 @@
 export interface ClusterMeta {
   id: string
   displayName: string
+  /** Ключ значка из набора интерфейса; '' — монограмма (у старых кластеров может быть эмодзи) */
   icon: string
   color: string
   kubeconfigFile: string
   defaultNamespace: string
   addedAt: string
   contextName: string
+  /** dev | test | stage | prod; '' — не задано */
+  environment: string
 }
 
-export interface ClusterStatus {
-  id: string
-  displayName: string
-  icon: string
-  color: string
-  kubeconfigFile: string
-  defaultNamespace: string
-  addedAt: string
-  contextName: string
+export interface ClusterStatus extends ClusterMeta {
   connected: boolean
   active: boolean
   error: string
 }
+
+/** Свойства кластера, которые пользователь задаёт при добавлении и правке (зеркало k8s.ClusterSettings) */
+export interface ClusterSettings {
+  displayName: string
+  icon: string
+  color: string
+  environment: string
+  defaultNamespace: string
+  contextName: string
+}
+
+/** Источник kubeconfig: задаётся ровно одно поле (зеркало k8s.KubeconfigSource) */
+export interface KubeconfigSource {
+  path: string
+  text: string
+  clusterId: string
+}
+
+export interface KubeconfigContextInfo {
+  name: string
+  cluster: string
+  user: string
+  namespace: string
+  server: string
+}
+
+export interface KubeconfigInfo {
+  contexts: KubeconfigContextInfo[]
+  currentContext: string
+}
+
+/** Результат пробного подключения; недоступный кластер — это ok=false, а не исключение */
+export interface ConnectionCheck {
+  ok: boolean
+  serverVersion: string
+  latencyMs: number
+  warning: string
+  error: string
+}
+
+export interface ClusterUpdateResult {
+  cluster: ClusterMeta
+  /** Изменился kubeconfig или контекст: прежнее подключение устарело */
+  connectionChanged: boolean
+}
+
+/** Что отправляет диалог добавления кластера */
+export type AddClusterPayload =
+  | { kind: 'file'; path: string; settings: ClusterSettings }
+  | { kind: 'text'; text: string; settings: ClusterSettings }
+
+/** Итог операции, которая может завершиться понятной пользователю ошибкой */
+export type Outcome<T> = { ok: true; value: T } | { ok: false; error: string }
 
 export interface ContextInfo {
   name: string
