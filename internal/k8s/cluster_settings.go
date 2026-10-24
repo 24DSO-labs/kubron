@@ -1,0 +1,423 @@
+package k8s
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+	"time"
+	"unicode/utf8"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+)
+
+const (
+	maxClusterNameLen  = 60
+	maxKubeconfigBytes = 5 << 20 // настоящие kubeconfig — единицы килобайт; больше — явно не он
+	checkTimeout       = 8 * time.Second
+	defaultColor       = "#89b4fa"
+)
+
+var (
+	clusterIDRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,80}$`)
+	colorRe     = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+	iconKeyRe   = regexp.MustCompile(`^[a-z0-9-]{1,24}$`)
+	// namespaceRe — DNS-1123 label, как требует Kubernetes.
+	namespaceRe = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
+
+	environments = map[string]bool{"": true, "dev": true, "test": true, "stage": true, "prod": true}
+
+	errKubeconfigTooLarge = fmt.Errorf("kubeconfig больше %d МБ", maxKubeconfigBytes>>20)
+)
+
+// ClusterSettings — свойства кластера, которые пользователь задаёт при добавлении и правит позже.
+type ClusterSettings struct {
+	DisplayName string `json:"displayName"`
+	// Icon — ключ значка из набора интерфейса; пустая строка означает монограмму из названия.
+	Icon        string `json:"icon"`
+	Color       string `json:"color"`
+	Environment string `json:"environment"`
+	// DefaultNamespace — namespace, который выбирается при подключении (пусто — все).
+	DefaultNamespace string `json:"defaultNamespace"`
+	// ContextName — контекст kubeconfig; пусто — current-context.
+	ContextName string `json:"contextName"`
+}
+
+// normalize проверяет настройки и приводит их к каноничному виду.
+// legacyIcon — значок, уже сохранённый у кластера: старые записи содержат эмодзи, и их нельзя
+// отвергать, пока пользователь не выбрал другой значок.
+func (s ClusterSettings) normalize(legacyIcon string) (ClusterSettings, error) {
+	s.DisplayName = strings.TrimSpace(s.DisplayName)
+	if s.DisplayName == "" {
+		return s, errors.New("название кластера не может быть пустым")
+	}
+	if utf8.RuneCountInString(s.DisplayName) > maxClusterNameLen {
+		return s, fmt.Errorf("название длиннее %d символов", maxClusterNameLen)
+	}
+
+	s.Environment = strings.ToLower(strings.TrimSpace(s.Environment))
+	if !environments[s.Environment] {
+		return s, fmt.Errorf("неизвестное окружение %q", s.Environment)
+	}
+
+	s.Color = strings.ToLower(strings.TrimSpace(s.Color))
+	if s.Color == "" {
+		s.Color = defaultColor
+	} else if !colorRe.MatchString(s.Color) {
+		return s, fmt.Errorf("недопустимый цвет %q: ожидается #rrggbb", s.Color)
+	}
+
+	if s.Icon != "" && s.Icon != legacyIcon && !iconKeyRe.MatchString(s.Icon) {
+		return s, fmt.Errorf("недопустимый значок %q", s.Icon)
+	}
+
+	s.DefaultNamespace = strings.TrimSpace(s.DefaultNamespace)
+	if s.DefaultNamespace != "" && (len(s.DefaultNamespace) > 63 || !namespaceRe.MatchString(s.DefaultNamespace)) {
+		return s, fmt.Errorf("недопустимое имя namespace %q", s.DefaultNamespace)
+	}
+
+	s.ContextName = strings.TrimSpace(s.ContextName)
+	return s, nil
+}
+
+// KubeconfigSource — откуда взять kubeconfig: файл на диске, вставленный текст или уже
+// сохранённый кластер. Должен быть задан ровно один источник.
+type KubeconfigSource struct {
+	Path      string `json:"path"`
+	Text      string `json:"text"`
+	ClusterID string `json:"clusterId"`
+}
+
+func (s KubeconfigSource) isEmpty() bool {
+	return s.Path == "" && strings.TrimSpace(s.Text) == "" && s.ClusterID == ""
+}
+
+func (s KubeconfigSource) read() ([]byte, error) {
+	set := 0
+	for _, v := range []string{s.Path, strings.TrimSpace(s.Text), s.ClusterID} {
+		if v != "" {
+			set++
+		}
+	}
+	switch {
+	case set == 0:
+		return nil, errors.New("не указан источник kubeconfig")
+	case set > 1:
+		return nil, errors.New("укажите ровно один источник kubeconfig")
+	case s.Path != "":
+		return readKubeconfigFile(s.Path)
+	case s.ClusterID != "":
+		data, err := readStoredKubeconfig(s.ClusterID)
+		if err != nil {
+			return nil, err
+		}
+		return data, nil
+	}
+	if len(s.Text) > maxKubeconfigBytes {
+		return nil, errKubeconfigTooLarge
+	}
+	return []byte(s.Text), nil
+}
+
+func readKubeconfigFile(path string) ([]byte, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("не удалось прочитать файл: %w", err)
+	}
+	if info.IsDir() {
+		return nil, errors.New("указан каталог, а не файл kubeconfig")
+	}
+	if info.Size() > maxKubeconfigBytes {
+		return nil, errKubeconfigTooLarge
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("не удалось прочитать файл: %w", err)
+	}
+	return data, nil
+}
+
+func readStoredKubeconfig(id string) ([]byte, error) {
+	path := GetClusterKubeconfigPath(id)
+	if path == "" {
+		return nil, fmt.Errorf("kubeconfig не найден для кластера %s", id)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("не удалось прочитать kubeconfig: %w", err)
+	}
+	return data, nil
+}
+
+// ReadClusterKubeconfig возвращает текст сохранённого kubeconfig кластера (для правки в приложении).
+func ReadClusterKubeconfig(id string) (string, error) {
+	data, err := readStoredKubeconfig(id)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func parseKubeconfig(data []byte) (*clientcmdapi.Config, error) {
+	cfg, err := clientcmd.Load(data)
+	if err != nil {
+		return nil, fmt.Errorf("kubeconfig не разобран: %w", err)
+	}
+	if len(cfg.Contexts) == 0 {
+		return nil, errors.New("в kubeconfig нет ни одного контекста")
+	}
+	return cfg, nil
+}
+
+func sortedContextNames(cfg *clientcmdapi.Config) []string {
+	names := make([]string, 0, len(cfg.Contexts))
+	for name := range cfg.Contexts {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// pickContext выбирает контекст: запрошенный (он обязан существовать), иначе current-context,
+// иначе первый по алфавиту — результат не зависит от порядка обхода map.
+func pickContext(cfg *clientcmdapi.Config, requested string) (string, error) {
+	if requested != "" {
+		if _, ok := cfg.Contexts[requested]; !ok {
+			return "", fmt.Errorf("контекст %q не найден в kubeconfig", requested)
+		}
+		return requested, nil
+	}
+	if _, ok := cfg.Contexts[cfg.CurrentContext]; ok {
+		return cfg.CurrentContext, nil
+	}
+	return sortedContextNames(cfg)[0], nil
+}
+
+// resolveContext выбирает контекст при правке кластера: явный выбор пользователя обязан существовать,
+// ранее сохранённый контекст используется, пока он есть в файле, иначе — выбор по умолчанию.
+func resolveContext(cfg *clientcmdapi.Config, requested, stored string) (string, error) {
+	if requested == "" {
+		if _, ok := cfg.Contexts[stored]; ok {
+			requested = stored
+		}
+	}
+	return pickContext(cfg, requested)
+}
+
+// KubeconfigContextInfo описывает контекст kubeconfig без секретов (токенов и сертификатов).
+type KubeconfigContextInfo struct {
+	Name      string `json:"name"`
+	Cluster   string `json:"cluster"`
+	User      string `json:"user"`
+	Namespace string `json:"namespace"`
+	Server    string `json:"server"`
+}
+
+// KubeconfigInfo — краткое содержимое kubeconfig для интерфейса.
+type KubeconfigInfo struct {
+	Contexts       []KubeconfigContextInfo `json:"contexts"`
+	CurrentContext string                  `json:"currentContext"`
+}
+
+// InspectKubeconfig разбирает kubeconfig и возвращает список контекстов (без секретов).
+func InspectKubeconfig(src KubeconfigSource) (*KubeconfigInfo, error) {
+	data, err := src.read()
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := parseKubeconfig(data)
+	if err != nil {
+		return nil, err
+	}
+	current, err := pickContext(cfg, "")
+	if err != nil {
+		return nil, err
+	}
+	info := &KubeconfigInfo{CurrentContext: current}
+	for _, name := range sortedContextNames(cfg) {
+		c := cfg.Contexts[name]
+		item := KubeconfigContextInfo{Name: name, Cluster: c.Cluster, User: c.AuthInfo, Namespace: c.Namespace}
+		if cl := cfg.Clusters[c.Cluster]; cl != nil {
+			item.Server = cl.Server
+		}
+		info.Contexts = append(info.Contexts, item)
+	}
+	return info, nil
+}
+
+// ConnectionCheck — результат пробного подключения. Недоступный кластер — не ошибка вызова,
+// а результат проверки (OK=false и текст в Error).
+type ConnectionCheck struct {
+	OK            bool   `json:"ok"`
+	ServerVersion string `json:"serverVersion"`
+	LatencyMs     int64  `json:"latencyMs"`
+	// Warning — кластер доступен, но с оговоркой (например, нет права на чтение namespaces).
+	Warning string `json:"warning"`
+	Error   string `json:"error"`
+}
+
+// CheckKubeconfig пробует подключиться к кластеру по kubeconfig и контексту, не сохраняя ничего.
+func CheckKubeconfig(src KubeconfigSource, contextName string) (*ConnectionCheck, error) {
+	data, err := src.read()
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := parseKubeconfig(data)
+	if err != nil {
+		return nil, err
+	}
+	ctxName, err := pickContext(cfg, strings.TrimSpace(contextName))
+	if err != nil {
+		return nil, err
+	}
+
+	restCfg, err := clientcmd.NewNonInteractiveClientConfig(*cfg, ctxName, &clientcmd.ConfigOverrides{}, nil).ClientConfig()
+	if err != nil {
+		return &ConnectionCheck{Error: err.Error()}, nil
+	}
+	restCfg.Timeout = checkTimeout
+
+	start := time.Now()
+	disc, err := discovery.NewDiscoveryClientForConfig(restCfg)
+	if err != nil {
+		return &ConnectionCheck{Error: err.Error()}, nil
+	}
+	ver, err := disc.ServerVersion()
+	if err != nil {
+		return &ConnectionCheck{Error: err.Error()}, nil
+	}
+	res := &ConnectionCheck{OK: true, ServerVersion: ver.GitVersion}
+
+	// /version нередко открыт без авторизации, поэтому учётные данные проверяем отдельным запросом.
+	clientset, err := kubernetes.NewForConfig(restCfg)
+	if err != nil {
+		return &ConnectionCheck{Error: err.Error()}, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
+	defer cancel()
+	if _, err := clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{Limit: 1}); err != nil {
+		if apierrors.IsForbidden(err) {
+			res.Warning = "нет права на чтение namespaces: часть данных может быть недоступна"
+		} else {
+			res.OK = false
+			res.Error = err.Error()
+		}
+	}
+	res.LatencyMs = time.Since(start).Milliseconds()
+	return res, nil
+}
+
+// ClusterUpdateResult — итог сохранения настроек кластера.
+type ClusterUpdateResult struct {
+	Cluster ClusterMeta `json:"cluster"`
+	// ConnectionChanged — изменился kubeconfig или контекст: существующее подключение устарело.
+	ConnectionChanged bool `json:"connectionChanged"`
+}
+
+// UpdateClusterSettings сохраняет настройки кластера и, если replace непуст, заменяет его kubeconfig.
+// Любая проверка выполняется до записи: при ошибке на диске остаётся прежнее состояние.
+func UpdateClusterSettings(id string, settings ClusterSettings, replace KubeconfigSource) (*ClusterUpdateResult, error) {
+	meta, err := LoadClusterMeta(id)
+	if err != nil {
+		return nil, fmt.Errorf("кластер не найден: %w", err)
+	}
+	settings, err = settings.normalize(meta.Icon)
+	if err != nil {
+		return nil, err
+	}
+
+	kcPath := filepath.Join(getClustersDir(), meta.KubeconfigFile)
+	oldData, readErr := os.ReadFile(kcPath)
+
+	var newData []byte
+	if !replace.isEmpty() {
+		if replace.ClusterID != "" {
+			return nil, errors.New("заменять kubeconfig можно только файлом или текстом")
+		}
+		if newData, err = replace.read(); err != nil {
+			return nil, err
+		}
+	}
+
+	// Контекст проверяем по тому kubeconfig, который будет сохранён.
+	contextName := meta.ContextName
+	switch {
+	case newData != nil:
+		cfg, err := parseKubeconfig(newData)
+		if err != nil {
+			return nil, err
+		}
+		if contextName, err = resolveContext(cfg, settings.ContextName, meta.ContextName); err != nil {
+			return nil, err
+		}
+	case readErr == nil:
+		// Если сохранённый файл повреждён, не мешаем поправить название и оформление.
+		if cfg, perr := parseKubeconfig(oldData); perr == nil {
+			var cerr error
+			if contextName, cerr = resolveContext(cfg, settings.ContextName, meta.ContextName); cerr != nil {
+				return nil, cerr
+			}
+		}
+	}
+
+	if newData != nil {
+		if err := writeFileAtomic(kcPath, newData, 0600); err != nil {
+			return nil, fmt.Errorf("не удалось сохранить kubeconfig: %w", err)
+		}
+	}
+
+	changed := newData != nil || contextName != meta.ContextName
+	meta.DisplayName = settings.DisplayName
+	meta.Icon = settings.Icon
+	meta.Color = settings.Color
+	meta.Environment = settings.Environment
+	meta.DefaultNamespace = settings.DefaultNamespace
+	meta.ContextName = contextName
+
+	if err := SaveClusterMeta(meta); err != nil {
+		if newData != nil && readErr == nil {
+			_ = writeFileAtomic(kcPath, oldData, 0600) // возвращаем прежний kubeconfig
+		}
+		return nil, err
+	}
+	return &ClusterUpdateResult{Cluster: *meta, ConnectionChanged: changed}, nil
+}
+
+// writeFileAtomic пишет файл через временный и переименование: при сбое остаётся прежнее содержимое,
+// а не наполовину записанный kubeconfig.
+func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	cleanup := func() { _ = os.Remove(tmpName) }
+
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		cleanup()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		cleanup()
+		return err
+	}
+	if err := os.Chmod(tmpName, perm); err != nil {
+		cleanup()
+		return err
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		cleanup()
+		return err
+	}
+	return nil
+}
