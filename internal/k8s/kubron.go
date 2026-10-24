@@ -6,8 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 type KubronConfig struct {
@@ -25,6 +23,8 @@ type ClusterMeta struct {
 	DefaultNamespace string `json:"defaultNamespace"`
 	AddedAt          string `json:"addedAt"`
 	ContextName      string `json:"contextName"`
+	// Environment — метка окружения (dev, test, stage, prod); пусто, если не задана.
+	Environment string `json:"environment"`
 }
 
 type ClusterStatus struct {
@@ -78,15 +78,26 @@ func SaveKubronConfig(config *KubronConfig) error {
 }
 
 func SaveClusterMeta(meta *ClusterMeta) error {
+	if !validClusterID(meta.ID) {
+		return fmt.Errorf("недопустимый идентификатор кластера %q", meta.ID)
+	}
 	path := filepath.Join(getClustersDir(), meta.ID+".json")
 	data, err := json.MarshalIndent(meta, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0600)
+	return writeFileAtomic(path, data, 0600)
+}
+
+// validClusterID отсекает идентификаторы, которые могли бы выйти за пределы каталога кластеров.
+func validClusterID(id string) bool {
+	return clusterIDRe.MatchString(id)
 }
 
 func LoadClusterMeta(id string) (*ClusterMeta, error) {
+	if !validClusterID(id) {
+		return nil, fmt.Errorf("недопустимый идентификатор кластера %q", id)
+	}
 	path := filepath.Join(getClustersDir(), id+".json")
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -136,29 +147,49 @@ func ListClusters() ([]ClusterMeta, error) {
 	return clusters, nil
 }
 
-func AddClusterFromFile(sourcePath, displayName, icon, color string) (*ClusterMeta, error) {
+// AddClusterFromFile копирует kubeconfig из файла в каталог Kubron и регистрирует кластер.
+func AddClusterFromFile(sourcePath string, settings ClusterSettings) (*ClusterMeta, error) {
 	if err := InitKubronDir(); err != nil {
 		return nil, err
 	}
 
-	data, err := os.ReadFile(sourcePath)
+	data, err := readKubeconfigFile(sourcePath)
 	if err != nil {
-		return nil, fmt.Errorf("не удалось прочитать файл: %w", err)
-	}
-
-	return addClusterFromData(data, displayName, icon, color)
-}
-
-func AddClusterFromText(kubeconfigText, displayName, icon, color string) (*ClusterMeta, error) {
-	if err := InitKubronDir(); err != nil {
 		return nil, err
 	}
 
-	return addClusterFromData([]byte(kubeconfigText), displayName, icon, color)
+	return addClusterFromData(data, settings)
 }
 
-func addClusterFromData(data []byte, displayName, icon, color string) (*ClusterMeta, error) {
-	id := sanitizeID(displayName)
+// AddClusterFromText регистрирует кластер по тексту kubeconfig.
+func AddClusterFromText(kubeconfigText string, settings ClusterSettings) (*ClusterMeta, error) {
+	if err := InitKubronDir(); err != nil {
+		return nil, err
+	}
+	if len(kubeconfigText) > maxKubeconfigBytes {
+		return nil, errKubeconfigTooLarge
+	}
+
+	return addClusterFromData([]byte(kubeconfigText), settings)
+}
+
+func addClusterFromData(data []byte, settings ClusterSettings) (*ClusterMeta, error) {
+	settings, err := settings.normalize("")
+	if err != nil {
+		return nil, err
+	}
+
+	// Сначала проверяем kubeconfig: с битым файлом кластер всё равно не подключится.
+	cfg, err := parseKubeconfig(data)
+	if err != nil {
+		return nil, err
+	}
+	contextName, err := pickContext(cfg, settings.ContextName)
+	if err != nil {
+		return nil, err
+	}
+
+	id := sanitizeID(settings.DisplayName)
 	if id == "" {
 		id = fmt.Sprintf("cluster-%d", time.Now().Unix())
 	}
@@ -171,39 +202,20 @@ func addClusterFromData(data []byte, displayName, icon, color string) (*ClusterM
 	// Сохраняем kubeconfig
 	kcFile := id + ".kubeconfig"
 	kcPath := filepath.Join(getClustersDir(), kcFile)
-	if err := os.WriteFile(kcPath, data, 0600); err != nil {
+	if err := writeFileAtomic(kcPath, data, 0600); err != nil {
 		return nil, fmt.Errorf("не удалось сохранить kubeconfig: %w", err)
 	}
 
-	// Парсим чтобы найти контекст
-	contextName := ""
-	cfg, err := clientcmd.LoadFromFile(kcPath)
-	if err == nil {
-		if cfg.CurrentContext != "" {
-			contextName = cfg.CurrentContext
-		} else {
-			for name := range cfg.Contexts {
-				contextName = name
-				break
-			}
-		}
-	}
-
-	if icon == "" {
-		icon = "🔵"
-	}
-	if color == "" {
-		color = "#89b4fa"
-	}
-
 	meta := &ClusterMeta{
-		ID:             id,
-		DisplayName:    displayName,
-		Icon:           icon,
-		Color:          color,
-		KubeconfigFile: kcFile,
-		AddedAt:        time.Now().Format(time.RFC3339),
-		ContextName:    contextName,
+		ID:               id,
+		DisplayName:      settings.DisplayName,
+		Icon:             settings.Icon,
+		Color:            settings.Color,
+		Environment:      settings.Environment,
+		DefaultNamespace: settings.DefaultNamespace,
+		KubeconfigFile:   kcFile,
+		AddedAt:          time.Now().Format(time.RFC3339),
+		ContextName:      contextName,
 	}
 
 	if err := SaveClusterMeta(meta); err != nil {
@@ -215,6 +227,9 @@ func addClusterFromData(data []byte, displayName, icon, color string) (*ClusterM
 }
 
 func DeleteCluster(id string) error {
+	if !validClusterID(id) {
+		return fmt.Errorf("недопустимый идентификатор кластера %q", id)
+	}
 	dir := getClustersDir()
 	for _, name := range []string{id + ".json", id + ".kubeconfig"} {
 		if err := os.Remove(filepath.Join(dir, name)); err != nil && !os.IsNotExist(err) {
@@ -226,23 +241,6 @@ func DeleteCluster(id string) error {
 		return err
 	}
 	return nil
-}
-
-func UpdateClusterMeta(id, displayName, icon, color string) error {
-	meta, err := LoadClusterMeta(id)
-	if err != nil {
-		return err
-	}
-	if displayName != "" {
-		meta.DisplayName = displayName
-	}
-	if icon != "" {
-		meta.Icon = icon
-	}
-	if color != "" {
-		meta.Color = color
-	}
-	return SaveClusterMeta(meta)
 }
 
 func GetClusterKubeconfigPath(id string) string {
