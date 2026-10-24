@@ -81,6 +81,7 @@ var exactPermission = map[string]Permission{
 	"DeleteArgoApplication":   PermWrite,
 	"StartLogStream":          PermRead,
 	"StopLogStream":           PermRead,
+	"GetHelmReleaseContent":   PermSecretsRead,
 }
 
 // Глаголы, по которым метод считается изменяющим: слабое право чтения для них недопустимо.

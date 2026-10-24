@@ -113,6 +113,7 @@ import ResourceList from './components/resource/ResourceList.vue'
 import ResourceHost from './components/resource/ResourceHost.vue'
 import TabbedPanel from './components/utils/TabbedPanel.vue'
 import { navigationRequest } from './resources/customResources'
+import { clearHelmContentCache } from './resources/helmContent'
 
 // ═══════════════════════════════════════════════
 // Composables
@@ -165,11 +166,10 @@ function closeAllDetailPanels() {
   resourceActions.closeDetail()
 }
 
-// Смена кластера: сбросить кэш списков нового каркаса и закрыть панели.
-// ResourceList пересоздаётся сам (activeClusterId входит в его :key).
 watch(activeClusterId, () => {
   clearResourceStore()
-  answerConfirm(false) // висящий диалог подтверждения относился к старому кластеру
+  clearHelmContentCache()
+  answerConfirm(false)
   closeAllDetailPanels()
 })
 
