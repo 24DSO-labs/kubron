@@ -68,30 +68,34 @@ type helmPayload struct {
 	} `json:"chart"`
 }
 
-func decodeHelmSecret(sec *corev1.Secret) (helmPayload, error) {
-	var p helmPayload
+// readHelmSecret распаковывает release из секрета в out (структура с нужными json-полями).
+func readHelmSecret(sec *corev1.Secret, out any) error {
 	raw, ok := sec.Data["release"]
 	if !ok {
-		return p, fmt.Errorf("secret %s/%s: нет поля release", sec.Namespace, sec.Name)
+		return fmt.Errorf("secret %s/%s: нет поля release", sec.Namespace, sec.Name)
 	}
 	decoded, err := base64.StdEncoding.DecodeString(string(raw))
 	if err != nil {
-		return p, fmt.Errorf("secret %s/%s: %w", sec.Namespace, sec.Name, err)
+		return fmt.Errorf("secret %s/%s: %w", sec.Namespace, sec.Name, err)
 	}
 	gz, err := gzip.NewReader(bytes.NewReader(decoded))
 	if err != nil {
-		return p, fmt.Errorf("secret %s/%s: %w", sec.Namespace, sec.Name, err)
+		return fmt.Errorf("secret %s/%s: %w", sec.Namespace, sec.Name, err)
 	}
 	defer gz.Close()
 
-	jsonBytes, err := io.ReadAll(gz)
+	// Защита от «gzip-бомбы» в подменённом секрете
+	jsonBytes, err := io.ReadAll(io.LimitReader(gz, 64<<20))
 	if err != nil {
-		return p, err
+		return err
 	}
-	if err := json.Unmarshal(jsonBytes, &p); err != nil {
-		return p, err
-	}
-	return p, nil
+	return json.Unmarshal(jsonBytes, out)
+}
+
+func decodeHelmSecret(sec *corev1.Secret) (helmPayload, error) {
+	var p helmPayload
+	err := readHelmSecret(sec, &p)
+	return p, err
 }
 
 func helmUpdated(t time.Time) string {
