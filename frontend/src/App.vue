@@ -8,16 +8,20 @@
 
     <template v-else>
     <!-- Header -->
-    <header class="header">
+    <header class="header" :class="{ 'env-prod': activeClusterMeta?.environment === 'prod' }">
       <div class="header-brand">
         <img src="./assets/images/logo.svg" alt="Kubron Logo" class="logo" />
       </div>
-      <div v-if="activeClusterId" class="connection-info">
-        <span class="active-cluster-icon">{{ activeClusterMeta?.icon }}</span>
-        <span class="active-cluster-name" :style="{ color: activeClusterMeta?.color }">
-          {{ activeClusterMeta?.displayName }}
+      <div v-if="activeClusterId && activeClusterMeta" class="connection-info">
+        <ClusterAvatar :name="activeClusterMeta.displayName" :icon="activeClusterMeta.icon"
+          :color="activeClusterMeta.color" :size="26" />
+        <span class="active-cluster-name">{{ activeClusterMeta.displayName }}</span>
+        <span v-if="activeEnvironment" class="env-badge"
+          :style="{ color: activeEnvironment.color, borderColor: activeEnvironment.color }">
+          {{ activeEnvironment.label }}
         </span>
-        <button class="btn-disconnect" @click="clusterConn.disconnect()">✕</button>
+        <button class="btn-disconnect" title="Отключиться от кластера" aria-label="Отключиться от кластера"
+          @click="clusterConn.disconnect()">✕</button>
       </div>
       <UserMenu />
     </header>
@@ -25,15 +29,15 @@
     <div class="app-body">
       <!-- Cluster Bar -->
       <ClusterBar :clusters="clusters" @select="clusterConn.selectCluster"
-        @add="clusterConn.showAddCluster.value = true" @delete="clusterConn.deleteCluster"
-        @update="clusterConn.updateCluster" />
+        @add="clusterConn.showAddCluster.value = true" @edit="clusterConn.openEditCluster"
+        @delete="clusterConn.deleteCluster" />
 
       <!-- Нет кластеров -->
       <div v-if="clusters.length === 0 && !clusterConn.showAddCluster.value" class="welcome-screen">
         <h2>Добро пожаловать в Kubron!</h2>
         <template v-if="can(Perm.ClusterManage)">
           <p>Добавьте кластер для начала работы</p>
-          <button class="btn" @click="clusterConn.showAddCluster.value = true">➕ Добавить кластер</button>
+          <button class="btn" @click="clusterConn.showAddCluster.value = true">Добавить кластер</button>
         </template>
         <p v-else>Кластеры ещё не добавлены. Обратитесь к администратору.</p>
       </div>
@@ -72,7 +76,11 @@
       @apply-yaml="applyYAMLTabbed" />
 
     <AddClusterDialog v-if="clusterConn.showAddCluster.value" @close="clusterConn.showAddCluster.value = false"
-      :pick-file="clusterConn.pickKubeconfigFile" @addFile="clusterConn.addFromFile" @addText="clusterConn.addFromText" />
+      :pick-file="clusterConn.pickKubeconfigFile" :submit="clusterConn.addCluster" />
+
+    <ClusterEditDialog v-if="clusterConn.editingCluster.value" :key="clusterConn.editingCluster.value.id"
+      :cluster="clusterConn.editingCluster.value" :pick-file="clusterConn.pickKubeconfigFile"
+      :save="clusterConn.saveCluster" @close="clusterConn.closeEditCluster" @delete="clusterConn.deleteFromEdit" />
 
     <NotificationToast :notifications="notifications.notifications.value" @dismiss="notifications.dismiss" />
 
@@ -107,6 +115,9 @@ import UserMenu from './components/auth/UserMenu.vue'
 import IdleGuard from './components/auth/IdleGuard.vue'
 import ClusterBar from './components/ClusterBar.vue'
 import AddClusterDialog from './components/AddClusterDialog.vue'
+import ClusterEditDialog from './components/cluster/ClusterEditDialog.vue'
+import ClusterAvatar from './components/cluster/ClusterAvatar.vue'
+import { findEnvironment } from './components/cluster/clusterStyle'
 import Sidebar from './components/Sidebar.vue'
 import NotificationToast from './components/NotificationToast.vue'
 import ResourceList from './components/resource/ResourceList.vue'
@@ -141,6 +152,7 @@ const clusterConn = useClusterConnection({
   activeClusterId,
   error,
   selectedNamespace,
+  namespaces,
   currentView,
   connectToCluster,
   loadNamespaces,
@@ -155,6 +167,7 @@ const clusterConn = useClusterConnection({
   autoConnect,
 })
 const activeClusterMeta = clusterConn.activeClusterMeta
+const activeEnvironment = computed(() => findEnvironment(activeClusterMeta.value?.environment ?? ''))
 
 // ═══════════════════════════════════════════════
 // Для вкладок и секций нового каркаса (метрики и т.п.)
