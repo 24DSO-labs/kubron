@@ -101,8 +101,8 @@ export function clusterInitials(name: string): string {
   if (words.length === 0) return '?'
   const chars = (w: string) => Array.from(w)
   const letters = words.length >= 2
-    ? chars(words[0])[0] + chars(words[1])[0]
-    : chars(words[0]).slice(0, 2).join('')
+    ? chars(words[0]!)[0] + chars(words[1]!)[0]
+    : chars(words[0]!).slice(0, 2).join('')
   return letters.toUpperCase()
 }
 
