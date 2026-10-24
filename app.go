@@ -76,21 +76,46 @@ func (a *App) PickKubeconfigFile() (string, error) {
 
 // AddClusterFromFile adds a cluster from a kubeconfig file previously chosen
 // with PickKubeconfigFile.
-func (a *App) AddClusterFromFile(path, displayName, icon, color string) (*k8s.ClusterMeta, error) {
-	if err := a.authz(auth.PermClusterManage, "displayName", displayName); err != nil {
+func (a *App) AddClusterFromFile(path string, settings k8s.ClusterSettings) (*k8s.ClusterMeta, error) {
+	if err := a.authz(auth.PermClusterManage, "displayName", settings.DisplayName); err != nil {
 		return nil, err
 	}
 	if path == "" {
 		return nil, errors.New("kubeconfig file is not selected")
 	}
-	return k8s.AddClusterFromFile(path, displayName, icon, color)
+	return k8s.AddClusterFromFile(path, settings)
 }
 
-func (a *App) AddClusterFromText(kubeconfigText, displayName, icon, color string) (*k8s.ClusterMeta, error) {
-	if err := a.authz(auth.PermClusterManage, "displayName", displayName); err != nil {
+func (a *App) AddClusterFromText(kubeconfigText string, settings k8s.ClusterSettings) (*k8s.ClusterMeta, error) {
+	if err := a.authz(auth.PermClusterManage, "displayName", settings.DisplayName); err != nil {
 		return nil, err
 	}
-	return k8s.AddClusterFromText(kubeconfigText, displayName, icon, color)
+	return k8s.AddClusterFromText(kubeconfigText, settings)
+}
+
+// InspectKubeconfig разбирает kubeconfig (файл, текст или сохранённый кластер) и возвращает
+// контексты без секретов — для выбора контекста в диалогах кластера.
+func (a *App) InspectKubeconfig(src k8s.KubeconfigSource) (*k8s.KubeconfigInfo, error) {
+	if err := a.authz(auth.PermClusterManage); err != nil {
+		return nil, err
+	}
+	return k8s.InspectKubeconfig(src)
+}
+
+// TestKubeconfig пробно подключается к кластеру по kubeconfig, ничего не сохраняя.
+func (a *App) TestKubeconfig(src k8s.KubeconfigSource, contextName string) (*k8s.ConnectionCheck, error) {
+	if err := a.authz(auth.PermClusterManage, "context", contextName); err != nil {
+		return nil, err
+	}
+	return k8s.CheckKubeconfig(src, contextName)
+}
+
+// GetClusterKubeconfig возвращает текст сохранённого kubeconfig (с секретами) для правки в диалоге.
+func (a *App) GetClusterKubeconfig(id string) (string, error) {
+	if err := a.authz(auth.PermClusterManage, "id", id); err != nil {
+		return "", err
+	}
+	return k8s.ReadClusterKubeconfig(id)
 }
 
 func (a *App) DeleteCluster(id string) error {
@@ -107,11 +132,33 @@ func (a *App) DeleteCluster(id string) error {
 	return nil
 }
 
-func (a *App) UpdateCluster(id, displayName, icon, color string) error {
-	if err := a.authz(auth.PermClusterManage, "id", id, "displayName", displayName); err != nil {
-		return err
+// UpdateCluster сохраняет настройки кластера; непустой kubeconfig заменяет сохранённый.
+// Содержимое kubeconfig в журнал не попадает — только способ замены.
+func (a *App) UpdateCluster(id string, settings k8s.ClusterSettings, kubeconfig k8s.KubeconfigSource) (*k8s.ClusterUpdateResult, error) {
+	if err := a.authz(auth.PermClusterManage, "id", id, "displayName", settings.DisplayName, "kubeconfig", kubeconfigChange(kubeconfig)); err != nil {
+		return nil, err
 	}
-	return k8s.UpdateClusterMeta(id, displayName, icon, color)
+	res, err := k8s.UpdateClusterSettings(id, settings, kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+	// Подключение собрано по прежнему kubeconfig/контексту: забываем его, следующее
+	// подключение построит новое. Проброшенные порты старого активного кластера теряют смысл.
+	if res.ConnectionChanged && a.k8sMgr.RemoveConnection(id) {
+		a.pfMgr.StopAll()
+	}
+	return res, nil
+}
+
+// kubeconfigChange описывает способ замены kubeconfig для журнала аудита (без содержимого).
+func kubeconfigChange(src k8s.KubeconfigSource) string {
+	switch {
+	case src.Path != "":
+		return "file"
+	case strings.TrimSpace(src.Text) != "":
+		return "text"
+	}
+	return "unchanged"
 }
 
 func (a *App) ConnectToCluster(clusterID string) error {
