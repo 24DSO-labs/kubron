@@ -1,6 +1,9 @@
 import { ref } from 'vue'
-import type { ClusterStatus } from '../types'
+import type {
+  ClusterMeta, ClusterSettings, ClusterStatus, ClusterUpdateResult, KubeconfigSource, Outcome,
+} from '../types'
 import { askConfirm } from '../resources/confirm'
+import { errorText } from './errorText'
 
 const clusters = ref<ClusterStatus[]>([])
 const activeClusterId = ref('')
@@ -39,33 +42,30 @@ async function pickKubeconfigFile(): Promise<string> {
   }
 }
 
-async function addClusterFromFile(path: string, displayName: string, icon: string, color: string) {
+// Добавление и правка возвращают Outcome: диалог показывает ошибку у себя, не теряя введённое
+async function addClusterFromFile(path: string, settings: ClusterSettings): Promise<Outcome<ClusterMeta>> {
   try {
     clusterError.value = ''
     const { AddClusterFromFile } = await import('../../wailsjs/go/main/App')
-    const result = await AddClusterFromFile(path, displayName, icon, color)
-    if (result) {
-      await loadClusters()
-    }
-    return result
-  } catch (e: any) {
-    clusterError.value = e.message || String(e)
-    return null
+    const cluster = await AddClusterFromFile(path, settings)
+    await loadClusters()
+    return { ok: true, value: cluster }
+  } catch (e) {
+    clusterError.value = errorText(e)
+    return { ok: false, error: clusterError.value }
   }
 }
 
-async function addClusterFromText(text: string, displayName: string, icon: string, color: string) {
+async function addClusterFromText(text: string, settings: ClusterSettings): Promise<Outcome<ClusterMeta>> {
   try {
     clusterError.value = ''
     const { AddClusterFromText } = await import('../../wailsjs/go/main/App')
-    const result = await AddClusterFromText(text, displayName, icon, color)
-    if (result) {
-      await loadClusters()
-    }
-    return result
-  } catch (e: any) {
-    clusterError.value = e.message || String(e)
-    return null
+    const cluster = await AddClusterFromText(text, settings)
+    await loadClusters()
+    return { ok: true, value: cluster }
+  } catch (e) {
+    clusterError.value = errorText(e)
+    return { ok: false, error: clusterError.value }
   }
 }
 
@@ -85,13 +85,18 @@ async function deleteCluster(id: string) {
   }
 }
 
-async function updateCluster(id: string, displayName: string, icon: string, color: string) {
+async function updateCluster(
+  id: string, settings: ClusterSettings, kubeconfig: KubeconfigSource,
+): Promise<Outcome<ClusterUpdateResult>> {
   try {
+    clusterError.value = ''
     const { UpdateCluster } = await import('../../wailsjs/go/main/App')
-    await UpdateCluster(id, displayName, icon, color)
+    const result = await UpdateCluster(id, settings, kubeconfig)
     await loadClusters()
-  } catch (e: any) {
-    clusterError.value = e.message || String(e)
+    return { ok: true, value: result }
+  } catch (e) {
+    clusterError.value = errorText(e)
+    return { ok: false, error: clusterError.value }
   }
 }
 
