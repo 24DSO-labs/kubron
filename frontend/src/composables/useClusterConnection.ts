@@ -3,13 +3,18 @@
 import { ref, computed, type Ref } from 'vue'
 import { useArgo } from './useArgo'
 import { loadCustomResources, resetCustomResources } from '../resources/customResources'
+import type {
+  AddClusterPayload, ClusterMeta, ClusterSettings, ClusterStatus, ClusterUpdateResult,
+  KubeconfigSource, NamespaceInfo, Outcome,
+} from '../types'
 
 
 export function useClusterConnection(deps: {
-  clusters: Ref<any[]>
+  clusters: Ref<ClusterStatus[]>
   activeClusterId: Ref<string>
   error: Ref<string>
   selectedNamespace: Ref<string>
+  namespaces: Ref<NamespaceInfo[]>
   currentView: Ref<string>
   connectToCluster: (id: string) => Promise<void>
   loadNamespaces: () => Promise<void>
@@ -17,15 +22,15 @@ export function useClusterConnection(deps: {
   k8sDisconnect: () => void
   loadClusters: () => Promise<void>
   pickKubeconfigFile: () => Promise<string>
-  addClusterFromFile: (path: string, name: string, icon: string, color: string) => Promise<any>
-  addClusterFromText: (text: string, name: string, icon: string, color: string) => Promise<any>
+  addClusterFromFile: (path: string, settings: ClusterSettings) => Promise<Outcome<ClusterMeta>>
+  addClusterFromText: (text: string, settings: ClusterSettings) => Promise<Outcome<ClusterMeta>>
   deleteCluster: (id: string) => Promise<void>
-  updateCluster: (id: string, name: string, icon: string, color: string) => Promise<void>
+  updateCluster: (id: string, settings: ClusterSettings, kubeconfig: KubeconfigSource) => Promise<Outcome<ClusterUpdateResult>>
   autoConnect: () => Promise<boolean>
 }) {
   const {
     clusters, activeClusterId, error,
-    selectedNamespace, currentView,
+    selectedNamespace, namespaces, currentView,
     connectToCluster, loadNamespaces, refreshData,
     k8sDisconnect, loadClusters,
     pickKubeconfigFile, addClusterFromFile, addClusterFromText,
@@ -35,10 +40,22 @@ export function useClusterConnection(deps: {
   const { refreshArgo, resetArgo } = useArgo()
   const connecting = ref(false)
   const showAddCluster = ref(false)
+  const editingClusterId = ref<string | null>(null)
 
   const activeClusterMeta = computed(() =>
-    (clusters.value || []).find((c: any) => c.id === activeClusterId.value) || null
+    clusters.value.find(c => c.id === activeClusterId.value) || null
   )
+
+  // Кластер, открытый в диалоге правки; исчезает вместе с диалогом, если кластер удалили
+  const editingCluster = computed(() =>
+    clusters.value.find(c => c.id === editingClusterId.value) || null
+  )
+
+  /** Namespace по умолчанию, заданный кластеру: выбирается, только если он есть в кластере */
+  function applyDefaultNamespace(clusterId: string) {
+    const preferred = clusters.value.find(c => c.id === clusterId)?.defaultNamespace ?? ''
+    selectedNamespace.value = preferred && namespaces.value.some(n => n.name === preferred) ? preferred : ''
+  }
 
   async function selectCluster(id: string) {
     if (activeClusterId.value === id) return
@@ -48,7 +65,7 @@ export function useClusterConnection(deps: {
       await connectToCluster(id)
       await loadNamespaces()
 
-      selectedNamespace.value = ''
+      applyDefaultNamespace(id)
       currentView.value = 'overview'
        resetCustomResources()
       void loadCustomResources()
@@ -61,20 +78,47 @@ export function useClusterConnection(deps: {
     }
   }
 
-  async function addFromFile(path: string, name: string, icon: string, color: string) {
-    const result = await addClusterFromFile(path, name, icon, color)
-    if (result) {
-      showAddCluster.value = false
-      await selectCluster(result.id)
-    }
+  /** Добавляет кластер и подключается к нему. Возвращает текст ошибки или null */
+  async function addCluster(payload: AddClusterPayload): Promise<string | null> {
+    const result = payload.kind === 'file'
+      ? await addClusterFromFile(payload.path, payload.settings)
+      : await addClusterFromText(payload.text, payload.settings)
+    if (!result.ok) return result.error
+    showAddCluster.value = false
+    await selectCluster(result.value.id)
+    return null
   }
 
-  async function addFromText(text: string, name: string, icon: string, color: string) {
-    const result = await addClusterFromText(text, name, icon, color)
-    if (result) {
-      showAddCluster.value = false
-      await selectCluster(result.id)
+  function openEditCluster(id: string) {
+    editingClusterId.value = id
+  }
+
+  function closeEditCluster() {
+    editingClusterId.value = null
+  }
+
+  /**
+   * Сохраняет правку кластера. Если у активного кластера сменился kubeconfig или контекст,
+   * подключение пересоздаётся. Возвращает текст ошибки или null.
+   */
+  async function saveCluster(
+    id: string, settings: ClusterSettings, kubeconfig: KubeconfigSource,
+  ): Promise<string | null> {
+    const result = await updateCluster(id, settings, kubeconfig)
+    if (!result.ok) return result.error
+    editingClusterId.value = null
+    if (result.value.connectionChanged && activeClusterId.value === id) {
+      // Бэкенд уже забыл старое подключение: переподключаемся как при обычном выборе кластера
+      activeClusterId.value = ''
+      await selectCluster(id)
     }
+    return null
+  }
+
+  /** Удаление из диалога правки: сначала закрываем диалог, чтобы подтверждение не оказалось под ним */
+  async function deleteFromEdit(id: string) {
+    editingClusterId.value = null
+    await deleteCluster(id)
   }
 
   function disconnect() {
@@ -90,6 +134,7 @@ export function useClusterConnection(deps: {
     const connected = await autoConnect()
     if (connected) {
       await loadNamespaces()
+      applyDefaultNamespace(activeClusterId.value)
       currentView.value = 'overview'
       void refreshArgo()
       void loadCustomResources()
@@ -100,14 +145,17 @@ export function useClusterConnection(deps: {
   return {
     connecting,
     showAddCluster,
+    editingCluster,
     activeClusterMeta,
     selectCluster,
     pickKubeconfigFile,
-    addFromFile,
-    addFromText,
+    addCluster,
+    openEditCluster,
+    closeEditCluster,
+    saveCluster,
+    deleteFromEdit,
     disconnect,
     deleteCluster,
-    updateCluster,
     initialize,
   }
 }
