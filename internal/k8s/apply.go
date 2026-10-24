@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"gopkg.in/yaml.v3"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"sigs.k8s.io/yaml"
 )
 
 // ApplyYAML заменяет объект в кластере манифестом из редактора (get -> update).
@@ -83,16 +83,51 @@ func ManifestName(yamlData string) string {
 }
 
 func parseSingleManifest(yamlData string) (*unstructured.Unstructured, error) {
-	// YAML -> JSON -> Unstructured: так числа получаются int64, а не float64
-	jsonData, err := yaml.YAMLToJSON([]byte(yamlData))
-	if err != nil {
+	// yaml.v3 корректно обрабатывает строки вроде "n" (в yaml.v2 это булево false),
+	// но парсит числа как int, а Kubernetes ожидает int64 — поэтому конвертируем.
+	var data map[string]interface{}
+	if err := yaml.Unmarshal([]byte(yamlData), &data); err != nil {
 		return nil, fmt.Errorf("ошибка парсинга YAML: %w", err)
 	}
-	obj := &unstructured.Unstructured{}
-	if err := obj.UnmarshalJSON(jsonData); err != nil {
-		return nil, fmt.Errorf("некорректный манифест: %w", err)
+	converted := convertYAMLNumbers(data)
+	return &unstructured.Unstructured{Object: converted.(map[string]interface{})}, nil
+}
+
+// convertYAMLNumbers рекурсивно заменяет int на int64 в map/slice,
+// потому что runtime.DeepCopyJSONValue паникует на int.
+func convertYAMLNumbers(v interface{}) interface{} {
+	switch x := v.(type) {
+	case map[string]interface{}:
+		for k, val := range x {
+			x[k] = convertYAMLNumbers(val)
+		}
+		return x
+	case []interface{}:
+		for i, val := range x {
+			x[i] = convertYAMLNumbers(val)
+		}
+		return x
+	case int:
+		return int64(x)
+	case int8:
+		return int64(x)
+	case int16:
+		return int64(x)
+	case int32:
+		return int64(x)
+	case uint:
+		return int64(x)
+	case uint8:
+		return int64(x)
+	case uint16:
+		return int64(x)
+	case uint32:
+		return int64(x)
+	case uint64:
+		return int64(x)
+	default:
+		return x
 	}
-	return obj, nil
 }
 
 // CreateResourceYAML создаёт новый объект из манифеста редактора и возвращает его имя.
