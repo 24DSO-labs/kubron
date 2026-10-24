@@ -624,6 +624,21 @@ func (a *App) GetHelmCharts() ([]k8s.HelmChartInfo, error) {
 	}
 	return a.k8sMgr.GetHelmCharts()
 }
+func (a *App) GetHelmReleaseDetail(namespace, name string) (*k8s.HelmReleaseDetail, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetHelmReleaseDetail(namespace, name)
+}
+
+// GetHelmReleaseContent отдаёт values, notes и манифест ревизии. Содержимое не передаётся в authz:
+// аргументы попадают в журнал аудита.
+func (a *App) GetHelmReleaseContent(namespace, name string, revision int) (*k8s.HelmReleaseContent, error) {
+	if err := a.authz(auth.PermSecretsRead, "namespace", namespace, "name", name, "revision", revision); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetHelmReleaseContent(namespace, name, revision)
+}
 
 // === Events ===
 

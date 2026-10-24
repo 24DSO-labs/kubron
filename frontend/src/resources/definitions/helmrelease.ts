@@ -3,18 +3,21 @@ import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { flatNameCol, flatNsCol } from './common'
 import { badgeClass, statusColor } from '../status'
+import { helmContentTab } from '../helmTabs'
+import HelmResourcesTab from '../../components/resource/sections/HelmResourcesTab.vue'
+import HelmHistoryTab from '../../components/resource/sections/HelmHistoryTab.vue'
 
-export const helmRelease = defineResource<k8s.HelmReleaseInfo>({
+export const helmRelease = defineResource<k8s.HelmReleaseInfo, k8s.HelmReleaseDetail>({
   id: 'helmrelease',
   kind: 'Helm Release',
   view: 'helm-releases',
   title: 'Helm Releases',
   namespaced: false,
   nav: { group: 'helm', label: 'Releases' },
-  
+
   autoRefresh: true,
-  // icon: 'documentation',
   // helm-релиз — агрегат из secret-ов, не отдельный k8s-ресурс: без YAML и удаления
+  // (uninstall появится на этапе H2 как отдельное действие)
   editable: false,
 
   columns: [
@@ -37,7 +40,17 @@ export const helmRelease = defineResource<k8s.HelmReleaseInfo>({
     { label: 'Description', value: r => r.description },
   ],
 
+  tabs: [
+    { id: 'helmValues', label: 'Values', component: helmContentTab('values') },
+    { id: 'helmNotes', label: 'Notes', component: helmContentTab('notes') },
+    { id: 'helmManifest', label: 'Manifest', component: helmContentTab('manifest') },
+    { id: 'helmResources', label: 'Resources', component: HelmResourcesTab },
+    { id: 'helmHistory', label: 'History', component: HelmHistoryTab },
+  ],
+
   api: {
     list: () => callApp('GetHelmReleases'),
+    // history и resources приходят отсюда и дополняют элемент списка
+    get: (ns, name) => callApp('GetHelmReleaseDetail', ns, name),
   },
 })
