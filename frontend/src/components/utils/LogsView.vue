@@ -60,9 +60,9 @@ import downloadIcon from '../../assets/icons/download.svg'
 import timestampIcon from '../../assets/icons/timestamp.svg'
 import wrapLinesIcon from '../../assets/icons/wrap-lines.svg'
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
-import { StartLogStream, StopLogStream } from '../../../wailsjs/go/main/App'
-import { EventsOn } from '../../../wailsjs/runtime/runtime'
+import { onEvent } from '../../platform/events'
 import { uid } from '../../resources/uid'
+import { callApp } from '../../platform/api'
 
 const props = defineProps<{ tab: LogsTab; active: boolean }>()
 
@@ -183,7 +183,7 @@ const contentEl = ref<HTMLElement | null>(null)
 
 function stopStream(s: LiveStream) {
   s.unsubscribe.forEach(off => off())
-  StopLogStream(s.id).catch(() => { })
+  callApp('StopLogStream', s.id).catch(() => { })
 }
 function stopStreams() {
   generation++
@@ -227,8 +227,8 @@ async function loadLogs() {
     const id = `log_${uid()}`
     const s: LiveStream = { id, unsubscribe: [] }
     s.unsubscribe.push(
-      EventsOn(`logs:data:${id}`, (chunk: string) => append(multi ? tagPod(pod.name, chunk) : chunk)),
-      EventsOn(`logs:end:${id}`, (reason: string) => {
+      onEvent(`logs:data:${id}`, (chunk: string) => append(multi ? tagPod(pod.name, chunk) : chunk)),
+      onEvent(`logs:end:${id}`, (reason: string) => {
         const why = reason && reason !== 'eof' ? `: ${reason}` : ''
         append(`\n[${multi ? pod.name + ' ' : ''}stream closed${why}]\n`)
         dropStream(s)
@@ -236,7 +236,7 @@ async function loadLogs() {
     )
     streams.push(s)
     try {
-      await StartLogStream(id, tab.namespace, pod.name, container, logLines.value)
+      await callApp('StartLogStream', id, tab.namespace, pod.name, container, logLines.value)
     } catch (e: any) {
       if (gen === generation) append(`\n[${pod.name}: ${e?.message || e}]\n`)
       dropStream(s)

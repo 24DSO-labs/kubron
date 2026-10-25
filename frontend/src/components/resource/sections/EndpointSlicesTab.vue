@@ -40,12 +40,12 @@
 
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
-import { GetResourceYAML, DeleteResource } from '../../../../wailsjs/go/main/App'
 import { globalTabbedPanel } from '../../../composables/useTabbedPanel'
 import { useNotifications } from '../../../composables/useNotifications'
 import { askConfirm } from '../../../resources/confirm'
 import { can } from '../../../composables/useAuth'
 import { Perm } from '../../../types/auth'
+import { callApp } from '../../../platform/api'
 
 const props = defineProps<{ resource: any }>()
 const endpointSlices = computed(() => props.resource?.endpointSlices ?? [])
@@ -88,7 +88,7 @@ async function editYaml(item: any) {
     return
   }
   try {
-    const yaml = await GetResourceYAML(item.namespace, 'endpointslice', item.name, true)
+    const yaml = await callApp('GetResourceYAML', item.namespace, 'endpointslice', item.name, true)
     globalTabbedPanel.openYamlTab('endpointslice', item.name, item.namespace, yaml)
   } catch (e: any) {
     notifications.notifyError(`Failed to load YAML: ${e?.message || String(e)}`)
@@ -103,7 +103,7 @@ async function remove(item: any) {
   }
   if (!(await askConfirm(`Delete EndpointSlice "${item.name}"?`))) return
   try {
-    await DeleteResource('endpointslice', item.namespace, item.name)
+    await callApp('DeleteResource', 'endpointslice', item.namespace, item.name)
     notifications.notifySuccess(`EndpointSlice "${item.name}" deleted`)
   } catch (e: any) {
     notifications.notifyError(`Failed to delete: ${e?.message || String(e)}`)

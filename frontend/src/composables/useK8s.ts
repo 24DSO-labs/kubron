@@ -1,11 +1,4 @@
 import { ref, type Ref } from 'vue'
-import {
-  GetNamespaces,
-  ApplyYAML,
-  CreateResourceYAML,
-  GetPodMetrics,
-  ListPortForwards,
-} from '../../wailsjs/go/main/App'
 import { useNotifications } from './useNotifications'
 import { formatCpu, formatMemory, mergePodMetrics } from '../resources/podUsage'
 
@@ -13,6 +6,7 @@ import type {
   NamespaceInfo,
   PodMetricsInfo, PortForwardSession,
 } from '../types'
+import { callApp } from '../platform/api'
 
 /*
  * useK8s: состояние и загрузка данных для СТАРЫХ view.
@@ -64,7 +58,7 @@ function disconnect() {
 }
 
 async function loadNamespaces() {
-  try { namespaces.value = await GetNamespaces() }
+  try { namespaces.value = await callApp('GetNamespaces') }
   catch (e) { fail('Ошибка загрузки namespaces', e) }
 }
 
@@ -135,18 +129,18 @@ function onNamespaceChange() {
 
 /** Бросает исключение; тост и обновление списка делает вызывающий */
 async function applyYAML(content: string, kind: string, namespace: string, name: string) {
-  await ApplyYAML(namespace, kind, name, content)
+  await callApp('ApplyYAML', namespace, kind, name, content)
 }
 
 /** Создаёт новый объект из манифеста и возвращает его имя */
 function createResourceYAML(content: string, kind: string, namespace: string): Promise<string> {
-  return CreateResourceYAML(namespace, kind, content)
+  return callApp('CreateResourceYAML', namespace, kind, content)
 }
 
 // ─── Метрики ───
 
 async function loadPodMetrics() {
-  try { podMetrics.value = (await GetPodMetrics(selectedNamespace.value)) || [] }
+  try { podMetrics.value = (await callApp('GetPodMetrics', selectedNamespace.value)) || [] }
   catch { /* оставляем прошлые значения, чтобы таблица не мигала */ }
 }
 
@@ -155,7 +149,7 @@ async function loadPodMetrics() {
 async function refreshPortForwards() {
   let next: PortForwardSession[]
   try {
-    const data = await ListPortForwards()
+    const data = await callApp('ListPortForwards')
     next = Array.isArray(data) ? data : []
   } catch { next = [] }
   // Не трогаем ref, если ничего не изменилось: иначе refreshOn списка port forward
