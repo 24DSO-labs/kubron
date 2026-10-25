@@ -3,10 +3,8 @@ package k8s
 import (
 	"bufio"
 	"bytes"
+	_ "embed"
 	"io"
-	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -14,28 +12,13 @@ import (
 	yamlutil "sigs.k8s.io/yaml"
 )
 
-func findManifestPath() string {
-	candidates := []string{
-		filepath.Join("manifests", MetricsManifest),
-	}
-	if ex, err := os.Executable(); err == nil {
-		candidates = append(candidates, filepath.Join(filepath.Dir(ex), "manifests", MetricsManifest))
-	}
-	if _, f, _, ok := runtime.Caller(0); ok {
-		srcDir := filepath.Dir(f)
-		candidates = append(candidates, filepath.Join(srcDir, "..", "..", "manifests", MetricsManifest))
-	}
-	for _, p := range candidates {
-		if _, err := os.Stat(p); err == nil {
-			return p
-		}
-	}
-	return filepath.Join("manifests", MetricsManifest)
-}
+// Манифест стека метрик вшит в бинарник: собранное приложение не зависит от файлов рядом с exe.
+//
+//go:embed manifests/metrics-stack.yaml
+var metricsManifest []byte
 
 func loadManifestData() ([]byte, error) {
-	path := findManifestPath()
-	return os.ReadFile(path)
+	return metricsManifest, nil
 }
 
 func parseManifest(data []byte) ([]*unstructured.Unstructured, error) {
