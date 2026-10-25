@@ -55,8 +55,7 @@ import { useNotifications } from '../../../composables/useNotifications'
 import { can } from '../../../composables/useAuth'
 import { Perm } from '../../../types/auth'
 import { callApp } from '../../../resources/wails'
-import { BrowserOpenURL } from '../../../../wailsjs/runtime/runtime'
-import { GetFreePort } from '../../../../wailsjs/go/main/App'
+import { openUrl } from '../../../platform/files'
 
 const props = defineProps<{
   namespace: string
@@ -118,7 +117,7 @@ async function start() {
     if (inputVal && !isNaN(inputVal)) {
       localPort = inputVal
     } else {
-      localPort = await GetFreePort()
+      localPort = await callApp('GetFreePort')
     }
 
     if (props.resourceType === 'pod') {
@@ -132,7 +131,7 @@ async function start() {
 
     if (openInBrowser.value) {
       const protocol = useHttps.value ? 'https' : 'http'
-      BrowserOpenURL(`${protocol}://localhost:${localPort}`)
+      openUrl(`${protocol}://localhost:${localPort}`)
     }
   } catch (e: any) {
     // Окно остаётся открытым: порт можно поправить и нажать Start ещё раз
