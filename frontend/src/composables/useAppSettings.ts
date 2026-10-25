@@ -1,6 +1,6 @@
 import { ref, readonly } from 'vue'
-import { GetAppSettings, SaveAppSettings } from '../../wailsjs/go/main/App'
 import { k8s } from '../../wailsjs/go/models'
+import { callApp } from '../platform/api'
 
 const DEFAULT_INTERVAL = 10 // секунд
 
@@ -15,7 +15,7 @@ const loaded = ref(false)
 export function useAppSettings() {
   async function loadSettings() {
     try {
-      const s = await GetAppSettings()
+      const s = await callApp('GetAppSettings')
       settings.value = s
       // Если интервал не задан (0 или undefined), ставим дефолт
       if (!settings.value.autoRefreshInterval || settings.value.autoRefreshInterval < 0) {
@@ -30,7 +30,7 @@ export function useAppSettings() {
   async function saveSettings(newSettings: Partial<k8s.KubronConfig>) {
     settings.value = { ...settings.value, ...newSettings }
     try {
-      await SaveAppSettings(settings.value)
+      await callApp('SaveAppSettings', settings.value)
     } catch (e) {
       console.error('Failed to save app settings:', e)
     }

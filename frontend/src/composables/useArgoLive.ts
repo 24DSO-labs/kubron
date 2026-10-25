@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { EventsOn } from '../../wailsjs/runtime/runtime'
+import { onEvent } from '../platform/events'
 
 /** Событие бэкенда: Application создан, изменён или удалён (informer, internal/k8s/argocd_cache.go) */
 const ARGO_CHANGED = 'argocd:changed'
@@ -16,7 +16,7 @@ let off: (() => void) | null = null
 /** Подписка идемпотентна: повторный вызов (смена кластера) не плодит обработчики */
 export function startArgoLive() {
   if (off) return
-  off = EventsOn(ARGO_CHANGED, () => { argoLiveTick.value++ })
+  off = onEvent(ARGO_CHANGED, () => { argoLiveTick.value++ })
 }
 
 export function stopArgoLive() {
