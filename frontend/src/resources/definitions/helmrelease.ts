@@ -6,6 +6,7 @@ import { badgeClass, statusColor } from '../status'
 import { helmContentTab } from '../helmTabs'
 import HelmResourcesTab from '../../components/resource/sections/HelmResourcesTab.vue'
 import HelmHistoryTab from '../../components/resource/sections/HelmHistoryTab.vue'
+import { Perm } from '../../types/auth'
 
 export const helmRelease = defineResource<k8s.HelmReleaseInfo, k8s.HelmReleaseDetail>({
   id: 'helmrelease',
@@ -47,7 +48,28 @@ export const helmRelease = defineResource<k8s.HelmReleaseInfo, k8s.HelmReleaseDe
     { id: 'helmResources', label: 'Resources', component: HelmResourcesTab },
     { id: 'helmHistory', label: 'History', component: HelmHistoryTab },
   ],
-
+actions: [
+    {
+      id: 'uninstall',
+      label: 'Uninstall',
+      icon: 'delete',
+      danger: true,
+      permission: Perm.Write,
+      run: async (r, ctx) => {
+        if (!(await ctx.confirm(
+          `Uninstall release ${r.namespace}/${r.name}? All resources created by the release will be deleted from the cluster.`,
+        ))) return
+        try {
+          await callApp('UninstallHelmRelease', r.namespace, r.name, false)
+          ctx.notifySuccess(`Release ${r.name} uninstalled`)
+          ctx.closeDetail()
+          await ctx.reload()
+        } catch (e: any) {
+          ctx.notifyError(`Uninstall: ${e?.message || e}`)
+        }
+      },
+    },
+  ],
   api: {
     list: () => callApp('GetHelmReleases'),
     // history и resources приходят отсюда и дополняют элемент списка
