@@ -1,6 +1,6 @@
 import { ref, shallowRef, onMounted, onUnmounted, watch, type Ref } from 'vue'
 import { callApp } from '../resources/wails'
-import { EventsOn } from '../../wailsjs/runtime/runtime'
+import { onEvent } from '../platform/events'
 import type { ClusterOverview } from '../types/overview'
 
 // Основное обновление приходит событием от бэкенда (informers); таймер — подстраховка
@@ -75,7 +75,7 @@ export function useOverview(clusterName: Ref<string>) {
       if (!document.hidden) refresh()
     }, REFRESH_MS)
     document.addEventListener('visibilitychange', onVisibility)
-    offEvents = EventsOn(CLUSTER_CHANGED, onClusterChanged)
+    offEvents = onEvent(CLUSTER_CHANGED, onClusterChanged)
   })
 
   onUnmounted(() => {
