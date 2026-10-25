@@ -53,9 +53,9 @@
 
 <script lang="ts" setup>
 import { onMounted, ref, onBeforeUnmount } from 'vue'
-import { GetCronJobJobs } from '../../../../wailsjs/go/main/App'
 import { resourceActions } from '../../../resources/actions'
 import K8sIcon from '../../icons/K8sIcon.vue'
+import { callApp } from '../../../platform/api'
 
 const props = defineProps<{ resource: any }>()
 const emit = defineEmits<{
@@ -83,7 +83,7 @@ async function load() {
 
   loading.value = true
   try {
-    const raw = (await GetCronJobJobs(ns, name)) as any[]
+    const raw = (await callApp('GetCronJobJobs', ns, name)) as any[]
     jobs.value = raw.map((j: any) => ({
       name: j.name,
       namespace: j.namespace,
