@@ -3,8 +3,8 @@
     <header class="ov-header">
       <h1>Overview</h1>
       <div class="ov-header-right">
-        <span v-if="data && error" class="ov-stale" :title="error">Update failed, showing last data</span>
         <ClusterHealthChip v-if="data" :health="data.health" />
+        <span v-if="data && error" class="ov-stale" :title="error">Update failed, showing last data</span>
         <span v-else-if="updatedAt" class="ov-updated">Updated {{ updatedAt.toLocaleTimeString() }}</span>
         <button type="button" class="ov-btn" :disabled="refreshing" @click="refresh">
           {{ refreshing ? 'Refreshing…' : 'Refresh' }}
@@ -34,24 +34,34 @@
       </div>
 
       <div class="ov-row ov-row-3">
-  <ResourceUsageCard :cluster-name="clusterName" :requests="data.requests" @open-settings="emit('navigate', 'settings')" />
-  <TopPodsCard :data="hot" :state="hotState" @open="openHotPod" />
-  <StorageCard :data="hot" :state="hotState" />
-</div>
-
-<div class="side">
-  <ProblemPodsCard :pods="data.problemPods ?? []" :total="data.problemPodsTotal" @open="openPod" @view-all="emit('navigate', 'pods')" />
-  <WarningsCard :reasons="data.warningReasons ?? []" @view-all="emit('navigate', 'events')" />
-</div>
+        <ResourceUsageCard :cluster-name="clusterName" :requests="data.requests" @open-settings="emit('navigate', 'settings')" />
+        <TopPodsCard :data="hot" :state="hotState" @open="openHotPod" />
+        <StorageCard :data="hot" :state="hotState" />
+      </div>
 
       <div class="ov-row ov-row-main">
         <WorkloadsCard :workloads="data.workloads" @open="openWorkload" />
-        <ProblemPodsCard
-          :pods="data.problemPods ?? []"
-          :total="data.problemPodsTotal"
-          @open="openPod"
-          @view-all="emit('navigate', 'pods')"
+        <div class="side">
+          <ProblemPodsCard
+            :pods="data.problemPods ?? []"
+            :total="data.problemPodsTotal"
+            @open="openPod"
+            @view-all="emit('navigate', 'pods')"
+          />
+          <WarningsCard :reasons="data.warningReasons ?? []" @view-all="emit('navigate', 'events')" />
+        </div>
+      </div>
+
+      <div class="ov-row ov-row-auto">
+        <RecentChangesCard
+          :changes="changes"
+          :window-minutes="windowMinutes"
+          @update:window-minutes="windowMinutes = $event"
+          @open="openChange"
         />
+        <CapacityCard :nodes="risks?.nodes ?? null" />
+        <BlockersCard :risks="risks" />
+        <ExpiringCertsCard v-if="can(Perm.SecretsRead)" :scan="certs" />
       </div>
     </template>
   </div>
@@ -60,30 +70,36 @@
 <script lang="ts" setup>
 import { computed, toRef } from 'vue'
 import StatCard from '../overview/StatCard.vue'
-import ClusterHealthCard from '../overview/ClusterHealthCard.vue'
 import ResourceUsageCard from '../overview/ResourceUsageCard.vue'
+import TopPodsCard from '../overview/TopPodsCard.vue'
+import StorageCard from '../overview/StorageCard.vue'
 import WarningsCard from '../overview/WarningsCard.vue'
 import WorkloadsCard from '../overview/WorkloadsCard.vue'
 import ProblemPodsCard from '../overview/ProblemPodsCard.vue'
+import ClusterHealthChip from '../overview/ClusterHealthChip.vue'
+import RecentChangesCard from '../overview/RecentChangesCard.vue'
+import CapacityCard from '../overview/CapacityCard.vue'
+import BlockersCard from '../overview/BlockersCard.vue'
+import ExpiringCertsCard from '../overview/ExpiringCertsCard.vue'
 import { useOverview } from '../../composables/useOverview'
+import { useHotspots } from '../../composables/useHotspots'
+import { useInsights } from '../../composables/useInsights'
 import { useViewHotkeys } from '../../composables/useViewHotkeys'
+import { can } from '../../composables/useAuth'
+import { Perm } from '../../types/auth'
 import { resourceActions } from '../../resources/actions'
 import type { ProblemPod, WorkloadSummary } from '../../types/overview'
-import '../overview/overview.css'
-import ClusterHealthChip from '../overview/ClusterHealthChip.vue'
-import TopPodsCard from '../overview/TopPodsCard.vue'
-import StorageCard from '../overview/StorageCard.vue'
-import { useHotspots } from '../../composables/useHotspots'
 import type { HotPod } from '../../types/hotspots'
-
+import type { ChangeEvent } from '../../types/insights'
+import '../overview/overview.css'
 
 const props = withDefaults(defineProps<{ clusterName?: string }>(), { clusterName: '' })
 const emit = defineEmits<{ (e: 'navigate', view: string): void }>()
 
-const { data: hot, state: hotState } = useHotspots(toRef(props, 'clusterName'))
-const openHotPod = (p: HotPod) => resourceActions.open('pod', p.namespace, p.name)
-
-const { data, loading, refreshing, error, updatedAt, refresh } = useOverview(toRef(props, 'clusterName'))
+const clusterRef = toRef(props, 'clusterName')
+const { data, loading, refreshing, error, updatedAt, refresh } = useOverview(clusterRef)
+const { data: hot, state: hotState } = useHotspots(clusterRef)
+const { risks, changes, certs, windowMinutes } = useInsights(clusterRef)
 
 // Alt+P / D / N / E / S: раньше их регистрировала карточка Shortcuts
 useViewHotkeys(view => emit('navigate', view))
@@ -123,9 +139,12 @@ const stats = computed(() => {
 function openWorkload(w: WorkloadSummary) {
   resourceActions.open(w.kind.toLowerCase(), w.namespace, w.name)
 }
-
 function openPod(p: ProblemPod) {
   resourceActions.open('pod', p.namespace, p.name)
+}
+const openHotPod = (p: HotPod) => resourceActions.open('pod', p.namespace, p.name)
+function openChange(c: ChangeEvent) {
+  if (c.target) resourceActions.open(c.target, c.namespace, c.name)
 }
 </script>
 
@@ -145,7 +164,9 @@ function openPod(p: ProblemPod) {
 .ov-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 14px; }
 .ov-row { display: grid; gap: 14px; margin-bottom: 14px; }
 .ov-row-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.ov-row-main { grid-template-columns: minmax(0, 1fr) 320px; margin-bottom: 0; }
+.ov-row-main { grid-template-columns: minmax(0, 1fr) 320px; align-items: start; }
+.ov-row-auto { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin-bottom: 0; }
+.side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 
 @container (max-width: 900px) {
   .ov-row-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -154,6 +175,4 @@ function openPod(p: ProblemPod) {
 @container (max-width: 700px) {
   .ov-row-3, .ov-row-main { grid-template-columns: minmax(0, 1fr); }
 }
-
-.side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 </style>
