@@ -709,6 +709,28 @@ func (a *App) GetHelmReleaseContent(namespace, name string, revision int) (*k8s.
 	return a.k8sMgr.GetHelmReleaseContent(namespace, name, revision)
 }
 
+func (a *App) RollbackHelmRelease(namespace, name string, revision int) error {
+	if err := a.authz(auth.PermOperate, "namespace", namespace, "name", name, "revision", revision); err != nil {
+		return err
+	}
+	return a.k8sMgr.RollbackHelmRelease(namespace, name, revision)
+}
+
+func (a *App) UninstallHelmRelease(namespace, name string, keepHistory bool) error {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name, "keepHistory", keepHistory); err != nil {
+		return err
+	}
+	return a.k8sMgr.UninstallHelmRelease(namespace, name, keepHistory)
+}
+
+// GetHelmRevisionDiff сравнивает ревизии релиза (values и манифест); как и GetHelmReleaseContent, требует secrets.read.
+func (a *App) GetHelmRevisionDiff(namespace, name string, from, to int) (*k8s.HelmRevisionDiff, error) {
+	if err := a.authz(auth.PermSecretsRead, "namespace", namespace, "name", name, "from", from, "to", to); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetHelmRevisionDiff(namespace, name, from, to)
+}
+
 // === Events ===
 
 func (a *App) GetEvents(namespace string) ([]k8s.EventInfo, error) {
