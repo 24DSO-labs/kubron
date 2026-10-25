@@ -5,7 +5,7 @@ import { callApp } from '../wails'
 import { useK8s } from '../../composables/useK8s'
 import { flatNsCol } from './common'
 import { badgeClass, statusColor } from '../status'
-import { BrowserOpenURL } from '../../../wailsjs/runtime/runtime'
+import { openUrl } from '../../platform/files'
 
 const k8s = useK8s()
 
@@ -50,7 +50,7 @@ export const portForward = defineResource<models.PortForwardSession>({
       label: 'Open in browser',
       icon: 'open-browser',
       when: (pf: any) => pf.status === 'active',
-      run: (pf: any) => BrowserOpenURL(`http://localhost:${pf.localPort}`),
+      run: (pf: any) => openUrl(`http://localhost:${pf.localPort}`),
     },
     {
       id: 'stop',
