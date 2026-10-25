@@ -23,7 +23,7 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(import.meta.dirname, './src'),
     },
   },
   // Только чистая логика (без DOM/Wails): node-окружение быстрее и не прячет случайные зависимости от window
@@ -37,8 +37,10 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'monaco': ['monaco-editor'],
+        manualChunks(id) {
+          if (id.includes('monaco-editor')) {
+            return 'monaco';
+          }
         },
       },
     },
