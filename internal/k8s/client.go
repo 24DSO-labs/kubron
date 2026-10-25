@@ -61,9 +61,13 @@ func (c *ClusterConnection) Close() {
 	}
 }
 
+// Manager — «вид» на общий пул подключений: собственный активный кластер, терминалы,
+// логи и уведомления. Десктоп использует один вид (NewManager); веб-сервер создаёт
+// по виду на сессию через ForSession, все они делят один connPool.
 type Manager struct {
-	mu               sync.RWMutex
-	connections      map[string]*ClusterConnection
+	pool *connPool // общий для всех видов
+
+	viewMu           sync.RWMutex // защищает activeCtx и rawConfig этого вида
 	activeCtx        string
 	rawConfig        *api.Config
 	terminalSessions *TerminalSessionManager
@@ -89,21 +93,48 @@ func (m *Manager) emit(event string, data ...any) {
 	}
 }
 
-// activateLocked делает кластер активным и останавливает фоновые informers остальных
-// (вызывать под m.mu).
-func (m *Manager) activateLocked(clusterID string) {
-	m.activeCtx = clusterID
-	for id, conn := range m.connections {
-		if id != clusterID {
-			conn.Close()
-		}
+// activateLocked делает кластер активным для этого вида и снимает отметку с прежнего:
+// informers прежнего кластера останавливаются, только если его больше не держит ни один
+// другой вид (вызывать под m.viewMu).
+func (m *Manager) activateLocked(clusterID string) error {
+	prev := m.activeCtx
+	if prev == clusterID {
+		return nil
 	}
+	if err := m.pool.acquire(clusterID); err != nil {
+		return err
+	}
+	m.activeCtx = clusterID
+	if prev != "" {
+		m.pool.release(prev)
+	}
+	return nil
 }
 
 func NewManager() *Manager {
 	return &Manager{
-		connections:      make(map[string]*ClusterConnection),
+		pool:             newConnPool(),
 		terminalSessions: NewTerminalSessionManager(),
+	}
+}
+
+// ForSession возвращает новый вид на тот же пул подключений: свой активный кластер,
+// свои терминалы, логи и notifier. Методы Manager работают с видом без изменений.
+func (m *Manager) ForSession() *Manager {
+	return &Manager{
+		pool:             m.pool,
+		terminalSessions: NewTerminalSessionManager(),
+	}
+}
+
+// Detach снимает отметку активного кластера этого вида (при закрытии сессии), не трогая
+// чужие виды. Терминалы и логи вида должны быть закрыты вызывающим.
+func (m *Manager) Detach() {
+	m.viewMu.Lock()
+	defer m.viewMu.Unlock()
+	if m.activeCtx != "" {
+		m.pool.release(m.activeCtx)
+		m.activeCtx = ""
 	}
 }
 
@@ -145,9 +176,9 @@ func (m *Manager) LoadContexts() ([]ContextInfo, error) {
 		return nil, fmt.Errorf("не удалось загрузить kubeconfig: %w", err)
 	}
 
-	m.mu.Lock()
+	m.viewMu.Lock()
 	m.rawConfig = config
-	m.mu.Unlock()
+	m.viewMu.Unlock()
 
 	var contexts []ContextInfo
 	for name, ctx := range config.Contexts {
@@ -190,12 +221,9 @@ func buildConnection(name string, config *rest.Config) (*ClusterConnection, erro
 // RemoveConnection забывает подключение к кластеру (при удалении кластера из приложения).
 // Если кластер был активным, активное подключение сбрасывается.
 func (m *Manager) RemoveConnection(clusterID string) (wasActive bool) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if conn, ok := m.connections[clusterID]; ok {
-		conn.Close()
-	}
-	delete(m.connections, clusterID)
+	m.pool.remove(clusterID)
+	m.viewMu.Lock()
+	defer m.viewMu.Unlock()
 	if m.activeCtx == clusterID {
 		m.activeCtx = ""
 		return true
@@ -204,9 +232,10 @@ func (m *Manager) RemoveConnection(clusterID string) (wasActive bool) {
 }
 
 func (m *Manager) GetActiveConnection() (*ClusterConnection, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	conn, exists := m.connections[m.activeCtx]
+	m.viewMu.RLock()
+	id := m.activeCtx
+	m.viewMu.RUnlock()
+	conn, exists := m.pool.get(id)
 	if !exists {
 		return nil, fmt.Errorf("нет активного подключения")
 	}
@@ -214,8 +243,8 @@ func (m *Manager) GetActiveConnection() (*ClusterConnection, error) {
 }
 
 func (m *Manager) GetActiveContext() string {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+	m.viewMu.RLock()
+	defer m.viewMu.RUnlock()
 	return m.activeCtx
 }
 
@@ -232,21 +261,26 @@ func (m *Manager) TestConnection() error {
 }
 
 func (m *Manager) ConnectToCluster(clusterID string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if _, exists := m.connections[clusterID]; exists {
-		m.activateLocked(clusterID)
-		return nil
+	if _, err := m.pool.getOrCreate(clusterID, func() (*ClusterConnection, error) {
+		return buildClusterConnection(clusterID)
+	}); err != nil {
+		return err
 	}
+	m.viewMu.Lock()
+	defer m.viewMu.Unlock()
+	return m.activateLocked(clusterID)
+}
 
+// buildClusterConnection создаёт подключение по сохранённому kubeconfig кластера.
+func buildClusterConnection(clusterID string) (*ClusterConnection, error) {
 	kcPath := GetClusterKubeconfigPath(clusterID)
 	if kcPath == "" {
-		return fmt.Errorf("kubeconfig не найден для кластера %s", clusterID)
+		return nil, fmt.Errorf("kubeconfig не найден для кластера %s", clusterID)
 	}
 
 	meta, err := LoadClusterMeta(clusterID)
 	if err != nil {
-		return fmt.Errorf("метаданные кластера не найдены: %w", err)
+		return nil, fmt.Errorf("метаданные кластера не найдены: %w", err)
 	}
 
 	overrides := &clientcmd.ConfigOverrides{}
@@ -259,20 +293,13 @@ func (m *Manager) ConnectToCluster(clusterID string) error {
 		overrides,
 	).ClientConfig()
 	if err != nil {
-		return fmt.Errorf("ошибка конфигурации: %w", err)
+		return nil, fmt.Errorf("ошибка конфигурации: %w", err)
 	}
 
 	config.QPS = 50
 	config.Burst = 100
 
-	conn, err := buildConnection(clusterID, config)
-	if err != nil {
-		return err
-	}
-
-	m.connections[clusterID] = conn
-	m.activateLocked(clusterID)
-	return nil
+	return buildConnection(clusterID, config)
 }
 
 func (m *Manager) GetClusterStatuses() []ClusterStatus {
@@ -280,8 +307,9 @@ func (m *Manager) GetClusterStatuses() []ClusterStatus {
 	if err != nil {
 		return nil
 	}
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+	m.viewMu.RLock()
+	active := m.activeCtx
+	m.viewMu.RUnlock()
 
 	var statuses []ClusterStatus
 	for _, cluster := range clusters {
@@ -291,10 +319,10 @@ func (m *Manager) GetClusterStatuses() []ClusterStatus {
 			Active:      false,
 		}
 
-		if _, ok := m.connections[cluster.ID]; ok {
+		if m.pool.has(cluster.ID) {
 			status.Connected = true
 		}
-		if m.activeCtx == cluster.ID {
+		if active == cluster.ID {
 			status.Active = true
 		}
 
