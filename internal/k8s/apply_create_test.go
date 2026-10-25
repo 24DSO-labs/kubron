@@ -15,7 +15,7 @@ func newCreateManager(t *testing.T) (*Manager, *dynamicfake.FakeDynamicClient) {
 	t.Helper()
 	dyn := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
 	m := NewManager()
-	m.connections["test"] = &ClusterConnection{Name: "test", DynamicClient: dyn}
+	m.pool.put("test", &ClusterConnection{Name: "test", DynamicClient: dyn})
 	m.activeCtx = "test"
 	return m, dyn
 }
