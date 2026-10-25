@@ -76,8 +76,12 @@ const ACTION_LABELS: Record<string, string> = {
   SuspendArgoAutoSync: 'Argo CD: отключение автосинхронизации',
   ResumeArgoAutoSync: 'Argo CD: включение автосинхронизации',
   DeleteArgoApplication: 'Argo CD: удаление приложения',
-    GetHelmReleaseContent: 'Helm: просмотр values / манифеста релиза',
-}
+  GetHelmReleaseContent: 'Helm: просмотр values / манифеста релиза',
+  RollbackHelmRelease: 'Helm: откат релиза',
+  UninstallHelmRelease: 'Helm: удаление релиза',
+  GetHelmRevisionDiff: 'Helm: сравнение ревизий',
+
+}  
 
 const ACTION_VERBS: [string, string][] = [
   ['Delete', 'Удаление'],

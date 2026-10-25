@@ -63,6 +63,7 @@ export interface MenuItemDef {
 /** Единая точка действий. Реализация: resources/actions.ts */
 export interface ActionContext {
   open(id: string, ns: string, name: string, item?: any): void
+  closeDetail(): void
   edit(id: string, ns: string, name: string): Promise<void>
   requestDelete(id: string, ns: string, name: string): void
   openLogs(ns: string, pod: string, containers?: { name: string }[], container?: string): void
@@ -79,6 +80,7 @@ export interface ActionContext {
   reload(): Promise<void>
   notifySuccess(msg: string): void
   notifyError(msg: string): void
+
 }
 
 export interface PropertyDef<T = any> {
