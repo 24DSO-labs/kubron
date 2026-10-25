@@ -25,6 +25,7 @@ type App struct {
 }
 
 func main() {
+	wailsplatform.HideChildConsole() // без мигающих окон cmd от kubectl oidc-login на Windows
 	platform := &wailsplatform.Platform{}
 	a := &App{app.NewApp(platform)}
 
