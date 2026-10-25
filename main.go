@@ -3,6 +3,8 @@ package main
 import (
 	"embed"
 
+	"analog/internal/app"
+
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
@@ -12,8 +14,16 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+// App — оболочка над ядром internal/app. Нужна, чтобы Wails по-прежнему видел привязываемый
+// тип в пакете main и генерировал биндинги в frontend/wailsjs/go/main/App (методы ядра
+// продвигаются через встраивание). Когда фронт перейдёт на platform/api.ts (ADR-0010),
+// оболочку можно убрать.
+type App struct {
+	*app.App
+}
+
 func main() {
-	app := NewApp()
+	a := &App{app.NewApp()}
 
 	err := wails.Run(&options.App{
 		Title:     "Kubron",
@@ -25,10 +35,10 @@ func main() {
 			Assets: assets,
 		},
 		BackgroundColour: &options.RGBA{R: 30, G: 30, B: 46, A: 1},
-		OnStartup:        app.startup,
-		OnShutdown:       app.shutdown,
+		OnStartup:        app.OnStartup(a.App),
+		OnShutdown:       app.OnShutdown(a.App),
 		Bind: []interface{}{
-			app,
+			a,
 		},
 		Windows: &windows.Options{
 			WebviewIsTransparent: false,
