@@ -1,5 +1,4 @@
 import { ref, shallowRef } from 'vue'
-import { GetResourceYAML } from '../../wailsjs/go/main/App'
 import { globalTabbedPanel } from '../composables/useTabbedPanel'
 import { useNotifications } from '../composables/useNotifications'
 import { getResourceById } from './registry'
@@ -71,7 +70,7 @@ export const resourceActions: ActionContext & {
 
   async edit(id, ns, name) {
     try {
-      const yaml = await GetResourceYAML(ns, id, name, true)
+      const yaml = await callApp('GetResourceYAML', ns, id, name, true)
       globalTabbedPanel.openYamlTab(id, name, ns, yaml)
     } catch (e) {
       notifications.notifyError(`Не удалось загрузить YAML: ${errMsg(e)}`)

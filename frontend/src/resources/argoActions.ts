@@ -4,7 +4,7 @@ import { askConfirm } from './confirm'
 import { reloadActive } from './store'
 import { useNotifications } from '../composables/useNotifications'
 import { useK8s } from '../composables/useK8s'
-import { BrowserOpenURL } from '../../wailsjs/runtime/runtime'
+import { openUrl } from '../platform/files'
 import type {
   ArgoActionResult, ArgoAppRef, ArgoApplicationInfo, ArgoHistoryEntry, ArgoSyncOptions,
 } from '../types/argocd'
@@ -98,7 +98,7 @@ export async function openArgoUI(): Promise<void> {
   try {
     const info = await callApp('OpenArgoUI')
     await useK8s().refreshPortForwards()
-    BrowserOpenURL(info.url)
+    openUrl(info.url)
     if (!info.reused) notifications.notifySuccess(`Argo CD UI: ${info.url}`)
   } catch (e) {
     notifications.notifyError(`Argo CD UI: ${errText(e)}`)
