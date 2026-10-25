@@ -94,6 +94,7 @@ import ClusterAvatar from './ClusterAvatar.vue'
 import ClusterAppearanceFields from './ClusterAppearanceFields.vue'
 import ClusterConnectionFields from './ClusterConnectionFields.vue'
 import { MAX_CLUSTER_NAME, findGlyph, isValidNamespace } from './clusterStyle'
+import { callApp } from '../../platform/api'
 
 // Правка кластера: название, оформление, окружение и подключение (kubeconfig, контекст,
 // namespace по умолчанию). Закрывает диалог родитель — после успешного сохранения.
@@ -201,8 +202,7 @@ async function replaceWithFile() {
 async function editText() {
   error.value = ''
   try {
-    const { GetClusterKubeconfig } = await import('../../../wailsjs/go/main/App')
-    const text = await GetClusterKubeconfig(props.cluster.id)
+    const text = await callApp('GetClusterKubeconfig', props.cluster.id)
     kcOriginalText.value = text
     kcText.value = text
     kcPath.value = ''
