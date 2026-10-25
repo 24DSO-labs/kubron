@@ -164,7 +164,7 @@ func buildHotVolumes(ratio, caps []promSample) []HotVolume {
 
 // GetOverviewHotspots собирает топ подов по близости к limit и самые заполненные PVC.
 // Требует стек метрик; счётчики PVC Pending/Lost берутся из API и работают без него.
-func (m *Manager) GetOverviewHotspots() (*OverviewHotspots, error) {
+func (m *Manager) GetOverviewHotspots(withMetrics bool) (*OverviewHotspots, error) {
 	conn, err := m.GetActiveConnection()
 	if err != nil {
 		return nil, err
@@ -172,10 +172,14 @@ func (m *Manager) GetOverviewHotspots() (*OverviewHotspots, error) {
 	h := &OverviewHotspots{TopMemory: []HotPod{}, TopCPU: []HotPod{}, Volumes: []HotVolume{}}
 
 	var wg sync.WaitGroup
-	wg.Add(4)
-	go func() { defer wg.Done(); h.TopMemory = m.topPods(promPodMemUsed, promPodMemLimit) }()
-	go func() { defer wg.Done(); h.TopCPU = m.topPods(promPodCPUUsed, promPodCPULimit) }()
-	go func() { defer wg.Done(); h.Volumes = m.topVolumes() }()
+	// Без стека метрик Prometheus не опрашиваем: счётчики PVC берутся из API и работают всегда.
+	if withMetrics {
+		wg.Add(3)
+		go func() { defer wg.Done(); h.TopMemory = m.topPods(promPodMemUsed, promPodMemLimit) }()
+		go func() { defer wg.Done(); h.TopCPU = m.topPods(promPodCPUUsed, promPodCPULimit) }()
+		go func() { defer wg.Done(); h.Volumes = m.topVolumes() }()
+	}
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
