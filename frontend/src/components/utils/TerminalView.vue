@@ -22,17 +22,10 @@ import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
-import {
-  StartTerminalSession,
-  
-  WriteTerminal,
-  CloseTerminal,
-  DetectShell,
-  ResizeTerminal,
-} from '../../../wailsjs/go/main/App'
 import type { TerminalTab } from '../../composables/useTabbedPanel'
 import { uid } from '../../resources/uid'
-import { EventsOn } from '../../../wailsjs/runtime/runtime'
+import { onEvent } from '../../platform/events'
+import { callApp } from '../../platform/api'
 
 const props = defineProps<{ tab: TerminalTab; active: boolean }>()
 
@@ -77,7 +70,7 @@ function safeFit() {
 
 function debouncedResize(s: Session, cols: number, rows: number) {
   if (s.resizeTimer) clearTimeout(s.resizeTimer)
-  s.resizeTimer = setTimeout(() => { ResizeTerminal(s.sessionID, cols, rows).catch(() => { }) }, 150)
+  s.resizeTimer = setTimeout(() => { callApp('ResizeTerminal', s.sessionID, cols, rows).catch(() => { }) }, 150)
 }
 
 // async function readLoop(s: Session) {
@@ -116,7 +109,7 @@ function disposeSession() {
   if (s.resizeTimer) clearTimeout(s.resizeTimer)
   s.resizeObserver?.disconnect()
   if (s.onMouse) termEl.value?.removeEventListener('mousedown', s.onMouse)
-  CloseTerminal(s.sessionID).catch(() => { })
+  callApp('CloseTerminal', s.sessionID).catch(() => { })
   try { s.terminal.dispose() } catch { /* уже освобождён */ }
 }
 
@@ -127,7 +120,7 @@ async function initTerminal() {
   setState('🟡', true)
   try {
     let shell = '/bin/sh'
-    try { shell = await DetectShell(tab.namespace, tab.pod, tab.container) } catch { shell = '/bin/sh' }
+    try { shell = await callApp('DetectShell', tab.namespace, tab.pod, tab.container) } catch { shell = '/bin/sh' }
     if (unmounted) return
 
     container.innerHTML = ''
@@ -159,17 +152,17 @@ async function initTerminal() {
 
     // Подписка ДО старта сессии, чтобы не потерять первые байты (приглашение shell)
     s.unsubscribe.push(
-      EventsOn(`terminal:data:${sessionID}`, (b64: string) => {
+      onEvent(`terminal:data:${sessionID}`, (b64: string) => {
         if (!s.aborted) terminal.write(b64ToBytes(b64))
       }),
-      EventsOn(`terminal:exit:${sessionID}`, () => {
+      onEvent(`terminal:exit:${sessionID}`, () => {
         if (s.aborted) return
         terminal.write('\r\n[Session ended]\r\n')
         setState('🔴', false)
       }),
     )
     try {
-      await StartTerminalSession(sessionID, tab.namespace, tab.pod, tab.container, sessionMode, terminal.cols, terminal.rows)
+      await callApp('StartTerminalSession', sessionID, tab.namespace, tab.pod, tab.container, sessionMode, terminal.cols, terminal.rows)
     } catch (e) {
       s.aborted = true
       s.unsubscribe.forEach(off => off())
@@ -179,7 +172,7 @@ async function initTerminal() {
     if (unmounted) {
       s.aborted = true
       s.unsubscribe.forEach(off => off())
-      CloseTerminal(sessionID).catch(() => { })
+      callApp('CloseTerminal', sessionID).catch(() => { })
       terminal.dispose()
       return
     }
@@ -188,7 +181,7 @@ async function initTerminal() {
 
     terminal.onData((data: string) => {
       const bytes = Array.from(new TextEncoder().encode(data))
-      WriteTerminal(s.sessionID, bytes).catch(() => { })
+      callApp('WriteTerminal', s.sessionID, bytes).catch(() => { })
     })
     terminal.onResize(({ cols, rows }) => debouncedResize(s, cols, rows))
 

@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
-import { GetPods } from '../../wailsjs/go/main/App'
 import { uid } from '../resources/uid'
+import { callApp } from '../platform/api'
 
 export type TabType = 'logs' | 'yaml' | 'terminal'
 
@@ -107,7 +107,7 @@ async function openTerminalTab(
   let podObj: any = null
   
   try {
-    const allPods = await GetPods(namespace)
+    const allPods = await callApp('GetPods', namespace)
     podObj = allPods.find((p: any) => p.name === pod)
     if (podObj && podObj.containers) {
       podContainers = podObj.containers

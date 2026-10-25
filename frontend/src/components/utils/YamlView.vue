@@ -44,12 +44,12 @@
 <script lang="ts" setup>
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import * as monaco from 'monaco-editor'
-import { GetResourceYAML } from '../../../wailsjs/go/main/App'
 import { useNotifications } from '../../composables/useNotifications'
 import { can } from '../../composables/useAuth'
 import { Perm } from '../../types/auth'
 import { askConfirm } from '../../resources/confirm'
 import type { YamlTab } from '../../composables/useTabbedPanel'
+import { callApp } from '../../platform/api'
 
 const props = defineProps<{ tab: YamlTab; active: boolean }>()
 const emit = defineEmits<{ (e: 'apply', tabId: string): void }>()
@@ -187,7 +187,7 @@ async function reloadYaml() {
   if (isDirty.value && !(await askConfirm('Discard unsaved changes and reload YAML from the cluster?'))) return
   tab.loading = true
   try {
-    const fresh = await GetResourceYAML(tab.namespace, tab.resourceType, tab.resourceName, true)
+    const fresh = await callApp('GetResourceYAML', tab.namespace, tab.resourceType, tab.resourceName, true)
     tab.originalContent = fresh
     tab.content = fresh
     tab.view = 'edit'
