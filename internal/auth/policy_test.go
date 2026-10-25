@@ -11,7 +11,7 @@ import (
 )
 
 // Эти тесты — страховка от главной ошибки ролевой модели: добавить новый Wails-метод и забыть
-// его защитить. Они разбирают исходники app.go / app_auth.go и проверяют, что
+// его защитить. Они разбирают исходники internal/app/*.go и проверяют, что
 //   - каждый экспортируемый метод App начинается с проверки права a.authz(...);
 //   - изменяющие методы не защищены «слабым» правом чтения;
 //   - особые методы (терминал, секреты, кластеры, пользователи) требуют именно своих прав.
@@ -126,9 +126,9 @@ type methodGuard struct {
 
 func parseAppMethods(t *testing.T) []methodGuard {
 	t.Helper()
-	files, err := filepath.Glob(filepath.Join("..", "..", "app*.go"))
+	files, err := filepath.Glob(filepath.Join("..", "app", "*.go"))
 	if err != nil || len(files) == 0 {
-		t.Fatalf("не найдены файлы app*.go: %v", err)
+		t.Fatalf("не найдены файлы internal/app/*.go: %v", err)
 	}
 	fset := token.NewFileSet()
 	var out []methodGuard
