@@ -4,6 +4,7 @@
 import { ref } from 'vue'
 import type { ConnectionCheck, KubeconfigInfo, KubeconfigSource } from '../types'
 import { errorText } from './errorText'
+import { callApp } from '../platform/api'
 
 export const NO_KUBECONFIG_SOURCE: KubeconfigSource = { path: '', text: '', clusterId: '' }
 
@@ -28,8 +29,7 @@ export function useKubeconfigProbe() {
     inspecting.value = true
     inspectError.value = ''
     try {
-      const { InspectKubeconfig } = await import('../../wailsjs/go/main/App')
-      const result = await InspectKubeconfig(src)
+      const result = await callApp('InspectKubeconfig', src)
       if (seq !== inspectSeq) return null
       info.value = result
       return result
@@ -48,8 +48,7 @@ export function useKubeconfigProbe() {
     checking.value = true
     check.value = null
     try {
-      const { TestKubeconfig } = await import('../../wailsjs/go/main/App')
-      const result = await TestKubeconfig(src, contextName)
+      const result = await callApp('TestKubeconfig', src, contextName)
       if (seq === checkSeq) check.value = result
     } catch (e) {
       if (seq === checkSeq) {
