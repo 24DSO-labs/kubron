@@ -105,7 +105,15 @@ export const resources: ResourceDefinition[] = [
 ]
 
 const byView = new Map(resources.map(r => [r.view, r]))
-const byId = new Map(resources.map(r => [r.id, r]))
+// Дубликат id молча перекрывает раннее определение (Map.set) — например, Lens-«Applications»
+// так перекрыли Argo CD Application и спрятали его вкладки. В dev предупреждаем сразу.
+const byId = new Map<string, ResourceDefinition>()
+for (const r of resources) {
+  if (import.meta.env.DEV && byId.has(r.id)) {
+    console.warn(`duplicate resource id '${r.id}': '${byId.get(r.id)!.view}' будет перекрыт '${r.view}'`)
+  }
+  byId.set(r.id, r)
+}
 
 
 export const getResourceByView = (view: string) => byView.get(view) ?? dynamicByView.get(view)
