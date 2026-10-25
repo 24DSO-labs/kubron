@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"embed"
 
 	"analog/internal/app"
+	wailsplatform "analog/internal/platform/wails"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -23,7 +25,8 @@ type App struct {
 }
 
 func main() {
-	a := &App{app.NewApp()}
+	platform := &wailsplatform.Platform{}
+	a := &App{app.NewApp(platform)}
 
 	err := wails.Run(&options.App{
 		Title:     "Kubron",
@@ -35,8 +38,11 @@ func main() {
 			Assets: assets,
 		},
 		BackgroundColour: &options.RGBA{R: 30, G: 30, B: 46, A: 1},
-		OnStartup:        app.OnStartup(a.App),
-		OnShutdown:       app.OnShutdown(a.App),
+		OnStartup: func(ctx context.Context) {
+			platform.SetContext(ctx)
+			app.OnStartup(a.App)(ctx)
+		},
+		OnShutdown: app.OnShutdown(a.App),
 		Bind: []interface{}{
 			a,
 		},
