@@ -5,8 +5,10 @@ import type { MetricsState, OverviewHotspots } from '../types/hotspots'
 const REFRESH_MS = 30_000
 
 /**
- * Топ подов и тома для главного экрана. Нужен стек метрик: без него state != 'ready',
- * карточки показывают подсказку. Устаревший ответ (смена кластера) отбрасывается.
+ * Топ подов и тома для главного экрана.
+ * Бэкенд отдаёт счётчики PVC Pending/Lost из API всегда, а данные Prometheus — только при withMetrics,
+ * поэтому запрос идёт и без стека метрик (state != 'ready'), просто без топов.
+ * Устаревший ответ (смена кластера) отбрасывается.
  */
 export function useHotspots(clusterName: Ref<string>) {
   const data = shallowRef<OverviewHotspots | null>(null)
@@ -18,12 +20,12 @@ export function useHotspots(clusterName: Ref<string>) {
     const my = ++seq
     try {
       if (state.value !== 'ready') {
-        const st = (await callApp('GetMetricsStatus')) as unknown as { status: MetricsState }
+        const st = (await callApp('GetMetricsStatus')) as unknown as { status: string }
         if (my !== seq) return
-        state.value = st?.status ?? 'not_installed'
-        if (state.value !== 'ready') return
+        // Go отдаёт 'installed' (not_installed | installing | installed | degraded)
+        state.value = st?.status === 'installed' ? 'ready' : ((st?.status as MetricsState) ?? 'not_installed')
       }
-      const res = (await callApp('GetOverviewHotspots')) as unknown as OverviewHotspots
+      const res = (await callApp('GetOverviewHotspots', state.value === 'ready')) as unknown as OverviewHotspots
       if (my !== seq) return
       data.value = res
     } catch {
