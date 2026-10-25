@@ -29,11 +29,11 @@ var publicMethods = map[string]bool{
 
 // Точные требования для особых методов.
 var exactPermission = map[string]Permission{
-	"GetSecretValue":       PermSecretsRead,
-	"DetectShell":          PermExec,
-	"StartTerminalSession": PermExec,
-	"WriteTerminal":        PermExec,
-
+	"GetSecretValue":          PermSecretsRead,
+	"DetectShell":             PermExec,
+	"StartTerminalSession":    PermExec,
+	"WriteTerminal":           PermExec,
+	"GetCertificateExpiry":    PermSecretsRead,
 	"ResizeTerminal":          PermExec,
 	"CloseTerminal":           PermExec,
 	"StartPortForward":        PermPortForward,

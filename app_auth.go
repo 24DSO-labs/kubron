@@ -43,9 +43,9 @@ var auditedPermissions = map[auth.Permission]bool{
 // quietMethods — вызываются на каждое нажатие клавиши/опрос терминала: в журнал не пишутся
 // (начало и конец терминальной сессии записываются методами StartTerminalSession / CloseTerminal).
 var quietMethods = map[string]bool{
-	"WriteTerminal": true,
-
-	"ResizeTerminal": true,
+	"WriteTerminal":        true,
+	"GetCertificateExpiry": true, // фоновое обновление карточки; сами сертификаты не раскрываются
+	"ResizeTerminal":       true,
 }
 
 // authz — единственная точка проверки прав в Wails-методах.
