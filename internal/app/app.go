@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"analog/internal/audit"
@@ -10,24 +10,28 @@ import (
 	"net"
 	"strings"
 	"time"
-
-	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type App struct {
-	ctx     context.Context
-	k8sMgr  *k8s.Manager
-	pfMgr   *k8s.PortForwardManager
-	audit   *audit.Logger
-	auth    *auth.Service // nil, если хранилище пользователей не открылось (см. authErr)
-	authErr error
+	platform Platform
+	k8sMgr   *k8s.Manager
+	pfMgr    *k8s.PortForwardManager
+	audit    *audit.Logger
+	auth     *auth.Service // nil, если хранилище пользователей не открылось (см. authErr)
+	authErr  error
 }
 
-func NewApp() *App {
+// NewApp создаёт ядро приложения. p — возможности оболочки (Wails или HTTP-сервер);
+// nil допустим (все операции платформы тогда не делают ничего).
+func NewApp(p Platform) *App {
+	if p == nil {
+		p = nopPlatform{}
+	}
 	mgr := k8s.NewManager()
 	return &App{
-		k8sMgr: mgr,
-		pfMgr:  k8s.NewPortForwardManager(mgr),
+		platform: p,
+		k8sMgr:   mgr,
+		pfMgr:    k8s.NewPortForwardManager(mgr),
 	}
 }
 
@@ -37,11 +41,8 @@ func (a *App) shutdown(_ context.Context) {
 }
 
 func (a *App) startup(ctx context.Context) {
-	a.ctx = ctx
 	// Бэкенд сообщает фронтенду об изменениях кластера (informers) вместо постоянного опроса
-	a.k8sMgr.SetNotifier(func(event string, data ...any) {
-		wailsRuntime.EventsEmit(ctx, event, data...)
-	})
+	a.k8sMgr.SetNotifier(a.platform.Emit)
 	if err := k8s.InitKubronDir(); err != nil {
 		println("Error:", err.Error())
 	}
@@ -66,12 +67,7 @@ func (a *App) PickKubeconfigFile() (string, error) {
 	if err := a.authz(auth.PermClusterManage); err != nil {
 		return "", err
 	}
-	return wailsRuntime.OpenFileDialog(a.ctx, wailsRuntime.OpenDialogOptions{
-		Title: "Выберите kubeconfig файл",
-		Filters: []wailsRuntime.FileFilter{
-			{DisplayName: "All Files", Pattern: "*"},
-		},
-	})
+	return a.platform.PickFile("Выберите kubeconfig файл")
 }
 
 // AddClusterFromFile adds a cluster from a kubeconfig file previously chosen
@@ -1116,7 +1112,7 @@ func (a *App) OpenBrowserURL(url string) {
 	if a.authz(auth.PermRead) != nil {
 		return
 	}
-	wailsRuntime.BrowserOpenURL(a.ctx, url)
+	a.platform.OpenURL(url)
 }
 
 // === Terminal ===
