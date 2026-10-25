@@ -26,9 +26,9 @@
 
 <script lang="ts" setup>
 import { onMounted, onUnmounted, ref } from 'vue'
-import { GetEvents } from '../../../wailsjs/go/main/App'
 import { timeAgo } from '../overview/format'
 import { badgeClass } from '../../resources/status'
+import { callApp } from '../../platform/api'
 
 const props = defineProps<{ resource: any }>()
 const emit = defineEmits<{ (e: 'open', p: { id: string; ns: string; name: string; item?: any }): void }>()
@@ -51,7 +51,7 @@ async function load() {
   const ns = props.resource?.namespace ?? ''
   if (!ns && !props.resource?.name) return
   try {
-    const all = ((await GetEvents(ns)) as any[]) ?? []
+    const all = ((await callApp('GetEvents', ns)) as any[]) ?? []
     const name = props.resource?.name ?? ''
     const kind = props.resource?._kind ?? ''
     const filtered = all.filter((e: any) => {
