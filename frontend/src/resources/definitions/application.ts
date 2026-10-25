@@ -21,7 +21,9 @@ const podsText = (a: any) => {
  * а не отдельный k8s-ресурс: без YAML и удаления.
  */
 export const application = defineResource<k8s.ApplicationInfo>({
-  id: 'application',
+  // id не 'application': он занят Argo CD Application (definitions/argocd/application.ts),
+  // а реестр резолвит определения по id (registry.ts) — дубликат молча перекрыл бы Argo-вкладки
+  id: 'app-instance',
   kind: 'ApplicationInstance',
   view: 'applications',
   title: 'Applications',
