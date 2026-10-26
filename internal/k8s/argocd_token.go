@@ -4,8 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"unicode"
@@ -59,68 +57,15 @@ func saveArgoToken(clusterID, token string) error {
 	if err != nil {
 		return err
 	}
-	path, err := argoTokenPath(clusterID)
-	if err != nil {
-		return err
-	}
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("не удалось создать каталог токенов: %w", err)
-	}
-	// Атомарная запись: во временный файл (CreateTemp создаёт его с правами 0600) и переименование.
-	tmp, err := os.CreateTemp(dir, ".tmp-*")
-	if err != nil {
-		return fmt.Errorf("не удалось сохранить токен: %w", err)
-	}
-	tmpName := tmp.Name()
-	if _, err := tmp.WriteString(t); err != nil {
-		_ = tmp.Close()
-		_ = os.Remove(tmpName)
-		return fmt.Errorf("не удалось сохранить токен: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		_ = os.Remove(tmpName)
-		return fmt.Errorf("не удалось сохранить токен: %w", err)
-	}
-	if err := os.Chmod(tmpName, 0o600); err != nil {
-		_ = os.Remove(tmpName)
-		return fmt.Errorf("не удалось сохранить токен: %w", err)
-	}
-	if err := os.Rename(tmpName, path); err != nil {
-		_ = os.Remove(tmpName)
-		return fmt.Errorf("не удалось сохранить токен: %w", err)
-	}
-	return nil
+	return argoTokens.Put(clusterID, t)
 }
 
 func loadArgoToken(clusterID string) (string, error) {
-	path, err := argoTokenPath(clusterID)
-	if err != nil {
-		return "", err
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return "", ErrArgoTokenNotSet
-		}
-		return "", fmt.Errorf("не удалось прочитать токен: %w", err)
-	}
-	t := strings.TrimSpace(string(data))
-	if t == "" {
-		return "", ErrArgoTokenNotSet
-	}
-	return t, nil
+	return argoTokens.Get(clusterID)
 }
 
 func deleteArgoToken(clusterID string) error {
-	path, err := argoTokenPath(clusterID)
-	if err != nil {
-		return err
-	}
-	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("не удалось удалить токен: %w", err)
-	}
-	return nil
+	return argoTokens.Delete(clusterID)
 }
 
 // GetArgoAPIStatus сообщает, задан ли токен для активного кластера.
