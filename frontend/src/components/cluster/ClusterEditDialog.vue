@@ -43,7 +43,9 @@
                 <div class="cl-kc-state" :class="{ 'is-changed': hasReplacement }">{{ kcState }}</div>
               </div>
               <div class="cl-kc-actions">
-                <button type="button" class="cl-btn cl-btn-sm" @click="replaceWithFile">Заменить файлом…</button>
+                <button type="button" class="cl-btn cl-btn-sm" @click="replaceWithFile">
+                  {{ capabilities.fileDialog ? 'Заменить файлом…' : 'Загрузить из файла…' }}
+                </button>
                 <button v-if="kcMode !== 'text'" type="button" class="cl-btn cl-btn-sm" @click="editText">
                   Править текст
                 </button>
@@ -97,6 +99,8 @@ import ClusterAppearanceFields from './ClusterAppearanceFields.vue'
 import ClusterConnectionFields from './ClusterConnectionFields.vue'
 import { MAX_CLUSTER_NAME, findGlyph, isValidNamespace } from './clusterStyle'
 import { callApp } from '../../platform/api'
+import { pickTextFile } from '../../platform/files'
+import { useCapabilities } from '../../composables/useCapabilities'
 
 // Правка кластера: название, оформление, окружение и подключение (kubeconfig, контекст,
 // namespace по умолчанию). Закрывает диалог родитель — после успешного сохранения.
@@ -133,6 +137,7 @@ const namespace = ref(initial.namespace)
 const contextName = ref(initial.context)
 
 type KubeconfigMode = 'keep' | 'file' | 'text'
+const { capabilities } = useCapabilities()
 const kcMode = ref<KubeconfigMode>('keep')
 const kcPath = ref('')
 const kcText = ref('')
@@ -192,6 +197,7 @@ async function refreshProbe() {
 }
 
 async function replaceWithFile() {
+  if (!capabilities.value.fileDialog) return replaceWithUpload()
   const path = await props.pickFile()
   if (!path) return
   error.value = ''
@@ -199,6 +205,23 @@ async function replaceWithFile() {
   kcPath.value = path
   probe.resetCheck()
   await refreshProbe()
+}
+
+// Веб: файл читает браузер, на сервер уходит текст kubeconfig
+async function replaceWithUpload() {
+  try {
+    const content = await pickTextFile()
+    if (content === null) return
+    error.value = ''
+    kcOriginalText.value = ''
+    kcText.value = content
+    kcPath.value = ''
+    kcMode.value = 'text'
+    probe.resetCheck()
+    await refreshProbe()
+  } catch (e) {
+    error.value = errorText(e)
+  }
 }
 
 async function editText() {
