@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <span class="cl-avatar" :style="boxStyle" aria-hidden="true">
     <svg v-if="glyph" class="cl-avatar-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"

@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <span :class="['status-badge', badgeClasses]">
     <span :class="['status-badge-dot', dotClass]"></span>

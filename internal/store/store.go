@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 // Package store собирает хранилища приложения в одно целое (ADR-0007).
 //
 // Десктоп использует файловую реализацию (NewFile): users.json, audit.log и файлы токенов

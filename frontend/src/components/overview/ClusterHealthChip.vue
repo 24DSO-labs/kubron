@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <span class="chip" :class="tone" :title="detail" role="status">
     <span class="dot"></span>

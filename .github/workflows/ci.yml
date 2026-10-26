@@ -13,6 +13,59 @@ env:
   GO_TAGS: webkit2_41
 
 jobs:
+  dco:
+    name: DCO (Signed-off-by)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: scripts/check-dco.sh "origin/${{ github.base_ref }}" "${{ github.event.pull_request.head.sha }}"
+
+  headers:
+    name: License headers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/license-headers.py
+
+  licenses:
+    name: Dependency licenses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: System libraries (cgo, webkit)
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Stub frontend/dist
+        run: mkdir -p frontend/dist && touch frontend/dist/.keep
+
+      # Go: только разрешённые лицензии (свой модуль analog не проверяем)
+      - name: go-licenses
+        run: |
+          go install github.com/google/go-licenses@v1.6.0
+          go-licenses check ./... --include_tags "$GO_TAGS" --ignore analog \
+            --allowed_licenses=Apache-2.0,BSD-2-Clause,BSD-3-Clause,MIT,ISC,MPL-2.0
+
+      # Фронтенд: только production-зависимости
+      - run: npm ci
+        working-directory: frontend
+      - name: license-checker
+        working-directory: frontend
+        run: npx --yes license-checker-rseidelsohn@4.4.2 --production --excludePrivatePackages --onlyAllow "MIT;ISC;BSD-2-Clause;BSD-3-Clause;Apache-2.0;0BSD"
+
   go:
     name: Go (build, vet, test)
     runs-on: ubuntu-latest

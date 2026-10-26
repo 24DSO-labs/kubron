@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <form class="auth-form" @submit.prevent="submit" autocomplete="off">
     <label class="auth-field">

@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 /** Текст ошибки из чего угодно: Wails отвечает строкой, остальной код — Error. */
 export function errorText(e: unknown): string {
   if (e instanceof Error) return e.message
