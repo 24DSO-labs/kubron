@@ -21,7 +21,14 @@ export const NAV_GROUPS: Record<NavGroupId, NavGroupMeta> = {
   config: { title: 'Config', expanded: false },
   network: { title: 'Network', expanded: true },
   storage: { title: 'Storage', expanded: false },
-  helm: { title: 'Helm', expanded: false },
+  helm: {
+  title: 'Helm',
+  expanded: false,
+  views: [
+    { view: 'helm-repos', label: 'Repositories' },
+    { view: 'helm-catalog', label: 'Catalog' },
+  ],
+},
   access: { title: 'Access Control', expanded: false },
   argocd: {
     title: 'Argo CD',
