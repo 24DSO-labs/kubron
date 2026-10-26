@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div v-if="auth.user.value" class="user-menu" data-user-menu>
     <button class="user-chip" type="button" :aria-expanded="open" @click="open = !open">

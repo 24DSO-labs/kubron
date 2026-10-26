@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div v-if="subsets.length" class="eps">
     <div v-for="(s, i) in subsets" :key="i" class="eps-subset">

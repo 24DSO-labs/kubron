@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 package audit
 
 // Backend — хранилище записей журнала. Реализации: файлы с ротацией (файловая, десктоп)

@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 /** Результат пакетной операции: исключение одного элемента не прерывает остальные */
 export interface BatchResult<T> {
   done: T[]

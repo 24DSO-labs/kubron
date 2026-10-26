@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="scale-dialog-overlay" @click="handleOverlayClick">
     <div class="scale-dialog" @click.stop>

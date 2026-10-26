@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 // Package oidcpassword — нативное получение и обновление OIDC id_token по grant_type=password.
 //
 // Нужно серверной (веб) версии Kubron: kubeconfig с exec-плагином `kubectl oidc-login`
