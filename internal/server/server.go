@@ -21,6 +21,9 @@ func NewHandler(d *Dispatcher, static fs.FS, g *Guard) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("POST /api/rpc/{method}", RPCHandler(d, g))
 	mux.Handle("GET /api/session", SessionHandler(g))
+	if g != nil && g.Hub != nil {
+		mux.Handle("GET /api/ws", WSHandler(g))
+	}
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = w.Write([]byte("ok\n"))
