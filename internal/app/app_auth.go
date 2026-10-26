@@ -3,6 +3,8 @@ package app
 import (
 	"analog/internal/audit"
 	"analog/internal/auth"
+	"analog/internal/k8s"
+	"analog/internal/store"
 	"errors"
 	"fmt"
 	"runtime"
@@ -12,8 +14,14 @@ import (
 // initAuth открывает хранилище пользователей. Если файл повреждён, приложение остаётся
 // закрытым (authz отказывает всем), а причина показывается на экране входа.
 func (a *App) initAuth(dir string) {
-	a.audit = audit.Open(dir)
-	svc, err := auth.NewService(dir)
+	a.initAuthWith(store.NewFile(dir))
+}
+
+// initAuthWith подключает хранилища: пользователи, журнал аудита, токены Argo CD.
+func (a *App) initAuthWith(st store.Store) {
+	k8s.SetTokenStore(st.ArgoTokens())
+	a.audit = audit.New(st.Audit())
+	svc, err := auth.NewServiceWithBackend(st.Users())
 	if err != nil {
 		a.authErr = err
 		return
