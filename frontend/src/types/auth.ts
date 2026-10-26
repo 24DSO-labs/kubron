@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * Права. Значения должны совпадать с internal/auth/permissions.go.
  * Интерфейс проверяет именно права (can), а не роли: новая роль на бэкенде

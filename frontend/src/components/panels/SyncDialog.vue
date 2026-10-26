@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="sd-overlay" @click.self="close">
     <div class="sd" role="dialog" aria-modal="true">
