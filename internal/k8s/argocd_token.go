@@ -1,6 +1,10 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 package k8s
 
 import (
+	"analog/pkg/ext"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -10,7 +14,14 @@ import (
 )
 
 // ErrArgoTokenNotSet — для активного кластера не задан токен Argo CD API.
-var ErrArgoTokenNotSet = errors.New("токен Argo CD API не задан")
+var ErrArgoTokenNotSet error = notSetError{}
+
+// notSetError — «токен не задан»; совпадает и с ext.ErrNotFound, чтобы внешние хранилища
+// могли сообщать об отсутствии токена общей ошибкой.
+type notSetError struct{}
+
+func (notSetError) Error() string        { return "токен Argo CD API не задан" }
+func (notSetError) Is(target error) bool { return target == ext.ErrNotFound }
 
 const argoTokenMaxLen = 8192
 
@@ -61,7 +72,11 @@ func saveArgoToken(clusterID, token string) error {
 }
 
 func loadArgoToken(clusterID string) (string, error) {
-	return argoTokens.Get(clusterID)
+	t, err := argoTokens.Get(clusterID)
+	if errors.Is(err, ext.ErrNotFound) {
+		return "", ErrArgoTokenNotSet
+	}
+	return t, err
 }
 
 func deleteArgoToken(clusterID string) error {

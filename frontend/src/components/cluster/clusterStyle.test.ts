@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 import { describe, expect, it } from 'vitest'
 import {
   CLUSTER_COLORS, CLUSTER_ENVIRONMENTS, CLUSTER_GLYPHS,

@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div v-if="keys.length" class="sec-data">
     <div v-for="k in keys" :key="k" class="sec-item">

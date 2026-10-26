@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 package k8s
 
 // ArgoResourceRef — ресурс, которым управляет Application (status.resources[]).

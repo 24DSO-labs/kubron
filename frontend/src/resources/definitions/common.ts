@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 import type { ColumnDef, PropertyDef } from '../types'
 import { ageToMinutes } from '../utils'
 

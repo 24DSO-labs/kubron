@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <MetricsBlock v-if="clusterName && nodeName">
     <NodeMetricsViewer :cluster-name="clusterName" :node-name="nodeName" />

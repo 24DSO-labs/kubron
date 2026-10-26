@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 import { computed, readonly, ref } from 'vue'
 import { callApp, onSessionLost } from '../resources/wails'
 import type { Permission, UserInfo } from '../types/auth'

@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 /** Данные главного экрана: форма совпадает с k8s.ClusterOverview из Go (internal/k8s/overview.go) */
 
 export type HealthStatus = 'healthy' | 'unhealthy' | 'unknown'
