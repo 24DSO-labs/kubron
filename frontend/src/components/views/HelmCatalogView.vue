@@ -50,6 +50,9 @@
               </option>
             </select>
           </label>
+          <button v-if="canInstall" type="button" class="btn hc-install" :disabled="!pkg || pkgLoading" @click="showInstall = true">
+            Install
+          </button>
           <div class="hc-seg" role="group" aria-label="Раздел">
             <button v-for="t in TABS" :key="t.id" type="button" :class="{ on: tab === t.id }" @click="tab = t.id">{{ t.label }}</button>
           </div>
@@ -73,13 +76,19 @@
         </template>
       </section>
     </div>
+
+    <HelmInstallDialog v-if="showInstall && selected && pkg" :repo="selected.repo" :chart="selected.name" :version="pkg.version"
+      :defaults="pkg.values" @close="showInstall = false" />
   </div>
 </template>
 
 <script lang="ts" setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import MonacoReadonly from '../resource/MonacoReadonly.vue'
+import HelmInstallDialog from './HelmInstallDialog.vue'
 import { callApp } from '../../resources/wails'
+import { can } from '../../composables/useAuth'
+import { Perm } from '../../types/auth'
 
 interface Chart { repo: string; name: string; version: string; appVersion: string; description: string; deprecated: boolean; versions: number }
 interface Ver { version: string; appVersion: string; deprecated: boolean }
@@ -93,6 +102,9 @@ const TABS = [
   { id: 'values', label: 'Values' },
   { id: 'info', label: 'Info' },
 ] as const
+
+const canInstall = computed(() => can(Perm.Write))
+const showInstall = ref(false)
 
 const query = ref('')
 const repoFilter = ref('')
@@ -201,7 +213,9 @@ onMounted(async () => {
 .hc-detail-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
 .hc-detail-bar h3 { margin: 0; font-size: 16px; color: #cdd6f4; }
 .hc-field { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #a6adc8; }
-.hc-seg { display: inline-flex; border: 1px solid #3b3d5c; border-radius: 4px; overflow: hidden; margin-left: auto; }
+.hc-install { margin-left: auto; }
+.hc-install + .hc-seg { margin-left: 0; }
+.hc-seg { display: inline-flex; border: 1px solid #3b3d5c; border-radius: 4px; overflow: hidden; }
 .hc-seg button { padding: 4px 12px; background: transparent; color: #9ca3af; border: 0; font: inherit; cursor: pointer; }
 .hc-seg button.on { background: #3b82f6; color: #fff; }
 .hc-info { display: grid; grid-template-columns: 170px 1fr; gap: 8px 14px; font-size: 13px; margin: 0; }

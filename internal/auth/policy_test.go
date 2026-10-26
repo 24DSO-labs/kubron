@@ -41,6 +41,8 @@ var exactPermission = map[string]Permission{
 	"SearchHelmCharts":        PermRead,
 	"GetHelmChartVersions":    PermRead,
 	"GetHelmChartPackage":     PermRead,
+	"PreviewHelmInstall":      PermWrite,
+	"InstallHelmChart":        PermWrite,
 	"PreviewHelmUpgrade":      PermSecretsRead,
 	"UpgradeHelmRelease":      PermWrite,
 	"RollbackHelmRelease":     PermOperate,
