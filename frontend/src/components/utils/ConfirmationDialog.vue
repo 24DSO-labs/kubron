@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div v-if="modelValue" class="dialog-overlay" @click="handleOverlayClick">
     <div class="dialog" @click.stop>

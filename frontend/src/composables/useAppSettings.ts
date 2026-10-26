@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 import { ref, readonly } from 'vue'
 import { k8s } from '../../wailsjs/go/models'
 import { callApp } from '../platform/api'

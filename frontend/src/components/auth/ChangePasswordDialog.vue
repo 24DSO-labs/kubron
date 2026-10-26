@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="cp-overlay" @click.self="emit('close')" @keydown.esc="emit('close')">
     <div class="cp-dialog" role="dialog" aria-modal="true" aria-label="Смена пароля">

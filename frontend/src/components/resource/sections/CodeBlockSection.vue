@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="rd-row" :class="{ 'rd-click': lines.length }" @click="toggle">
     <span class="rd-label">{{ title }}<span v-if="lines.length" class="rd-arrow" :class="{ open }">›</span></span>
