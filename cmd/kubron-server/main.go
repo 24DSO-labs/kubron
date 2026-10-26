@@ -35,7 +35,9 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	hub := server.NewHub()
 	platform := &webplatform.Platform{}
+	platform.SetEmitter(hub.Emit)
 	core := app.NewApp(platform)
 	app.OnStartup(core)(ctx)
 	defer app.OnShutdown(core)(context.Background())
@@ -49,11 +51,10 @@ func main() {
 		log.Fatalf("фронтенд: %v", err)
 	}
 
-	guard := &server.Guard{
-		// Ядро пока одно на всех: не более одной веб-сессии (снимется на этапе 2).
-		Sessions:   server.NewSessions(cfg.SessionTTL, true),
-		TrustProxy: cfg.TrustProxy,
-	}
+	// Ядро пока одно на всех: не более одной веб-сессии (снимется на этапе 2).
+	sessions := server.NewSessions(cfg.SessionTTL, true)
+	sessions.OnEnd = hub.CloseSession // закрытая сессия закрывает и свои WebSocket
+	guard := &server.Guard{Sessions: sessions, TrustProxy: cfg.TrustProxy, Hub: hub}
 
 	if err := server.Run(ctx, cfg, server.NewHandler(dispatcher, dist, guard)); err != nil {
 		log.Fatalf("сервер: %v", err)
