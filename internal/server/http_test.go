@@ -34,7 +34,7 @@ func testHandler(t *testing.T) http.Handler {
 		"index.html":    {Data: []byte("<html>app</html>")},
 		"assets/a-1.js": {Data: []byte("console.log(1)")},
 	}
-	return NewHandler(d, static)
+	return NewHandler(d, static, nil)
 }
 
 type rpcReply struct {
@@ -158,11 +158,11 @@ func TestStaticAndSPAFallback(t *testing.T) {
 
 func TestNoFrontendGivesClearMessage(t *testing.T) {
 	d, _ := NewDispatcher(httpTarget{}, []string{"Add"}, nil)
-	rec := get(NewHandler(d, nil), "/")
+	rec := get(NewHandler(d, nil, nil), "/")
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Errorf("без фронтенда ждали 503: %d", rec.Code)
 	}
-	rec = get(NewHandler(d, fstest.MapFS{}), "/")
+	rec = get(NewHandler(d, fstest.MapFS{}, nil), "/")
 	if rec.Code != http.StatusServiceUnavailable || !strings.Contains(rec.Body.String(), "index.html") {
 		t.Errorf("пустой фронтенд: %d %s", rec.Code, rec.Body)
 	}

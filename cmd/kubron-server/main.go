@@ -49,7 +49,13 @@ func main() {
 		log.Fatalf("фронтенд: %v", err)
 	}
 
-	if err := server.Run(ctx, cfg, server.NewHandler(dispatcher, dist)); err != nil {
+	guard := &server.Guard{
+		// Ядро пока одно на всех: не более одной веб-сессии (снимется на этапе 2).
+		Sessions:   server.NewSessions(cfg.SessionTTL, true),
+		TrustProxy: cfg.TrustProxy,
+	}
+
+	if err := server.Run(ctx, cfg, server.NewHandler(dispatcher, dist, guard)); err != nil {
 		log.Fatalf("сервер: %v", err)
 	}
 }
