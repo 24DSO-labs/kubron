@@ -36,15 +36,13 @@ type StatefulSetInfo struct {
 	PodAntiAffinity *PodAntiAffinityInfo `json:"podAntiAffinity"`
 }
 
-func (m *Manager) GetStatefulSets(namespace string) ([]StatefulSetInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
+func (m *Manager) GetStatefulSets(namespaces []string) ([]StatefulSetInfo, error) {
+	return scopedList(m, "GetStatefulSets", "apps", "statefulsets", namespaces, listStatefulSets,
+		func(it StatefulSetInfo) string { return it.Namespace })
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
+// listStatefulSets читает ресурсы одного namespace ("" — все) для GetStatefulSets.
+func listStatefulSets(ctx context.Context, conn *ClusterConnection, namespace string) ([]StatefulSetInfo, error) {
 	list, err := conn.Client.AppsV1().StatefulSets(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -284,15 +282,13 @@ type DaemonSetInfo struct {
 	Affinity               *AffinityInfo     `json:"affinity"`
 }
 
-func (m *Manager) GetDaemonSets(namespace string) ([]DaemonSetInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
+func (m *Manager) GetDaemonSets(namespaces []string) ([]DaemonSetInfo, error) {
+	return scopedList(m, "GetDaemonSets", "apps", "daemonsets", namespaces, listDaemonSets,
+		func(it DaemonSetInfo) string { return it.Namespace })
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
+// listDaemonSets читает ресурсы одного namespace ("" — все) для GetDaemonSets.
+func listDaemonSets(ctx context.Context, conn *ClusterConnection, namespace string) ([]DaemonSetInfo, error) {
 	list, err := conn.Client.AppsV1().DaemonSets(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -555,15 +551,13 @@ func convertJob(j *batchv1.Job, podStatuses map[string]int32) JobInfo {
 	}
 }
 
-func (m *Manager) GetJobs(namespace string) ([]JobInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
+func (m *Manager) GetJobs(namespaces []string) ([]JobInfo, error) {
+	return scopedList(m, "GetJobs", "batch", "jobs", namespaces, listJobs,
+		func(it JobInfo) string { return it.Namespace })
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
+// listJobs читает ресурсы одного namespace ("" — все) для GetJobs.
+func listJobs(ctx context.Context, conn *ClusterConnection, namespace string) ([]JobInfo, error) {
 	list, err := conn.Client.BatchV1().Jobs(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -664,15 +658,13 @@ type CronJobInfo struct {
 	Age           string `json:"age"`
 }
 
-func (m *Manager) GetCronJobs(namespace string) ([]CronJobInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
+func (m *Manager) GetCronJobs(namespaces []string) ([]CronJobInfo, error) {
+	return scopedList(m, "GetCronJobs", "batch", "cronjobs", namespaces, listCronJobs,
+		func(it CronJobInfo) string { return it.Namespace })
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
+// listCronJobs читает ресурсы одного namespace ("" — все) для GetCronJobs.
+func listCronJobs(ctx context.Context, conn *ClusterConnection, namespace string) ([]CronJobInfo, error) {
 	list, err := conn.Client.BatchV1().CronJobs(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
