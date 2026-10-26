@@ -49,7 +49,7 @@ async function load() {
   if (!name) { pods.value = []; return }
   loading.value = true
   try {
-    const all = ((await callApp('GetPods', '')) as any[]) ?? []
+    const all = ((await callApp('GetPods', [])) as any[]) ?? []
     // Ответ мог устареть, если за время запроса открыли другой класс
     if (name === itemName(props.resource)) pods.value = all.filter(p => p[props.field] === name)
   } catch {

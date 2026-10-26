@@ -29,15 +29,13 @@ type ReplicaSetInfo struct {
 	PodStatuses  map[string]int32  `json:"podStatuses"`
 }
 
-func (m *Manager) GetReplicaSets(namespace string) ([]ReplicaSetInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
+func (m *Manager) GetReplicaSets(namespaces []string) ([]ReplicaSetInfo, error) {
+	return scopedList(m, "GetReplicaSets", "apps", "replicasets", namespaces, listReplicaSets,
+		func(it ReplicaSetInfo) string { return it.Namespace })
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
+// listReplicaSets читает ресурсы одного namespace ("" — все) для GetReplicaSets.
+func listReplicaSets(ctx context.Context, conn *ClusterConnection, namespace string) ([]ReplicaSetInfo, error) {
 	replicaSetList, err := conn.Client.AppsV1().ReplicaSets(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err

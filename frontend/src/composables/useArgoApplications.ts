@@ -55,7 +55,7 @@ export function useArgoApplications(clusterName: Ref<string>) {
     const mySeq = ++seq
     refreshing.value = true
     try {
-      const res = (await callApp('GetArgoApplications', '')) as ArgoApplicationInfo[]
+      const res = (await callApp('GetArgoApplications', [])) as ArgoApplicationInfo[]
       if (mySeq !== seq) return
       const next = res ?? []
       markChanged(apps.value, next)

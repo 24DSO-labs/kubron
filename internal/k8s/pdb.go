@@ -5,7 +5,6 @@ package k8s
 
 import (
 	"context"
-	"time"
 
 	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,15 +33,13 @@ type PDBInfo struct {
 	Finalizers                 []string          `json:"finalizers"`
 }
 
-func (m *Manager) GetPodDisruptionBudgets(namespace string) ([]PDBInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
+func (m *Manager) GetPodDisruptionBudgets(namespaces []string) ([]PDBInfo, error) {
+	return scopedList(m, "GetPodDisruptionBudgets", "policy", "poddisruptionbudgets", namespaces, listPodDisruptionBudgets,
+		func(it PDBInfo) string { return it.Namespace })
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
+// listPodDisruptionBudgets читает ресурсы одного namespace ("" — все) для GetPodDisruptionBudgets.
+func listPodDisruptionBudgets(ctx context.Context, conn *ClusterConnection, namespace string) ([]PDBInfo, error) {
 	list, err := conn.Client.PolicyV1().PodDisruptionBudgets(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err

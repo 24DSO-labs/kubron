@@ -234,14 +234,29 @@ func customKindInfo(conn *ClusterConnection, kind string) (kindInfo, error) {
 	return ki, err
 }
 
-func (m *Manager) GetCustomResources(group, version, plural, namespace string) ([]CustomResourceInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
+func (m *Manager) GetCustomResources(group, version, plural string, namespaces []string) ([]CustomResourceInfo, error) {
+	if len(namespaces) > 1 {
+		// Кластерный CRD не зависит от namespace: набор схлопывается в один запрос,
+		// иначе один и тот же список читался бы N раз и склеивался с дублями.
+		conn, err := m.GetActiveConnection()
+		if err != nil {
+			return nil, err
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ki, _, err := customKindFor(ctx, conn.DynamicClient, group, version, plural)
+		cancel()
+		if err != nil {
+			return nil, err
+		}
+		if !ki.namespaced {
+			namespaces = nil
+		}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	return listCustomResources(ctx, conn.DynamicClient, group, version, plural, namespace)
+	return scopedListTimeout(m, 30*time.Second, "GetCustomResources", group, plural, namespaces,
+		func(ctx context.Context, conn *ClusterConnection, ns string) ([]CustomResourceInfo, error) {
+			return listCustomResources(ctx, conn.DynamicClient, group, version, plural, ns)
+		},
+		func(it CustomResourceInfo) string { return it.Namespace })
 }
 
 func listCustomResources(ctx context.Context, dyn dynamic.Interface, group, version, plural, namespace string) ([]CustomResourceInfo, error) {

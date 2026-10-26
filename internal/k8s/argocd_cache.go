@@ -101,8 +101,9 @@ func (c *argoCache) stop() {
 	c.cancel()
 }
 
-// list возвращает Application из кеша (namespace "" — все); false — informer ещё не синхронизирован.
-func (c *argoCache) list(namespace string) ([]ArgoApplicationInfo, bool) {
+// list возвращает Application из кеша для набора namespace (пустой набор — все);
+// false — informer ещё не синхронизирован.
+func (c *argoCache) list(scope nsScope) ([]ArgoApplicationInfo, bool) {
 	if !c.inf.HasSynced() {
 		return nil, false
 	}
@@ -110,7 +111,7 @@ func (c *argoCache) list(namespace string) ([]ArgoApplicationInfo, bool) {
 	apps := make([]ArgoApplicationInfo, 0, len(objs))
 	for _, o := range objs {
 		u, ok := o.(*unstructured.Unstructured)
-		if !ok || (namespace != "" && u.GetNamespace() != namespace) {
+		if !ok || !scope.has(u.GetNamespace()) {
 			continue
 		}
 		apps = append(apps, parseArgoApplication(u))

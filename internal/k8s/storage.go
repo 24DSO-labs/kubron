@@ -218,15 +218,13 @@ func pvcPods(ctx context.Context, conn *ClusterConnection, namespace string) map
 	return out
 }
 
-func (m *Manager) GetPersistentVolumeClaims(namespace string) ([]PVCInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
+func (m *Manager) GetPersistentVolumeClaims(namespaces []string) ([]PVCInfo, error) {
+	return scopedList(m, "GetPersistentVolumeClaims", "", "persistentvolumeclaims", namespaces, listPersistentVolumeClaims,
+		func(it PVCInfo) string { return it.Namespace })
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
+// listPersistentVolumeClaims читает ресурсы одного namespace ("" — все) для GetPersistentVolumeClaims.
+func listPersistentVolumeClaims(ctx context.Context, conn *ClusterConnection, namespace string) ([]PVCInfo, error) {
 	list, err := conn.Client.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err

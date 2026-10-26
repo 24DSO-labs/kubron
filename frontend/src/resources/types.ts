@@ -204,7 +204,7 @@ export interface ResourceDefinition<T = any, D = {}> {
   onLoaded?: (items: Item<T>[]) => void | Item<T>[] | Promise<void | Item<T>[]>
 
   api: {
-    list: (ns: string) => Promise<T[]>
+    list: (ns: string[]) => Promise<T[]>
     /** Свежие данные при открытии панели (богаче, чем элемент списка) */
     get?: (ns: string, name: string) => Promise<D>
     remove?: (ns: string, name: string) => Promise<void>

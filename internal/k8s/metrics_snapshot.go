@@ -94,8 +94,12 @@ func parsePrometheusResult(result *PromQueryResult) float64 {
 	return total
 }
 
-func (m *Manager) GetPodMetrics(namespace string) ([]PodMetrics, error) {
-	cpuResult, err := m.QueryPrometheus(promQueryPodCPUByNs(namespace))
+func (m *Manager) GetPodMetrics(namespaces []string) ([]PodMetrics, error) {
+	scope, err := parseScope(namespaces)
+	if err != nil {
+		return nil, err
+	}
+	cpuResult, err := m.QueryPrometheus(promQueryPodCPUByNs(scope))
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +136,7 @@ func (m *Manager) GetPodMetrics(namespace string) ([]PodMetrics, error) {
 		}
 	}
 
-	memResult, err := m.QueryPrometheus(promQueryPodMemByNs(namespace))
+	memResult, err := m.QueryPrometheus(promQueryPodMemByNs(scope))
 	if err == nil && memResult != nil && memResult.Data != nil {
 		var data map[string]interface{}
 		if err := json.Unmarshal(memResult.Data, &data); err == nil {

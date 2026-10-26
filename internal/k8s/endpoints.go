@@ -116,14 +116,13 @@ func formatEndpointList(flat []string) string {
 	}
 }
 
-func (m *Manager) GetEndpoints(namespace string) ([]EndpointListInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
+func (m *Manager) GetEndpoints(namespaces []string) ([]EndpointListInfo, error) {
+	return scopedList(m, "GetEndpoints", "", "endpoints", namespaces, listEndpoints,
+		func(it EndpointListInfo) string { return it.Namespace })
+}
 
+// listEndpoints читает ресурсы одного namespace ("" — все) для GetEndpoints.
+func listEndpoints(ctx context.Context, conn *ClusterConnection, namespace string) ([]EndpointListInfo, error) {
 	list, err := conn.Client.CoreV1().Endpoints(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
