@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Единственное место, где мы обращаемся к Go-биндингам по имени (десктоп, Wails).
- * Веб-реализация (POST /api/rpc/{method}) появится в этапе 1 и выберется при сборке (ADR-0010).
+ * Единственное место, где мы обращаемся к бэкенду по имени метода (ADR-0010).
+ * Транспорт выбирается при сборке (VITE_TARGET): десктоп — Go-биндинги Wails,
+ * веб — POST /api/rpc/{method} (rpc.web.ts).
  *
  * Имя метода и аргументы проверяются по wailsjs/go/main/App.d.ts: опечатка в имени
  * или неверное число/тип аргументов ловится в `vue-tsc`, а не в рантайме.
@@ -33,15 +34,24 @@ export async function callApp<K extends AppMethod>(
   fn: K,
   ...args: Parameters<AppApi[K]>
 ): Promise<Awaited<ReturnType<AppApi[K]>>> {
-  const app: any = await import('../../wailsjs/go/main/App')
-  if (typeof app[fn] !== 'function') {
-    throw new Error(`${String(fn)} недоступен в Go-биндингах`)
-  }
   try {
-    return await app[fn](...args)
+    return await invoke(String(fn), args) as Awaited<ReturnType<AppApi[K]>>
   } catch (e) {
     const text = typeof e === 'string' ? e : (e as { message?: string } | null)?.message ?? ''
     if (text.includes(NOT_AUTHENTICATED) && !PRE_LOGIN_METHODS.has(String(fn))) sessionLostHandler?.()
     throw e
   }
+}
+
+async function invoke(fn: string, args: unknown[]): Promise<unknown> {
+  // VITE_TARGET подставляется при сборке: ветка другой оболочки вырезается из бандла
+  if (import.meta.env.VITE_TARGET === 'web') {
+    const { rpc } = await import('./rpc.web')
+    return rpc(fn, args)
+  }
+  const app: any = await import('../../wailsjs/go/main/App')
+  if (typeof app[fn] !== 'function') {
+    throw new Error(`${fn} недоступен в Go-биндингах`)
+  }
+  return app[fn](...args)
 }
