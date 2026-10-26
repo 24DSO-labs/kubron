@@ -110,7 +110,7 @@ async function openTerminalTab(
   let podObj: any = null
   
   try {
-    const allPods = await callApp('GetPods', namespace)
+    const allPods = await callApp('GetPods', [namespace])
     podObj = allPods.find((p: any) => p.name === pod)
     if (podObj && podObj.containers) {
       podContainers = podObj.containers

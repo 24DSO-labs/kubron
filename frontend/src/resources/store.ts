@@ -23,7 +23,7 @@ let activeDef: ResourceDefinition | null = null
  */
 export async function loadResource(def: ResourceDefinition): Promise<void> {
   const seq = (seqByView[def.view] = (seqByView[def.view] ?? 0) + 1)
-  const ns = def.namespaced ? k8s.selectedNamespace.value : ''
+  const ns = def.namespaced ? k8s.selectedNamespaces.value : []
   const publish = (list: readonly any[]) => {
     itemsByView.value = { ...itemsByView.value, [def.view]: list }
   }
@@ -124,7 +124,7 @@ export function useResourceList(getDef: () => ResourceDefinition) {
   })
 
   watch(
-    () => k8s.selectedNamespace.value,
+    () => k8s.selectedNamespaces.value,
     () => {
       if (getDef().namespaced) doReload()
     },
