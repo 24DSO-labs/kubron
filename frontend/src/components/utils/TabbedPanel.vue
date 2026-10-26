@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="tabbed-panel" :style="panelStyle" @mousedown="startDrag">
     <div class="panel-header" @mousedown.stop="startDrag">

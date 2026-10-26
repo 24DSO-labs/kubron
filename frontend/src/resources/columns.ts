@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * Сортировка и пользовательские настройки колонок списков.
  * Чистая логика без Vue и Wails: покрыта тестами в columns.test.ts.

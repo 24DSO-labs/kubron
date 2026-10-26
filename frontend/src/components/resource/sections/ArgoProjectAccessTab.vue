@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="rd-stack">
     <h4 class="rd-subtitle">Source repositories</h4>

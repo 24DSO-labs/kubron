@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <nav class="cluster-bar" aria-label="Кластеры">
     <div class="cluster-icons">

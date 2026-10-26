@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 package app
 
 // Platform — всё, что ядру нужно от оболочки, в которой оно запущено (ADR-0002).

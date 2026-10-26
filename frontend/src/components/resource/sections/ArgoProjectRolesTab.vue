@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div v-if="roles.length" class="rd-stack">
     <div v-for="r in roles" :key="r.name" class="rd-row">

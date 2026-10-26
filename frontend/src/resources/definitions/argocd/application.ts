@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 import { defineResource } from '../../types'
 import { callApp } from '../../wails'
 import { badgeClass, statusColor } from '../../status'

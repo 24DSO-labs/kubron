@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="settings-page">
     <h1 class="settings-title">Настройки кластера</h1>
