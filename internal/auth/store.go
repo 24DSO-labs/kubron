@@ -1,21 +1,9 @@
 package auth
 
-import (
-	"encoding/json"
-	"errors"
-	"fmt"
-	"os"
-	"path/filepath"
-	"time"
-)
+import "time"
 
-const (
-	usersFileName  = "users.json"
-	storageVersion = 1
-)
-
-// userRecord — запись пользователя в файле. Наружу (в интерфейс) не отдаётся: см. UserInfo.
-type userRecord struct {
+// UserRecord — запись пользователя в хранилище. Наружу (в интерфейс) не отдаётся: см. UserInfo.
+type UserRecord struct {
 	ID                 string     `json:"id"`
 	Username           string     `json:"username"`
 	Role               Role       `json:"role"`
@@ -27,89 +15,49 @@ type userRecord struct {
 	LastLoginAt        *time.Time `json:"lastLoginAt,omitempty"`
 }
 
-// settingsData — настройки безопасности, общие для всех пользователей.
+// SecuritySettings — настройки безопасности, общие для всех пользователей.
 // Указатель различает «не задано» (берётся значение по умолчанию) и явный 0 («выключено»).
-type settingsData struct {
+type SecuritySettings struct {
 	IdleTimeoutMinutes *int `json:"idleTimeoutMinutes,omitempty"`
 }
 
-type fileData struct {
-	Version  int          `json:"version"`
-	Users    []userRecord `json:"users"`
-	Settings settingsData `json:"settings"`
+// Data — всё, что хранится постоянно: пользователи и настройки безопасности.
+type Data struct {
+	Users    []UserRecord     `json:"users"`
+	Settings SecuritySettings `json:"settings"`
 }
 
-// store — файловое хранилище пользователей. Не потокобезопасно: синхронизацию делает Service.
+// Backend — постоянное хранилище пользователей. Реализации: файл users.json (десктоп) и,
+// позже, PostgreSQL (сервер, ADR-0007). Вызывается под блокировкой Service.
+type Backend interface {
+	// Load читает данные. Отсутствие данных — пустой Data (первый запуск). Повреждённые или
+	// созданные более новой версией данные — ошибка: молча считать их пустыми нельзя, иначе
+	// любой смог бы пройти первичную настройку и создать администратора.
+	Load() (*Data, error)
+	// Save атомарно сохраняет данные целиком.
+	Save(*Data) error
+}
+
+// store — пользователи и настройки в памяти поверх Backend. Не потокобезопасно: синхронизацию делает Service.
 type store struct {
-	path     string
-	users    []userRecord
-	settings settingsData
+	backend  Backend
+	users    []UserRecord
+	settings SecuritySettings
 }
 
-// loadStore читает файл. Отсутствие файла — это пустое хранилище (первый запуск).
-// Повреждённый файл — ошибка: молча считать его пустым нельзя, иначе любой смог бы
-// пройти первичную настройку и создать администратора.
-func loadStore(dir string) (*store, error) {
-	s := &store{path: filepath.Join(dir, usersFileName)}
-	data, err := os.ReadFile(s.path)
-	if errors.Is(err, os.ErrNotExist) {
-		return s, nil
-	}
+func loadStore(b Backend) (*store, error) {
+	d, err := b.Load()
 	if err != nil {
-		return nil, fmt.Errorf("не удалось прочитать %s: %w", s.path, err)
+		return nil, err
 	}
-	var fd fileData
-	if err := json.Unmarshal(data, &fd); err != nil {
-		return nil, fmt.Errorf("файл пользователей %s повреждён: %w", s.path, err)
-	}
-	if fd.Version > storageVersion {
-		return nil, fmt.Errorf("файл пользователей %s создан более новой версией Kubron", s.path)
-	}
-	s.users = fd.Users
-	s.settings = fd.Settings
-	return s, nil
+	return &store{backend: b, users: d.Users, settings: d.Settings}, nil
 }
 
-// save атомарно записывает файл: временный файл в той же папке, затем rename.
 func (s *store) save() error {
-	data, err := json.MarshalIndent(fileData{Version: storageVersion, Users: s.users, Settings: s.settings}, "", "  ")
-	if err != nil {
-		return err
-	}
-	dir := filepath.Dir(s.path)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(dir, usersFileName+".*.tmp")
-	if err != nil {
-		return err
-	}
-	tmpName := tmp.Name()
-	cleanup := func() { _ = os.Remove(tmpName) }
-
-	// os.CreateTemp создаёт файл с правами 0600, лишний chmod не нужен.
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		cleanup()
-		return err
-	}
-	if err := tmp.Sync(); err != nil {
-		tmp.Close()
-		cleanup()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		cleanup()
-		return err
-	}
-	if err := os.Rename(tmpName, s.path); err != nil {
-		cleanup()
-		return err
-	}
-	return nil
+	return s.backend.Save(&Data{Users: s.users, Settings: s.settings})
 }
 
-func (s *store) findByID(id string) *userRecord {
+func (s *store) findByID(id string) *UserRecord {
 	for i := range s.users {
 		if s.users[i].ID == id {
 			return &s.users[i]
@@ -118,7 +66,7 @@ func (s *store) findByID(id string) *userRecord {
 	return nil
 }
 
-func (s *store) findByName(normalized string) *userRecord {
+func (s *store) findByName(normalized string) *UserRecord {
 	for i := range s.users {
 		if normalizeUsername(s.users[i].Username) == normalized {
 			return &s.users[i]
