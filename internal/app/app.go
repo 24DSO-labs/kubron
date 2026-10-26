@@ -678,11 +678,11 @@ func (a *App) GetNodeDetail(name string) (*k8s.NodeDetail, error) {
 
 // === Applications ===
 
-func (a *App) GetApplications(namespace string) ([]k8s.ApplicationInfo, error) {
+func (a *App) GetApplications(namespaces []string) ([]k8s.ApplicationInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetApplications(namespace)
+	return a.k8sMgr.GetApplications(namespaces)
 }
 
 // === Helm ===
