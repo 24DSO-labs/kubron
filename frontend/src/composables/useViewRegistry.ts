@@ -27,6 +27,8 @@ export const viewRegistry: Record<string, ViewConfig> = {
   'argo-dashboard': {
     component: lazy('ArgoDashboardView'),
   },
+  'helm-repos': { component: lazy('HelmReposView') },
+'helm-catalog': { component: lazy('HelmCatalogView') },
   settings: {
     component: lazy('ClusterSettings'),
   },
