@@ -28,7 +28,7 @@ describe('normalizeCapabilities', () => {
 })
 
 describe('loadCapabilities', () => {
-  beforeEach(() => vi.mocked(callApp).mockReset())
+  beforeEach(() => { vi.mocked(callApp).mockReset() })
 
   it('применяет ответ бэкенда', async () => {
     vi.mocked(callApp).mockResolvedValue({
@@ -42,8 +42,8 @@ describe('loadCapabilities', () => {
   })
 
   it('при ошибке возвращает значения по умолчанию и не бросает', async () => {
-    vi.mocked(callApp).mockRejectedValue(new Error('нет метода'))
+    vi.mocked(callApp).mockImplementation(() => Promise.reject(new Error('нет метода')))
     await expect(loadCapabilities()).resolves.toBeUndefined()
-    expect(useCapabilities().capabilities.value).toEqual(DEFAULT_CAPABILITIES)
+    expect({ ...useCapabilities().capabilities.value }).toEqual({ ...DEFAULT_CAPABILITIES })
   })
 })
