@@ -52,6 +52,14 @@ func (a *App) startup(ctx context.Context) {
 	}
 }
 
+// === Возможности оболочки ===
+
+// GetCapabilities — что доступно в текущей оболочке. Вызывается до входа в систему
+// (экран входа зависит от флагов), поэтому authz не требует: см. publicMethods в policy_test.
+func (a *App) GetCapabilities() Capabilities {
+	return a.platform.Capabilities()
+}
+
 // === Kubron Cluster Management ===
 
 func (a *App) GetClusterStatuses() []k8s.ClusterStatus {
