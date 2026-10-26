@@ -37,6 +37,19 @@ type nsScope struct{ names []string }
 
 func (s nsScope) all() bool { return len(s.names) == 0 }
 
+// has сообщает, входит ли namespace в набор (для «все» — всегда).
+func (s nsScope) has(ns string) bool {
+	if s.all() {
+		return true
+	}
+	for _, n := range s.names {
+		if n == ns {
+			return true
+		}
+	}
+	return false
+}
+
 // parseScope проверяет и нормализует вход от фронтенда: убирает дубли, сортирует,
 // валидирует имена по DNS-1123 и ограничивает размер. Пустая строка в списке означает «все».
 // Имена попадают в PromQL и фильтры, поэтому доверять фронтенду нельзя.

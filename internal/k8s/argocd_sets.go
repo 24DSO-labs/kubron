@@ -46,14 +46,12 @@ type ArgoApplicationSetInfo struct {
 }
 
 // GetArgoApplicationSets возвращает ApplicationSet из namespace (пустой — из всех).
-func (m *Manager) GetArgoApplicationSets(namespace string) ([]ArgoApplicationSetInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	return listArgoApplicationSets(ctx, conn.DynamicClient, namespace)
+func (m *Manager) GetArgoApplicationSets(namespaces []string) ([]ArgoApplicationSetInfo, error) {
+	return scopedListTimeout(m, 20*time.Second, "GetArgoApplicationSets", "argoproj.io", "applicationsets", namespaces,
+		func(ctx context.Context, conn *ClusterConnection, ns string) ([]ArgoApplicationSetInfo, error) {
+			return listArgoApplicationSets(ctx, conn.DynamicClient, ns)
+		},
+		func(it ArgoApplicationSetInfo) string { return it.Namespace })
 }
 
 func listArgoApplicationSets(ctx context.Context, dyn dynamic.Interface, namespace string) ([]ArgoApplicationSetInfo, error) {
