@@ -54,15 +54,13 @@ type LabelSelectorInfo struct {
 	MatchLabels map[string]string `json:"matchLabels"`
 }
 
-func (m *Manager) GetDeployments(namespace string) ([]DeploymentInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
+func (m *Manager) GetDeployments(namespaces []string) ([]DeploymentInfo, error) {
+	return scopedList(m, "GetDeployments", "apps", "deployments", namespaces, listDeployments,
+		func(it DeploymentInfo) string { return it.Namespace })
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
+// listDeployments читает ресурсы одного namespace ("" — все) для GetDeployments.
+func listDeployments(ctx context.Context, conn *ClusterConnection, namespace string) ([]DeploymentInfo, error) {
 	depList, err := conn.Client.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err

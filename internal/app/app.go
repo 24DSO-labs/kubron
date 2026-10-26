@@ -469,11 +469,11 @@ func (a *App) GetNamespaces() ([]k8s.NamespaceInfo, error) {
 
 // === Поды ===
 
-func (a *App) GetPods(namespace string) ([]k8s.PodInfo, error) {
+func (a *App) GetPods(namespaces []string) ([]k8s.PodInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetPods(namespace)
+	return a.k8sMgr.GetPods(namespaces)
 }
 
 func (a *App) GetPodDetail(namespace, name string) (*k8s.PodDetail, error) {
@@ -499,11 +499,11 @@ func (a *App) EvictPod(namespace, name string) error {
 
 // === Deployments ===
 
-func (a *App) GetDeployments(namespace string) ([]k8s.DeploymentInfo, error) {
+func (a *App) GetDeployments(namespaces []string) ([]k8s.DeploymentInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetDeployments(namespace)
+	return a.k8sMgr.GetDeployments(namespaces)
 }
 
 func (a *App) ScaleDeployment(namespace, name string, replicas int32) error {
@@ -536,11 +536,11 @@ func (a *App) RollbackDeployment(namespace, name string, revision int64) error {
 
 // === StatefulSets ===
 
-func (a *App) GetStatefulSets(namespace string) ([]k8s.StatefulSetInfo, error) {
+func (a *App) GetStatefulSets(namespaces []string) ([]k8s.StatefulSetInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetStatefulSets(namespace)
+	return a.k8sMgr.GetStatefulSets(namespaces)
 }
 
 func (a *App) ScaleStatefulSet(namespace, name string, replicas int32) error {
@@ -552,11 +552,11 @@ func (a *App) ScaleStatefulSet(namespace, name string, replicas int32) error {
 
 // === ReplicaSets ===
 
-func (a *App) GetReplicaSets(namespace string) ([]k8s.ReplicaSetInfo, error) {
+func (a *App) GetReplicaSets(namespaces []string) ([]k8s.ReplicaSetInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetReplicaSets(namespace)
+	return a.k8sMgr.GetReplicaSets(namespaces)
 }
 
 func (a *App) ScaleReplicaSet(namespace, name string, replicas int32) error {
@@ -568,20 +568,20 @@ func (a *App) ScaleReplicaSet(namespace, name string, replicas int32) error {
 
 // === DaemonSets ===
 
-func (a *App) GetDaemonSets(namespace string) ([]k8s.DaemonSetInfo, error) {
+func (a *App) GetDaemonSets(namespaces []string) ([]k8s.DaemonSetInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetDaemonSets(namespace)
+	return a.k8sMgr.GetDaemonSets(namespaces)
 }
 
 // === Jobs ===
 
-func (a *App) GetJobs(namespace string) ([]k8s.JobInfo, error) {
+func (a *App) GetJobs(namespaces []string) ([]k8s.JobInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetJobs(namespace)
+	return a.k8sMgr.GetJobs(namespaces)
 }
 
 func (a *App) RestartDaemonSet(namespace, name string) error {
@@ -600,11 +600,11 @@ func (a *App) RetryJob(namespace, name string) error {
 
 // === CronJobs ===
 
-func (a *App) GetCronJobs(namespace string) ([]k8s.CronJobInfo, error) {
+func (a *App) GetCronJobs(namespaces []string) ([]k8s.CronJobInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetCronJobs(namespace)
+	return a.k8sMgr.GetCronJobs(namespaces)
 }
 
 func (a *App) GetCronJobJobs(namespace, cronJobName string) ([]k8s.JobInfo, error) {
