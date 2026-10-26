@@ -32,7 +32,8 @@
 
           <div class="cl-field">
             <div class="cl-segment cl-method" role="radiogroup" aria-label="Источник kubeconfig">
-              <button type="button" role="radio" class="cl-segment-item" :class="{ on: method === 'file' }"
+              <button v-if="capabilities.fileDialog" type="button" role="radio" class="cl-segment-item"
+                :class="{ on: method === 'file' }"
                 :aria-checked="method === 'file'" @click="setMethod('file')">Файл</button>
               <button type="button" role="radio" class="cl-segment-item" :class="{ on: method === 'text' }"
                 :aria-checked="method === 'text'" @click="setMethod('text')">Вставить текст</button>
@@ -49,6 +50,9 @@
               <textarea v-model="text" class="cl-textarea cl-mono" spellcheck="false"
                 placeholder="apiVersion: v1&#10;kind: Config&#10;…" aria-label="Текст kubeconfig"
                 @input="onTextInput"></textarea>
+              <div v-if="!capabilities.fileDialog" class="cl-pick">
+                <button type="button" class="cl-btn" @click="uploadFile">Загрузить из файла…</button>
+              </div>
               <p class="cl-hint">Содержимое будет сохранено в каталоге Kubron, права доступа — только для вас.</p>
             </template>
 
@@ -85,6 +89,9 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId } from 'vue'
 import type { AddClusterPayload, ClusterSettings, KubeconfigSource } from '../types'
 import { NO_KUBECONFIG_SOURCE, pickContextName, useKubeconfigProbe } from '../composables/useKubeconfigProbe'
+import { useCapabilities } from '../composables/useCapabilities'
+import { pickTextFile } from '../platform/files'
+import { errorText } from '../composables/errorText'
 import ClusterAvatar from './cluster/ClusterAvatar.vue'
 import ClusterAppearanceFields from './cluster/ClusterAppearanceFields.vue'
 import ClusterConnectionFields from './cluster/ClusterConnectionFields.vue'
@@ -108,7 +115,9 @@ const environment = ref('')
 const namespace = ref('')
 const contextName = ref('')
 
-const method = ref<'file' | 'text'>('file')
+// Без нативного диалога (веб) kubeconfig передаётся текстом: вставкой или загрузкой файла браузером
+const { capabilities } = useCapabilities()
+const method = ref<'file' | 'text'>(capabilities.value.fileDialog ? 'file' : 'text')
 const filePath = ref('')
 const text = ref('')
 
@@ -154,6 +163,18 @@ async function chooseFile() {
   error.value = ''
   filePath.value = path
   await inspectSource()
+}
+
+async function uploadFile() {
+  try {
+    const content = await pickTextFile()
+    if (content === null) return
+    error.value = ''
+    text.value = content
+    await inspectSource()
+  } catch (e) {
+    error.value = errorText(e)
+  }
 }
 
 function setMethod(m: 'file' | 'text') {

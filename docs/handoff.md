@@ -61,3 +61,16 @@ Kubron (Wails + Go + Vue) должен стать ещё и веб-прилож�
   Запускать поток (терминал, логи) нужно после `sub_ok`, иначе потеряются первые данные.
 - Сейчас событие получают все подписчики (ядро одно на всех); адресация по сессии — этап 2.
 - `go.mod`: gorilla/websocket стал прямой зависимостью (был indirect через Wails); после `go mod tidy` проверь diff.
+
+## Задача 1.7 (веб-слой фронтенда) — сделано
+- Транспорт выбирается при сборке (`VITE_TARGET=web`, файл `frontend/.env.web`, режим `--mode web`):
+  `platform/api.ts` → `rpc.web.ts` (POST /api/rpc, cookie, `X-CSRF-Token`, повтор при 403 csrf, 401 → сброс сессии),
+  `platform/events.ts` → `events.web.ts` (общий WebSocket, подсчёт подписок, переподключение с паузой,
+  псевдособытие `platform:reconnected`, `flushSubscriptions()` перед каждым RPC, чтобы поток терминала/логов не обогнал подписку),
+  `platform/files.ts` → `window.open` и `pickTextFile()` (загрузка kubeconfig браузером).
+- Диалоги добавления/правки кластера без нативного выбора файла (`capabilities.fileDialog=false`): режим «Вставить текст» + «Загрузить из файла…».
+- Команды: `npm run build:web` (vue-tsc + vite; нужен `wails generate module` для типов), затем `go build ./cmd/kubron-server`;
+  разработка: `kubron-server` на :8080 + `npm run dev:web` (прокси /api и WebSocket).
+- Сборка `vite build --mode web` проверена без wailsjs: Wails-runtime подменяется пустышкой, в бандле нет `EventsOn`.
+- Известные пробелы веб-режима (не часть 1.7): проброс порта (`GetFreePort`, открытие `localhost:<порт>` — адрес сервера, а не
+  браузера; нужен HTTP-прокси, этап 3), `OpenArgoUI`, `PickKubeconfigFile`/`AddClusterFromFile` закрыты `deniedMethods`.
