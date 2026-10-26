@@ -810,6 +810,25 @@ func (a *App) GetHelmRevisionDiff(namespace, name string, from, to int) (*k8s.He
 	return a.k8sMgr.GetHelmRevisionDiff(namespace, name, from, to)
 }
 
+// Права: установка создаёт произвольные ресурсы, поэтому PermWrite (как апгрейд). Preview тоже за Write:
+// он нужен только тому, кто может установить. Values в authz НЕ передаются (могут содержать секреты).
+
+// PreviewHelmInstall — dry-run установки чарта из каталога (кластер не затрагивается).
+func (a *App) PreviewHelmInstall(req k8s.HelmInstallRequest) (*k8s.HelmInstallResult, error) {
+	if err := a.authz(auth.PermWrite, "namespace", req.Namespace, "release", req.ReleaseName, "chart", req.Chart); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.PreviewHelmInstall(req)
+}
+
+// InstallHelmChart устанавливает чарт из репозитория каталога.
+func (a *App) InstallHelmChart(req k8s.HelmInstallRequest) (*k8s.HelmInstallResult, error) {
+	if err := a.authz(auth.PermWrite, "namespace", req.Namespace, "release", req.ReleaseName, "chart", req.Chart); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.InstallHelmChart(req)
+}
+
 // === Events ===
 
 func (a *App) GetEvents(namespaces []string) ([]k8s.EventInfo, error) {

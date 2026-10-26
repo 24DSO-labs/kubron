@@ -88,6 +88,8 @@ const ACTION_LABELS: Record<string, string> = {
   AddHelmRepo: 'Helm: добавление репозитория',
 	RemoveHelmRepo: 'Helm: удаление репозитория',
 	UpdateHelmRepos: 'Helm: обновление индексов репозиториев',
+  PreviewHelmInstall: 'Helm: предпросмотр установки',
+	InstallHelmChart: 'Helm: установка чарта',
 
 
 }  
