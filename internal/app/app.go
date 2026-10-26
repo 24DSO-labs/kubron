@@ -637,11 +637,11 @@ func (a *App) ToggleCronJobSuspend(namespace, name string) (bool, error) {
 
 // === Services ===
 
-func (a *App) GetServices(namespace string) ([]k8s.ServiceInfo, error) {
+func (a *App) GetServices(namespaces []string) ([]k8s.ServiceInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetServices(namespace)
+	return a.k8sMgr.GetServices(namespaces)
 }
 
 func (a *App) GetServiceDetail(namespace, name string) (*k8s.ServiceDetail, error) {
@@ -653,11 +653,11 @@ func (a *App) GetServiceDetail(namespace, name string) (*k8s.ServiceDetail, erro
 
 // === Ingresses ===
 
-func (a *App) GetIngresses(namespace string) ([]k8s.IngressInfo, error) {
+func (a *App) GetIngresses(namespaces []string) ([]k8s.IngressInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetIngresses(namespace)
+	return a.k8sMgr.GetIngresses(namespaces)
 }
 
 // === Nodes ===
@@ -861,27 +861,27 @@ func (a *App) GetValidatingWebhookConfigurations() ([]k8s.WebhookConfigurationIn
 
 // === Endpoints ===
 
-func (a *App) GetEndpoints(namespace string) ([]k8s.EndpointListInfo, error) {
+func (a *App) GetEndpoints(namespaces []string) ([]k8s.EndpointListInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetEndpoints(namespace)
+	return a.k8sMgr.GetEndpoints(namespaces)
 }
 
-func (a *App) GetEndpointSlices(namespace string) ([]k8s.EndpointSliceInfo, error) {
+func (a *App) GetEndpointSlices(namespaces []string) ([]k8s.EndpointSliceInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetEndpointSlices(namespace)
+	return a.k8sMgr.GetEndpointSlices(namespaces)
 }
 
 // === Network Policies ===
 
-func (a *App) GetNetworkPolicies(namespace string) ([]k8s.NetworkPolicyInfo, error) {
+func (a *App) GetNetworkPolicies(namespaces []string) ([]k8s.NetworkPolicyInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetNetworkPolicies(namespace)
+	return a.k8sMgr.GetNetworkPolicies(namespaces)
 }
 
 // === Ingress Classes ===
