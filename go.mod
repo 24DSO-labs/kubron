@@ -3,6 +3,7 @@ module analog
 go 1.27.3
 
 require (
+	analog/pkg/ext v0.0.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/wailsapp/wails/v2 v2.17.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -86,3 +87,6 @@ require (
 )
 
 // replace github.com/wailsapp/wails/v2 v2.11.0 => C:\Users\Вадим\go\pkg\mod
+
+// Публичные точки расширения — отдельный модуль только на stdlib (ADR-0013).
+replace analog/pkg/ext => ./pkg/ext
