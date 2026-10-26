@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 import type { ResourceDefinition } from './types'
 import { role } from './definitions/role'
 import { roleBinding } from './definitions/rolebinding'

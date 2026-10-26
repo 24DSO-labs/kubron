@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div id="app">
     <!-- Автовыход по бездействию: следит за вводом и предупреждает перед выходом -->
