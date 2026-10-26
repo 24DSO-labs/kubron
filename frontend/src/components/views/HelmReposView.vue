@@ -1,0 +1,186 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<template>
+  <div class="hr-view">
+    <header class="hr-head">
+      <div>
+        <h2>Helm-репозитории</h2>
+        <p class="hr-sub">Источники чартов для каталога. Список хранится локально в ~/.kubron/helm и не зависит от кластера.</p>
+      </div>
+      <div class="hr-head-actions">
+        <button class="btn" type="button" :disabled="loading || !repos.length || !!busy" @click="updateAll">
+          {{ busy === '*' ? 'Обновление…' : '🔄 Обновить все' }}
+        </button>
+        <button v-if="canManage" class="btn" type="button" @click="showForm = !showForm">
+          {{ showForm ? 'Скрыть форму' : '＋ Добавить' }}
+        </button>
+      </div>
+    </header>
+
+    <form v-if="showForm && canManage" class="hr-form" autocomplete="off" @submit.prevent="add">
+      <input v-model.trim="form.name" class="form-input" placeholder="Имя (например, bitnami)" aria-label="Имя" required />
+      <input v-model.trim="form.url" class="form-input hr-url" placeholder="https://charts.example.com" aria-label="URL" required />
+      <input v-model.trim="form.username" class="form-input" placeholder="Пользователь (необязательно)" aria-label="Пользователь"
+        autocomplete="off" />
+      <input v-model="form.password" class="form-input" type="password" placeholder="Пароль (необязательно)" aria-label="Пароль"
+        autocomplete="new-password" />
+      <label class="hr-check">
+        <input v-model="form.insecureTLS" type="checkbox" /> Не проверять TLS-сертификат
+      </label>
+      <p class="hr-note">Пароль сохраняется в repositories.yaml (права 0600) и отправляется только на хост репозитория. OCI-реестры пока не поддерживаются.</p>
+      <div class="hr-form-actions">
+        <button class="btn" type="submit" :disabled="adding">{{ adding ? 'Проверяю репозиторий…' : 'Добавить' }}</button>
+      </div>
+    </form>
+
+    <p v-if="error" class="form-error">{{ error }}</p>
+    <p v-if="loading && !loaded" class="hr-empty">Загрузка…</p>
+    <p v-else-if="loaded && !repos.length" class="hr-empty">Репозиториев пока нет. Добавьте, например, https://charts.bitnami.com/bitnami</p>
+
+    <table v-if="repos.length" class="hr-table">
+      <thead>
+        <tr><th>Имя</th><th>URL</th><th>Чартов</th><th>Обновлён</th><th>Состояние</th><th></th></tr>
+      </thead>
+      <tbody>
+        <tr v-for="r in repos" :key="r.name">
+          <td><strong>{{ r.name }}</strong></td>
+          <td class="hr-mono" :title="r.url">{{ r.url }}<span v-if="r.username" class="hr-tag">auth</span><span v-if="r.insecureTLS" class="hr-tag warn">no-tls-verify</span></td>
+          <td>{{ r.updated ? r.charts : '—' }}</td>
+          <td class="hr-muted" :title="r.updated">{{ formatTime(r.updated) }}</td>
+          <td><span v-if="r.error" class="hr-bad" :title="r.error">{{ r.error }}</span><span v-else class="hr-ok">ок</span></td>
+          <td class="hr-actions">
+            <button v-if="canManage" class="btn" type="button" :disabled="!!busy" @click="update(r.name)">{{ busy === r.name ? '…' : 'Update' }}</button>
+            <button v-if="canManage" class="btn hr-danger" type="button" :disabled="!!busy" @click="remove(r.name)">Remove</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { computed, onMounted, reactive, ref } from 'vue'
+import { callApp } from '../../resources/wails'
+import { askConfirm } from '../../resources/confirm'
+import { can } from '../../composables/useAuth'
+import { useNotifications } from '../../composables/useNotifications'
+import { Perm } from '../../types/auth'
+
+interface RepoInfo { name: string; url: string; username: string; insecureTLS: boolean; charts: number; updated: string; error: string }
+interface UpdateResult { name: string; charts: number; error: string }
+
+const notifications = useNotifications()
+const canManage = computed(() => can(Perm.ClusterManage))
+
+const repos = ref<RepoInfo[]>([])
+const loading = ref(false)
+const loaded = ref(false)
+const error = ref('')
+const busy = ref('') // имя репозитория или '*' для «обновить все»
+const adding = ref(false)
+const showForm = ref(false)
+const form = reactive({ name: '', url: '', username: '', password: '', insecureTLS: false })
+
+function formatTime(iso: string) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return isNaN(d.getTime()) ? iso : d.toLocaleString()
+}
+
+async function load() {
+  loading.value = true
+  error.value = ''
+  try {
+    repos.value = ((await callApp('ListHelmRepos')) as RepoInfo[]) ?? []
+    loaded.value = true
+  } catch (e: any) {
+    error.value = e?.message || String(e)
+  } finally {
+    loading.value = false
+  }
+}
+
+async function add() {
+  adding.value = true
+  error.value = ''
+  try {
+    await callApp('AddHelmRepo', form.name, form.url, form.username, form.password, form.insecureTLS)
+    notifications.notifySuccess(`Репозиторий ${form.name} добавлен`)
+    Object.assign(form, { name: '', url: '', username: '', password: '', insecureTLS: false })
+    showForm.value = false
+    await load()
+  } catch (e: any) {
+    error.value = e?.message || String(e)
+  } finally {
+    form.password = '' // пароль не держим в памяти формы дольше необходимого
+    adding.value = false
+  }
+}
+
+function report(results: UpdateResult[]) {
+  const failed = results.filter(r => r.error)
+  if (failed.length) {
+    notifications.notifyError(`Не обновлено: ${failed.map(r => `${r.name} (${r.error})`).join('; ')}`)
+  } else {
+    notifications.notifySuccess(results.length === 1 ? `${results[0].name}: индекс обновлён` : `Обновлено репозиториев: ${results.length}`)
+  }
+}
+
+async function runUpdate(name: string, key: string) {
+  busy.value = key
+  try {
+    report(((await callApp('UpdateHelmRepos', name)) as UpdateResult[]) ?? [])
+  } catch (e: any) {
+    notifications.notifyError(`Обновление: ${e?.message || e}`)
+  } finally {
+    busy.value = ''
+    await load()
+  }
+}
+const update = (name: string) => runUpdate(name, name)
+const updateAll = () => runUpdate('', '*')
+
+async function remove(name: string) {
+  if (!(await askConfirm(`Удалить репозиторий ${name}? Установленные из него релизы не затрагиваются.`))) return
+  busy.value = name
+  try {
+    await callApp('RemoveHelmRepo', name)
+    notifications.notifySuccess(`Репозиторий ${name} удалён`)
+  } catch (e: any) {
+    notifications.notifyError(`Удаление: ${e?.message || e}`)
+  } finally {
+    busy.value = ''
+    await load()
+  }
+}
+
+onMounted(load)
+</script>
+
+<style scoped>
+.hr-view { padding: 24px; text-align: left; max-width: 1200px; }
+.hr-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.hr-head h2 { margin: 0; font-size: 22px; color: #89b4fa; }
+.hr-sub { margin: 4px 0 0; color: #a6adc8; font-size: 13px; }
+.hr-head-actions { display: flex; gap: 8px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.hr-form { display: grid; grid-template-columns: 1fr 2fr 1fr 1fr; gap: 10px; margin-bottom: 20px; padding: 14px; border: 1px solid #313244; border-radius: 8px; }
+.hr-form .form-input { width: 100%; box-sizing: border-box; padding: 8px 10px; }
+.hr-check { grid-column: 1 / -1; font-size: 13px; color: #a6adc8; display: flex; gap: 8px; align-items: center; }
+.hr-note { grid-column: 1 / -1; margin: 0; font-size: 12px; color: #6c7086; }
+.hr-form-actions { grid-column: 1 / -1; }
+
+.hr-empty { color: #6c7086; font-size: 13px; margin: 16px 0; }
+.hr-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.hr-table th { text-align: left; padding: 8px 12px; color: #a6adc8; font-weight: 600; border-bottom: 1px solid #313244; }
+.hr-table td { padding: 9px 12px; border-bottom: 1px solid #232334; vertical-align: middle; }
+.hr-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; word-break: break-all; }
+.hr-muted { color: #6c7086; white-space: nowrap; }
+.hr-ok { color: #a6e3a1; }
+.hr-bad { color: #f38ba8; }
+.hr-tag { margin-left: 8px; padding: 1px 6px; border-radius: 4px; font-size: 11px; background: #313244; color: #a6adc8; }
+.hr-tag.warn { color: #f9e2af; }
+.hr-actions { display: flex; gap: 6px; justify-content: flex-end; white-space: nowrap; }
+.hr-danger { color: #f38ba8; }
+</style>
