@@ -103,14 +103,13 @@ func orAll(s string) string {
 	return s
 }
 
-func (m *Manager) GetNetworkPolicies(namespace string) ([]NetworkPolicyInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
+func (m *Manager) GetNetworkPolicies(namespaces []string) ([]NetworkPolicyInfo, error) {
+	return scopedList(m, "GetNetworkPolicies", "networking.k8s.io", "networkpolicies", namespaces, listNetworkPolicies,
+		func(it NetworkPolicyInfo) string { return it.Namespace })
+}
 
+// listNetworkPolicies читает ресурсы одного namespace ("" — все) для GetNetworkPolicies.
+func listNetworkPolicies(ctx context.Context, conn *ClusterConnection, namespace string) ([]NetworkPolicyInfo, error) {
 	list, err := conn.Client.NetworkingV1().NetworkPolicies(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err

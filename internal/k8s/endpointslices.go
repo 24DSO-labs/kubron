@@ -129,14 +129,13 @@ func convertEndpointSlice(es discoveryv1.EndpointSlice) EndpointSliceInfo {
 	return info
 }
 
-func (m *Manager) GetEndpointSlices(namespace string) ([]EndpointSliceInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
+func (m *Manager) GetEndpointSlices(namespaces []string) ([]EndpointSliceInfo, error) {
+	return scopedList(m, "GetEndpointSlices", "discovery.k8s.io", "endpointslices", namespaces, listEndpointSlices,
+		func(it EndpointSliceInfo) string { return it.Namespace })
+}
 
+// listEndpointSlices читает ресурсы одного namespace ("" — все) для GetEndpointSlices.
+func listEndpointSlices(ctx context.Context, conn *ClusterConnection, namespace string) ([]EndpointSliceInfo, error) {
 	list, err := conn.Client.DiscoveryV1().EndpointSlices(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
