@@ -703,6 +703,62 @@ func (a *App) UpgradeHelmRelease(namespace, name, valuesYAML string) (int, error
 	return a.k8sMgr.UpgradeHelmRelease(namespace, name, valuesYAML)
 }
 
+// ВАЖНО: в authz не передаём URL и пароль. Адрес, введённый пользователем, может содержать
+// логин:пароль, а аргументы попадают в журнал аудита. Только имя репозитория.
+
+// ListHelmRepos — репозитории чартов (локальный файл Kubron; пароли наружу не отдаются).
+func (a *App) ListHelmRepos() ([]k8s.HelmRepoInfo, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.ListHelmRepos()
+}
+
+// AddHelmRepo добавляет репозиторий и проверяет его, скачав index.yaml.
+func (a *App) AddHelmRepo(name, url, username, password string, insecureTLS bool) error {
+	if err := a.authz(auth.PermClusterManage, "name", name); err != nil {
+		return err
+	}
+	return a.k8sMgr.AddHelmRepo(name, url, username, password, insecureTLS)
+}
+
+func (a *App) RemoveHelmRepo(name string) error {
+	if err := a.authz(auth.PermClusterManage, "name", name); err != nil {
+		return err
+	}
+	return a.k8sMgr.RemoveHelmRepo(name)
+}
+
+// UpdateHelmRepos обновляет индекс одного репозитория; пустое имя — всех.
+func (a *App) UpdateHelmRepos(name string) ([]k8s.HelmRepoUpdateResult, error) {
+	if err := a.authz(auth.PermClusterManage, "name", name); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.UpdateHelmRepos(name)
+}
+
+func (a *App) SearchHelmCharts(query, repo string) (*k8s.HelmCatalogResult, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.SearchHelmCharts(query, repo)
+}
+
+func (a *App) GetHelmChartVersions(repo, chart string) ([]k8s.HelmChartVersionInfo, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetHelmChartVersions(repo, chart)
+}
+
+// GetHelmChartPackage скачивает архив чарта из репозитория и отдаёт README и values.yaml.
+func (a *App) GetHelmChartPackage(repo, chart, version string) (*k8s.HelmChartPackage, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetHelmChartPackage(repo, chart, version)
+}
+
 func (a *App) GetHelmReleases() ([]k8s.HelmReleaseInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
