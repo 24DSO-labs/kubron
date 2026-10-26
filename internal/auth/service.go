@@ -113,7 +113,12 @@ type Service struct {
 
 // NewService открывает (или создаёт при первом запуске) хранилище пользователей в каталоге dir.
 func NewService(dir string) (*Service, error) {
-	st, err := loadStore(dir)
+	return NewServiceWithBackend(NewFileBackend(dir))
+}
+
+// NewServiceWithBackend открывает сервис поверх произвольного хранилища (файл, PostgreSQL и т. д.).
+func NewServiceWithBackend(b Backend) (*Service, error) {
+	st, err := loadStore(b)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +141,7 @@ func (s *Service) SetAuditor(r Recorder) {
 }
 
 // record пишет событие в журнал. Вызывается под s.mu; actor может быть nil.
-func (s *Service) record(actor *userRecord, action, result, detail string) {
+func (s *Service) record(actor *UserRecord, action, result, detail string) {
 	if s.rec == nil {
 		return
 	}
@@ -157,7 +162,7 @@ func newID() string {
 	return hex.EncodeToString(b)
 }
 
-func toInfo(u *userRecord) *UserInfo {
+func toInfo(u *UserRecord) *UserInfo {
 	info := &UserInfo{
 		ID:                 u.ID,
 		Username:           u.Username,
@@ -178,7 +183,7 @@ func toInfo(u *userRecord) *UserInfo {
 
 // sessionUserLocked возвращает пользователя текущей сессии. Если его удалили или отключили —
 // сессия сбрасывается.
-func (s *Service) sessionUserLocked() *userRecord {
+func (s *Service) sessionUserLocked() *UserRecord {
 	if s.sessionID == "" {
 		return nil
 	}
@@ -218,7 +223,7 @@ func (s *Service) idleExpiredLocked() bool {
 
 // expireLocked завершает сессию из-за бездействия и запускает очистку (терминалы, port-forward).
 // Очистка идёт в отдельной горутине: она не должна выполняться под блокировкой Service.
-func (s *Service) expireLocked(u *userRecord) {
+func (s *Service) expireLocked(u *UserRecord) {
 	s.record(u, "SessionTimeout", audit.ResultOK, fmt.Sprintf("бездействие более %d мин", s.idleMinutesLocked()))
 	s.sessionID = ""
 	if hook := s.onLogout; hook != nil {
@@ -287,7 +292,7 @@ func (s *Service) SetIdleTimeout(minutes int) (int, error) {
 	return minutes, nil
 }
 
-func (s *Service) authorizeLocked(p Permission) (*userRecord, error) {
+func (s *Service) authorizeLocked(p Permission) (*UserRecord, error) {
 	u := s.sessionUserLocked()
 	if u == nil {
 		return nil, ErrNotAuthenticated
@@ -365,7 +370,7 @@ func (s *Service) Setup(username, password string) (*UserInfo, error) {
 		return nil, ErrSetupDone
 	}
 	now := s.now()
-	rec := userRecord{
+	rec := UserRecord{
 		ID: newID(), Username: username, Role: RoleAdmin, PasswordHash: hash,
 		CreatedAt: now, UpdatedAt: now, LastLoginAt: &now,
 	}
@@ -395,11 +400,11 @@ func (s *Service) Login(username, password string) (*UserInfo, error) {
 		return nil, ErrSetupRequired
 	}
 	if remaining := s.lockRemainingLocked(key); remaining > 0 {
-		s.record(&userRecord{Username: username}, "Login", audit.ResultDenied, "вход временно заблокирован после неудачных попыток")
+		s.record(&UserRecord{Username: username}, "Login", audit.ResultDenied, "вход временно заблокирован после неудачных попыток")
 		s.mu.Unlock()
 		return nil, &LockedError{RetryAfter: remaining}
 	}
-	var snapshot *userRecord
+	var snapshot *UserRecord
 	if rec := s.st.findByName(key); rec != nil {
 		c := *rec
 		snapshot = &c
@@ -422,14 +427,14 @@ func (s *Service) Login(username, password string) (*UserInfo, error) {
 	s.mu.Lock()
 	if !ok || snapshot == nil {
 		s.recordFailureLocked(key)
-		s.record(&userRecord{Username: username}, "Login", audit.ResultFailed, ErrInvalidCredentials.Error())
+		s.record(&UserRecord{Username: username}, "Login", audit.ResultFailed, ErrInvalidCredentials.Error())
 		s.mu.Unlock()
 		return nil, ErrInvalidCredentials
 	}
 	rec := s.st.findByID(snapshot.ID)
 	if rec == nil || rec.PasswordHash != snapshot.PasswordHash {
 		// Пользователя удалили или сменили пароль, пока шла проверка.
-		s.record(&userRecord{Username: username}, "Login", audit.ResultFailed, ErrInvalidCredentials.Error())
+		s.record(&UserRecord{Username: username}, "Login", audit.ResultFailed, ErrInvalidCredentials.Error())
 		s.mu.Unlock()
 		return nil, ErrInvalidCredentials
 	}
@@ -609,7 +614,7 @@ func (s *Service) CreateUser(username, password string, role Role) (*UserInfo, e
 		return nil, ErrUserExists
 	}
 	now := s.now()
-	rec := userRecord{
+	rec := UserRecord{
 		ID: newID(), Username: username, Role: role, PasswordHash: hash,
 		MustChangePassword: true, CreatedAt: now, UpdatedAt: now,
 	}
@@ -626,7 +631,7 @@ func (s *Service) CreateUser(username, password string, role Role) (*UserInfo, e
 // mutate применяет изменение к пользователю с откатом при ошибке записи.
 //
 // fn возвращает описание изменения для журнала аудита (например, «admin → user»).
-func (s *Service) mutate(id, action string, fn func(actor, target *userRecord) (string, error)) (*UserInfo, error) {
+func (s *Service) mutate(id, action string, fn func(actor, target *UserRecord) (string, error)) (*UserInfo, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	actor, err := s.authorizeLocked(PermUsersManage)
@@ -664,7 +669,7 @@ func (s *Service) UpdateRole(id string, role Role) (*UserInfo, error) {
 	if !role.Valid() {
 		return nil, ErrUnknownRole
 	}
-	return s.mutate(id, "UpdateUserRole", func(actor, t *userRecord) (string, error) {
+	return s.mutate(id, "UpdateUserRole", func(actor, t *UserRecord) (string, error) {
 		// Свою роль менять нельзя: иначе уже запущенные терминалы и port-forward
 		// пережили бы потерю прав. Понизить администратора может только другой администратор.
 		if actor.ID == t.ID && role != t.Role {
@@ -681,7 +686,7 @@ func (s *Service) UpdateRole(id string, role Role) (*UserInfo, error) {
 
 // SetDisabled включает или отключает учётную запись.
 func (s *Service) SetDisabled(id string, disabled bool) (*UserInfo, error) {
-	return s.mutate(id, "SetUserDisabled", func(actor, t *userRecord) (string, error) {
+	return s.mutate(id, "SetUserDisabled", func(actor, t *UserRecord) (string, error) {
 		if disabled {
 			if actor.ID == t.ID {
 				return "", ErrSelfAction
@@ -707,7 +712,7 @@ func (s *Service) ResetPassword(id, newPassword string) (*UserInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.mutate(id, "ResetUserPassword", func(actor, t *userRecord) (string, error) {
+	return s.mutate(id, "ResetUserPassword", func(actor, t *UserRecord) (string, error) {
 		if actor.ID == t.ID {
 			return "", ErrSelfAction // свой пароль меняют через ChangePassword
 		}
@@ -742,7 +747,7 @@ func (s *Service) DeleteUser(id string) error {
 		s.record(actor, "DeleteUser", audit.ResultFailed, who+": "+ErrLastAdmin.Error())
 		return ErrLastAdmin
 	}
-	prev := append([]userRecord(nil), s.st.users...)
+	prev := append([]UserRecord(nil), s.st.users...)
 	s.st.remove(id)
 	if err := s.st.save(); err != nil {
 		s.st.users = prev
