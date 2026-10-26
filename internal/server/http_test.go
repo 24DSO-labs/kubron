@@ -144,8 +144,8 @@ func TestStaticAndSPAFallback(t *testing.T) {
 	if rec := get(h, "/healthz"); rec.Code != 200 {
 		t.Errorf("healthz: %d", rec.Code)
 	}
-	// ServeMux нормализует путь редиректом; в любом случае содержимое вне корня отдаваться не должно
-	if rec := get(h, "/../../etc/passwd"); (rec.Code != 200 && rec.Code != 301) || strings.Contains(rec.Body.String(), "root:") {
+	// ServeMux нормализует путь редиректом (301/307 — зависит от версии Go); в любом случае содержимое вне корня отдаваться не должно
+	if rec := get(h, "/../../etc/passwd"); (rec.Code != 200 && (rec.Code < 300 || rec.Code > 399)) || strings.Contains(rec.Body.String(), "root:") {
 		t.Errorf("выход за корень: %d", rec.Code)
 	}
 	if rec := get(h, "/etc/passwd"); rec.Code != 200 || !strings.Contains(rec.Body.String(), "app") {
