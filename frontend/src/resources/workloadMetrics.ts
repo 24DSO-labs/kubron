@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 import { computed, defineComponent, h, inject, ref } from 'vue'
 import MetricsBlock from '../components/resource/sections/MetricsBlock.vue'
 import PodSetMetricsViewer from '../components/metrics/PodSetMetricsViewer.vue'

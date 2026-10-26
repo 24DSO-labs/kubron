@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 // oidc-spike — проверка нативного oidc-password против настоящего IdP и кластера.
 //
 // Пароль берётся из переменной KUBRON_SPIKE_PASSWORD (не из флагов, чтобы не попасть в историю shell).

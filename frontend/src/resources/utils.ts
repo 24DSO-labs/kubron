@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 /** В списках встречаются оба формата: плоский (name) и k8s-подобный (metadata.name) */
 export function itemName(item: any): string {
   return item?.name ?? item?.metadata?.name ?? ''

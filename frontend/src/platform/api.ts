@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * Единственное место, где мы обращаемся к Go-биндингам по имени (десктоп, Wails).
  * Веб-реализация (POST /api/rpc/{method}) появится в этапе 1 и выберется при сборке (ADR-0010).

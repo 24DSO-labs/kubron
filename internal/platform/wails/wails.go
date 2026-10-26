@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 // Package wailsplatform — реализация app.Platform для десктопной оболочки на Wails.
 package wailsplatform
 

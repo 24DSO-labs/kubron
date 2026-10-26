@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 import { describe, it, expect } from 'vitest'
 
 // ADR-0010: прямой доступ к Wails-биндингам и runtime — только из src/platform/.

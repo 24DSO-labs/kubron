@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 import { podOwner, type PodOwnerKind } from './utils'
 
 /** Workload приложения, как его отдаёт Go (k8s.ApplicationWorkload) */

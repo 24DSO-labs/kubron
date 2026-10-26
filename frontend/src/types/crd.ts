@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 /** Зеркало Go: internal/k8s/crd.go */
 export interface CRDColumn { name: string; type: string; jsonPath: string; description: string; priority: number }
 
