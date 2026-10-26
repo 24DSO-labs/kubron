@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 /** Результат действия; значения совпадают с internal/audit */
 export type AuditResult = 'ok' | 'failed' | 'denied'
 

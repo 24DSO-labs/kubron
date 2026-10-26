@@ -1,6 +1,10 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 package k8s
 
 import (
+	"analog/pkg/ext"
 	"errors"
 	"fmt"
 	"os"
@@ -9,16 +13,10 @@ import (
 )
 
 // TokenStore — хранилище токенов Argo CD API по идентификатору кластера (ADR-0007, ADR-0008).
-// Реализации: файлы (десктоп) и, позже, PostgreSQL с шифрованием (сервер).
-// Токен приходит уже проверенным (normalizeArgoToken).
-type TokenStore interface {
-	// Put сохраняет токен, заменяя прежний.
-	Put(clusterID, token string) error
-	// Get возвращает токен; если его нет — ErrArgoTokenNotSet.
-	Get(clusterID string) (string, error)
-	// Delete удаляет токен; отсутствие токена — не ошибка.
-	Delete(clusterID string) error
-}
+// Реализации: файлы (десктоп) и, позже, PostgreSQL с шифрованием (сервер). Интерфейс публичный (pkg/ext).
+// Токен приходит уже проверенным (normalizeArgoToken); если токена нет, Get возвращает ошибку,
+// для которой errors.Is(err, ext.ErrNotFound) истинно.
+type TokenStore = ext.TokenStore
 
 // argoTokens — текущее хранилище токенов. По умолчанию файловое.
 var argoTokens TokenStore = fileTokenStore{}

@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 import { defineResource } from '../types'
 import { Perm } from '../../types/auth'
 import type { k8s } from '../../../wailsjs/go/models'

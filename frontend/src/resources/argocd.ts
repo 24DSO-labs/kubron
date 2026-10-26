@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 /** Чистые функции Argo CD: подписи, приоритет «проблемности» и сводка для дашборда (без Vue и Wails) */
 import type { ArgoApplicationInfo } from '../types/argocd'
 

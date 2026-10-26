@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 import { defineComponent, h } from 'vue'
 import HelmContentTab from '../components/resource/sections/HelmContentTab.vue'
 

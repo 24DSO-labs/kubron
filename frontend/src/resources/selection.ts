@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 import { computed, shallowRef, watch } from 'vue'
 
 /** Копия набора с переключённым ключом (набор не мутируем: ref следит за заменой значения) */

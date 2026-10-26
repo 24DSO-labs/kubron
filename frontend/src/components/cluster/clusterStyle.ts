@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 // Оформление кластеров: палитра, значки, метки окружения и чистые хелперы (без DOM и Wails).
 
 export const MAX_CLUSTER_NAME = 60

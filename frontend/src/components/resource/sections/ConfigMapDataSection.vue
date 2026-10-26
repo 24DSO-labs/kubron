@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div v-if="entries.length" class="rd-wide cm-data">
     <div v-for="[key, val] in entries" :key="key" class="cm-data-item">

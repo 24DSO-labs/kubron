@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div v-if="warning" class="idle-overlay" role="alertdialog" aria-modal="true" aria-labelledby="idle-title">
     <div class="idle-dialog">
