@@ -718,20 +718,20 @@ func (a *App) GetHelmReleaseContent(namespace, name string, revision int) (*k8s.
 
 // === Events ===
 
-func (a *App) GetEvents(namespace string) ([]k8s.EventInfo, error) {
+func (a *App) GetEvents(namespaces []string) ([]k8s.EventInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetEvents(namespace)
+	return a.k8sMgr.GetEvents(namespaces)
 }
 
 // === ConfigMaps ===
 
-func (a *App) GetConfigMaps(namespace string) ([]k8s.ConfigMapInfo, error) {
+func (a *App) GetConfigMaps(namespaces []string) ([]k8s.ConfigMapInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetConfigMaps(namespace)
+	return a.k8sMgr.GetConfigMaps(namespaces)
 }
 
 func (a *App) GetConfigMapDetail(namespace, name string) (*k8s.ConfigMapInfo, error) {
@@ -750,11 +750,11 @@ func (a *App) UpdateConfigMap(namespace, name string, data map[string]string) er
 
 // === Secrets ===
 
-func (a *App) GetSecrets(namespace string) ([]k8s.SecretInfo, error) {
+func (a *App) GetSecrets(namespaces []string) ([]k8s.SecretInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetSecrets(namespace)
+	return a.k8sMgr.GetSecrets(namespaces)
 }
 
 func (a *App) GetSecretValue(namespace, name, key string) (string, error) {
@@ -787,11 +787,11 @@ func (a *App) GetPersistentVolumes() ([]k8s.PVInfo, error) {
 	return a.k8sMgr.GetPersistentVolumes()
 }
 
-func (a *App) GetPersistentVolumeClaims(namespace string) ([]k8s.PVCInfo, error) {
+func (a *App) GetPersistentVolumeClaims(namespaces []string) ([]k8s.PVCInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetPersistentVolumeClaims(namespace)
+	return a.k8sMgr.GetPersistentVolumeClaims(namespaces)
 }
 
 func (a *App) GetStorageClasses() ([]k8s.StorageClassInfo, error) {
@@ -803,25 +803,25 @@ func (a *App) GetStorageClasses() ([]k8s.StorageClassInfo, error) {
 
 // === Config (continued) ===
 
-func (a *App) GetLimitRanges(namespace string) ([]k8s.LimitRangeInfo, error) {
+func (a *App) GetLimitRanges(namespaces []string) ([]k8s.LimitRangeInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetLimitRanges(namespace)
+	return a.k8sMgr.GetLimitRanges(namespaces)
 }
 
-func (a *App) GetHPA(namespace string) ([]k8s.HPAInfo, error) {
+func (a *App) GetHPA(namespaces []string) ([]k8s.HPAInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetHPA(namespace)
+	return a.k8sMgr.GetHPA(namespaces)
 }
 
-func (a *App) GetPodDisruptionBudgets(namespace string) ([]k8s.PDBInfo, error) {
+func (a *App) GetPodDisruptionBudgets(namespaces []string) ([]k8s.PDBInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetPodDisruptionBudgets(namespace)
+	return a.k8sMgr.GetPodDisruptionBudgets(namespaces)
 }
 
 func (a *App) GetPriorityClasses() ([]k8s.PriorityClassInfo, error) {
@@ -838,11 +838,11 @@ func (a *App) GetRuntimeClasses() ([]k8s.RuntimeClassInfo, error) {
 	return a.k8sMgr.GetRuntimeClasses()
 }
 
-func (a *App) GetLeases(namespace string) ([]k8s.LeaseInfo, error) {
+func (a *App) GetLeases(namespaces []string) ([]k8s.LeaseInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetLeases(namespace)
+	return a.k8sMgr.GetLeases(namespaces)
 }
 
 func (a *App) GetMutatingWebhookConfigurations() ([]k8s.WebhookConfigurationInfo, error) {
@@ -902,25 +902,25 @@ func (a *App) SetDefaultIngressClass(name string, makeDefault bool) error {
 
 // === Access Control ===
 
-func (a *App) GetServiceAccounts(namespace string) (interface{}, error) {
+func (a *App) GetServiceAccounts(namespaces []string) (interface{}, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetServiceAccounts(namespace)
+	return a.k8sMgr.GetServiceAccounts(namespaces)
 }
 
-func (a *App) GetRoles(namespace string) (interface{}, error) {
+func (a *App) GetRoles(namespaces []string) (interface{}, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetRoles(namespace)
+	return a.k8sMgr.GetRoles(namespaces)
 }
 
-func (a *App) GetRoleBindings(namespace string) (interface{}, error) {
+func (a *App) GetRoleBindings(namespaces []string) (interface{}, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetRoleBindings(namespace)
+	return a.k8sMgr.GetRoleBindings(namespaces)
 }
 
 func (a *App) GetClusterRoles() (interface{}, error) {
@@ -951,11 +951,11 @@ func (a *App) RestartStatefulSet(namespace, name string) error {
 	return a.k8sMgr.RestartStatefulSet(namespace, name)
 }
 
-func (a *App) GetResourceQuotas(namespace string) ([]k8s.ResourceQuotaInfo, error) {
+func (a *App) GetResourceQuotas(namespaces []string) ([]k8s.ResourceQuotaInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetResourceQuotas(namespace)
+	return a.k8sMgr.GetResourceQuotas(namespaces)
 }
 
 // === YAML ===

@@ -5,7 +5,6 @@ package k8s
 
 import (
 	"context"
-	"time"
 
 	coordinationv1 "k8s.io/api/coordination/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,15 +30,13 @@ type LeaseInfo struct {
 	Finalizers           []string          `json:"finalizers"`
 }
 
-func (m *Manager) GetLeases(namespace string) ([]LeaseInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
+func (m *Manager) GetLeases(namespaces []string) ([]LeaseInfo, error) {
+	return scopedList(m, "GetLeases", "coordination.k8s.io", "leases", namespaces, listLeases,
+		func(it LeaseInfo) string { return it.Namespace })
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
+// listLeases читает ресурсы одного namespace ("" — все) для GetLeases.
+func listLeases(ctx context.Context, conn *ClusterConnection, namespace string) ([]LeaseInfo, error) {
 	list, err := conn.Client.CoordinationV1().Leases(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
