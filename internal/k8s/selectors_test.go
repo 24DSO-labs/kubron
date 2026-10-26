@@ -4,6 +4,7 @@
 package k8s
 
 import (
+	"strings"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,6 +42,44 @@ func TestPromLabelValue(t *testing.T) {
 		if got := promLabelValue(in); got != want {
 			t.Errorf("promLabelValue(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestPromPodQueriesByScope(t *testing.T) {
+	mustScope := func(in ...string) nsScope {
+		s, err := parseScope(in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	cases := []struct {
+		name         string
+		scope        nsScope
+		wantCPU      string // подстрока, которая обязана быть в CPU-запросе
+		wantMem      string
+		forbidSubstr string // чего не должно быть
+	}{
+		{"все", mustScope(), `{container!="", container!="POD"}`, `{container!="", container!="POD"}`, "namespace"},
+		{"один — точное совпадение", mustScope("a"), `namespace="a"}`, `{namespace="a",`, `namespace=~`},
+		{"несколько — регулярка", mustScope("b", "a"), `namespace=~"a|b"}`, `{namespace=~"a|b",`, `namespace="`},
+	}
+	for _, c := range cases {
+		cpu, mem := promQueryPodCPUByNs(c.scope), promQueryPodMemByNs(c.scope)
+		if !strings.Contains(cpu, c.wantCPU) || !strings.Contains(mem, c.wantMem) {
+			t.Errorf("%s: cpu=%q mem=%q", c.name, cpu, mem)
+		}
+		// «все»: подстрока namespace допустима только в `sum by (pod, namespace)`
+		for _, q := range []string{cpu, mem} {
+			if strings.Contains(strings.ReplaceAll(q, "by (pod, namespace)", ""), c.forbidSubstr) {
+				t.Errorf("%s: лишнее %q в %q", c.name, c.forbidSubstr, q)
+			}
+		}
+	}
+	// метасимволы не должны попасть в регулярку без экранирования даже в обход parseScope
+	q := promQueryPodCPUByNs(nsScope{names: []string{"a.b", "c"}})
+	if !strings.Contains(q, `namespace=~"a\\.b|c"`) {
+		t.Errorf("нет экранирования: %q", q)
 	}
 }
 

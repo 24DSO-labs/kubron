@@ -997,11 +997,11 @@ func (a *App) CreateResourceYAML(namespace, kind, yamlData string) (string, erro
 
 // === Metrics ===
 
-func (a *App) GetPodMetrics(namespace string) ([]k8s.PodMetrics, error) {
+func (a *App) GetPodMetrics(namespaces []string) ([]k8s.PodMetrics, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetPodMetrics(namespace)
+	return a.k8sMgr.GetPodMetrics(namespaces)
 }
 
 func (a *App) GetNodeMetrics() ([]k8s.NodeMetrics, error) {
