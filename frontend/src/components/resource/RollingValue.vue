@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <span class="rv" :aria-label="value">
     <span v-for="(ch, i) in chars" :key="chars.length - i" class="rv-cell">

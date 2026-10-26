@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 import { ref, shallowRef, onMounted, onUnmounted, watch, type Ref } from 'vue'
 import { callApp } from '../resources/wails'
 import type { ArgoApplicationInfo } from '../types/argocd'

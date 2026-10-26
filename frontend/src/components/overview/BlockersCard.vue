@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <section class="ov-card bl">
     <h2 class="ov-card-title">Blockers</h2>
