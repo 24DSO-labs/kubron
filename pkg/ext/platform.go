@@ -1,0 +1,24 @@
+package ext
+
+// Platform — всё, что ядру нужно от оболочки, в которой оно запущено (ADR-0002).
+// Реализации: Wails (десктоп) и HTTP-сервер.
+type Platform interface {
+	// Emit отправляет событие фронтенду (cluster:changed, logs:* и т. д.).
+	Emit(event string, data ...any)
+	// PickFile показывает диалог выбора файла и возвращает путь ("" — отмена).
+	PickFile(title string) (string, error)
+	// OpenURL открывает ссылку в браузере пользователя.
+	OpenURL(url string)
+	// Capabilities сообщает, что доступно в этой оболочке (фронтенд скрывает недоступное).
+	Capabilities() Capabilities
+}
+
+// Capabilities — возможности оболочки (ADR-0010). Десктоп: всё локальное доступно.
+// Веб-сервер: часть возможностей отключена или иная.
+type Capabilities struct {
+	FileDialog      bool `json:"fileDialog"`      // нативный диалог выбора файла
+	PortForward     bool `json:"portForward"`     // проброс портов
+	NodeShell       bool `json:"nodeShell"`       // оболочка на узле
+	LocalKubeconfig bool `json:"localKubeconfig"` // чтение kubeconfig с диска машины, где запущено ядро
+	SSO             bool `json:"sso"`             // вход через SSO/OIDC (платный модуль, этап 6)
+}
