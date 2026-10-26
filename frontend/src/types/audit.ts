@@ -85,6 +85,9 @@ const ACTION_LABELS: Record<string, string> = {
   GetHelmRevisionDiff: 'Helm: сравнение ревизий',
   PreviewHelmUpgrade: 'Helm: предпросмотр изменения values',
 	UpgradeHelmRelease: 'Helm: изменение values релиза',
+  AddHelmRepo: 'Helm: добавление репозитория',
+	RemoveHelmRepo: 'Helm: удаление репозитория',
+	UpdateHelmRepos: 'Helm: обновление индексов репозиториев',
 
 
 }  
