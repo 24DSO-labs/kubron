@@ -57,14 +57,12 @@ type ArgoProjectInfo struct {
 }
 
 // GetArgoProjects возвращает AppProject из namespace (пустой — из всех).
-func (m *Manager) GetArgoProjects(namespace string) ([]ArgoProjectInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	return listArgoProjects(ctx, conn.DynamicClient, namespace)
+func (m *Manager) GetArgoProjects(namespaces []string) ([]ArgoProjectInfo, error) {
+	return scopedListTimeout(m, 20*time.Second, "GetArgoProjects", "argoproj.io", "appprojects", namespaces,
+		func(ctx context.Context, conn *ClusterConnection, ns string) ([]ArgoProjectInfo, error) {
+			return listArgoProjects(ctx, conn.DynamicClient, ns)
+		},
+		func(it ArgoProjectInfo) string { return it.Namespace })
 }
 
 func listArgoProjects(ctx context.Context, dyn dynamic.Interface, namespace string) ([]ArgoProjectInfo, error) {

@@ -5,7 +5,6 @@ package k8s
 
 import (
 	"context"
-	"time"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,15 +36,13 @@ type LimitRangeInfo struct {
 	Limits       []LimitRangeLimit `json:"limits"`
 }
 
-func (m *Manager) GetLimitRanges(namespace string) ([]LimitRangeInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
+func (m *Manager) GetLimitRanges(namespaces []string) ([]LimitRangeInfo, error) {
+	return scopedList(m, "GetLimitRanges", "", "limitranges", namespaces, listLimitRanges,
+		func(it LimitRangeInfo) string { return it.Namespace })
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
+// listLimitRanges читает ресурсы одного namespace ("" — все) для GetLimitRanges.
+func listLimitRanges(ctx context.Context, conn *ClusterConnection, namespace string) ([]LimitRangeInfo, error) {
 	list, err := conn.Client.CoreV1().LimitRanges(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err

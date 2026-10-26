@@ -6,7 +6,6 @@ package k8s
 import (
 	"context"
 	"fmt"
-	"time"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,15 +38,13 @@ type ResourceQuotaInfo struct {
 	Scopes       []string          `json:"scopes"`
 }
 
-func (m *Manager) GetResourceQuotas(namespace string) ([]ResourceQuotaInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
+func (m *Manager) GetResourceQuotas(namespaces []string) ([]ResourceQuotaInfo, error) {
+	return scopedList(m, "GetResourceQuotas", "", "resourcequotas", namespaces, listResourceQuotas,
+		func(it ResourceQuotaInfo) string { return it.Namespace })
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
+// listResourceQuotas читает ресурсы одного namespace ("" — все) для GetResourceQuotas.
+func listResourceQuotas(ctx context.Context, conn *ClusterConnection, namespace string) ([]ResourceQuotaInfo, error) {
 	list, err := conn.Client.CoreV1().ResourceQuotas(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err

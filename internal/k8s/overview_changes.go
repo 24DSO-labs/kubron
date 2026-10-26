@@ -69,7 +69,7 @@ func (m *Manager) GetRecentChanges(windowMinutes int) ([]ChangeEvent, error) {
 		}
 	}
 
-	if apps, err := m.GetArgoApplications(""); err == nil {
+	if apps, err := m.GetArgoApplications(nil); err == nil {
 		for _, a := range apps {
 			t, err := time.Parse(time.RFC3339, a.LastSyncAt)
 			if err != nil || t.Before(since) {

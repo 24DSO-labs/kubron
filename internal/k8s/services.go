@@ -6,7 +6,6 @@ package k8s
 import (
 	"context"
 	"fmt"
-	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -26,15 +25,13 @@ type ServiceInfo struct {
 	Status       string            `json:"status"`
 }
 
-func (m *Manager) GetServices(namespace string) ([]ServiceInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
+func (m *Manager) GetServices(namespaces []string) ([]ServiceInfo, error) {
+	return scopedList(m, "GetServices", "", "services", namespaces, listServices,
+		func(it ServiceInfo) string { return it.Namespace })
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
+// listServices читает ресурсы одного namespace ("" — все) для GetServices.
+func listServices(ctx context.Context, conn *ClusterConnection, namespace string) ([]ServiceInfo, error) {
 	svcList, err := conn.Client.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err

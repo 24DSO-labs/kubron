@@ -41,6 +41,9 @@ type ClusterConnection struct {
 	argoMu      sync.Mutex
 	argo        *argoCache
 	argoRetryAt time.Time
+
+	// listAll кеширует проверку права на cluster-wide list (выбор нескольких namespace).
+	listAll listAllProbe
 }
 
 // overviewCache лениво запускает informers для главного экрана (только у активного кластера).
