@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 /// <reference types="vitest/config" />
 import {defineConfig} from 'vite'
 import vue from '@vitejs/plugin-vue'

@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 /** Контракты Argo CD: зеркало Go-структур internal/k8s/argocd_types.go */
 
 export type ArgoSyncStatus = 'Synced' | 'OutOfSync' | 'Unknown'

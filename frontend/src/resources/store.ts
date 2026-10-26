@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 import { shallowRef, ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useK8s } from '../composables/useK8s'
 import { useNotifications } from '../composables/useNotifications'

@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 // Package auth — локальная аутентификация (логин/пароль) и ролевая модель Kubron.
 //
 // Модель двухуровневая: роль → набор прав (Permission). Код всегда проверяет ПРАВА, а не роли,

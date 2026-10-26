@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 import type { Component } from 'vue'
 import type { Permission } from '../types/auth'
 
