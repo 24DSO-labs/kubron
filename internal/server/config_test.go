@@ -1,0 +1,82 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
+package server
+
+import (
+	"context"
+	"io"
+	"net"
+	"net/http"
+	"testing"
+	"time"
+)
+
+func env(m map[string]string) func(string) string { return func(k string) string { return m[k] } }
+
+func TestLoadConfigDefaultsEnvAndFlags(t *testing.T) {
+	cfg, err := LoadConfig(nil, env(nil), io.Discard)
+	if err != nil || cfg.Listen != "127.0.0.1:8080" || cfg.AllowRemote {
+		t.Fatalf("по умолчанию: %+v %v", cfg, err)
+	}
+	cfg, err = LoadConfig(nil, env(map[string]string{"KUBRON_LISTEN": "127.0.0.1:9000"}), io.Discard)
+	if err != nil || cfg.Listen != "127.0.0.1:9000" {
+		t.Fatalf("env: %+v %v", cfg, err)
+	}
+	cfg, err = LoadConfig([]string{"--listen", "localhost:7000"}, env(map[string]string{"KUBRON_LISTEN": "127.0.0.1:9000"}), io.Discard)
+	if err != nil || cfg.Listen != "localhost:7000" {
+		t.Fatalf("флаг важнее env: %+v %v", cfg, err)
+	}
+	if _, err := LoadConfig([]string{"--unknown"}, env(nil), io.Discard); err == nil {
+		t.Error("неизвестный флаг должен давать ошибку")
+	}
+}
+
+func TestRemoteListenNeedsExplicitAllow(t *testing.T) {
+	for _, addr := range []string{":8080", "0.0.0.0:8080", "192.168.1.5:8080", "[::]:8080"} {
+		if _, err := LoadConfig([]string{"--listen", addr}, env(nil), io.Discard); err == nil {
+			t.Errorf("%s без --allow-remote должен отклоняться", addr)
+		}
+		if _, err := LoadConfig([]string{"--listen", addr, "--allow-remote"}, env(nil), io.Discard); err != nil {
+			t.Errorf("%s с --allow-remote: %v", addr, err)
+		}
+	}
+	for _, addr := range []string{"127.0.0.1:1", "localhost:1", "[::1]:1"} {
+		if _, err := LoadConfig([]string{"--listen", addr}, env(nil), io.Discard); err != nil {
+			t.Errorf("loopback %s: %v", addr, err)
+		}
+	}
+	if _, err := LoadConfig([]string{"--listen", "bad"}, env(nil), io.Discard); err == nil {
+		t.Error("адрес без порта должен отклоняться")
+	}
+	cfg, err := LoadConfig(nil, env(map[string]string{"KUBRON_LISTEN": "0.0.0.0:80", "KUBRON_ALLOW_REMOTE": "1"}), io.Discard)
+	if err != nil || !cfg.AllowRemote {
+		t.Errorf("env allow-remote: %+v %v", cfg, err)
+	}
+}
+
+func TestServeAndGracefulShutdown(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- Serve(ctx, ln, testHandler(t)) }()
+
+	resp, err := http.Get("http://" + ln.Addr().String() + "/healthz")
+	if err != nil || resp.StatusCode != 200 {
+		t.Fatalf("healthz: %v %v", resp, err)
+	}
+	resp.Body.Close()
+
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Serve после отмены: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("сервер не завершился после отмены контекста")
+	}
+}
