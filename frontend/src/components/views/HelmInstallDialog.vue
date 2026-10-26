@@ -91,13 +91,13 @@ const props = defineProps<{ repo: string; chart: string; version: string; defaul
 const emit = defineEmits<{ (e: 'close'): void; (e: 'installed', r: InstallResult): void }>()
 
 const notifications = useNotifications()
-const { namespaces, selectedNamespace } = useK8s()
+const { namespaces, selectedNamespaces } = useK8s()
 
 const DNS_LABEL = /^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$/
 const RELEASE = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/
 
 const releaseName = ref(props.chart.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '').slice(0, 53))
-const namespace = ref(selectedNamespace.value || 'default')
+const namespace = ref(selectedNamespaces.value[0] || 'default')
 const createNamespace = ref(false)
 const wait = ref(true)
 const overrides = ref('')
