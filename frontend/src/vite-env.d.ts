@@ -3,6 +3,11 @@
 
 /// <reference types="vite/client" />
 
+interface ImportMetaEnv {
+  /** 'web' — сборка для kubron-server (`vite build --mode web`); не задано — десктоп (Wails) */
+  readonly VITE_TARGET?: 'web'
+}
+
 declare module '*.vue' {
     import type {DefineComponent} from 'vue'
     const component: DefineComponent<{}, {}, any>
