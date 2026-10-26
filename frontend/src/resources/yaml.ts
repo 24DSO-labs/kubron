@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 /** Построители YAML-строк для блока "Affinity" в панелях (рисует CodeBlockSection) */
 
 const sp = (n: number) => '  '.repeat(n)

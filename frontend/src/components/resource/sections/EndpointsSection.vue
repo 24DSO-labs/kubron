@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="rd-row rd-click" @click="open = !open">
     <span class="rd-label">Endpoints<span class="rd-arrow" :class="{ open }">›</span></span>

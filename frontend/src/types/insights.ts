@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 /** Зеркало Go: internal/k8s/overview_risks.go, overview_changes.go, overview_certs.go */
 export interface NodeHeadroom {
   name: string

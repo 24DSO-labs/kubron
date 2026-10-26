@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <section class="ov-card warnings">
     <h2 class="ov-card-title">Warnings, last hour</h2>
