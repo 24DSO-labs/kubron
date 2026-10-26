@@ -7,6 +7,7 @@ import (
 	"context"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -25,14 +26,13 @@ func (m *Manager) GetServiceAccountDetail(namespace string, name string) (interf
 	return sa, nil
 }
 
-func (m *Manager) GetServiceAccounts(namespace string) (interface{}, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+func (m *Manager) GetServiceAccounts(namespaces []string) (interface{}, error) {
+	return scopedList(m, "GetServiceAccounts", "", "serviceaccounts", namespaces, listServiceAccounts,
+		func(it corev1.ServiceAccount) string { return it.Namespace })
+}
 
+// listServiceAccounts читает ресурсы одного namespace ("" — все) для GetServiceAccounts.
+func listServiceAccounts(ctx context.Context, conn *ClusterConnection, namespace string) ([]corev1.ServiceAccount, error) {
 	list, err := conn.Client.CoreV1().ServiceAccounts(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err

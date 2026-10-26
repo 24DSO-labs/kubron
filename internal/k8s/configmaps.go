@@ -23,15 +23,13 @@ type ConfigMapInfo struct {
 	Data         map[string]string `json:"data"`
 }
 
-func (m *Manager) GetConfigMaps(namespace string) ([]ConfigMapInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
+func (m *Manager) GetConfigMaps(namespaces []string) ([]ConfigMapInfo, error) {
+	return scopedList(m, "GetConfigMaps", "", "configmaps", namespaces, listConfigMaps,
+		func(it ConfigMapInfo) string { return it.Namespace })
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
+// listConfigMaps читает ресурсы одного namespace ("" — все) для GetConfigMaps.
+func listConfigMaps(ctx context.Context, conn *ClusterConnection, namespace string) ([]ConfigMapInfo, error) {
 	cmList, err := conn.Client.CoreV1().ConfigMaps(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
