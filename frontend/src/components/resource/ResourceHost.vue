@@ -112,7 +112,7 @@ watch(
     // 3) ресурс открыт по ссылке (по имени), а в кэше его нет: ищем в списке
     if (!detail.value) {
       try {
-        const items = await d.api.list(d.namespaced ? o.ns : '')
+        const items = await d.api.list(d.namespaced ? [o.ns] : [])
         if (stale()) return
         detail.value =
           items?.find((x: any) => itemName(x) === o.name && (!d.namespaced || itemNs(x) === o.ns)) ?? null
