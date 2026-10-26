@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -24,8 +25,11 @@ func TestFileTokenStoreRoundTrip(t *testing.T) {
 	if len(files) != 1 {
 		t.Fatalf("ждали один файл токена, есть %v", files)
 	}
-	if st, _ := os.Stat(files[0]); st.Mode().Perm() != 0o600 {
-		t.Errorf("права файла %v, ждали 0600", st.Mode().Perm())
+	// В Windows Unix-прав нет (Perm() всегда 0666): проверяем только там, где они есть.
+	if runtime.GOOS != "windows" {
+		if st, _ := os.Stat(files[0]); st.Mode().Perm() != 0o600 {
+			t.Errorf("права файла %v, ждали 0600", st.Mode().Perm())
+		}
 	}
 	if err := s.Delete("c1"); err != nil {
 		t.Fatal(err)
