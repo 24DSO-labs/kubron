@@ -60,6 +60,38 @@ func TestArgoCacheListAndNamespaceFilter(t *testing.T) {
 	}
 }
 
+func TestArgoCacheFiltersBySet(t *testing.T) {
+	dyn := newFakeArgoDyn(
+		argoObj("Application", "ns-c", "w", nil),
+		argoObj("Application", "ns-b", "z", nil),
+		argoObj("Application", "ns-a", "y", nil),
+		argoObj("Application", "ns-a", "x", nil),
+	)
+	ac, err := newArgoCache(dyn, nil, 10*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ac.stop()
+	waitFor(t, "синхронизация informer", ac.inf.HasSynced)
+
+	got, ok := ac.list(nsScope{names: []string{"ns-a", "ns-c"}})
+	if !ok || len(got) != 3 {
+		t.Fatalf("набор из двух namespace: ok=%v %+v", ok, got)
+	}
+	// порядок детерминирован: по namespace, затем по имени; ns-b в ответ не попадает
+	want := [][2]string{{"ns-a", "x"}, {"ns-a", "y"}, {"ns-c", "w"}}
+	for i, w := range want {
+		if got[i].Namespace != w[0] || got[i].Name != w[1] {
+			t.Errorf("позиция %d: %s/%s, ожидалось %s/%s", i, got[i].Namespace, got[i].Name, w[0], w[1])
+		}
+	}
+
+	none, ok := ac.list(nsScope{names: []string{"ns-missing"}})
+	if !ok || len(none) != 0 {
+		t.Errorf("namespace без Application: ok=%v %+v", ok, none)
+	}
+}
+
 func TestArgoCacheNotifiesOncePerBurst(t *testing.T) {
 	dyn := newFakeArgoDyn()
 	var calls atomic.Int32
