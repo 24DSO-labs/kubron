@@ -80,3 +80,19 @@ func TestServeAndGracefulShutdown(t *testing.T) {
 		t.Fatal("сервер не завершился после отмены контекста")
 	}
 }
+
+func TestLoadConfigSessionAndProxy(t *testing.T) {
+	cfg, err := LoadConfig(nil, env(nil), io.Discard)
+	if err != nil || cfg.SessionTTL != 12*time.Hour || cfg.TrustProxy {
+		t.Fatalf("умолчания: %+v %v", cfg, err)
+	}
+	cfg, err = LoadConfig([]string{"--session-ttl", "30m"}, env(map[string]string{"KUBRON_TRUST_PROXY": "1"}), io.Discard)
+	if err != nil || cfg.SessionTTL != 30*time.Minute || !cfg.TrustProxy {
+		t.Fatalf("флаги и env: %+v %v", cfg, err)
+	}
+	for _, bad := range []map[string]string{{"KUBRON_SESSION_TTL": "быстро"}, {"KUBRON_SESSION_TTL": "-1h"}} {
+		if _, err := LoadConfig(nil, env(bad), io.Discard); err == nil {
+			t.Errorf("%v: ждали ошибку", bad)
+		}
+	}
+}
