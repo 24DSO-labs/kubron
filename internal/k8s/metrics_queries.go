@@ -62,23 +62,26 @@ func promQueryClusterMemAvailableBytes() string {
 	return `sum(node_memory_MemAvailable_bytes)`
 }
 
-func promQueryPodCPUByNs(namespace string) string {
-	if namespace == "" {
+// promQueryPodCPUByNs — CPU подов набора namespace: «все» без фильтра, один — точное совпадение,
+// несколько — регулярное выражение (см. promNamespaceMatcher).
+func promQueryPodCPUByNs(scope nsScope) string {
+	if scope.all() {
 		return `sum by (pod, namespace) (rate(container_cpu_usage_seconds_total{container!="", container!="POD"}[5m])) * 1000`
 	}
 	return fmt.Sprintf(
-		`sum by (pod, namespace) (rate(container_cpu_usage_seconds_total{container!="", container!="POD", namespace="%s"}[5m])) * 1000`,
-		promLabelValue(namespace),
+		`sum by (pod, namespace) (rate(container_cpu_usage_seconds_total{container!="", container!="POD", %s}[5m])) * 1000`,
+		promNamespaceMatcher(scope),
 	)
 }
 
-func promQueryPodMemByNs(namespace string) string {
-	if namespace == "" {
+// promQueryPodMemByNs — память подов набора namespace (семантика набора — как у promQueryPodCPUByNs).
+func promQueryPodMemByNs(scope nsScope) string {
+	if scope.all() {
 		return `sum by (pod, namespace) (container_memory_working_set_bytes{container!="", container!="POD"})`
 	}
 	return fmt.Sprintf(
-		`sum by (pod, namespace) (container_memory_working_set_bytes{namespace="%s", container!="", container!="POD"})`,
-		promLabelValue(namespace),
+		`sum by (pod, namespace) (container_memory_working_set_bytes{%s, container!="", container!="POD"})`,
+		promNamespaceMatcher(scope),
 	)
 }
 

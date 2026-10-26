@@ -72,16 +72,15 @@ type ApplicationInfo struct {
 	ExposedURLs  []string          `json:"exposedUrls"`
 }
 
-// GetApplications — приложения namespace (все namespace при пустом значении).
-func (m *Manager) GetApplications(namespace string) ([]ApplicationInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
+// GetApplications — приложения набора namespace (пусто — все namespace).
+// Приложение собирается из ресурсов одного namespace, поэтому набор читается по частям.
+func (m *Manager) GetApplications(namespaces []string) ([]ApplicationInfo, error) {
+	return scopedListTimeout(m, 20*time.Second, "GetApplications", "apps", "deployments", namespaces,
+		listApplications, func(it ApplicationInfo) string { return it.Namespace })
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-
+// listApplications собирает приложения одного namespace ("" — все).
+func listApplications(ctx context.Context, conn *ClusterConnection, namespace string) ([]ApplicationInfo, error) {
 	opts := metav1.ListOptions{}
 	deps, err := conn.Client.AppsV1().Deployments(namespace).List(ctx, opts)
 	if err != nil {

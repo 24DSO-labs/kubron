@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -47,15 +46,13 @@ type HPAInfo struct {
 	Finalizers     []string          `json:"finalizers"`
 }
 
-func (m *Manager) GetHPA(namespace string) ([]HPAInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
+func (m *Manager) GetHPA(namespaces []string) ([]HPAInfo, error) {
+	return scopedList(m, "GetHPA", "autoscaling", "horizontalpodautoscalers", namespaces, listHPA,
+		func(it HPAInfo) string { return it.Namespace })
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
+// listHPA читает ресурсы одного namespace ("" — все) для GetHPA.
+func listHPA(ctx context.Context, conn *ClusterConnection, namespace string) ([]HPAInfo, error) {
 	list, err := conn.Client.AutoscalingV2().HorizontalPodAutoscalers(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err

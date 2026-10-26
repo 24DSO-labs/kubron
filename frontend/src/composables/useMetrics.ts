@@ -119,7 +119,7 @@ export function usePodMetrics(clusterName: string, namespace: string) {
 
   async function fetch() {
     try {
-      const data = await callApp('GetPodMetrics', namespace)
+      const data = await callApp('GetPodMetrics', namespace ? [namespace] : [])
 
       // Backend currently returns only CPU as string (TotalCPU) and uses field names
       // that may not match PodMetricSnapshot exactly. Normalize here to avoid 0/undefined in UI.

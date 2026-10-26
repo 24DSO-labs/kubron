@@ -10,6 +10,8 @@ import type {
   PodMetricsInfo, PortForwardSession,
 } from '../types'
 import { callApp } from '../platform/api'
+import { resetListFailures } from './useListFailures'
+import { normalizeSelection, restoreSelection, sameSelection, saveSelection } from './namespaceSelection'
 
 /*
  * useK8s: состояние и загрузка данных для СТАРЫХ view.
@@ -45,7 +47,11 @@ const clearableLists: Ref<any[]>[] = [
 
 // ─── State: навигация и выбранное ───
 
-const selectedNamespace = ref('') // '' = все namespaces
+// Выбранные namespace: [] = все, [a] = один, [a, b, ...] = набор.
+// Массив всегда заменяется целиком (не мутируется): так срабатывают watch и shallowRef.
+const selectedNamespaces = ref<string[]>([])
+/** Кластер, под которым сохраняется выбор namespace (пусто — до подключения) */
+let namespaceScopeId = ''
 const currentView = ref('overview')
 const search = ref('')
 const error = ref('')
@@ -56,7 +62,8 @@ const loading = ref(false)
 
 function disconnect() {
   for (const l of clearableLists) l.value = []
-  selectedNamespace.value = ''
+  selectedNamespaces.value = []
+  namespaceScopeId = ''
   loadedViews.clear()
 }
 
@@ -72,7 +79,7 @@ async function loadNamespaces() {
  * за время запроса не стартовал более свежий refresh: так медленный ответ
  * для старого namespace не затирает новый.
  */
-type Loader = (ns: string, isCurrent: () => boolean) => Promise<void>
+type Loader = (ns: string[], isCurrent: () => boolean) => Promise<void>
 
 /**
  * view -> как его грузить. Для view, которых здесь нет (новый каркас, settings),
@@ -99,7 +106,7 @@ async function refreshData() {
   loading.value = !loadedViews.has(view)
 
   try {
-    await loader(selectedNamespace.value, isCurrent)
+    await loader(selectedNamespaces.value, isCurrent)
     if (isCurrent()) loadedViews.add(view)
   } catch (e) {
     if (isCurrent()) fail('Ошибка', e)
@@ -123,6 +130,30 @@ function switchView(view: string) {
   debouncedRefresh()
 }
 
+/**
+ * Выбор пользователя: нормализуется по списку namespace кластера, запоминается для кластера
+ * и применяется перезагрузкой данных.
+ */
+function selectNamespaces(next: string[]) {
+  const available = namespaces.value.map(n => n.name)
+  const normalized = normalizeSelection(next, available.length ? available : undefined)
+  if (sameSelection(normalized, selectedNamespaces.value)) return
+  selectedNamespaces.value = normalized
+  resetListFailures()
+  saveSelection(namespaceScopeId, normalized)
+  onNamespaceChange()
+}
+
+/**
+ * Восстановление выбора после loadNamespaces() при подключении: сохранённый для кластера,
+ * иначе namespace по умолчанию из настроек кластера, иначе «все».
+ */
+function restoreNamespaces(clusterId: string, defaultNamespace: string) {
+  namespaceScopeId = clusterId
+  resetListFailures()
+  selectedNamespaces.value = restoreSelection(clusterId, namespaces.value.map(n => n.name), defaultNamespace)
+}
+
 function onNamespaceChange() {
   if (refreshTimeout) { clearTimeout(refreshTimeout); refreshTimeout = null }
   refreshData()
@@ -143,7 +174,7 @@ function createResourceYAML(content: string, kind: string, namespace: string): P
 // ─── Метрики ───
 
 async function loadPodMetrics() {
-  try { podMetrics.value = (await callApp('GetPodMetrics', selectedNamespace.value)) || [] }
+  try { podMetrics.value = (await callApp('GetPodMetrics', selectedNamespaces.value)) || [] }
   catch { /* оставляем прошлые значения, чтобы таблица не мигала */ }
 }
 
@@ -167,7 +198,7 @@ export function useK8s() {
     // State
     namespaces,
     podMetrics, portForwards,
-    selectedNamespace, currentView, search,
+    selectedNamespaces, selectNamespaces, restoreNamespaces, currentView, search,
     error, loading,
 
     // Helpers

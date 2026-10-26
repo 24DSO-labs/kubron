@@ -50,13 +50,45 @@ func TestArgoCacheListAndNamespaceFilter(t *testing.T) {
 
 	waitFor(t, "синхронизация informer", ac.inf.HasSynced)
 
-	all, ok := ac.list("")
+	all, ok := ac.list(nsScope{})
 	if !ok || len(all) != 3 || all[0].Name != "x" || all[2].Namespace != "ns-b" {
 		t.Fatalf("all: ok=%v %+v", ok, all)
 	}
-	one, ok := ac.list("ns-a")
+	one, ok := ac.list(nsScope{names: []string{"ns-a"}})
 	if !ok || len(one) != 2 {
 		t.Fatalf("ns-a: ok=%v %+v", ok, one)
+	}
+}
+
+func TestArgoCacheFiltersBySet(t *testing.T) {
+	dyn := newFakeArgoDyn(
+		argoObj("Application", "ns-c", "w", nil),
+		argoObj("Application", "ns-b", "z", nil),
+		argoObj("Application", "ns-a", "y", nil),
+		argoObj("Application", "ns-a", "x", nil),
+	)
+	ac, err := newArgoCache(dyn, nil, 10*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ac.stop()
+	waitFor(t, "синхронизация informer", ac.inf.HasSynced)
+
+	got, ok := ac.list(nsScope{names: []string{"ns-a", "ns-c"}})
+	if !ok || len(got) != 3 {
+		t.Fatalf("набор из двух namespace: ok=%v %+v", ok, got)
+	}
+	// порядок детерминирован: по namespace, затем по имени; ns-b в ответ не попадает
+	want := [][2]string{{"ns-a", "x"}, {"ns-a", "y"}, {"ns-c", "w"}}
+	for i, w := range want {
+		if got[i].Namespace != w[0] || got[i].Name != w[1] {
+			t.Errorf("позиция %d: %s/%s, ожидалось %s/%s", i, got[i].Namespace, got[i].Name, w[0], w[1])
+		}
+	}
+
+	none, ok := ac.list(nsScope{names: []string{"ns-missing"}})
+	if !ok || len(none) != 0 {
+		t.Errorf("namespace без Application: ok=%v %+v", ok, none)
 	}
 }
 
@@ -81,7 +113,7 @@ func TestArgoCacheNotifiesOncePerBurst(t *testing.T) {
 	if got := calls.Load(); got != 1 {
 		t.Fatalf("серия из 3 изменений должна дать 1 уведомление, получили %d", got)
 	}
-	waitFor(t, "объекты в кеше", func() bool { l, _ := ac.list(""); return len(l) == 3 })
+	waitFor(t, "объекты в кеше", func() bool { l, _ := ac.list(nsScope{}); return len(l) == 3 })
 
 	// Удаление тоже уведомляет.
 	if err := dyn.Resource(gvr).Namespace("argocd").Delete(context.Background(), "a", metav1.DeleteOptions{}); err != nil {
@@ -154,7 +186,7 @@ func TestGetArgoApplicationsUsesCacheAfterSync(t *testing.T) {
 	waitFor(t, "синхронизация informer", ac.inf.HasSynced)
 
 	before := lists.Load()
-	got, ok := ac.list("")
+	got, ok := ac.list(nsScope{})
 	if !ok || len(got) != 1 || lists.Load() != before {
 		t.Fatalf("чтение из кеша не должно обращаться к API: ok=%v n=%d lists %d→%d", ok, len(got), before, lists.Load())
 	}

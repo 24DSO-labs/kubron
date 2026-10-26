@@ -26,15 +26,13 @@ type EventInfo struct {
 	InvolvedName string `json:"involvedName"`
 }
 
-func (m *Manager) GetEvents(namespace string) ([]EventInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
+func (m *Manager) GetEvents(namespaces []string) ([]EventInfo, error) {
+	return scopedList(m, "GetEvents", "", "events", namespaces, listEvents,
+		func(it EventInfo) string { return it.Namespace })
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
+// listEvents читает ресурсы одного namespace ("" — все) для GetEvents.
+func listEvents(ctx context.Context, conn *ClusterConnection, namespace string) ([]EventInfo, error) {
 	eventList, err := conn.Client.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err

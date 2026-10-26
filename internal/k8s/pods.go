@@ -120,15 +120,13 @@ type PodInfo struct {
 	RuntimeClassName  string `json:"runtimeClassName"`
 }
 
-func (m *Manager) GetPods(namespace string) ([]PodInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
+func (m *Manager) GetPods(namespaces []string) ([]PodInfo, error) {
+	return scopedList(m, "GetPods", "", "pods", namespaces, listPods,
+		func(it PodInfo) string { return it.Namespace })
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
+// listPods читает ресурсы одного namespace ("" — все) для GetPods.
+func listPods(ctx context.Context, conn *ClusterConnection, namespace string) ([]PodInfo, error) {
 	podList, err := conn.Client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err

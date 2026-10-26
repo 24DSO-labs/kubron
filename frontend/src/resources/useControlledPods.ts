@@ -43,7 +43,7 @@ export function useControlledPods(getResource: () => any) {
     const name = itemName(r)
     loading.value = true
     try {
-      const all = ((await callApp('GetPods', ns)) as any[]) ?? []
+      const all = ((await callApp('GetPods', [ns])) as any[]) ?? []
       pods.value = all.filter(p => p.namespace === ns && belongs(p, name, r.selector))
     } catch {
       pods.value = []

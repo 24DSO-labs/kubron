@@ -27,15 +27,13 @@ type SecretInfo struct {
 	ManagedBy    string `json:"managedBy"`
 }
 
-func (m *Manager) GetSecrets(namespace string) ([]SecretInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
+func (m *Manager) GetSecrets(namespaces []string) ([]SecretInfo, error) {
+	return scopedList(m, "GetSecrets", "", "secrets", namespaces, listSecrets,
+		func(it SecretInfo) string { return it.Namespace })
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
+// listSecrets читает ресурсы одного namespace ("" — все) для GetSecrets.
+func listSecrets(ctx context.Context, conn *ClusterConnection, namespace string) ([]SecretInfo, error) {
 	secretList, err := conn.Client.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err

@@ -69,7 +69,7 @@ async function load() {
   const name = nodeName.value
   if (!name) return
   // Метрики опциональны (стек может быть не установлен): их отказ не должен прятать список
-  const [p, m] = await Promise.allSettled([callApp('GetPods', ''), callApp('GetPodMetrics', '')])
+  const [p, m] = await Promise.allSettled([callApp('GetPods', []), callApp('GetPodMetrics', [])])
   if (my !== seq) return
   if (p.status === 'fulfilled') pods.value = ((p.value as any[]) ?? []).filter(x => x.node === name)
   if (m.status === 'fulfilled') {
