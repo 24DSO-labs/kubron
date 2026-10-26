@@ -9,15 +9,10 @@
 package audit
 
 import (
-	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 	"unicode/utf8"
 )
@@ -67,25 +62,22 @@ type Page struct {
 	WriteError string  `json:"writeError"` // последняя ошибка записи в журнал, если была
 }
 
-// Logger — потокобезопасный журнал.
+// Logger — потокобезопасный журнал поверх хранилища записей (Backend).
 type Logger struct {
 	mu       sync.Mutex
-	dir      string
+	backend  Backend
 	now      func() time.Time
-	maxSize  int64
 	writeErr string
 }
 
-// Open создаёт журнал в каталоге dir (каталог создаётся при первой записи).
+// Open создаёт журнал в файлах каталога dir (каталог создаётся при первой записи).
 func Open(dir string) *Logger {
-	return &Logger{dir: dir, now: time.Now, maxSize: maxFileSize}
+	return New(NewFileBackend(dir))
 }
 
-func (l *Logger) path(i int) string {
-	if i == 0 {
-		return filepath.Join(l.dir, fileName)
-	}
-	return filepath.Join(l.dir, fmt.Sprintf("%s.%d", fileName, i))
+// New создаёт журнал поверх произвольного хранилища (файлы, PostgreSQL и т. д.).
+func New(b Backend) *Logger {
+	return &Logger{backend: b, now: time.Now}
 }
 
 // clip обрезает строку по символам (не ломая UTF-8) и убирает управляющие символы:
@@ -120,49 +112,19 @@ func (l *Logger) Record(e Event) {
 	e.Time = e.Time.UTC()
 	e.User, e.Role, e.Action, e.Result, e.Detail = clip(e.User), clip(e.Role), clip(e.Action), clip(e.Result), clip(e.Detail)
 
-	if err := l.appendLocked(e); err != nil {
+	if err := l.append(e); err != nil {
 		l.writeErr = err.Error()
 		return
 	}
 	l.writeErr = ""
 }
 
-func (l *Logger) appendLocked(e Event) error {
+func (l *Logger) append(e Event) error {
 	line, err := json.Marshal(e)
 	if err != nil {
 		return err
 	}
-	line = append(line, '\n')
-
-	if err := os.MkdirAll(l.dir, 0o700); err != nil {
-		return err
-	}
-	if st, err := os.Stat(l.path(0)); err == nil && st.Size()+int64(len(line)) > l.maxSize {
-		if err := l.rotateLocked(); err != nil {
-			return err
-		}
-	}
-	f, err := os.OpenFile(l.path(0), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
-	if err != nil {
-		return err
-	}
-	if _, err := f.Write(line); err != nil {
-		f.Close()
-		return err
-	}
-	return f.Close()
-}
-
-func (l *Logger) rotateLocked() error {
-	if err := os.Remove(l.path(keepFiles - 1)); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	for i := keepFiles - 2; i >= 0; i-- {
-		if err := os.Rename(l.path(i), l.path(i+1)); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return err
-		}
-	}
-	return nil
+	return l.backend.Append(line)
 }
 
 func parseTime(s, field string) (time.Time, error) {
@@ -203,57 +165,29 @@ func (l *Logger) Query(f Filter) (*Page, error) {
 	defer l.mu.Unlock()
 
 	page := &Page{Events: []Event{}, WriteError: l.writeErr}
-	for i := 0; i < keepFiles; i++ {
-		lines, err := readLines(l.path(i))
-		if err != nil {
-			return nil, err
+	err = l.backend.ScanNewestFirst(func(line []byte) bool {
+		var e Event
+		if json.Unmarshal(line, &e) != nil {
+			return true // повреждённая строка (например, обрыв записи) не должна скрывать остальные
 		}
-		for j := len(lines) - 1; j >= 0; j-- {
-			var e Event
-			if json.Unmarshal(lines[j], &e) != nil {
-				continue // повреждённая строка (например, обрыв записи) не должна скрывать остальные
-			}
-			if (!since.IsZero() && e.Time.Before(since)) || (!until.IsZero() && !e.Time.Before(until)) {
-				continue
-			}
-			if f.Result != "" && e.Result != f.Result {
-				continue
-			}
-			if (user != "" && !contains(e.User, user)) || (action != "" && !contains(e.Action, action)) || (text != "" && !contains(e.Detail, text)) {
-				continue
-			}
-			if len(page.Events) == limit {
-				page.Truncated = true
-				return page, nil
-			}
-			page.Events = append(page.Events, e)
+		if (!since.IsZero() && e.Time.Before(since)) || (!until.IsZero() && !e.Time.Before(until)) {
+			return true
 		}
+		if f.Result != "" && e.Result != f.Result {
+			return true
+		}
+		if (user != "" && !contains(e.User, user)) || (action != "" && !contains(e.Action, action)) || (text != "" && !contains(e.Detail, text)) {
+			return true
+		}
+		if len(page.Events) == limit {
+			page.Truncated = true
+			return false
+		}
+		page.Events = append(page.Events, e)
+		return true
+	})
+	if err != nil {
+		return nil, err
 	}
 	return page, nil
-}
-
-// readLines читает непустые строки файла; отсутствие файла — не ошибка.
-func readLines(path string) ([][]byte, error) {
-	f, err := os.Open(path)
-	// ENOTDIR: на пути лежит файл вместо каталога — журнала там тоже нет.
-	if errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("не удалось прочитать журнал: %w", err)
-	}
-	defer f.Close()
-
-	var out [][]byte
-	r := bufio.NewReaderSize(f, 64<<10)
-	for {
-		line, err := r.ReadBytes('\n')
-		if len(strings.TrimSpace(string(line))) > 0 {
-			out = append(out, line)
-		}
-		if err != nil {
-			break
-		}
-	}
-	return out, nil
 }
