@@ -25,7 +25,7 @@ function ownedBy(pods: any[], kind: string, names: Set<string>): any[] {
  * kind — id ресурса в нижнем регистре ('deployment', 'daemonset', ...).
  */
 export async function getWorkloadPods(kind: string, ns: string, name: string): Promise<any[]> {
-  const pods = (((await callApp('GetPods', ns)) as any[]) ?? []).filter(p => p.namespace === ns)
+  const pods = (((await callApp('GetPods', [ns])) as any[]) ?? []).filter(p => p.namespace === ns)
 
   switch (kind.toLowerCase()) {
     case 'pod':

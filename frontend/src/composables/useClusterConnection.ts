@@ -16,11 +16,11 @@ export function useClusterConnection(deps: {
   clusters: Ref<ClusterStatus[]>
   activeClusterId: Ref<string>
   error: Ref<string>
-  selectedNamespace: Ref<string>
   namespaces: Ref<NamespaceInfo[]>
   currentView: Ref<string>
   connectToCluster: (id: string) => Promise<void>
   loadNamespaces: () => Promise<void>
+  restoreNamespaces: (clusterId: string, defaultNamespace: string) => void
   refreshData: () => Promise<void>
   k8sDisconnect: () => void
   loadClusters: () => Promise<void>
@@ -33,8 +33,8 @@ export function useClusterConnection(deps: {
 }) {
   const {
     clusters, activeClusterId, error,
-    selectedNamespace, namespaces, currentView,
-    connectToCluster, loadNamespaces, refreshData,
+    namespaces, currentView,
+    connectToCluster, loadNamespaces, restoreNamespaces, refreshData,
     k8sDisconnect, loadClusters,
     pickKubeconfigFile, addClusterFromFile, addClusterFromText,
     deleteCluster, updateCluster, autoConnect,
@@ -54,10 +54,12 @@ export function useClusterConnection(deps: {
     clusters.value.find(c => c.id === editingClusterId.value) || null
   )
 
-  /** Namespace по умолчанию, заданный кластеру: выбирается, только если он есть в кластере */
+  /**
+   * Выбор namespace после подключения: сохранённый для кластера, иначе namespace по умолчанию
+   * из настроек кластера (если он есть в кластере), иначе «все».
+   */
   function applyDefaultNamespace(clusterId: string) {
-    const preferred = clusters.value.find(c => c.id === clusterId)?.defaultNamespace ?? ''
-    selectedNamespace.value = preferred && namespaces.value.some(n => n.name === preferred) ? preferred : ''
+    restoreNamespaces(clusterId, clusters.value.find(c => c.id === clusterId)?.defaultNamespace ?? '')
   }
 
   async function selectCluster(id: string) {

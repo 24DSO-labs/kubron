@@ -52,15 +52,12 @@
     <!-- Namespace selector -->
     <div class="ns-selector">
       <label class="ns-label-text">Namespace</label>
-      <select
-        :key="selectedNamespace"
-        :value="selectedNamespace"
-        @change="emit('nsChange', ($event.target as HTMLSelectElement).value)"
-        class="ns-select"
-      >
-        <option value="">All namespaces</option>
-        <option v-for="ns in namespaces" :key="ns.name" :value="ns.name">{{ ns.name }}</option>
-      </select>
+      <NamespaceSelect
+        :modelValue="selectedNamespaces"
+        :namespaces="namespaces"
+        :noAccess="failedNamespaces"
+        @update:modelValue="emit('nsChange', $event)"
+      />
     </div>
     <!-- Ручка ширины на правой границе: мышь/touch или стрелки ← → -->
   <div
@@ -82,6 +79,8 @@ import type { NamespaceInfo } from '../types'
 import type { NavGroupId } from '../resources/types'
 import { NAV_GROUPS, buildNav } from '../resources/navigation'
 import NavGroupNode from './nav/NavGroupNode.vue'
+import NamespaceSelect from './NamespaceSelect.vue'
+import { useListFailures } from '../composables/useListFailures'
 import { useArgo } from '../composables/useArgo'
 import { can } from '../composables/useAuth'
 import { Perm } from '../types/auth'
@@ -131,15 +130,17 @@ function onResizerKey(e: KeyboardEvent) {
 
 defineProps<{
   currentView: string
-  selectedNamespace: string
+  selectedNamespaces: string[]
   namespaces: NamespaceInfo[]
   clusterName?: string
 }>()
 
 const emit = defineEmits<{
   (e: 'navigate', view: string): void
-  (e: 'nsChange', ns: string): void
+  (e: 'nsChange', ns: string[]): void
 }>()
+
+const { failedNamespaces } = useListFailures()
 
 const navEntries = buildNav()
 

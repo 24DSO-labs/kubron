@@ -52,7 +52,7 @@
 
       <!-- Основной интерфейс -->
       <template v-else-if="activeClusterId">
-        <Sidebar :currentView="currentView" :selectedNamespace="selectedNamespace" :namespaces="namespaces"
+        <Sidebar :currentView="currentView" :selectedNamespaces="selectedNamespaces" :namespaces="namespaces"
           :clusterName="activeClusterMeta?.displayName" @navigate="onNavigate" @nsChange="onNsChange" />
 
         <main class="content">
@@ -95,7 +95,8 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, watch, provide } from 'vue'
+import { computed, onMounted, onUnmounted, watch, provide } from 'vue'
+import { listenListFailures } from './composables/useListFailures'
 import { useK8s } from './composables/useK8s'
 import { useClusters } from './composables/useClusters'
 import { useClusterConnection } from './composables/useClusterConnection'
@@ -138,8 +139,8 @@ const clustersApi = useClusters()
 const notifications = useNotifications()
 
 const {
-  namespaces, selectedNamespace, currentView, error, loading,
-  switchView, onNamespaceChange, refreshData,
+  namespaces, selectedNamespaces, selectNamespaces, restoreNamespaces, currentView, error, loading,
+  switchView, refreshData,
   loadNamespaces,
 } = k8s
 
@@ -153,11 +154,11 @@ const clusterConn = useClusterConnection({
   clusters,
   activeClusterId,
   error,
-  selectedNamespace,
   namespaces,
   currentView,
   connectToCluster,
   loadNamespaces,
+  restoreNamespaces,
   refreshData,
   k8sDisconnect: k8s.disconnect,
   loadClusters,
@@ -204,9 +205,8 @@ function onNavigate(view: string) {
   switchView(view)
 }
 
-function onNsChange(ns: string) {
-  selectedNamespace.value = ns
-  onNamespaceChange()
+function onNsChange(ns: string[]) {
+  selectNamespaces(ns)
 }
 
 /** Переход к другому ресурсу из панели (Pod -> ReplicaSet, RoleBinding -> Role, ...) */
@@ -333,6 +333,10 @@ watch(navigationRequest, view => {
 })
 
 onMounted(() => auth.init())
+
+// Бэкенд сообщает, если часть namespace набора прочитать не удалось (RBAC и т.п.)
+const stopListFailures = listenListFailures()
+onUnmounted(stopListFailures)
 </script>
 
 <style src="./assets/style.css"></style>
