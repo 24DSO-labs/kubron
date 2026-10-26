@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
+    "build:web": "vue-tsc --noEmit && vite build --mode web",
+    "dev:web": "vite --mode web",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"
