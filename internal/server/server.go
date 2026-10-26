@@ -16,10 +16,11 @@ import (
 )
 
 // NewHandler собирает маршруты: RPC, служебные ручки, статика фронтенда с SPA-fallback.
-// static — содержимое собранного фронтенда (корень с index.html); может быть nil.
-func NewHandler(d *Dispatcher, static fs.FS) http.Handler {
+// g — защита веб-API (сессии, CSRF); nil отключает её. static — содержимое собранного фронтенда (корень с index.html); может быть nil.
+func NewHandler(d *Dispatcher, static fs.FS, g *Guard) http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("POST /api/rpc/{method}", RPCHandler(d))
+	mux.Handle("POST /api/rpc/{method}", RPCHandler(d, g))
+	mux.Handle("GET /api/session", SessionHandler(g))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = w.Write([]byte("ok\n"))
