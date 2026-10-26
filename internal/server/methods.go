@@ -115,6 +115,7 @@ var allowedMethods = []string{
 	"ListUsers",
 	"Login",
 	"Logout",
+	"PreviewHelmUpgrade",
 	"QueryPrometheus",
 	"QueryPrometheusRange",
 	"RefreshArgoApplication",
@@ -157,6 +158,7 @@ var allowedMethods = []string{
 	"UpdateConfigMap",
 	"UpdateSecret",
 	"UpdateUserRole",
+	"UpgradeHelmRelease",
 	"WriteTerminal",
 }
 
