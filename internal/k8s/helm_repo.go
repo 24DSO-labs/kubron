@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	chartv2 "helm.sh/helm/v4/pkg/chart/v2"
 	"helm.sh/helm/v4/pkg/chart/v2/loader"
 	repo "helm.sh/helm/v4/pkg/repo/v1"
 	"sigs.k8s.io/yaml"
@@ -637,37 +638,33 @@ func resolveChartURL(repoURL, ref string) (string, error) {
 	return abs.String(), nil
 }
 
-// GetHelmChartPackage скачивает архив чарта, проверяет digest (если он есть в индексе) и отдаёт README и values.yaml.
-func (m *Manager) GetHelmChartPackage(repoName, chartName, version string) (*HelmChartPackage, error) {
+// lookupHelmChartVersion находит запись чарта в индексе репозитория (version == "" — последняя).
+func lookupHelmChartVersion(repoName, chartName, version string) (*repo.Entry, *repo.ChartVersion, error) {
 	e, err := helmRepoEntry(repoName)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	idx, _, err := loadHelmIndex(repoName)
 	if err != nil {
-		return nil, fmt.Errorf("индекс репозитория %q недоступен: %w", repoName, err)
+		return nil, nil, fmt.Errorf("индекс репозитория %q недоступен: %w", repoName, err)
 	}
 	cv, err := idx.Get(chartName, version)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if len(cv.URLs) == 0 {
-		return nil, fmt.Errorf("у чарта %s %s нет ссылки на архив", chartName, cv.Version)
+		return nil, nil, fmt.Errorf("у чарта %s %s нет ссылки на архив", chartName, cv.Version)
 	}
+	return e, cv, nil
+}
 
-	key := repoName + "/" + chartName + "/" + cv.Version + "/" + cv.Digest
-	helmPkgMu.Lock()
-	cached := helmPkgCache[key]
-	helmPkgMu.Unlock()
-	if cached != nil {
-		return cached, nil
-	}
-
+// downloadHelmChart скачивает архив чарта (с лимитом размера), сверяет digest из index.yaml и разбирает чарт.
+func downloadHelmChart(ctx context.Context, e *repo.Entry, cv *repo.ChartVersion) (*chartv2.Chart, error) {
 	chartURL, err := resolveChartURL(e.URL, cv.URLs[0])
 	if err != nil {
 		return nil, err
 	}
-	data, err := helmGet(context.Background(), e, chartURL, helmChartMaxBytes)
+	data, err := helmGet(ctx, e, chartURL, helmChartMaxBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -680,6 +677,28 @@ func (m *Manager) GetHelmChartPackage(repoName, chartName, version string) (*Hel
 	c, err := loader.LoadArchive(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("не удалось разобрать архив чарта: %w", err)
+	}
+	return c, nil
+}
+
+// GetHelmChartPackage скачивает архив чарта из репозитория и отдаёт README и values.yaml.
+func (m *Manager) GetHelmChartPackage(repoName, chartName, version string) (*HelmChartPackage, error) {
+	e, cv, err := lookupHelmChartVersion(repoName, chartName, version)
+	if err != nil {
+		return nil, err
+	}
+
+	key := repoName + "/" + chartName + "/" + cv.Version + "/" + cv.Digest
+	helmPkgMu.Lock()
+	cached := helmPkgCache[key]
+	helmPkgMu.Unlock()
+	if cached != nil {
+		return cached, nil
+	}
+
+	c, err := downloadHelmChart(context.Background(), e, cv)
+	if err != nil {
+		return nil, err
 	}
 
 	pkg := &HelmChartPackage{
