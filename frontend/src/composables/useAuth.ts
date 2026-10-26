@@ -1,6 +1,7 @@
 import { computed, readonly, ref } from 'vue'
 import { callApp, onSessionLost } from '../resources/wails'
 import type { Permission, UserInfo } from '../types/auth'
+import { loadCapabilities } from './useCapabilities'
 
 /**
  * Состояние аутентификации — одно на всё приложение (модульный синглтон).
@@ -75,6 +76,7 @@ export function useAuth() {
   async function init() {
     try {
       notice.value = takeLogoutNotice()
+      void loadCapabilities() // метод публичный и не блокирует вход; ошибки гасит сам
       const st = await callApp('AuthStatus')
       idleTimeoutMinutes.value = st.idleTimeoutMinutes ?? 0
       needsSetup.value = !!st.needsSetup
