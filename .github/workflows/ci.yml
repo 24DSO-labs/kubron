@@ -90,6 +90,14 @@ jobs:
       - run: go build -tags $GO_TAGS ./...
       - run: go test -tags $GO_TAGS ./...
 
+      # pkg/ext и пример внешнего модуля — отдельные Go-модули (go test ./... в корне их не видит)
+      - name: pkg/ext
+        run: go vet ./... && go test ./...
+        working-directory: pkg/ext
+      - name: examples/ext-authenticator (внешний модуль собирается без правок ядра)
+        run: go vet ./... && go test ./...
+        working-directory: examples/ext-authenticator
+
   frontend:
     name: Frontend (test, type-check, build)
     runs-on: ubuntu-latest
