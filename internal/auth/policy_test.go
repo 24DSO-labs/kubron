@@ -25,6 +25,8 @@ var publicMethods = map[string]bool{
 	"CurrentUser":    true,
 	"ChangePassword": true,
 	"ReportActivity": true,
+	// Возможности оболочки нужны экрану входа, до сессии.
+	"GetCapabilities": true,
 }
 
 // Точные требования для особых методов.

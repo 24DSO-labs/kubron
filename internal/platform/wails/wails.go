@@ -5,6 +5,8 @@ import (
 	"context"
 	"sync"
 
+	"analog/internal/app"
+
 	wr "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -43,5 +45,16 @@ func (p *Platform) PickFile(title string) (string, error) {
 func (p *Platform) OpenURL(url string) {
 	if ctx := p.context(); ctx != nil {
 		wr.BrowserOpenURL(ctx, url)
+	}
+}
+
+// Capabilities десктопа: локальные возможности доступны, SSO в десктопе нет.
+func (p *Platform) Capabilities() app.Capabilities {
+	return app.Capabilities{
+		FileDialog:      true,
+		PortForward:     true,
+		NodeShell:       true,
+		LocalKubeconfig: true,
+		SSO:             false,
 	}
 }
