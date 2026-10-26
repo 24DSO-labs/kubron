@@ -40,3 +40,13 @@ Kubron (Wails + Go + Vue) должен стать ещё и веб-прилож�
   `-race` без cgo недоступен.
 - Окружение ассистента не может скачать Go-модули и Go 1.27.3: код ядра с `client-go` он не компилирует,
   поэтому после его правок нужен `go test` и `wails build` у владельца.
+
+## Задача 1.4 (сессии) — сделано
+- `internal/server/session.go`: реестр веб-сессий (в памяти только SHA-256 токена), cookie `HttpOnly`, `SameSite=Lax`,
+  `Secure` (имя `__Host-kubron_session`) при TLS или `--trust-proxy` + `X-Forwarded-Proto: https`; срок `--session-ttl` (12h).
+- CSRF: токен в заголовке `X-CSRF-Token` обязателен для всех методов, кроме `AuthStatus/SetupAdmin/Login/GetCapabilities`;
+  выдаётся в заголовке ответа Login/SetupAdmin и через `GET /api/session` (после перезагрузки страницы).
+- Origin + `Sec-Fetch-Site` (только same-origin/none), `Content-Type: application/json`.
+- Ограничение до этапа 2: ядро хранит одну общую сессию, поэтому новый вход отзывает все прочие веб-сессии
+  (`Sessions.Exclusive`), а `AuthStatus` без cookie не раскрывает пользователя. На этапе 2 `Exclusive` выключается.
+- Для фронтенда (1.7): `api.web.ts` шлёт `credentials: same-origin` и `X-CSRF-Token`; токен берёт из ответа Login и `GET /api/session`.
