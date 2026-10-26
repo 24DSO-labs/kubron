@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="cl-overlay" @mousedown.self="pressedOverlay = true" @click.self="onOverlayClick">
     <div class="cl-dialog" role="dialog" aria-modal="true" :aria-labelledby="`${uid}-title`">

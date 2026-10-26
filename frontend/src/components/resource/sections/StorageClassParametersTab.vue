@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div v-if="entries.length" class="sc-tab">
     <div v-for="[k, v] in entries" :key="k" class="rd-row sc-row">

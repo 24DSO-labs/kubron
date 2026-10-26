@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 import { ref, shallowRef } from 'vue'
 import { callApp } from './wails'
 import { askConfirm } from './confirm'

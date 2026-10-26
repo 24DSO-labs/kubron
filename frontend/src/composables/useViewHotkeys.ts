@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 import { onMounted, onUnmounted } from 'vue'
 
 /** Alt+буква → переход к view (id — как в боковом меню). Работают, пока смонтирован вызывающий компонент */

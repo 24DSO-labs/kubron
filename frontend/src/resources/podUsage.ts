@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * Потребление CPU / памяти подом: форматирование и слияние метрик со списком подов.
  * Чистая логика без Wails (тесты: podUsage.test.ts).
