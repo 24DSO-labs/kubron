@@ -1,0 +1,49 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('../platform/api', () => ({ callApp: vi.fn() }))
+
+import { callApp } from '../platform/api'
+import {
+  DEFAULT_CAPABILITIES, loadCapabilities, normalizeCapabilities, useCapabilities,
+} from './useCapabilities'
+
+describe('normalizeCapabilities', () => {
+  it('пустой или некорректный ответ даёт значения по умолчанию', () => {
+    expect(normalizeCapabilities(undefined)).toEqual(DEFAULT_CAPABILITIES)
+    expect(normalizeCapabilities(null)).toEqual(DEFAULT_CAPABILITIES)
+    expect(normalizeCapabilities('x')).toEqual(DEFAULT_CAPABILITIES)
+  })
+  it('берёт только булевы известные флаги', () => {
+    const c = normalizeCapabilities({ nodeShell: false, portForward: 'no', unknown: true, sso: true })
+    expect(c.nodeShell).toBe(false)
+    expect(c.portForward).toBe(DEFAULT_CAPABILITIES.portForward)
+    expect(c.sso).toBe(true)
+    expect('unknown' in c).toBe(false)
+  })
+  it('по умолчанию десктопное поведение: всё локальное доступно, SSO нет', () => {
+    expect(DEFAULT_CAPABILITIES).toEqual({
+      fileDialog: true, portForward: true, nodeShell: true, localKubeconfig: true, sso: false,
+    })
+  })
+})
+
+describe('loadCapabilities', () => {
+  beforeEach(() => { vi.mocked(callApp).mockReset() })
+
+  it('применяет ответ бэкенда', async () => {
+    vi.mocked(callApp).mockResolvedValue({
+      fileDialog: false, portForward: true, nodeShell: false, localKubeconfig: false, sso: true,
+    } as never)
+    await loadCapabilities()
+    const { capabilities, loaded } = useCapabilities()
+    expect(capabilities.value.fileDialog).toBe(false)
+    expect(capabilities.value.sso).toBe(true)
+    expect(loaded.value).toBe(true)
+  })
+
+  it('при ошибке возвращает значения по умолчанию и не бросает', async () => {
+    vi.mocked(callApp).mockImplementation(() => Promise.reject(new Error('нет метода')))
+    await expect(loadCapabilities()).resolves.toBeUndefined()
+    expect({ ...useCapabilities().capabilities.value }).toEqual({ ...DEFAULT_CAPABILITIES })
+  })
+})
