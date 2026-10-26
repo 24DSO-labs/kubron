@@ -88,7 +88,7 @@ func TestFieldsAreSanitized(t *testing.T) {
 	evil := "bob\n{\"user\":\"admin\",\"action\":\"Fake\"}\r\x00" + strings.Repeat("я", 1000)
 	l.Record(Event{User: evil, Action: "Login", Result: ResultFailed})
 
-	data, err := os.ReadFile(filepath.Join(l.dir, fileName))
+	data, err := os.ReadFile(filepath.Join(fb(l).dir, fileName))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,11 +106,11 @@ func TestFieldsAreSanitized(t *testing.T) {
 
 func TestRotation(t *testing.T) {
 	l := newLogger(t)
-	l.maxSize = 300
+	fb(l).maxSize = 300
 	for i := 0; i < 60; i++ {
 		l.Record(Event{User: "u", Action: "Act", Result: ResultOK, Detail: strings.Repeat("x", 50)})
 	}
-	files, _ := filepath.Glob(filepath.Join(l.dir, fileName+"*"))
+	files, _ := filepath.Glob(filepath.Join(fb(l).dir, fileName+"*"))
 	if len(files) < 2 || len(files) > keepFiles {
 		t.Fatalf("ожидалась ротация до %d файлов, найдено %d", keepFiles, len(files))
 	}
@@ -129,7 +129,7 @@ func TestRotation(t *testing.T) {
 func TestCorruptLineDoesNotHideOthers(t *testing.T) {
 	l := newLogger(t)
 	l.Record(Event{User: "a", Action: "First", Result: ResultOK})
-	f, _ := os.OpenFile(filepath.Join(l.dir, fileName), os.O_APPEND|os.O_WRONLY, 0o600)
+	f, _ := os.OpenFile(filepath.Join(fb(l).dir, fileName), os.O_APPEND|os.O_WRONLY, 0o600)
 	f.WriteString("{обрыв записи\n")
 	f.Close()
 	l.Record(Event{User: "a", Action: "Second", Result: ResultOK})
@@ -146,7 +146,7 @@ func TestFilePermissions(t *testing.T) {
 	}
 	l := newLogger(t)
 	l.Record(Event{User: "a", Action: "X", Result: ResultOK})
-	st, err := os.Stat(filepath.Join(l.dir, fileName))
+	st, err := os.Stat(filepath.Join(fb(l).dir, fileName))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,3 +175,6 @@ func TestNilLoggerIsSafe(t *testing.T) {
 	var l *Logger
 	l.Record(Event{Action: "X"}) // не паникует
 }
+
+// fb — файловое хранилище журнала, созданное Open.
+func fb(l *Logger) *fileBackend { return l.backend.(*fileBackend) }
