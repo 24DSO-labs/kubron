@@ -82,9 +82,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{ (e: 'update:modelValue', value: string[]): void }>()
 
-/** Пауза после последнего клика, прежде чем выбор уходит в загрузку данных */
-const APPLY_DELAY_MS = 250
-
 interface Row { key: string; label: string; ns: string | null; selected: boolean; error?: string }
 
 const root = ref<HTMLElement | null>(null)
@@ -93,9 +90,9 @@ const searchEl = ref<HTMLInputElement | null>(null)
 const open = ref(false)
 const query = ref('')
 const activeIndex = ref(0)
-const draft = ref<string[]>([...props.modelValue])
+/** Текущий выбор — всегда значение родителя: изменения уходят наверх сразу, без черновика */
+const draft = computed(() => props.modelValue)
 const listId = `ns-list-${Math.random().toString(36).slice(2, 8)}`
-let timer: ReturnType<typeof setTimeout> | null = null
 
 const summary = computed(() => summarizeSelection(draft.value))
 const atLimit = computed(() => draft.value.length >= MAX_NAMESPACES)
@@ -124,30 +121,13 @@ const rows = computed<Row[]>(() => {
 const optionId = (i: number) => `${listId}-opt-${i}`
 const activeId = computed(() => (rows.value.length ? optionId(activeIndex.value) : undefined))
 
-// Внешние изменения (смена кластера, переход по ссылке на namespace) подтягиваем в черновик,
-// но не затираем выбор, который пользователь ещё не отправил
-watch(() => props.modelValue, v => {
-  if (timer === null && !sameSelection(normalizeSelection(v), draft.value)) draft.value = [...v]
-})
-
 watch(query, () => { activeIndex.value = 0 })
 watch(rows, r => { if (activeIndex.value >= r.length) activeIndex.value = Math.max(0, r.length - 1) })
 
-function schedule() {
-  if (timer) clearTimeout(timer)
-  timer = setTimeout(flush, APPLY_DELAY_MS)
-}
-
-function flush() {
-  if (timer) { clearTimeout(timer); timer = null }
-  if (!sameSelection(normalizeSelection(props.modelValue), draft.value)) {
-    emit('update:modelValue', [...draft.value])
-  }
-}
-
+/** Выбор применяется в момент клика; нормализация и сохранение — на стороне родителя */
 function setDraft(next: string[]) {
-  draft.value = next
-  schedule()
+  const normalized = normalizeSelection(next)
+  if (!sameSelection(normalized, draft.value)) emit('update:modelValue', normalized)
 }
 
 function activate(row: Row) {
@@ -181,7 +161,6 @@ function close(returnFocus = true) {
   if (!open.value) return
   open.value = false
   document.removeEventListener('pointerdown', onOutside, true)
-  flush()
   if (returnFocus) trigger.value?.focus()
 }
 
@@ -218,7 +197,6 @@ function onKeydown(e: KeyboardEvent) {
 
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', onOutside, true)
-  flush()
 })
 </script>
 
