@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="detail-panel" :class="{ 'detail-expanded': expanded }" :style="panelStyle">
     <!-- Ручка ширины на левой границе: перетаскивание мышью или стрелки ← → с клавиатуры -->

@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 import { ref, computed } from 'vue'
 import { uid } from '../resources/uid'
 import { callApp } from '../platform/api'

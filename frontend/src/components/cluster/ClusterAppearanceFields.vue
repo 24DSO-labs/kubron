@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div :style="{ '--cl-pick': color || DEFAULT_CLUSTER_COLOR }">
     <div class="cl-field">

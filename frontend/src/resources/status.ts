@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 /** Цвета и css-классы статусов: одно место для списков и панелей */
 
 const OK = ['synced', 'healthy', 'running', 'ready', 'active', 'bound', 'succeeded', 'completed', 'complete', 'available', 'true', 'deployed', 'normal']

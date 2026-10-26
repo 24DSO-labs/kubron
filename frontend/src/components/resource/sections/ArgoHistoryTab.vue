@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div v-if="history.length">
     <div v-if="resource.autoSync" class="rd-muted ah-hint">Rollback is unavailable while auto-sync is enabled.</div>

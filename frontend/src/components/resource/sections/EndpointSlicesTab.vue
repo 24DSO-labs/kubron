@@ -1,3 +1,5 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="es-tab">
     <div v-if="!endpointSlices.length" class="es-empty">No Endpoint Slices</div>
