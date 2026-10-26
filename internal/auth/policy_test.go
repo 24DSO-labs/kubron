@@ -34,6 +34,8 @@ var publicMethods = map[string]bool{
 
 // Точные требования для особых методов.
 var exactPermission = map[string]Permission{
+	"PreviewHelmUpgrade":      PermSecretsRead,
+	"UpgradeHelmRelease":      PermWrite,
 	"RollbackHelmRelease":     PermOperate,
 	"UninstallHelmRelease":    PermWrite,
 	"GetHelmRevisionDiff":     PermSecretsRead,

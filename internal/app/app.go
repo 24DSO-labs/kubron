@@ -687,6 +687,22 @@ func (a *App) GetApplications(namespaces []string) ([]k8s.ApplicationInfo, error
 
 // === Helm ===
 
+// PreviewHelmUpgrade — dry-run апгрейда values; в ответе манифесты (Secret скрыты), нужен secrets.read.
+func (a *App) PreviewHelmUpgrade(namespace, name, valuesYAML string) (*k8s.HelmUpgradePreview, error) {
+	if err := a.authz(auth.PermSecretsRead, "namespace", namespace, "name", name); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.PreviewHelmUpgrade(namespace, name, valuesYAML)
+}
+
+// UpgradeHelmRelease применяет новые values; возвращает номер новой ревизии.
+func (a *App) UpgradeHelmRelease(namespace, name, valuesYAML string) (int, error) {
+	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
+		return 0, err
+	}
+	return a.k8sMgr.UpgradeHelmRelease(namespace, name, valuesYAML)
+}
+
 func (a *App) GetHelmReleases() ([]k8s.HelmReleaseInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err

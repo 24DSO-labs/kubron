@@ -83,6 +83,9 @@ const ACTION_LABELS: Record<string, string> = {
   RollbackHelmRelease: 'Helm: откат релиза',
   UninstallHelmRelease: 'Helm: удаление релиза',
   GetHelmRevisionDiff: 'Helm: сравнение ревизий',
+  PreviewHelmUpgrade: 'Helm: предпросмотр изменения values',
+	UpgradeHelmRelease: 'Helm: изменение values релиза',
+
 
 }  
 
