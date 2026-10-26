@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 // Package example — пример внешнего модуля: регистрирует свой способ входа, не меняя ядро.
 // Он же служит проверкой, что публичный контракт pkg/ext достаточен и собирается отдельно.
 package example

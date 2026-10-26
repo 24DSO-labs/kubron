@@ -1,3 +1,6 @@
+// Copyright 2026 The Kubron Authors
+// SPDX-License-Identifier: Apache-2.0
+
 // Package ext — публичные точки расширения Kubron (ADR-0011, ADR-0013).
 //
 // Код в internal/ другой Go-модуль импортировать не может, поэтому всё, что должны
