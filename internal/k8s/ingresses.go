@@ -162,14 +162,13 @@ func convertIngress(ing networkingv1.Ingress) IngressInfo {
 	return info
 }
 
-func (m *Manager) GetIngresses(namespace string) ([]IngressInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
+func (m *Manager) GetIngresses(namespaces []string) ([]IngressInfo, error) {
+	return scopedList(m, "GetIngresses", "networking.k8s.io", "ingresses", namespaces, listIngresses,
+		func(it IngressInfo) string { return it.Namespace })
+}
 
+// listIngresses читает ресурсы одного namespace ("" — все) для GetIngresses.
+func listIngresses(ctx context.Context, conn *ClusterConnection, namespace string) ([]IngressInfo, error) {
 	list, err := conn.Client.NetworkingV1().Ingresses(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
