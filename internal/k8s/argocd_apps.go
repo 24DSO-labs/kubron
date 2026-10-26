@@ -17,23 +17,29 @@ import (
 
 const argoUnknown = "Unknown"
 
-// GetArgoApplications возвращает Application из namespace (пустая строка — из всех namespace).
+// GetArgoApplications возвращает Application из набора namespace (пусто — из всех namespace).
 // Argo CD допускает Application в любом namespace (apps-in-any-namespace), поэтому «все»
 // — осмысленное значение по умолчанию. Читается только через Kubernetes API (CRD, dynamic client).
-func (m *Manager) GetArgoApplications(namespace string) ([]ArgoApplicationInfo, error) {
+func (m *Manager) GetArgoApplications(namespaces []string) ([]ArgoApplicationInfo, error) {
+	scope, err := parseScope(namespaces)
+	if err != nil {
+		return nil, err
+	}
 	conn, err := m.GetActiveConnection()
 	if err != nil {
 		return nil, err
 	}
 	// После синхронизации informer список строится из памяти без LIST к API-серверу.
 	if ac := conn.argoCache(func() { m.emit(EventArgoChanged, conn.Name) }); ac != nil {
-		if apps, ok := ac.list(namespace); ok {
+		if apps, ok := ac.list(scope); ok {
 			return apps, nil
 		}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	return listArgoApplications(ctx, conn.DynamicClient, namespace)
+	return scopedListTimeout(m, 20*time.Second, "GetArgoApplications", "argoproj.io", "applications", namespaces,
+		func(ctx context.Context, conn *ClusterConnection, ns string) ([]ArgoApplicationInfo, error) {
+			return listArgoApplications(ctx, conn.DynamicClient, ns)
+		},
+		func(it ArgoApplicationInfo) string { return it.Namespace })
 }
 
 func listArgoApplications(ctx context.Context, dyn dynamic.Interface, namespace string) ([]ArgoApplicationInfo, error) {

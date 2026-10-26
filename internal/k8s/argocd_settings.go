@@ -63,25 +63,21 @@ type ArgoClusterInfo struct {
 }
 
 // GetArgoRepositories возвращает репозитории Argo CD из namespace (пустой — из всех).
-func (m *Manager) GetArgoRepositories(namespace string) ([]ArgoRepositoryInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	return listArgoRepositories(ctx, conn.Client, namespace)
+func (m *Manager) GetArgoRepositories(namespaces []string) ([]ArgoRepositoryInfo, error) {
+	return scopedListTimeout(m, 20*time.Second, "GetArgoRepositories", "", "secrets", namespaces,
+		func(ctx context.Context, conn *ClusterConnection, ns string) ([]ArgoRepositoryInfo, error) {
+			return listArgoRepositories(ctx, conn.Client, ns)
+		},
+		func(it ArgoRepositoryInfo) string { return it.Namespace })
 }
 
 // GetArgoClusters возвращает кластеры Argo CD из namespace (пустой — из всех).
-func (m *Manager) GetArgoClusters(namespace string) ([]ArgoClusterInfo, error) {
-	conn, err := m.GetActiveConnection()
-	if err != nil {
-		return nil, err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	return listArgoClusters(ctx, conn.Client, namespace)
+func (m *Manager) GetArgoClusters(namespaces []string) ([]ArgoClusterInfo, error) {
+	return scopedListTimeout(m, 20*time.Second, "GetArgoClusters", "", "secrets", namespaces,
+		func(ctx context.Context, conn *ClusterConnection, ns string) ([]ArgoClusterInfo, error) {
+			return listArgoClusters(ctx, conn.Client, ns)
+		},
+		func(it ArgoClusterInfo) string { return it.Namespace })
 }
 
 func listArgoSecrets(ctx context.Context, c kubernetes.Interface, namespace, secretType string) ([]corev1.Secret, error) {
