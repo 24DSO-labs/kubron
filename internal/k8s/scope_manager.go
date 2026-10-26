@@ -26,6 +26,18 @@ func scopedList[T any](
 	list func(ctx context.Context, conn *ClusterConnection, ns string) ([]T, error),
 	nsOf func(T) string,
 ) ([]T, error) {
+	return scopedListTimeout(m, scopeTimeout, method, group, resource, namespaces, list, nsOf)
+}
+
+// scopedListTimeout — scopedList с собственным дедлайном (у Argo и CRD он больше стандартного).
+func scopedListTimeout[T any](
+	m *Manager,
+	timeout time.Duration,
+	method, group, resource string,
+	namespaces []string,
+	list func(ctx context.Context, conn *ClusterConnection, ns string) ([]T, error),
+	nsOf func(T) string,
+) ([]T, error) {
 	scope, err := parseScope(namespaces)
 	if err != nil {
 		return nil, err
@@ -35,7 +47,7 @@ func scopedList[T any](
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), scopeTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	canAll := false

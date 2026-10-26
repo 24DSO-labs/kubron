@@ -312,11 +312,11 @@ func (a *App) ArgoInstalled() (bool, error) {
 }
 
 // GetArgoApplications возвращает Argo CD Application; пустой namespace — из всех namespace.
-func (a *App) GetArgoApplications(namespace string) ([]k8s.ArgoApplicationInfo, error) {
+func (a *App) GetArgoApplications(namespaces []string) ([]k8s.ArgoApplicationInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetArgoApplications(namespace)
+	return a.k8sMgr.GetArgoApplications(namespaces)
 }
 
 // SyncArgoApplication запускает синхронизацию одного или нескольких Application.
@@ -350,35 +350,35 @@ func (a *App) RollbackArgoApplication(namespace, name string, id int64, prune, d
 }
 
 // GetArgoApplicationSets возвращает Argo CD ApplicationSet; пустой namespace — из всех namespace.
-func (a *App) GetArgoApplicationSets(namespace string) ([]k8s.ArgoApplicationSetInfo, error) {
+func (a *App) GetArgoApplicationSets(namespaces []string) ([]k8s.ArgoApplicationSetInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetArgoApplicationSets(namespace)
+	return a.k8sMgr.GetArgoApplicationSets(namespaces)
 }
 
 // GetArgoProjects возвращает Argo CD AppProject; пустой namespace — из всех namespace.
-func (a *App) GetArgoProjects(namespace string) ([]k8s.ArgoProjectInfo, error) {
+func (a *App) GetArgoProjects(namespaces []string) ([]k8s.ArgoProjectInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetArgoProjects(namespace)
+	return a.k8sMgr.GetArgoProjects(namespaces)
 }
 
 // GetArgoRepositories возвращает репозитории Argo CD (санитизировано: без паролей, токенов и ключей).
-func (a *App) GetArgoRepositories(namespace string) ([]k8s.ArgoRepositoryInfo, error) {
+func (a *App) GetArgoRepositories(namespaces []string) ([]k8s.ArgoRepositoryInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetArgoRepositories(namespace)
+	return a.k8sMgr.GetArgoRepositories(namespaces)
 }
 
 // GetArgoClusters возвращает кластеры Argo CD (санитизировано: без config с токенами и сертификатами).
-func (a *App) GetArgoClusters(namespace string) ([]k8s.ArgoClusterInfo, error) {
+func (a *App) GetArgoClusters(namespaces []string) ([]k8s.ArgoClusterInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetArgoClusters(namespace)
+	return a.k8sMgr.GetArgoClusters(namespaces)
 }
 
 // GetArgoApplicationGraph возвращает граф ресурсов Application (владение, Service → Pod, Ingress → Service).
@@ -1159,11 +1159,11 @@ func (a *App) GetCRDs() ([]k8s.CRDInfo, error) {
 	return a.k8sMgr.GetCRDs()
 }
 
-func (a *App) GetCustomResources(group, version, plural, namespace string) ([]k8s.CustomResourceInfo, error) {
+func (a *App) GetCustomResources(group, version, plural string, namespaces []string) ([]k8s.CustomResourceInfo, error) {
 	if err := a.authz(auth.PermRead); err != nil {
 		return nil, err
 	}
-	return a.k8sMgr.GetCustomResources(group, version, plural, namespace)
+	return a.k8sMgr.GetCustomResources(group, version, plural, namespaces)
 }
 
 // === Streaming ===
