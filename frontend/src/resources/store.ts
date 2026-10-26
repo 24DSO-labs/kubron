@@ -15,6 +15,7 @@ const notifications = useNotifications()
 /** Данные по view. shallowRef: списки большие, глубокая реактивность не нужна */
 const itemsByView = shallowRef<Record<string, readonly any[]>>({})
 const seqByView: Record<string, number> = {}
+const nsKeyByView: Record<string, string> = {}
 let activeDef: ResourceDefinition | null = null
 
 /**
@@ -24,6 +25,9 @@ let activeDef: ResourceDefinition | null = null
 export async function loadResource(def: ResourceDefinition): Promise<void> {
   const seq = (seqByView[def.view] = (seqByView[def.view] ?? 0) + 1)
   const ns = def.namespaced ? k8s.selectedNamespaces.value : []
+  const nsKey = ns.join(',')
+  const nsChanged = nsKeyByView[def.view] !== nsKey
+  nsKeyByView[def.view] = nsKey
   const publish = (list: readonly any[]) => {
     itemsByView.value = { ...itemsByView.value, [def.view]: list }
   }
@@ -35,7 +39,7 @@ export async function loadResource(def: ResourceDefinition): Promise<void> {
 
     if (def.onLoaded) {
       // первый раз показываем сразу, дальше ждём метрики и публикуем один раз
-      if (!(def.view in itemsByView.value)) publish(list)
+      if (nsChanged || !(def.view in itemsByView.value)) publish(list)
       try {
         const enriched = await def.onLoaded(list)
         if (Array.isArray(enriched)) result = enriched
@@ -66,6 +70,7 @@ export function findLoaded(view: string, ns: string, name: string): any | undefi
 /** Сбросить кэш (смена кластера) */
 export function clearResourceStore(): void {
   itemsByView.value = {}
+  for (const k of Object.keys(nsKeyByView)) delete nsKeyByView[k]
 }
 
 /** Состояние списка для ResourceList */

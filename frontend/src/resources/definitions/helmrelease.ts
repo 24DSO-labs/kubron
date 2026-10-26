@@ -10,6 +10,7 @@ import { helmContentTab } from '../helmTabs'
 import HelmResourcesTab from '../../components/resource/sections/HelmResourcesTab.vue'
 import HelmHistoryTab from '../../components/resource/sections/HelmHistoryTab.vue'
 import { Perm } from '../../types/auth'
+import HelmUpgradeTab from '../../components/resource/sections/HelmUpgradeTab.vue'
 
 export const helmRelease = defineResource<k8s.HelmReleaseInfo, k8s.HelmReleaseDetail>({
   id: 'helmrelease',
@@ -48,8 +49,10 @@ export const helmRelease = defineResource<k8s.HelmReleaseInfo, k8s.HelmReleaseDe
     { id: 'helmValues', label: 'Values', component: helmContentTab('values') },
     { id: 'helmNotes', label: 'Notes', component: helmContentTab('notes') },
     { id: 'helmManifest', label: 'Manifest', component: helmContentTab('manifest') },
+    { id: 'helmEdit', label: 'Edit values', component: HelmUpgradeTab },
     { id: 'helmResources', label: 'Resources', component: HelmResourcesTab },
     { id: 'helmHistory', label: 'History', component: HelmHistoryTab },
+
   ],
 actions: [
     {
