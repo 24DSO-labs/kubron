@@ -81,7 +81,7 @@ Kubron (Wails + Go + Vue) должен стать ещё и веб-прилож�
   `AuthStatus` без сессии); с `E2E_KUBECONFIG` — добавление кластера текстом и `GetNamespaces` (kube-system).
 - Тест защиты API проверен против настоящего кода `internal/server` (временный сервер с заглушкой ядра): проходит.
   UI-шаги (первый запуск, вход, диалог кластера) и сценарий с kind проверит первый прогон у тебя/в CI — селекторы могут потребовать правки.
-- `KUBRON_DATA_DIR` — новый каталог данных (вместо `~/.kubron`); нужен серверу и e2e.
+- Каталог данных сервера: `--data-dir` / `KUBRON_DATA_DIR` (умолчание `~/.kubron`). Читает только `kubron-server` (через `k8s.SetKubronDir`); десктоп переменную игнорирует, чтобы терминал с выставленной переменной не подменял данные пользователя.
 - CI: job `e2e` (kind + Playwright), пока `continue-on-error: true`.
 - `kubron-server` отказывается стартовать с десктопным `frontend/dist` (`server.CheckWebBuild`, метка
   `<meta name="kubron-target" content="web">` в index.html веб-сборки): `wails build` перезаписывает `dist`,

@@ -19,6 +19,7 @@ import (
 
 	"analog/frontend"
 	"analog/internal/app"
+	"analog/internal/k8s"
 	webplatform "analog/internal/platform/web"
 	"analog/internal/server"
 )
@@ -42,6 +43,9 @@ func main() {
 	if err := server.CheckWebBuild(dist); err != nil {
 		log.Fatalf("фронтенд: %v", err)
 	}
+
+	// Каталог данных задаётся до запуска ядра: хранилища открываются в OnStartup
+	k8s.SetKubronDir(cfg.DataDir)
 
 	hub := server.NewHub()
 	platform := &webplatform.Platform{}
