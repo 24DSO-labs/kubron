@@ -25,7 +25,6 @@ Please include:
 - steps to reproduce or a proof of concept;
 - the impact you expect (for example, access to credentials or privilege escalation).
 
-
 ## Scope
 
 In scope: the Kubron desktop app, the experimental web server (`cmd/kubron-server`),
