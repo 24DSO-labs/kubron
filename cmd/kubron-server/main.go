@@ -35,6 +35,14 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	dist, err := fs.Sub(frontend.Dist, "dist")
+	if err != nil {
+		log.Fatalf("фронтенд: %v", err)
+	}
+	if err := server.CheckWebBuild(dist); err != nil {
+		log.Fatalf("фронтенд: %v", err)
+	}
+
 	hub := server.NewHub()
 	platform := &webplatform.Platform{}
 	platform.SetEmitter(hub.Emit)
@@ -46,11 +54,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("диспетчер: %v", err)
 	}
-	dist, err := fs.Sub(frontend.Dist, "dist")
-	if err != nil {
-		log.Fatalf("фронтенд: %v", err)
-	}
-
 	// Ядро пока одно на всех: не более одной веб-сессии (снимется на этапе 2).
 	sessions := server.NewSessions(cfg.SessionTTL, true)
 	sessions.OnEnd = hub.CloseSession // закрытая сессия закрывает и свои WebSocket

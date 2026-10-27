@@ -129,3 +129,23 @@ func Serve(ctx context.Context, ln net.Listener, h http.Handler) error {
 		return nil
 	}
 }
+
+// webBuildMarker — метка, которую `vite build --mode web` добавляет в index.html.
+const webBuildMarker = `name="kubron-target" content="web"`
+
+// CheckWebBuild убеждается, что встроенный фронтенд собран для веба. Десктопная сборка
+// (`wails build`, `npm run build`) обращается к рантайму Wails и в браузере не запускается:
+// без этой проверки результат — пустая страница и ошибка в консоли. Нет index.html — не ошибка
+// (фронтенд не встроен, spaHandler ответит 503 с подсказкой).
+func CheckWebBuild(static fs.FS) error {
+	b, err := fs.ReadFile(static, "index.html")
+	if err != nil {
+		return nil
+	}
+	if !strings.Contains(string(b), webBuildMarker) {
+		return errors.New("встроенный frontend/dist собран для десктопа, а не для веба: " +
+			"выполните `cd frontend && npm run build:web` и пересоберите сервер (go build ./cmd/kubron-server); " +
+			"`wails build` перезаписывает frontend/dist десктопной сборкой")
+	}
+	return nil
+}
