@@ -12,7 +12,7 @@ import (
 
 	"helm.sh/helm/v4/pkg/action"
 	"helm.sh/helm/v4/pkg/kube"
-	"helm.sh/helm/v4/pkg/release"
+	helmrelease "helm.sh/helm/v4/pkg/release"
 	"sigs.k8s.io/yaml"
 )
 
@@ -63,7 +63,7 @@ func marshalHelmValues(v map[string]interface{}) (string, error) {
 // user-values. Чарт берётся ИЗ САМОГО РЕЛИЗА: смена версии чарта — этап H4/H5.
 // ResetValues=true: новые values заменяют прежние целиком, поэтому ключ, удалённый
 // в редакторе, возвращается к дефолту чарта.
-func (m *Manager) helmUpgradeValues(ctx context.Context, namespace, name string, vals map[string]interface{}, dryRun bool) (cur, next release.Accessor, curVals map[string]interface{}, err error) {
+func (m *Manager) helmUpgradeValues(ctx context.Context, namespace, name string, vals map[string]interface{}, dryRun bool) (cur, next helmrelease.Accessor, curVals map[string]interface{}, err error) {
 	cfg, err := m.helmConfig(namespace)
 	if err != nil {
 		return nil, nil, nil, err
@@ -72,7 +72,7 @@ func (m *Manager) helmUpgradeValues(ctx context.Context, namespace, name string,
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("релиз %s/%s не найден: %w", namespace, name, err)
 	}
-	if cur, err = release.NewAccessor(curRel); err != nil {
+	if cur, err = helmrelease.NewAccessor(curRel); err != nil {
 		return nil, nil, nil, err
 	}
 	if curVals, err = action.NewGetValues(cfg).Run(name); err != nil {
@@ -93,7 +93,7 @@ func (m *Manager) helmUpgradeValues(ctx context.Context, namespace, name string,
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	if next, err = release.NewAccessor(res); err != nil {
+	if next, err = helmrelease.NewAccessor(res); err != nil {
 		return nil, nil, nil, err
 	}
 	return cur, next, curVals, nil
