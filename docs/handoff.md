@@ -91,3 +91,15 @@ Kubron (Wails + Go + Vue) должен стать ещё и веб-прилож�
 - `AddHelmRepo/UpdateHelmRepos/SearchHelmCharts/GetHelmChartPackage` ходят по сети с сервера по URL от пользователя
   (нужно ограничение адресов — защита от SSRF — и учёт прокси) и используют общий каталог Helm (`helmHomeDir`): репозитории
   общие для всех пользователей. `AddHelmRepo/RemoveHelmRepo/UpdateHelmRepos` требуют `cluster.manage`.
+
+## Задача 1.6 (терминал по WebSocket) — сделано
+- Веб: RPC `OpenTerminal(ns, pod, container, shell, cols, rows) → id` (id 128 бит выдаёт сервер, ядро: `App.OpenTerminal`,
+  `k8s.Manager.StartTerminalWithOutput`, интерфейс `k8s.TerminalOutput`), затем `GET /api/terminal/{id}` (WebSocket):
+  бинарные кадры — ввод/вывод, текстовый `{"type":"resize","cols","rows"}`, закрытие 1000 «exit» — процесс завершился.
+- Вывод до подключения сокета копится (256 КиБ), поэтому подписок с подтверждением для терминала не нужно. Не подключились за 30 с
+  или отключились дольше 30 с назад — сессия закрывается (`termbuf.Registry.Sweep`, запускается в `kubron-server`). Закрытие
+  веб-сессии закрывает её терминальные сокеты (`Guard.CloseSession`).
+- В вебе закрыты `StartTerminalSession`, `WriteTerminal`, `ResizeTerminal` (id от клиента, ввод только по сокету); `CloseTerminal` открыт.
+- Фронтенд: `platform/terminal.ts` (`openTerminal`: десктоп — события Wails, веб — `terminal.web.ts`), `TerminalView.vue` переведён на него.
+- Проверка: сокетные тесты сервера (в т.ч. из 1.5) прогнаны с `-race` на настоящем коде gorilla/websocket; e2e-тест терминала
+  выполняется в CI с busybox-подом (`E2E_TERMINAL_POD`). Логи (`logs:data:<id>`) пока идут событиями с клиентскими id (этап 2).

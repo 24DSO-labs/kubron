@@ -25,17 +25,7 @@ const (
 // шлёт Origin при установке WebSocket, а заголовок CSRF для него недоступен.
 // Сессия перепроверяется на каждом ping: если она закрыта, соединение закрывается.
 func WSHandler(g *Guard) http.Handler {
-	up := websocket.Upgrader{
-		ReadBufferSize: 4 << 10, WriteBufferSize: 16 << 10,
-		CheckOrigin: func(r *http.Request) bool {
-			o := r.Header.Get("Origin")
-			if o == "" {
-				return false
-			}
-			u, err := url.Parse(o)
-			return err == nil && u.Host == r.Host
-		},
-	}
+	up := newUpgrader()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := g.token(r)
 		sess, ok := g.Sessions.Get(token)
@@ -51,6 +41,21 @@ func WSHandler(g *Guard) http.Handler {
 		defer c.Close()
 		serveConn(ws, c, func() bool { _, ok := g.Sessions.Get(token); return ok })
 	})
+}
+
+// newUpgrader — общие настройки WebSocket: Origin обязателен и должен совпадать с Host.
+func newUpgrader() websocket.Upgrader {
+	return websocket.Upgrader{
+		ReadBufferSize: 4 << 10, WriteBufferSize: 16 << 10,
+		CheckOrigin: func(r *http.Request) bool {
+			o := r.Header.Get("Origin")
+			if o == "" {
+				return false
+			}
+			u, err := url.Parse(o)
+			return err == nil && u.Host == r.Host
+		},
+	}
 }
 
 func serveConn(ws *websocket.Conn, c *Conn, alive func() bool) {
