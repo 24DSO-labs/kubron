@@ -144,5 +144,5 @@ func (m *Manager) startHelmLive() {
 	if err != nil {
 		return
 	}
-	conn.helmCache(func() { m.emit(EventHelmChanged, conn.Name) })
+	conn.helmCache(func() { m.emitCluster(EventHelmChanged, conn.Name) })
 }

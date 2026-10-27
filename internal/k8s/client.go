@@ -120,6 +120,14 @@ func (m *Manager) SetNotifier(f func(event string, data ...any)) {
 	m.notifyMu.Unlock()
 }
 
+// emitCluster сообщает об изменении данных кластера всем видам, у которых он активен:
+// кеши informers общие, а получатели — свои у каждой сессии.
+func (m *Manager) emitCluster(event, clusterName string) {
+	for _, h := range m.pool.holdersOf(clusterName) {
+		h.emit(event, clusterName)
+	}
+}
+
 func (m *Manager) emit(event string, data ...any) {
 	m.notifyMu.RLock()
 	f := m.notifier
@@ -137,12 +145,12 @@ func (m *Manager) activateLocked(clusterID string) error {
 	if prev == clusterID {
 		return nil
 	}
-	if err := m.pool.acquire(clusterID); err != nil {
+	if err := m.pool.acquire(clusterID, m); err != nil {
 		return err
 	}
 	m.activeCtx = clusterID
 	if prev != "" {
-		m.pool.release(prev)
+		m.pool.release(prev, m)
 	}
 	return nil
 }
@@ -171,7 +179,7 @@ func (m *Manager) Detach() {
 	m.viewMu.Lock()
 	defer m.viewMu.Unlock()
 	if m.activeCtx != "" {
-		m.pool.release(m.activeCtx)
+		m.pool.release(m.activeCtx, m)
 		m.activeCtx = ""
 	}
 }
