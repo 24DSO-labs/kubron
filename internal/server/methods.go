@@ -120,6 +120,7 @@ var allowedMethods = []string{
 	"ListUsers",
 	"Login",
 	"Logout",
+	"OpenTerminal",
 	"PreviewHelmInstall",
 	"PreviewHelmUpgrade",
 	"QueryPrometheus",
@@ -128,7 +129,6 @@ var allowedMethods = []string{
 	"RemoveHelmRepo",
 	"ReportActivity",
 	"ResetUserPassword",
-	"ResizeTerminal",
 	"RestartDaemonSet",
 	"RestartDeployment",
 	"RestartStatefulSet",
@@ -151,7 +151,6 @@ var allowedMethods = []string{
 	"StartNodeShell",
 	"StartPortForward",
 	"StartServicePortForward",
-	"StartTerminalSession",
 	"StopLogStream",
 	"StopPortForward",
 	"SuspendArgoAutoSync",
@@ -168,16 +167,18 @@ var allowedMethods = []string{
 	"UpdateSecret",
 	"UpdateUserRole",
 	"UpgradeHelmRelease",
-	"WriteTerminal",
 }
 
 // deniedMethods — методы, которые в веб-режиме недоступны намеренно.
 var deniedMethods = map[string]string{
-	"PickKubeconfigFile": "нативный диалог выбора файла есть только в десктопе (capabilities.fileDialog)",
-	"AddClusterFromFile": "читает путь на файловой системе сервера; в вебе kubeconfig передаётся текстом (AddClusterFromText)",
-	"OpenBrowserURL":     "открывает браузер на машине сервера; в вебе ссылки открывает сам браузер",
-	"GetFreePort":        "порт на машине сервера не нужен браузеру; port-forward в вебе только HTTP через прокси (этап 5)",
-	"OpenArgoUI":         "запускает port-forward и открывает браузер на сервере; в вебе — HTTP-прокси (этап 5)",
+	"PickKubeconfigFile":   "нативный диалог выбора файла есть только в десктопе (capabilities.fileDialog)",
+	"AddClusterFromFile":   "читает путь на файловой системе сервера; в вебе kubeconfig передаётся текстом (AddClusterFromText)",
+	"OpenBrowserURL":       "открывает браузер на машине сервера; в вебе ссылки открывает сам браузер",
+	"GetFreePort":          "порт на машине сервера не нужен браузеру; port-forward в вебе только HTTP через прокси (этап 5)",
+	"StartTerminalSession": "id сессии выбирает клиент; в вебе сервер сам выдаёт неугадываемый id (OpenTerminal)",
+	"WriteTerminal":        "ввод терминала идёт по WebSocket /api/terminal/{id}",
+	"ResizeTerminal":       "размер терминала передаётся управляющим кадром WebSocket /api/terminal/{id}",
+	"OpenArgoUI":           "запускает port-forward и открывает браузер на сервере; в вебе — HTTP-прокси (этап 5)",
 }
 
 // NewAppDispatcher строит диспетчер для app.App с allowlist по умолчанию.

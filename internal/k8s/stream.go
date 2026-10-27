@@ -31,20 +31,31 @@ const (
 
 // ─── Терминал ───
 
-// pumpTerminal читает вывод сессии и шлёт его фронтенду событиями (вместо опроса ReadTerminal).
+// eventTerminalOutput — вывод терминала событиями (десктоп).
+type eventTerminalOutput struct {
+	m  *Manager
+	id string
+}
+
+func (o eventTerminalOutput) Data(p []byte) {
+	o.m.emit(EventTerminalData+o.id, base64.StdEncoding.EncodeToString(p))
+}
+func (o eventTerminalOutput) Exit() { o.m.emit(EventTerminalExit + o.id) }
+
+// pumpTerminal читает вывод сессии и передаёт его приёмнику s.out (по умолчанию — события фронтенду).
 // Завершается, когда поток закрыт: по EOF (процесс вышел) или после CloseTerminal.
 func (m *Manager) pumpTerminal(s *TerminalSession) {
 	buf := make([]byte, 32<<10)
 	for {
 		n, err := s.stdoutR.Read(buf)
 		if n > 0 {
-			m.emit(EventTerminalData+s.ID, base64.StdEncoding.EncodeToString(buf[:n]))
+			s.out.Data(buf[:n])
 		}
 		if err != nil {
 			break
 		}
 	}
-	m.emit(EventTerminalExit + s.ID)
+	s.out.Exit()
 }
 
 // ─── Логи ───
