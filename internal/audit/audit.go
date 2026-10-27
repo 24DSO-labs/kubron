@@ -45,6 +45,7 @@ type Event struct {
 	Action string    `json:"action"`           // имя действия: Login, DeletePod, CreateUser, …
 	Result string    `json:"result"`           // ok | failed | denied
 	Detail string    `json:"detail,omitempty"` // цель и параметры: namespace=default name=nginx
+	Source string    `json:"source,omitempty"` // адрес клиента веб-сессии; пусто в десктопе
 }
 
 // Filter — условия выборки. Пустое поле не ограничивает выборку.
