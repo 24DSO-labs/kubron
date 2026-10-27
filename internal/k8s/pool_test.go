@@ -4,9 +4,11 @@
 package k8s
 
 import (
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 // newTestPoolManager создаёт Manager с пулом, в котором уже лежат кластеры ids, и счётчиком
@@ -225,5 +227,96 @@ func TestClusterEventsGoToEveryViewHoldingCluster(t *testing.T) {
 	defer mu.Unlock()
 	if len(got["v1"]) != 2 || len(got["v2"]) != 1 {
 		t.Errorf("после Detach: %v", got)
+	}
+}
+
+func TestSlowBuildDoesNotBlockOtherClusters(t *testing.T) {
+	p := newConnPool()
+	release := make(chan struct{})
+	started := make(chan struct{})
+	go func() {
+		_, _ = p.getOrCreate("slow", func() (*ClusterConnection, error) {
+			close(started)
+			<-release
+			return &ClusterConnection{Name: "slow"}, nil
+		})
+	}()
+	<-started
+	done := make(chan struct{})
+	go func() {
+		_, _ = p.getOrCreate("fast", func() (*ClusterConnection, error) { return &ClusterConnection{Name: "fast"}, nil })
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("построение медленного кластера заблокировало другой")
+	}
+	close(release)
+}
+
+func TestSingleflightSharesErrorAndAllowsRetry(t *testing.T) {
+	p := newConnPool()
+	var builds atomic.Int32
+	gate := make(chan struct{})
+	var wg sync.WaitGroup
+	errs := make([]error, 10)
+	for i := range errs {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			_, errs[i] = p.getOrCreate("a", func() (*ClusterConnection, error) {
+				builds.Add(1)
+				<-gate
+				return nil, errors.New("oidc недоступен")
+			})
+		}(i)
+	}
+	time.Sleep(50 * time.Millisecond)
+	close(gate)
+	wg.Wait()
+	for _, err := range errs {
+		if err == nil {
+			t.Fatal("все ожидающие должны получить ошибку построения")
+		}
+	}
+	if builds.Load() > 3 { // допускаем запоздавших, но не лавину
+		t.Errorf("построений %d", builds.Load())
+	}
+	// Ошибка не кешируется: следующая попытка строит заново.
+	if _, err := p.getOrCreate("a", func() (*ClusterConnection, error) { return &ClusterConnection{Name: "a"}, nil }); err != nil {
+		t.Fatalf("повтор после ошибки: %v", err)
+	}
+}
+
+func TestBuildPanicBecomesError(t *testing.T) {
+	p := newConnPool()
+	if _, err := p.getOrCreate("a", func() (*ClusterConnection, error) { panic("boom") }); err == nil {
+		t.Fatal("паника построения должна стать ошибкой")
+	}
+	if len(p.flights) != 0 {
+		t.Error("незавершённое построение осталось в реестре")
+	}
+}
+
+func TestIdleTTLDefersInformersShutdown(t *testing.T) {
+	root, closes := newTestPoolManager(t, "a")
+	root.SetIdleTTL(80 * time.Millisecond)
+	v := root.ForSession()
+	mustActivate(t, v, "a")
+	v.Detach()
+	if closes["a"].Load() != 0 {
+		t.Fatal("informers остановлены до истечения TTL")
+	}
+	// Возврат в пределах TTL отменяет остановку.
+	mustActivate(t, v, "a")
+	time.Sleep(200 * time.Millisecond)
+	if closes["a"].Load() != 0 {
+		t.Fatal("кластер снова активен, остановки быть не должно")
+	}
+	v.Detach()
+	time.Sleep(250 * time.Millisecond)
+	if closes["a"].Load() != 1 {
+		t.Fatalf("после TTL ждали ровно одну остановку, получили %d", closes["a"].Load())
 	}
 }
