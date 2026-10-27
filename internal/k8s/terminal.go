@@ -221,7 +221,7 @@ func (m *Manager) startTerminal(sessionID, namespace, pod, container, shell stri
 		}
 
 		if err := executor.StreamWithContext(ctx, opts); err != nil && ctx.Err() == nil {
-			fmt.Fprintf(stdoutW, "\r\n[stream error: %v]\r\n", err)
+			_, _ = fmt.Fprintf(stdoutW, "\r\n[stream error: %v]\r\n", err)
 		}
 
 		stdoutW.Close()
