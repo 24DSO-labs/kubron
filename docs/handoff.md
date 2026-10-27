@@ -74,3 +74,15 @@ Kubron (Wails + Go + Vue) должен стать ещё и веб-прилож�
 - Сборка `vite build --mode web` проверена без wailsjs: Wails-runtime подменяется пустышкой, в бандле нет `EventsOn`.
 - Известные пробелы веб-режима (не часть 1.7): проброс порта (`GetFreePort`, открытие `localhost:<порт>` — адрес сервера, а не
   браузера; нужен HTTP-прокси, этап 3), `OpenArgoUI`, `PickKubeconfigFile`/`AddClusterFromFile` закрыты `deniedMethods`.
+
+## Задача 1.8 (smoke-e2e) — сделано, требует первого прогона в CI
+- `frontend/e2e/smoke.spec.ts` (Playwright), `frontend/playwright.config.ts`, `npm run test:e2e`, описание в `docs/e2e.md`.
+- Тесты: первый запуск и создание админа; cookie (HttpOnly, SameSite=Lax); защита API (401/403 csrf/403 origin/закрытые методы,
+  `AuthStatus` без сессии); с `E2E_KUBECONFIG` — добавление кластера текстом и `GetNamespaces` (kube-system).
+- Тест защиты API проверен против настоящего кода `internal/server` (временный сервер с заглушкой ядра): проходит.
+  UI-шаги (первый запуск, вход, диалог кластера) и сценарий с kind проверит первый прогон у тебя/в CI — селекторы могут потребовать правки.
+- `KUBRON_DATA_DIR` — новый каталог данных (вместо `~/.kubron`); нужен серверу и e2e.
+- CI: job `e2e` (kind + Playwright), пока `continue-on-error: true`.
+- `kubron-server` отказывается стартовать с десктопным `frontend/dist` (`server.CheckWebBuild`, метка
+  `<meta name="kubron-target" content="web">` в index.html веб-сборки): `wails build` перезаписывает `dist`,
+  поэтому перед `go build ./cmd/kubron-server` всегда `npm run build:web`.

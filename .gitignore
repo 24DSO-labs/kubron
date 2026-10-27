@@ -7,3 +7,7 @@ frontend/package.json.md5
 .cline
 nul
 jira
+
+# Playwright
+frontend/test-results/
+frontend/playwright-report/

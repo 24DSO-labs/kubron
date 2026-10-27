@@ -135,3 +135,80 @@ jobs:
 
       - run: npm run build
         working-directory: frontend
+
+  # Сквозная проверка веб-версии: браузер → kubron-server → kind (docs/e2e.md).
+  # Пока не блокирует сборку: после первого стабильного зелёного прогона убрать continue-on-error.
+  e2e:
+    name: E2E (web, Playwright + kind)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: System libraries (cgo, webkit)
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2)
+
+      - run: npm ci
+        working-directory: frontend
+
+      # Типы для vue-tsc берутся из сгенерированных Wails-биндингов
+      - name: Generate Wails bindings
+        run: |
+          mkdir -p frontend/dist && touch frontend/dist/.keep
+          wails generate module -tags $GO_TAGS
+
+      - name: Build web frontend and server
+        run: |
+          npm run build:web
+          cd .. && go build -tags "$GO_TAGS" -o kubron-server ./cmd/kubron-server
+        working-directory: frontend
+
+      - name: kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: kubron-e2e
+
+      - name: Export kubeconfig
+        run: kind export kubeconfig --name kubron-e2e --kubeconfig "$RUNNER_TEMP/kind.kubeconfig"
+
+      - name: Start kubron-server
+        run: |
+          export KUBRON_DATA_DIR="$RUNNER_TEMP/kubron-data"
+          mkdir -p "$KUBRON_DATA_DIR"
+          ./kubron-server --listen 127.0.0.1:8080 > "$RUNNER_TEMP/server.log" 2>&1 &
+          for i in $(seq 1 30); do curl -fs http://127.0.0.1:8080/healthz && exit 0; sleep 1; done
+          cat "$RUNNER_TEMP/server.log"; exit 1
+
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+
+      - name: Playwright
+        run: npx playwright test
+        working-directory: frontend
+        env:
+          E2E_KUBECONFIG: ${{ runner.temp }}/kind.kubeconfig
+
+      - name: Server log
+        if: always()
+        run: cat "$RUNNER_TEMP/server.log" || true
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
