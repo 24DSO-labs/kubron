@@ -37,7 +37,12 @@ type ClusterStatus struct {
 	Error     string `json:"error"`
 }
 
+// GetKubronDir — каталог данных Kubron: KUBRON_DATA_DIR, иначе ~/.kubron.
+// Переменная нужна серверу (контейнер, тесты) и не меняет поведение десктопа.
 func GetKubronDir() string {
+	if dir := os.Getenv("KUBRON_DATA_DIR"); dir != "" {
+		return dir
+	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".kubron")
 }

@@ -14,6 +14,10 @@ export default defineConfig(({ mode }) => ({
     // от `wails generate module` (типы для vue-tsc он по-прежнему требует). Ветки с вызовом
     // биндингов вырезаются по VITE_TARGET.
     ...(mode === 'web' ? [{
+      // Метка веб-сборки: kubron-server отказывается раздавать десктопный frontend/dist
+      name: 'web-build-marker',
+      transformIndexHtml: () => [{ tag: 'meta', attrs: { name: 'kubron-target', content: 'web' }, injectTo: 'head' as const }],
+    }, {
       name: 'wails-runtime-stub',
       enforce: 'pre' as const,
       resolveId(id: string) {
