@@ -123,7 +123,7 @@ func TestProtectedMethodNeedsSessionAndCSRF(t *testing.T) {
 	if rec, rep := call(h, "Add", `[1,2]`, c, csrf); rec.Code != 200 || string(rep.Result) != "3" {
 		t.Errorf("с сессией и CSRF: %d %s", rec.Code, rec.Body.String())
 	}
-	forged := &http.Cookie{Name: cookieName, Value: "подделка"}
+	forged := &http.Cookie{Name: cookieName, Value: "forged-token"}
 	if rec, _ := call(h, "Add", `[1,2]`, forged, csrf); rec.Code != 401 {
 		t.Errorf("чужой cookie: %d", rec.Code)
 	}
