@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -63,8 +64,8 @@ func marshalHelmValues(v map[string]interface{}) (string, error) {
 // user-values. Чарт берётся ИЗ САМОГО РЕЛИЗА: смена версии чарта — этап H4/H5.
 // ResetValues=true: новые values заменяют прежние целиком, поэтому ключ, удалённый
 // в редакторе, возвращается к дефолту чарта.
-func (m *Manager) helmUpgradeValues(ctx context.Context, namespace, name string, vals map[string]interface{}, dryRun bool) (cur, next helmrelease.Accessor, curVals map[string]interface{}, err error) {
-	cfg, err := m.helmConfig(namespace)
+func (m *Manager) helmUpgradeValues(ctx context.Context, namespace, name string, vals map[string]interface{}, dryRun bool, logHandler slog.Handler) (cur, next helmrelease.Accessor, curVals map[string]interface{}, err error) {
+	cfg, err := m.helmConfigLogged(namespace, logHandler)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -111,7 +112,7 @@ func (m *Manager) PreviewHelmUpgrade(namespace, name, valuesYAML string) (*HelmU
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	cur, next, curVals, err := m.helmUpgradeValues(ctx, namespace, name, vals, true)
+	cur, next, curVals, err := m.helmUpgradeValues(ctx, namespace, name, vals, true, nil)
 	if err != nil {
 		return nil, fmt.Errorf("предпросмотр %s/%s: %w", namespace, name, err)
 	}
@@ -132,7 +133,8 @@ func (m *Manager) PreviewHelmUpgrade(namespace, name, valuesYAML string) (*HelmU
 }
 
 // UpgradeHelmRelease применяет новые values и возвращает номер созданной ревизии.
-func (m *Manager) UpgradeHelmRelease(namespace, name, valuesYAML string) (int, error) {
+// opID — идентификатор операции для событий helm:progress и отмены (пустой — без отслеживания).
+func (m *Manager) UpgradeHelmRelease(namespace, name, valuesYAML, opID string) (rev int, err error) {
 	if err := validateHelmRef(namespace, name); err != nil {
 		return 0, err
 	}
@@ -140,10 +142,16 @@ func (m *Manager) UpgradeHelmRelease(namespace, name, valuesYAML string) (int, e
 	if err != nil {
 		return 0, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), helmUpgradeTimeout+30*time.Second)
+	ctx, tr, err := m.beginHelmOp(context.Background(), opID, "upgrade", namespace, name, true)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { tr.finish(err) }()
+	ctx, cancel := context.WithTimeout(ctx, helmUpgradeTimeout+30*time.Second)
 	defer cancel()
 
-	_, next, _, err := m.helmUpgradeValues(ctx, namespace, name, vals, false)
+	tr.setPhase("Применение изменений и ожидание готовности…")
+	_, next, _, err := m.helmUpgradeValues(ctx, namespace, name, vals, false, tr.handler())
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return 0, fmt.Errorf("апгрейд %s/%s не завершился за %s", namespace, name, helmUpgradeTimeout)

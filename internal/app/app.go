@@ -700,11 +700,11 @@ func (a *App) PreviewHelmUpgrade(namespace, name, valuesYAML string) (*k8s.HelmU
 }
 
 // UpgradeHelmRelease применяет новые values; возвращает номер новой ревизии.
-func (a *App) UpgradeHelmRelease(namespace, name, valuesYAML string) (int, error) {
+func (a *App) UpgradeHelmRelease(namespace, name, valuesYAML, opID string) (int, error) {
 	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return 0, err
 	}
-	return a.k8sMgr.UpgradeHelmRelease(namespace, name, valuesYAML)
+	return a.k8sMgr.UpgradeHelmRelease(namespace, name, valuesYAML, opID)
 }
 
 // ВАЖНО: в authz не передаём URL и пароль. Адрес, введённый пользователем, может содержать
@@ -792,18 +792,18 @@ func (a *App) GetHelmReleaseContent(namespace, name string, revision int) (*k8s.
 	return a.k8sMgr.GetHelmReleaseContent(namespace, name, revision)
 }
 
-func (a *App) RollbackHelmRelease(namespace, name string, revision int) error {
+func (a *App) RollbackHelmRelease(namespace, name string, revision int, opID string) error {
 	if err := a.authz(auth.PermOperate, "namespace", namespace, "name", name, "revision", revision); err != nil {
 		return err
 	}
-	return a.k8sMgr.RollbackHelmRelease(namespace, name, revision)
+	return a.k8sMgr.RollbackHelmRelease(namespace, name, revision, opID)
 }
 
-func (a *App) UninstallHelmRelease(namespace, name string, keepHistory bool) error {
+func (a *App) UninstallHelmRelease(namespace, name string, keepHistory bool, opID string) error {
 	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name, "keepHistory", keepHistory); err != nil {
 		return err
 	}
-	return a.k8sMgr.UninstallHelmRelease(namespace, name, keepHistory)
+	return a.k8sMgr.UninstallHelmRelease(namespace, name, keepHistory, opID)
 }
 
 // GetHelmRevisionDiff сравнивает ревизии релиза (values и манифест); как и GetHelmReleaseContent, требует secrets.read.
@@ -831,6 +831,36 @@ func (a *App) InstallHelmChart(req k8s.HelmInstallRequest) (*k8s.HelmInstallResu
 		return nil, err
 	}
 	return a.k8sMgr.InstallHelmChart(req)
+}
+
+// CancelHelmOperation прерывает идущую операцию (установка и апгрейд); откат и удаление отменить нельзя.
+func (a *App) CancelHelmOperation(opID string) error {
+	if err := a.authz(auth.PermWrite, "opID", opID); err != nil {
+		return err
+	}
+	return a.k8sMgr.CancelHelmOperation(opID)
+}
+
+// AddHelmOCIRepo добавляет OCI-реестр с набором чартов. В authz — только имя: пароль и адрес не логируются.
+func (a *App) AddHelmOCIRepo(name, url string, charts []string, username, password string) error {
+	if err := a.authz(auth.PermClusterManage, "name", name); err != nil {
+		return err
+	}
+	return a.k8sMgr.AddHelmOCIRepo(name, url, charts, username, password)
+}
+
+func (a *App) AddHelmOCIChart(repo, chart string) error {
+	if err := a.authz(auth.PermClusterManage, "repo", repo, "chart", chart); err != nil {
+		return err
+	}
+	return a.k8sMgr.AddHelmOCIChart(repo, chart)
+}
+
+func (a *App) RemoveHelmOCIChart(repo, chart string) error {
+	if err := a.authz(auth.PermClusterManage, "repo", repo, "chart", chart); err != nil {
+		return err
+	}
+	return a.k8sMgr.RemoveHelmOCIChart(repo, chart)
 }
 
 // === Events ===
