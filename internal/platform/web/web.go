@@ -8,6 +8,7 @@ import (
 	"errors"
 	"sync"
 
+	"analog/internal/termbuf"
 	"analog/pkg/ext"
 )
 
@@ -19,6 +20,16 @@ var ErrNotSupported = errors.New("недоступно в веб-режиме")
 type Platform struct {
 	mu   sync.RWMutex
 	emit func(event string, data ...any)
+
+	termOnce  sync.Once
+	terminals *termbuf.Registry
+}
+
+// Terminals — реестр веб-терминалов (создаётся при первом обращении). Его же использует
+// WebSocket-обработчик /api/terminal/{id}.
+func (p *Platform) Terminals() *termbuf.Registry {
+	p.termOnce.Do(func() { p.terminals = termbuf.NewRegistry() })
+	return p.terminals
 }
 
 // SetEmitter подключает доставку событий браузеру.

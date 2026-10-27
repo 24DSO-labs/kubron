@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"analog/internal/termbuf"
 )
 
 // Session — веб-сессия браузера: привязывает cookie к пользователю и CSRF-токену.
@@ -162,6 +164,18 @@ type Guard struct {
 	TrustProxy bool
 	// Hub — WebSocket-хаб событий; nil отключает /api/ws.
 	Hub *Hub
+	// Terminals — реестр веб-терминалов; nil отключает /api/terminal/{id}.
+	Terminals *termbuf.Registry
+
+	termConns termConns
+}
+
+// CloseSession закрывает все WebSocket сессии (события и терминалы). Подключается к Sessions.OnEnd.
+func (g *Guard) CloseSession(sessionID string) {
+	if g.Hub != nil {
+		g.Hub.CloseSession(sessionID)
+	}
+	g.termConns.closeSession(sessionID)
 }
 
 func (g *Guard) secure(r *http.Request) bool {
