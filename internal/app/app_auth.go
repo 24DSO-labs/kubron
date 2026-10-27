@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
+	"time"
 )
 
 // initAuth открывает хранилище пользователей. Если файл повреждён, приложение остаётся
@@ -76,6 +77,9 @@ func BindView(v *App, sessionID string) {
 
 // SetResourceLimits задаёт лимиты ресурсов на пользователя для видов, создаваемых после вызова.
 func SetResourceLimits(root *App, l k8s.Limits) { root.k8sMgr.SetLimits(l) }
+
+// SetClusterIdleTTL задаёт задержку остановки informers кластера после ухода последнего пользователя.
+func SetClusterIdleTTL(root *App, d time.Duration) { root.k8sMgr.SetIdleTTL(d) }
 
 // ReleaseView освобождает вид, созданный NewSessionView: останавливает ресурсы сессии,
 // снимает отметку активного кластера в общем пуле и закрывает сессию пользователя.
