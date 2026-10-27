@@ -84,18 +84,3 @@ func promQueryPodMemByNs(scope nsScope) string {
 		promNamespaceMatcher(scope),
 	)
 }
-
-// Для вычисления процентов CPU нужны лимиты/requests
-func promQueryPodCPULimitByNs(namespace string) string {
-	return fmt.Sprintf(
-		`sum by (pod, namespace) (kube_pod_container_resource_limits{namespace="%s", resource="cpu"})`,
-		promLabelValue(namespace),
-	)
-}
-
-func promQueryPodMemLimitByNs(namespace string) string {
-	return fmt.Sprintf(
-		`sum by (pod, namespace) (kube_pod_container_resource_limits{namespace="%s", resource="memory"})`,
-		promLabelValue(namespace),
-	)
-}

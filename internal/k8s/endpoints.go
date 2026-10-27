@@ -54,6 +54,7 @@ type EndpointListInfo struct {
 	Subsets     []EndpointSubsetInfo `json:"subsets"`
 }
 
+//nolint:staticcheck // Endpoints показываем намеренно: отдельный ресурс в UI
 func convertEndpoints(ep corev1.Endpoints) EndpointListInfo {
 	info := EndpointListInfo{
 		Name:        ep.Name,

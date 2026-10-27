@@ -182,7 +182,8 @@ func (a *App) ConnectToCluster(clusterID string) error {
 		config = &k8s.KubronConfig{}
 	}
 	config.LastActiveCluster = clusterID
-	k8s.SaveKubronConfig(config)
+	_ = k8s.SaveKubronConfig(config) // запоминание последнего кластера не критично
+
 	return a.k8sMgr.TestConnection()
 }
 

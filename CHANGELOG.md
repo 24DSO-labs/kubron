@@ -23,4 +23,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Experimental web mode (`cmd/kubron-server`).
 - Project docs: SECURITY.md, CODE_OF_CONDUCT.md, issue and pull request templates,
   `.editorconfig`, `.gitattributes`.
-  
