@@ -67,7 +67,7 @@ type logStreams struct {
 	m  map[string]*logEntry
 }
 
-func (l *logStreams) add(id string, e *logEntry) bool {
+func (l *logStreams) add(id string, e *logEntry, max int) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.m == nil {
@@ -75,7 +75,7 @@ func (l *logStreams) add(id string, e *logEntry) bool {
 	}
 	if old, ok := l.m[id]; ok {
 		old.cancel()
-	} else if len(l.m) >= logMaxStreams {
+	} else if max > 0 && len(l.m) >= max {
 		return false
 	}
 	l.m[id] = e
@@ -134,10 +134,10 @@ func (m *Manager) StartLogStream(streamID, namespace, pod, container string, tai
 		return fmt.Errorf("не удалось получить логи: %w", err)
 	}
 	entry := &logEntry{cancel: cancel}
-	if !m.logs.add(streamID, entry) {
+	if !m.logs.add(streamID, entry, m.Limits().LogStreams) {
 		cancel()
 		stream.Close()
-		return fmt.Errorf("слишком много открытых потоков логов (максимум %d)", logMaxStreams)
+		return fmt.Errorf("слишком много открытых потоков логов (максимум %d)", m.Limits().LogStreams)
 	}
 	go m.pumpLogs(ctx, streamID, entry, stream)
 	return nil
