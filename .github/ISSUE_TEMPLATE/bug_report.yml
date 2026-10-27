@@ -57,4 +57,3 @@ body:
     attributes:
       label: Logs or screenshots
       render: shell
-      
