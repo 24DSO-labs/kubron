@@ -4,6 +4,7 @@
 package auth
 
 import (
+	"analog/internal/audit"
 	"errors"
 	"sync/atomic"
 	"testing"
@@ -233,5 +234,61 @@ func TestEmptySourceHasNoAddressLockout(t *testing.T) {
 	}
 	if _, err := v.Login("bob", bobPass); err != nil {
 		t.Errorf("без адреса блокировки по адресу быть не должно: %v", err)
+	}
+}
+
+// Два пользователя с разными ролями на разных сессиях: один и тот же вызов даёт разные ответы,
+// а журнал приписывает действие реальному пользователю и адресу его сессии.
+func TestAuditAttributesActionsToSessionUserAndSource(t *testing.T) {
+	root, _ := newTestService(t)
+	rec := &memRecorder{}
+	root.SetAuditor(rec)
+	adm := root.NewSession("10.0.0.1")
+	if _, err := adm.Setup("admin", goodPass); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := adm.CreateUser("bob", "temp-pass-1", RoleUser); err != nil {
+		t.Fatal(err)
+	}
+	bob := root.NewSession("10.0.0.2")
+	if _, err := bob.Login("bob", "temp-pass-1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := bob.ChangePassword("temp-pass-1", "bobs-own-pass"); err != nil {
+		t.Fatal(err)
+	}
+
+	if a, err := adm.Check(PermWrite); err != nil || a.Username != "admin" || a.Source != "10.0.0.1" {
+		t.Fatalf("admin: %+v %v", a, err)
+	}
+	a, err := bob.Check(PermClusterManage)
+	if !errors.Is(err, ErrForbidden) || a.Username != "bob" || a.Source != "10.0.0.2" {
+		t.Fatalf("bob должен получить отказ от своего имени: %+v %v", a, err)
+	}
+
+	// Отключение bob администратором: событие о сессии bob несёт адрес сессии bob, а не администратора.
+	rec.mu.Lock()
+	rec.ev = nil
+	rec.mu.Unlock()
+	users, _ := adm.ListUsers()
+	var bobID string
+	for _, u := range users {
+		if u.Username == "bob" {
+			bobID = u.ID
+		}
+	}
+	if _, err := adm.SetDisabled(bobID, true); err != nil {
+		t.Fatal(err)
+	}
+	rec.mu.Lock()
+	defer rec.mu.Unlock()
+	var end *audit.Event
+	for i := range rec.ev {
+		if rec.ev[i].Action == "SessionEnd" {
+			end = &rec.ev[i]
+		}
+	}
+	if end == nil || end.Source != "10.0.0.2" {
+		t.Errorf("SessionEnd должен нести адрес завершённой сессии: %+v", end)
 	}
 }
