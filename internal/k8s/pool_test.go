@@ -191,3 +191,39 @@ func TestManyViewsConcurrentSwitching(t *testing.T) {
 		}
 	}
 }
+
+func TestClusterEventsGoToEveryViewHoldingCluster(t *testing.T) {
+	root, _ := newTestPoolManager(t, "a", "b")
+	got := map[string][]string{}
+	var mu sync.Mutex
+	mk := func(name string) *Manager {
+		v := root.ForSession()
+		v.SetNotifier(func(ev string, data ...any) {
+			mu.Lock()
+			got[name] = append(got[name], ev)
+			mu.Unlock()
+		})
+		return v
+	}
+	v1, v2, v3 := mk("v1"), mk("v2"), mk("v3")
+	mustActivate(t, v1, "a")
+	mustActivate(t, v2, "a")
+	mustActivate(t, v3, "b")
+
+	// Событие инициирует любой вид, получают все, у кого кластер активен, и только они.
+	v1.emitCluster(EventClusterChanged, "a")
+	mu.Lock()
+	if len(got["v1"]) != 1 || len(got["v2"]) != 1 || len(got["v3"]) != 0 {
+		t.Errorf("получатели: %v", got)
+	}
+	mu.Unlock()
+
+	// После выхода вида из кластера события ему больше не идут.
+	v2.Detach()
+	v1.emitCluster(EventClusterChanged, "a")
+	mu.Lock()
+	defer mu.Unlock()
+	if len(got["v1"]) != 2 || len(got["v2"]) != 1 {
+		t.Errorf("после Detach: %v", got)
+	}
+}

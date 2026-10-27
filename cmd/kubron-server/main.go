@@ -51,6 +51,7 @@ func main() {
 	hub := server.NewHub()
 	platform := &webplatform.Platform{}
 	platform.SetEmitter(hub.Emit)
+	platform.SetSessionEmitter(hub.EmitTo)
 	core := app.NewApp(platform)
 	app.OnStartup(core)(ctx)
 	defer app.OnShutdown(core)(context.Background())
@@ -65,6 +66,7 @@ func main() {
 	guard := &server.Guard{Sessions: sessions, TrustProxy: cfg.TrustProxy, Hub: hub, Terminals: terminals}
 	app.SetResourceLimits(core, k8s.DefaultLimits())
 	guard.NewView = func(src string) any { return app.NewSessionView(core, src) }
+	guard.Bind = func(v any, id string) { app.BindView(v.(*app.App), id) }
 	sessions.Release = func(v any) { app.ReleaseView(v.(*app.App)) }
 	sessions.OnEnd = guard.CloseSession // закрытая сессия закрывает и свои WebSocket
 	go terminals.Run(ctx.Done(), 5*time.Second)

@@ -27,6 +27,8 @@ type connPool struct {
 type poolEntry struct {
 	conn *ClusterConnection
 	refs int
+	// holders — виды, державшие кластер активным: им адресуются события кластера.
+	holders map[*Manager]struct{}
 }
 
 func newConnPool() *connPool {
@@ -82,7 +84,7 @@ func (p *connPool) has(id string) bool {
 }
 
 // acquire отмечает, что ещё один вид держит кластер активным.
-func (p *connPool) acquire(id string) error {
+func (p *connPool) acquire(id string, holder *Manager) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	e, ok := p.entries[id]
@@ -90,17 +92,39 @@ func (p *connPool) acquire(id string) error {
 		return fmt.Errorf("кластер %s не подключён", id)
 	}
 	e.refs++
+	if holder != nil {
+		if e.holders == nil {
+			e.holders = map[*Manager]struct{}{}
+		}
+		e.holders[holder] = struct{}{}
+	}
 	return nil
 }
 
+// holdersOf — виды, у которых кластер сейчас активен.
+func (p *connPool) holdersOf(id string) []*Manager {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	e, ok := p.entries[id]
+	if !ok {
+		return nil
+	}
+	out := make([]*Manager, 0, len(e.holders))
+	for h := range e.holders {
+		out = append(out, h)
+	}
+	return out
+}
+
 // release снимает отметку; при нуле останавливает informers кластера.
-func (p *connPool) release(id string) {
+func (p *connPool) release(id string, holder *Manager) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	e, ok := p.entries[id]
 	if !ok {
 		return
 	}
+	delete(e.holders, holder)
 	if e.refs > 0 {
 		e.refs--
 	}
