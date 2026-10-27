@@ -60,8 +60,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("диспетчер: %v", err)
 	}
-	// Ядро пока одно на всех: не более одной веб-сессии (снимется на этапе 2).
-	sessions := server.NewSessions(cfg.SessionTTL, true)
+	// У каждой веб-сессии свой вид ядра (пользователь, права, кластер, терминалы, логи, события):
+	// одновременно могут работать несколько пользователей.
+	sessions := server.NewSessions(cfg.SessionTTL, false)
 	terminals := platform.Terminals()
 	guard := &server.Guard{Sessions: sessions, TrustProxy: cfg.TrustProxy, Hub: hub, Terminals: terminals}
 	app.SetResourceLimits(core, k8s.DefaultLimits())
