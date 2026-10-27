@@ -110,4 +110,5 @@ Paid subscription features are planned. The first one — **SSO/OIDC login for o
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) (DCO sign-off required).
+See [CONTRIBUTING.md](CONTRIBUTING.md) (DCO sign-off required). Please follow the
+[Code of Conduct](CODE_OF_CONDUCT.md). To report a vulnerability, see [SECURITY.md](SECURITY.md).
