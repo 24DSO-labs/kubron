@@ -152,7 +152,7 @@ func (a *App) auditCall(actor auth.Actor, result string, p auth.Permission, kv [
 	}
 	a.audit.Record(audit.Event{
 		User: actor.Username, Role: string(actor.Role),
-		Action: action, Result: result, Detail: strings.Join(parts, " "),
+		Action: action, Result: result, Detail: strings.Join(parts, " "), Source: actor.Source,
 	})
 }
 
