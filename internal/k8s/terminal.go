@@ -58,6 +58,26 @@ func NewTerminalSessionManager() *TerminalSessionManager {
 	}
 }
 
+func (tsm *TerminalSessionManager) count() int {
+	if tsm == nil {
+		return 0
+	}
+	tsm.mu.RLock()
+	defer tsm.mu.RUnlock()
+	return len(tsm.sessions)
+}
+
+// tryAdd регистрирует сессию, если не превышен лимит (0 — без ограничения).
+func (tsm *TerminalSessionManager) tryAdd(session *TerminalSession, max int) bool {
+	tsm.mu.Lock()
+	defer tsm.mu.Unlock()
+	if max > 0 && len(tsm.sessions) >= max {
+		return false
+	}
+	tsm.sessions[session.ID] = session
+	return true
+}
+
 func (tsm *TerminalSessionManager) Add(session *TerminalSession) {
 	tsm.mu.Lock()
 	defer tsm.mu.Unlock()
@@ -114,6 +134,9 @@ func (m *Manager) startTerminal(sessionID, namespace, pod, container, shell stri
 	conn, err := m.GetActiveConnection()
 	if err != nil {
 		return err
+	}
+	if max := m.Limits().Terminals; max > 0 && m.terminalSessions.count() >= max {
+		return fmt.Errorf("слишком много открытых терминалов (максимум %d)", max)
 	}
 
 	// Пустой shell — режим attach к основному процессу контейнера.
@@ -203,7 +226,14 @@ func (m *Manager) startTerminal(sessionID, namespace, pod, container, shell stri
 	if m.terminalSessions == nil {
 		m.terminalSessions = NewTerminalSessionManager()
 	}
-	m.terminalSessions.Add(session)
+	if !m.terminalSessions.tryAdd(session, m.Limits().Terminals) {
+		cancel()
+		_ = stdinR.Close()
+		_ = stdinW.Close()
+		_ = stdoutR.Close()
+		_ = stdoutW.Close()
+		return fmt.Errorf("слишком много открытых терминалов (максимум %d)", m.Limits().Terminals)
+	}
 
 	go m.pumpTerminal(session)
 
