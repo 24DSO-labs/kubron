@@ -60,7 +60,7 @@ go run ./cmd/kubron-server --listen 127.0.0.1:8080
 - [x] Argo CD integration
 - [ ] Web mode with multi-user support and session auth
 - [ ] SSO/OIDC (planned as a commercial add-on)
-- [ ] Helm releases management
+- [x] Helm releases management
 
 ## License
 
