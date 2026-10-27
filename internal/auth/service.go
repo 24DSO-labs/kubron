@@ -97,6 +97,7 @@ type Recorder interface{ Record(audit.Event) }
 type Actor struct {
 	Username string
 	Role     Role
+	Source   string // адрес клиента сессии (веб); пусто в десктопе
 }
 
 // shared — состояние, общее для всех сессий: хранилище пользователей, счётчики неудачных входов,
@@ -177,7 +178,7 @@ func (s *Service) endUserSessionsLocked(userID string, except *Service, action s
 		if v == except || v.sessionID != userID {
 			continue
 		}
-		s.record(s.st.findByID(userID), "SessionEnd", audit.ResultOK, "причина: "+action)
+		s.recordFrom(v.source, s.st.findByID(userID), "SessionEnd", audit.ResultOK, "причина: "+action)
 		v.sessionID = ""
 		if v.onLogout != nil {
 			hooks = append(hooks, v.onLogout)
@@ -209,10 +210,15 @@ func (s *Service) SetAuditor(r Recorder) {
 
 // record пишет событие в журнал. Вызывается под s.mu; actor может быть nil.
 func (s *Service) record(actor *UserRecord, action, result, detail string) {
+	s.recordFrom(s.source, actor, action, result, detail)
+}
+
+// recordFrom — то же, что record, но с адресом клиента той сессии, о которой событие.
+func (s *Service) recordFrom(source string, actor *UserRecord, action, result, detail string) {
 	if s.rec == nil {
 		return
 	}
-	e := audit.Event{Time: s.now(), Action: action, Result: result, Detail: detail}
+	e := audit.Event{Time: s.now(), Action: action, Result: result, Detail: detail, Source: source}
 	if actor != nil {
 		e.User, e.Role = actor.Username, string(actor.Role)
 	}
@@ -405,11 +411,11 @@ func (s *Service) Check(p Permission) (Actor, error) {
 	if u == nil {
 		// authorizeLocked не вернул пользователя: либо нет сессии, либо нужна смена пароля
 		if cu := s.sessionUserLocked(); cu != nil {
-			return Actor{Username: cu.Username, Role: cu.Role}, err
+			return Actor{Username: cu.Username, Role: cu.Role, Source: s.source}, err
 		}
-		return Actor{}, err
+		return Actor{Source: s.source}, err
 	}
-	return Actor{Username: u.Username, Role: u.Role}, err
+	return Actor{Username: u.Username, Role: u.Role, Source: s.source}, err
 }
 
 // Status возвращает состояние для стартового экрана.
