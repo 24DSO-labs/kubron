@@ -6,6 +6,7 @@ package k8s
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -19,6 +20,14 @@ import (
 
 // ─── Типы ──────────────────────────────────────────────────
 
+// TerminalOutput принимает вывод терминальной сессии. По умолчанию (десктоп) вывод уходит
+// событиями terminal:data:<id> / terminal:exit:<id>; веб подставляет буфер с WebSocket (internal/termbuf).
+// Data вызывается из одной горутины, p переиспользуется после возврата — реализация копирует, если хранит.
+type TerminalOutput interface {
+	Data(p []byte)
+	Exit()
+}
+
 type TerminalSession struct {
 	ID        string
 	Namespace string
@@ -26,6 +35,7 @@ type TerminalSession struct {
 	Container string
 	Shell     string
 
+	out      TerminalOutput
 	stdinW   io.WriteCloser
 	stdoutR  io.ReadCloser
 	sizeChan chan remotecommand.TerminalSize
@@ -84,7 +94,23 @@ func (sq *sizeQueue) Next() *remotecommand.TerminalSize {
 
 // ─── StartTerminalSession ──────────────────────────────────
 
+// StartTerminalSession запускает сессию с выводом событиями (десктоп): id выбирает вызывающий.
 func (m *Manager) StartTerminalSession(sessionID, namespace, pod, container, shell string, cols, rows uint16) error {
+	return m.startTerminal(sessionID, namespace, pod, container, shell, cols, rows, nil)
+}
+
+// StartTerminalWithOutput запускает сессию с произвольным приёмником вывода (веб).
+func (m *Manager) StartTerminalWithOutput(sessionID, namespace, pod, container, shell string, cols, rows uint16, out TerminalOutput) error {
+	if out == nil {
+		return errors.New("не задан приёмник вывода терминала")
+	}
+	return m.startTerminal(sessionID, namespace, pod, container, shell, cols, rows, out)
+}
+
+func (m *Manager) startTerminal(sessionID, namespace, pod, container, shell string, cols, rows uint16, out TerminalOutput) error {
+	if out == nil {
+		out = eventTerminalOutput{m: m, id: sessionID}
+	}
 	conn, err := m.GetActiveConnection()
 	if err != nil {
 		return err
@@ -164,6 +190,7 @@ func (m *Manager) StartTerminalSession(sessionID, namespace, pod, container, she
 		Pod:       pod,
 		Container: container,
 		Shell:     shellLabel,
+		out:       out,
 		stdinW:    stdinW,
 		stdoutR:   stdoutR,
 		sizeChan:  sizeChan,

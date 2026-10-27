@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"analog/frontend"
 	"analog/internal/app"
@@ -60,8 +61,11 @@ func main() {
 	}
 	// Ядро пока одно на всех: не более одной веб-сессии (снимется на этапе 2).
 	sessions := server.NewSessions(cfg.SessionTTL, true)
-	sessions.OnEnd = hub.CloseSession // закрытая сессия закрывает и свои WebSocket
-	guard := &server.Guard{Sessions: sessions, TrustProxy: cfg.TrustProxy, Hub: hub}
+	terminals := platform.Terminals()
+	guard := &server.Guard{Sessions: sessions, TrustProxy: cfg.TrustProxy, Hub: hub, Terminals: terminals}
+	sessions.OnEnd = guard.CloseSession // закрытая сессия закрывает и свои WebSocket
+	go terminals.Run(ctx.Done(), 5*time.Second)
+	defer terminals.CloseAll()
 
 	if err := server.Run(ctx, cfg, server.NewHandler(dispatcher, dist, guard)); err != nil {
 		log.Fatalf("сервер: %v", err)
