@@ -10,10 +10,13 @@ package server
 // проверяет права через authz.
 var allowedMethods = []string{
 	"AddClusterFromText",
+	"AddHelmOCIChart",
+	"AddHelmOCIRepo",
 	"AddHelmRepo",
 	"ApplyYAML",
 	"ArgoInstalled",
 	"AuthStatus",
+	"CancelHelmOperation",
 	"ChangePassword",
 	"CloseTerminal",
 	"ConnectToCluster",
@@ -126,6 +129,7 @@ var allowedMethods = []string{
 	"QueryPrometheus",
 	"QueryPrometheusRange",
 	"RefreshArgoApplication",
+	"RemoveHelmOCIChart",
 	"RemoveHelmRepo",
 	"ReportActivity",
 	"ResetUserPassword",

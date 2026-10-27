@@ -30,6 +30,7 @@ type HelmInstallRequest struct {
 	Values          string `json:"values"` // YAML с переопределениями (не полные values чарта)
 	CreateNamespace bool   `json:"createNamespace"`
 	Wait            bool   `json:"wait"` // ждать готовности ресурсов (до 5 минут)
+	OpID            string `json:"opId"` // идентификатор операции для helm:progress и отмены (необязателен)
 }
 
 // HelmInstallResult — итог установки или dry-run.
@@ -62,7 +63,7 @@ func validateHelmInstallRequest(r *HelmInstallRequest) error {
 // helmInstall скачивает чарт из репозитория и ставит его (или в dry-run только рендерит).
 // dry-run использует DryRunClient: кластер не опрашивается и ничего не создаётся, поэтому
 // lookup-функции шаблонов вернут пустоту, а проверки существующих ресурсов не выполняются.
-func (m *Manager) helmInstall(ctx context.Context, req HelmInstallRequest, dryRun bool) (*HelmInstallResult, error) {
+func (m *Manager) helmInstall(ctx context.Context, req HelmInstallRequest, dryRun bool) (res *HelmInstallResult, err error) {
 	if err := validateHelmInstallRequest(&req); err != nil {
 		return nil, err
 	}
@@ -70,11 +71,18 @@ func (m *Manager) helmInstall(ctx context.Context, req HelmInstallRequest, dryRu
 	if err != nil {
 		return nil, err
 	}
-	e, cv, err := lookupHelmChartVersion(req.Repo, req.Chart, req.Version)
-	if err != nil {
-		return nil, err
+
+	var tr *helmTracker
+	if !dryRun { // dry-run короткий и в прогрессе не нуждается
+		ctx, tr, err = m.beginHelmOp(ctx, req.OpID, "install", req.Namespace, req.ReleaseName, true)
+		if err != nil {
+			return nil, err
+		}
+		defer func() { tr.finish(err) }()
 	}
-	chrt, err := downloadHelmChart(ctx, e, cv)
+
+	tr.setPhase("Загрузка чарта…")
+	chrt, err := loadHelmChart(ctx, req.Repo, req.Chart, req.Version)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +100,7 @@ func (m *Manager) helmInstall(ctx context.Context, req HelmInstallRequest, dryRu
 		}
 	}
 
-	cfg, err := m.helmConfig(req.Namespace)
+	cfg, err := m.helmConfigLogged(req.Namespace, tr.handler())
 	if err != nil {
 		return nil, err
 	}
@@ -114,14 +122,15 @@ func (m *Manager) helmInstall(ctx context.Context, req HelmInstallRequest, dryRu
 	ctx, cancel := context.WithTimeout(ctx, helmInstallTimeout+30*time.Second)
 	defer cancel()
 
-	res, err := in.RunWithContext(ctx, chrt, vals)
+	tr.setPhase("Установка и ожидание готовности…")
+	rel, err := in.RunWithContext(ctx, chrt, vals)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return nil, fmt.Errorf("установка %s/%s не завершилась за %s", req.Namespace, req.ReleaseName, helmInstallTimeout)
 		}
 		return nil, fmt.Errorf("установка %s/%s: %w", req.Namespace, req.ReleaseName, err)
 	}
-	acc, err := helmrelease.NewAccessor(res)
+	acc, err := helmrelease.NewAccessor(rel)
 	if err != nil {
 		return nil, err
 	}

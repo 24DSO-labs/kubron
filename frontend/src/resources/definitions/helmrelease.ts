@@ -5,6 +5,7 @@ import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { helmLiveTick, startHelmLive } from '../../composables/useHelmLive'
+import { runHelmOp } from '../../composables/useHelmOps'
 import { flatNameCol, flatNsCol } from './common'
 import { badgeClass, statusColor } from '../status'
 import { helmContentTab } from '../helmTabs'
@@ -75,7 +76,8 @@ actions: [
           `Uninstall release ${r.namespace}/${r.name}? All resources created by the release will be deleted from the cluster.`,
         ))) return
         try {
-          await callApp('UninstallHelmRelease', r.namespace, r.name, false)
+          await runHelmOp({ op: 'uninstall', namespace: r.namespace, release: r.name }, id =>
+            callApp('UninstallHelmRelease', r.namespace, r.name, false, id))
           ctx.notifySuccess(`Release ${r.name} uninstalled`)
           ctx.closeDetail()
           await ctx.reload()
