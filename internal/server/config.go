@@ -21,6 +21,9 @@ type Config struct {
 	// До этапа 2 ядро держит одну общую сессию (новый вход выкидывает прежнего пользователя),
 	// а без TLS cookie уходит открытым текстом: для сети нужен обратный прокси с TLS.
 	AllowRemote bool
+	// DataDir — каталог данных (пользователи, кластеры, журнал); пусто — ~/.kubron
+	// (--data-dir или KUBRON_DATA_DIR). Читается только сервером: десктоп переменную игнорирует.
+	DataDir string
 	// TrustProxy — доверять X-Forwarded-Proto от обратного прокси: тогда cookie помечается
 	// Secure (KUBRON_TRUST_PROXY=1). Включайте, только если сервер доступен лишь через прокси.
 	TrustProxy bool
@@ -36,6 +39,7 @@ func LoadConfig(args []string, getenv func(string) string, out io.Writer) (Confi
 		cfg.Listen = v
 	}
 	cfg.AllowRemote = truthy(getenv("KUBRON_ALLOW_REMOTE"))
+	cfg.DataDir = getenv("KUBRON_DATA_DIR")
 	cfg.TrustProxy = truthy(getenv("KUBRON_TRUST_PROXY"))
 	if v := getenv("KUBRON_SESSION_TTL"); v != "" {
 		d, err := time.ParseDuration(v)
@@ -50,6 +54,7 @@ func LoadConfig(args []string, getenv func(string) string, out io.Writer) (Confi
 	fs.StringVar(&cfg.Listen, "listen", cfg.Listen, "адрес прослушивания (env KUBRON_LISTEN)")
 	fs.BoolVar(&cfg.AllowRemote, "allow-remote", cfg.AllowRemote,
 		"разрешить не-loopback адрес; небезопасно без TLS-прокси (env KUBRON_ALLOW_REMOTE)")
+	fs.StringVar(&cfg.DataDir, "data-dir", cfg.DataDir, "каталог данных, по умолчанию ~/.kubron (env KUBRON_DATA_DIR)")
 	fs.BoolVar(&cfg.TrustProxy, "trust-proxy", cfg.TrustProxy,
 		"доверять X-Forwarded-Proto от обратного прокси, cookie с Secure (env KUBRON_TRUST_PROXY)")
 	fs.DurationVar(&cfg.SessionTTL, "session-ttl", cfg.SessionTTL, "срок жизни веб-сессии (env KUBRON_SESSION_TTL)")

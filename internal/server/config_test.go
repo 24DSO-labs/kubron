@@ -96,3 +96,17 @@ func TestLoadConfigSessionAndProxy(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadConfigDataDir(t *testing.T) {
+	cfg, err := LoadConfig(nil, env(map[string]string{"KUBRON_DATA_DIR": "/srv/kubron"}), io.Discard)
+	if err != nil || cfg.DataDir != "/srv/kubron" {
+		t.Fatalf("env: %+v %v", cfg, err)
+	}
+	cfg, err = LoadConfig([]string{"--data-dir", "/tmp/x"}, env(map[string]string{"KUBRON_DATA_DIR": "/srv/kubron"}), io.Discard)
+	if err != nil || cfg.DataDir != "/tmp/x" {
+		t.Fatalf("флаг важнее env: %+v %v", cfg, err)
+	}
+	if cfg, _ = LoadConfig(nil, env(nil), io.Discard); cfg.DataDir != "" {
+		t.Errorf("по умолчанию пусто: %q", cfg.DataDir)
+	}
+}
