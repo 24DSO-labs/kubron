@@ -65,6 +65,7 @@ func main() {
 	terminals := platform.Terminals()
 	guard := &server.Guard{Sessions: sessions, TrustProxy: cfg.TrustProxy, Hub: hub, Terminals: terminals}
 	app.SetResourceLimits(core, k8s.DefaultLimits())
+	app.SetClusterIdleTTL(core, 2*time.Minute)
 	guard.NewView = func(src string) any { return app.NewSessionView(core, src) }
 	guard.Bind = func(v any, id string) { app.BindView(v.(*app.App), id) }
 	sessions.Release = func(v any) { app.ReleaseView(v.(*app.App)) }
