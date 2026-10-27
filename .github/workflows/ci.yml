@@ -181,6 +181,11 @@ jobs:
         with:
           cluster_name: kubron-e2e
 
+      - name: Pod with a shell for the terminal test
+        run: |
+          kubectl run e2e-shell --image=busybox:1.36 --restart=Never -- sleep 3600
+          kubectl wait --for=condition=Ready pod/e2e-shell --timeout=120s
+
       - name: Export kubeconfig
         run: kind export kubeconfig --name kubron-e2e --kubeconfig "$RUNNER_TEMP/kind.kubeconfig"
 
@@ -200,6 +205,7 @@ jobs:
         working-directory: frontend
         env:
           E2E_KUBECONFIG: ${{ runner.temp }}/kind.kubeconfig
+          E2E_TERMINAL_POD: default/e2e-shell/e2e-shell
 
       - name: Server log
         if: always()

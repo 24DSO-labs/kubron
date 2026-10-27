@@ -25,9 +25,8 @@ import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
 import type { TerminalTab } from '../../composables/useTabbedPanel'
-import { uid } from '../../resources/uid'
-import { onEvent } from '../../platform/events'
 import { callApp } from '../../platform/api'
+import { openTerminal, type TerminalHandle } from '../../platform/terminal'
 
 const props = defineProps<{ tab: TerminalTab; active: boolean }>()
 
@@ -42,15 +41,12 @@ const connecting = ref(true)
 interface Session {
   terminal: Terminal
   fitAddon: FitAddon
-  sessionID: string
+  handle: TerminalHandle
   aborted: boolean
-  unsubscribe: Array<() => void>
   resizeObserver?: ResizeObserver
   resizeTimer?: ReturnType<typeof setTimeout>
   onMouse?: () => void
 }
-
-const b64ToBytes = (b64: string) => Uint8Array.from(atob(b64), c => c.charCodeAt(0))
 
 let session: Session | null = null
 let unmounted = false
@@ -72,7 +68,7 @@ function safeFit() {
 
 function debouncedResize(s: Session, cols: number, rows: number) {
   if (s.resizeTimer) clearTimeout(s.resizeTimer)
-  s.resizeTimer = setTimeout(() => { callApp('ResizeTerminal', s.sessionID, cols, rows).catch(() => { }) }, 150)
+  s.resizeTimer = setTimeout(() => { s.handle.resize(cols, rows) }, 150)
 }
 
 // async function readLoop(s: Session) {
@@ -107,11 +103,10 @@ function disposeSession() {
   session = null
   if (!s) return
   s.aborted = true
-  s.unsubscribe.forEach(off => off())
   if (s.resizeTimer) clearTimeout(s.resizeTimer)
   s.resizeObserver?.disconnect()
   if (s.onMouse) termEl.value?.removeEventListener('mousedown', s.onMouse)
-  callApp('CloseTerminal', s.sessionID).catch(() => { })
+  s.handle.close()
   try { s.terminal.dispose() } catch { /* уже освобождён */ }
 }
 
@@ -148,43 +143,36 @@ async function initTerminal() {
     if (unmounted) { terminal.dispose(); return }
     try { fitAddon.fit() } catch { /* скрыт */ }
 
-        const sessionID = `term_${uid()}`
     const sessionMode = tab.mode === 'attach' ? '' : shell
-    const s: Session = { terminal, fitAddon, sessionID, aborted: false, unsubscribe: [] }
-
-    // Подписка ДО старта сессии, чтобы не потерять первые байты (приглашение shell)
-    s.unsubscribe.push(
-      onEvent(`terminal:data:${sessionID}`, (b64: string) => {
-        if (!s.aborted) terminal.write(b64ToBytes(b64))
-      }),
-      onEvent(`terminal:exit:${sessionID}`, () => {
-        if (s.aborted) return
-        terminal.write('\r\n[Session ended]\r\n')
-        setState('🔴', false)
-      }),
-    )
+    // Сессия создаётся без handle: обработчики вывода ссылаются на неё до возврата openTerminal
+    const s = { terminal, fitAddon, aborted: false } as Session
     try {
-      await callApp('StartTerminalSession', sessionID, tab.namespace, tab.pod, tab.container, sessionMode, terminal.cols, terminal.rows)
+      s.handle = await openTerminal(
+        { namespace: tab.namespace, pod: tab.pod, container: tab.container, shell: sessionMode, cols: terminal.cols, rows: terminal.rows },
+        {
+          onData: bytes => { if (!s.aborted) terminal.write(bytes) },
+          onExit: reason => {
+            if (s.aborted) return
+            terminal.write(reason === 'exit' ? '\r\n[Session ended]\r\n' : '\r\n[Connection lost]\r\n')
+            setState('🔴', false)
+          },
+        },
+      )
     } catch (e) {
       s.aborted = true
-      s.unsubscribe.forEach(off => off())
       terminal.dispose()
       throw e // обработает общий catch ниже
     }
     if (unmounted) {
       s.aborted = true
-      s.unsubscribe.forEach(off => off())
-      callApp('CloseTerminal', sessionID).catch(() => { })
+      s.handle.close()
       terminal.dispose()
       return
     }
     session = s
     setState('🟢', false)
 
-    terminal.onData((data: string) => {
-      const bytes = Array.from(new TextEncoder().encode(data))
-      callApp('WriteTerminal', s.sessionID, bytes).catch(() => { })
-    })
+    terminal.onData((data: string) => s.handle.write(data))
     terminal.onResize(({ cols, rows }) => debouncedResize(s, cols, rows))
 
     s.resizeObserver = new ResizeObserver(() => { if (props.active) safeFit() })

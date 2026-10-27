@@ -7,6 +7,8 @@
 2. Cookie сессии (`HttpOnly`, `SameSite=Lax`), экран входа после потери cookie.
 3. Защита API: 401 без сессии, 403 без CSRF-токена, 403 при чужом Origin и для закрытых методов, `AuthStatus` без сессии не раскрывает пользователя.
 4. (Нужен `E2E_KUBECONFIG`) добавление кластера текстом через диалог, `ConnectToCluster`, `GetNamespaces` содержит `kube-system`.
+5. (Нужны `E2E_KUBECONFIG` и `E2E_TERMINAL_POD=namespace/pod/container`, в образе должен быть `/bin/sh`) терминал: `OpenTerminal` выдаёт
+   серверный id, по бинарному WebSocket `/api/terminal/{id}` команда выполняется в поде; `StartTerminalSession` с id клиента закрыт.
 
 ## Локальный запуск
 ```bash
