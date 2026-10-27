@@ -22,6 +22,12 @@
         <MonacoDiff :original="manifestOld" :modified="manifestNew" />
       </template>
 
+      <div v-if="stale" class="hu-stale">
+        Релиз изменился: сейчас ревизия {{ props.resource?.revision }}, а ваши правки сделаны на ревизии {{ baseRevision }}.
+        Применение перезапишет чужие изменения values.
+        <button type="button" class="rd-btn" :disabled="busy" @click="load">Загрузить актуальные values (правки будут потеряны)</button>
+      </div>
+
       <p v-if="error" class="hu-error">{{ error }}</p>
 
       <div class="hu-actions">
@@ -65,6 +71,8 @@ const edited = ref('')
 const manifestOld = ref('')
 const manifestNew = ref('')
 const dirty = computed(() => edited.value !== original.value)
+const baseRevision = ref<number | undefined>(undefined) // ревизия, на которой основан редактор
+const stale = ref(false)
 
 let seq = 0
 async function load() {
@@ -72,6 +80,7 @@ async function load() {
   loaded.value = false
   error.value = ''
   step.value = 'edit'
+  stale.value = false
   if (!allowed.value) return
   try {
     // revision 0 — последняя; в кеш такой запрос не попадает
@@ -79,13 +88,20 @@ async function load() {
     if (my !== seq) return
     original.value = c.values ?? ''
     edited.value = original.value
+    baseRevision.value = props.resource?.revision
     loaded.value = true
   } catch (e: any) {
     if (my === seq) error.value = e?.message || String(e)
   }
 }
 // Релиз сменился или появилась новая ревизия: перечитываем исходные values
-watch(() => [ns.value, name.value, props.resource?.revision], load, { immediate: true })
+watch(() => [ns.value, name.value], load, { immediate: true })
+// Ревизия изменилась (live-обновление): без правок тихо перечитываем, с правками предупреждаем и ничего не затираем
+watch(() => props.resource?.revision, rev => {
+  if (!loaded.value || rev === baseRevision.value) return
+  if (dirty.value || busy.value) stale.value = true
+  else load()
+})
 
 async function preview() {
   busy.value = true
@@ -111,6 +127,8 @@ async function apply() {
     notifications.notifySuccess(`${name.value}: upgraded, revision #${rev}`)
     await reloadActive()
     await load()
+    baseRevision.value = rev // собственная ревизия не считается чужим изменением
+    stale.value = false
   } catch (e: any) {
     error.value = e?.message || String(e)
   } finally {
@@ -121,6 +139,7 @@ async function apply() {
 
 <style scoped>
 .hu-hint { font-size: 0.85rem; margin: 0 0 8px; }
+.hu-stale { padding: 8px 10px; border: 1px solid #f9e2af; border-radius: 6px; color: #f9e2af; font-size: 0.85rem; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
 .hu-actions { display: flex; gap: 8px; margin-top: 10px; }
 .hu-actions .rd-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .hu-error { color: #f87171; font-size: 0.85rem; margin: 8px 0 0; white-space: pre-wrap; }

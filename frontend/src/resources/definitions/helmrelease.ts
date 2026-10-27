@@ -4,6 +4,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
+import { helmLiveTick, startHelmLive } from '../../composables/useHelmLive'
 import { flatNameCol, flatNsCol } from './common'
 import { badgeClass, statusColor } from '../status'
 import { helmContentTab } from '../helmTabs'
@@ -32,6 +33,13 @@ export const helmRelease = defineResource<k8s.HelmReleaseInfo, k8s.HelmReleaseDe
     { key: 'appVersion', label: 'App Version' },
     { key: 'revision', label: 'Revision' },
     { key: 'status', label: 'Status', colorFn: r => statusColor(r.status) },
+    {
+      key: 'latestVersion',
+      label: 'Update',
+      formatter: r => (r.latestVersion ? `${r.latestVersion} (${r.latestRepo})` : ''),
+      colorFn: () => '#facc15',
+      sortValue: r => r.latestVersion || null,
+    },
     { key: 'updated', label: 'Updated' },
   ],
 
@@ -39,6 +47,7 @@ export const helmRelease = defineResource<k8s.HelmReleaseInfo, k8s.HelmReleaseDe
     { label: 'Status', value: r => r.status, badge: r => badgeClass(r.status) },
     { label: 'Chart', value: r => r.chart },
     { label: 'Chart Version', value: r => r.chartVersion },
+    { label: 'Update available', value: r => (r.latestVersion ? `${r.latestVersion} (${r.latestRepo})` : '—') },
     { label: 'App Version', value: r => r.appVersion },
     { label: 'Revision', value: r => r.revision },
     { label: 'Updated', value: r => r.updated },
@@ -76,6 +85,9 @@ actions: [
       },
     },
   ],
+  // helm:changed (informer): список и открытая панель обновляются сразу, без ожидания таймера
+  refreshOn: () => { startHelmLive(); return helmLiveTick.value },
+  liveDetail: true,
   api: {
     list: () => callApp('GetHelmReleases'),
     // history и resources приходят отсюда и дополняют элемент списка

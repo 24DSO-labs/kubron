@@ -64,6 +64,7 @@
         <CapacityCard :nodes="risks?.nodes ?? null" />
         <BlockersCard :risks="risks" />
         <ExpiringCertsCard v-if="can(Perm.SecretsRead)" :scan="certs" />
+        <HelmCard @navigate="emit('navigate', $event)" />
       </div>
     </template>
   </div>
@@ -83,6 +84,7 @@ import RecentChangesCard from '../overview/RecentChangesCard.vue'
 import CapacityCard from '../overview/CapacityCard.vue'
 import BlockersCard from '../overview/BlockersCard.vue'
 import ExpiringCertsCard from '../overview/ExpiringCertsCard.vue'
+import HelmCard from '../overview/HelmCard.vue'
 import { useOverview } from '../../composables/useOverview'
 import { useHotspots } from '../../composables/useHotspots'
 import { useInsights } from '../../composables/useInsights'

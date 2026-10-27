@@ -183,7 +183,13 @@ export interface ResourceDefinition<T = any, D = {}> {
    * Функция читает ref'ы: `refreshOn: () => k8s.portForwards.value`.
    */
   refreshOn?: () => unknown
-
+  
+  /**
+   * true — при срабатывании `refreshOn` открытая панель деталей перечитывается через `api.get`
+   * (иначе панель показывает данные на момент открытия).
+   */
+  liveDetail?: boolean
+  
   /**
    * Авто-обновление списка: если true и в настройках включён интервал,
    * список будет периодически перезагружаться.
