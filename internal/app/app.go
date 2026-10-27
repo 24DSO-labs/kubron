@@ -23,6 +23,8 @@ type App struct {
 	audit    *audit.Logger
 	auth     *auth.Service // nil, если хранилище пользователей не открылось (см. authErr)
 	authErr  error
+	// sessionID — веб-сессия владельца вида (пусто у корневого экземпляра и в десктопе).
+	sessionID string
 }
 
 // NewApp создаёт ядро приложения. p — возможности оболочки (Wails или HTTP-сервер);
@@ -1255,6 +1257,7 @@ func (a *App) OpenTerminal(namespace, pod, container, shell string, cols, rows u
 		Input:  func(p []byte) error { return a.k8sMgr.WriteTerminal(id, p) },
 		Resize: func(c, r uint16) error { return a.k8sMgr.ResizeTerminal(id, c, r) },
 		Close:  func() { _ = a.k8sMgr.CloseTerminal(id) },
+		Owner:  a.sessionID,
 	})
 	if err != nil {
 		return "", err
