@@ -59,3 +59,22 @@ func TestTerminalTryAddLimit(t *testing.T) {
 		t.Error("count nil-менеджера")
 	}
 }
+
+func TestValidStreamID(t *testing.T) {
+	for id, want := range map[string]bool{
+		"log_6f1c2d3e-aaaa-bbbb-cccc-0123456789ab": true,
+		"": false, "a b": false, "logs:data:1": false, "../x": false,
+		"line\nbreak": false,
+	} {
+		if validStreamID(id) != want {
+			t.Errorf("validStreamID(%q) != %v", id, want)
+		}
+	}
+	long := make([]byte, 65)
+	for i := range long {
+		long[i] = 'a'
+	}
+	if validStreamID(string(long)) {
+		t.Error("id длиннее 64 символов должен отклоняться")
+	}
+}
