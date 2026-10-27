@@ -52,7 +52,8 @@ jobs:
       - name: Stub frontend/dist
         run: mkdir -p frontend/dist && touch frontend/dist/.keep
 
-      # Go: только разрешённые лицензии (свой модуль analog не проверяем)
+      # Go: только разрешённые лицензии (свой модуль analog не проверяем).
+      # go-licenses v1 не имеет флага --include_tags: теги сборки передаются через GOFLAGS.
       - name: go-licenses
         env:
           GOFLAGS: -tags=${{ env.GO_TAGS }}
@@ -125,7 +126,8 @@ jobs:
       - run: npm ci
         working-directory: frontend
 
-      # чистая логика (status/utils/yaml/argocd): не требует Wails-биндингов, поэтому идёт до генерации
+      # Юнит-тесты герметичны: Wails-runtime подменяется плагином wails-runtime-stub в vite.config.ts,
+      # поэтому им не нужны Wails-биндинги и тесты идут до генерации
       - run: npm test
         working-directory: frontend
 
