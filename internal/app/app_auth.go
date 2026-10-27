@@ -48,6 +48,11 @@ func (a *App) endSessionResources() {
 // Это функция пакета, а не метод App: она не должна попадать в привязки Wails и RPC.
 func NewSessionView(root *App, source string) *App {
 	v := *root
+	// Свой вид менеджеров: активный кластер, терминалы, логи и port-forward принадлежат сессии;
+	// пул подключений (informers) общий.
+	v.k8sMgr = root.k8sMgr.ForSession()
+	v.k8sMgr.SetNotifier(root.platform.Emit)
+	v.pfMgr = k8s.NewSessionPortForwardManager(v.k8sMgr)
 	if root.auth == nil {
 		return &v
 	}
@@ -56,9 +61,18 @@ func NewSessionView(root *App, source string) *App {
 	return &v
 }
 
-// ReleaseView освобождает вид, созданный NewSessionView (сессия пользователя закрывается без очистки ресурсов).
+// SetResourceLimits задаёт лимиты ресурсов на пользователя для видов, создаваемых после вызова.
+func SetResourceLimits(root *App, l k8s.Limits) { root.k8sMgr.SetLimits(l) }
+
+// ReleaseView освобождает вид, созданный NewSessionView: останавливает ресурсы сессии,
+// снимает отметку активного кластера в общем пуле и закрывает сессию пользователя.
 func ReleaseView(v *App) {
-	if v != nil && v.auth != nil {
+	if v == nil {
+		return
+	}
+	v.endSessionResources()
+	v.k8sMgr.Detach()
+	if v.auth != nil {
 		v.auth.Release()
 	}
 }

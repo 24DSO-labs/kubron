@@ -63,6 +63,7 @@ func main() {
 	sessions := server.NewSessions(cfg.SessionTTL, true)
 	terminals := platform.Terminals()
 	guard := &server.Guard{Sessions: sessions, TrustProxy: cfg.TrustProxy, Hub: hub, Terminals: terminals}
+	app.SetResourceLimits(core, k8s.DefaultLimits())
 	guard.NewView = func(src string) any { return app.NewSessionView(core, src) }
 	sessions.Release = func(v any) { app.ReleaseView(v.(*app.App)) }
 	sessions.OnEnd = guard.CloseSession // закрытая сессия закрывает и свои WebSocket
