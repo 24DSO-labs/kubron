@@ -25,6 +25,6 @@ func HideChildConsole() {
 	}
 	if hwnd, _, _ := getConsoleWindow.Call(); hwnd != 0 {
 		const swHide = 0
-		user32.NewProc("ShowWindow").Call(hwnd, swHide)
+		_, _, _ = user32.NewProc("ShowWindow").Call(hwnd, swHide)
 	}
 }
