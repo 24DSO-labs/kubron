@@ -1,5 +1,9 @@
 # Kubron
 
+[![CI](https://github.com/VadimIl224/kubron/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/VadimIl224/kubron/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/VadimIl224/kubron?include_prereleases)](https://github.com/VadimIl224/kubron/releases)
+
 A lightweight, open-source Kubernetes desktop IDE built with **Go** and **Wails** — a fast, private alternative to Lens with **Argo CD built in**. No telemetry, no mandatory account, your kubeconfig never leaves your machine.
 
 <!-- Screenshot will be added in docs/img/ -->
