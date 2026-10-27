@@ -14,7 +14,7 @@ import (
 	ci "helm.sh/helm/v4/pkg/chart"
 	chartutil "helm.sh/helm/v4/pkg/chart/v2/util"
 	"helm.sh/helm/v4/pkg/kube"
-	"helm.sh/helm/v4/pkg/release"
+	helmrelease "helm.sh/helm/v4/pkg/release"
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 
@@ -121,7 +121,7 @@ func (m *Manager) helmInstall(ctx context.Context, req HelmInstallRequest, dryRu
 		}
 		return nil, fmt.Errorf("установка %s/%s: %w", req.Namespace, req.ReleaseName, err)
 	}
-	acc, err := release.NewAccessor(res)
+	acc, err := helmrelease.NewAccessor(res)
 	if err != nil {
 		return nil, err
 	}
