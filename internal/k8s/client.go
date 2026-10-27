@@ -86,6 +86,31 @@ type Manager struct {
 	notifyMu sync.RWMutex
 	notifier func(event string, data ...any)
 	logs     logStreams
+	limits   Limits // лимиты ресурсов вида; наследуются видами сессий
+}
+
+// Limits — ограничения на ресурсы одного вида (пользователя). 0 — без ограничения.
+type Limits struct {
+	Terminals    int
+	LogStreams   int
+	PortForwards int
+}
+
+// DefaultLimits — значения для сервера: 8 терминалов, 20 потоков логов, 10 port-forward на пользователя.
+func DefaultLimits() Limits { return Limits{Terminals: 8, LogStreams: 20, PortForwards: 10} }
+
+// SetLimits задаёт лимиты; виды, созданные ForSession после вызова, их наследуют.
+func (m *Manager) SetLimits(l Limits) {
+	m.viewMu.Lock()
+	m.limits = l
+	m.viewMu.Unlock()
+}
+
+// Limits возвращает действующие лимиты вида.
+func (m *Manager) Limits() Limits {
+	m.viewMu.RLock()
+	defer m.viewMu.RUnlock()
+	return m.limits
 }
 
 // SetNotifier задаёт функцию, которой бэкенд сообщает фронтенду о событиях (Wails EventsEmit).
@@ -126,6 +151,7 @@ func NewManager() *Manager {
 	return &Manager{
 		pool:             newConnPool(),
 		terminalSessions: NewTerminalSessionManager(),
+		limits:           Limits{LogStreams: logMaxStreams}, // десктоп: прежний предел логов
 	}
 }
 
@@ -135,6 +161,7 @@ func (m *Manager) ForSession() *Manager {
 	return &Manager{
 		pool:             m.pool,
 		terminalSessions: NewTerminalSessionManager(),
+		limits:           m.Limits(),
 	}
 }
 
