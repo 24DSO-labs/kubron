@@ -19,23 +19,27 @@ import (
 // Session — веб-сессия браузера: привязывает cookie к пользователю и CSRF-токену.
 type Session struct {
 	// ID — публичный идентификатор сессии (не секрет, не токен): для привязки WebSocket-соединений.
-	ID      string
-	UserID  string
-	CSRF    string
+	ID     string
+	UserID string
+	CSRF   string
+	// View — вид ядра этой сессии (nil — общий экземпляр диспетчера). Освобождается при завершении сессии.
+	View    any
 	Expires time.Time
 }
 
 // Sessions — реестр веб-сессий. Идентификатор сессии (256 бит) выдаётся браузеру в cookie,
 // а в памяти хранится только его SHA-256: дамп памяти или лога не даёт действующий токен.
 //
-// Ограничение до этапа 2: ядро хранит одну общую сессию пользователя, поэтому в режиме
-// Exclusive новый вход отзывает все прочие веб-сессии (иначе старый браузер получил бы права
-// нового пользователя). С появлением Session в ядре (этап 2) Exclusive отключается.
+// Каждая веб-сессия владеет видом ядра (Session.View): у него своя сессия пользователя, права и
+// ресурсы. Пока общие менеджеры кластеров не разделены по сессиям (этап 2, задача 2.3), включён
+// режим Exclusive: не более одной веб-сессии, новый вход вытесняет прежнюю.
 type Sessions struct {
 	// Exclusive — не более одной активной веб-сессии.
 	Exclusive bool
 	// OnEnd вызывается (вне блокировки) для каждой завершённой сессии: выход, истечение, вытеснение.
 	OnEnd func(sessionID string)
+	// Release освобождает вид ядра завершённой сессии (вне блокировки); вызывается до OnEnd.
+	Release func(view any)
 
 	mu    sync.Mutex
 	ttl   time.Duration
@@ -61,19 +65,19 @@ func randomToken() string {
 }
 
 // Create открывает сессию для пользователя и возвращает токен для cookie.
-func (s *Sessions) Create(userID string) (token string, sess Session) {
+func (s *Sessions) Create(userID string, view any) (token string, sess Session) {
 	s.mu.Lock()
-	var ended []string
+	var ended []Session
 	if s.Exclusive {
-		for k := range s.items {
-			ended = append(ended, sessionID(k))
+		for _, it := range s.items {
+			ended = append(ended, *it)
 		}
 		clear(s.items)
 	}
 	ended = append(ended, s.sweepLocked()...)
 	token = randomToken()
 	k := tokenKey(token)
-	sess = Session{ID: sessionID(k), UserID: userID, CSRF: randomToken(), Expires: s.now().Add(s.ttl)}
+	sess = Session{ID: sessionID(k), UserID: userID, CSRF: randomToken(), View: view, Expires: s.now().Add(s.ttl)}
 	cp := sess
 	s.items[k] = &cp
 	s.mu.Unlock()
@@ -81,12 +85,14 @@ func (s *Sessions) Create(userID string) (token string, sess Session) {
 	return token, sess
 }
 
-func (s *Sessions) notify(ids []string) {
-	if s.OnEnd == nil {
-		return
-	}
-	for _, id := range ids {
-		s.OnEnd(id)
+func (s *Sessions) notify(ended []Session) {
+	for _, e := range ended {
+		if s.Release != nil && e.View != nil {
+			s.Release(e.View)
+		}
+		if s.OnEnd != nil {
+			s.OnEnd(e.ID)
+		}
 	}
 }
 
@@ -105,7 +111,7 @@ func (s *Sessions) Get(token string) (Session, bool) {
 	if !s.now().Before(it.Expires) {
 		delete(s.items, k)
 		s.mu.Unlock()
-		s.notify([]string{sessionID(k)})
+		s.notify([]Session{*it})
 		return Session{}, false
 	}
 	out := *it
@@ -117,11 +123,11 @@ func (s *Sessions) Get(token string) (Session, bool) {
 func (s *Sessions) Delete(token string) {
 	k := tokenKey(token)
 	s.mu.Lock()
-	_, had := s.items[k]
+	it, had := s.items[k]
 	delete(s.items, k)
 	s.mu.Unlock()
 	if had {
-		s.notify([]string{sessionID(k)})
+		s.notify([]Session{*it})
 	}
 }
 
@@ -135,12 +141,12 @@ func (s *Sessions) Len() int {
 	return n
 }
 
-func (s *Sessions) sweepLocked() (ended []string) {
+func (s *Sessions) sweepLocked() (ended []Session) {
 	now := s.now()
 	for k, it := range s.items {
 		if !now.Before(it.Expires) {
 			delete(s.items, k)
-			ended = append(ended, sessionID(k))
+			ended = append(ended, *it)
 		}
 	}
 	return ended
@@ -166,6 +172,9 @@ type Guard struct {
 	Hub *Hub
 	// Terminals — реестр веб-терминалов; nil отключает /api/terminal/{id}.
 	Terminals *termbuf.Registry
+	// NewView создаёт вид ядра для нового входа (source — адрес клиента); nil — все сессии работают
+	// с общим экземпляром диспетчера (тесты). Освобождение — Sessions.Release.
+	NewView func(source string) any
 
 	termConns termConns
 }

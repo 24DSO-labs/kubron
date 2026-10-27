@@ -148,15 +148,15 @@ func TestSessionsOnEndNotified(t *testing.T) {
 	ss := NewSessions(time.Hour, true)
 	var ended []string
 	ss.OnEnd = func(id string) { ended = append(ended, id) }
-	t1, s1 := ss.Create("a")
-	_, s2 := ss.Create("b") // вытесняет первую
+	t1, s1 := ss.Create("a", nil)
+	_, s2 := ss.Create("b", nil) // вытесняет первую
 	if len(ended) != 1 || ended[0] != s1.ID || s1.ID == s2.ID || s1.ID == "" {
 		t.Fatalf("вытеснение: %v (%q, %q)", ended, s1.ID, s2.ID)
 	}
 	if _, ok := ss.Get(t1); ok {
 		t.Error("вытесненная сессия жива")
 	}
-	t2, _ := ss.Create("c")
+	t2, _ := ss.Create("c", nil)
 	ended = nil
 	ss.Delete(t2)
 	ss.Delete(t2) // повторное удаление не уведомляет

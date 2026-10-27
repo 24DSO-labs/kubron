@@ -198,7 +198,7 @@ func TestSessionExpiresAbsolutely(t *testing.T) {
 	ss := NewSessions(time.Minute, false)
 	now := time.Now()
 	ss.now = func() time.Time { return now }
-	tok, _ := ss.Create("u")
+	tok, _ := ss.Create("u", nil)
 	if _, ok := ss.Get(tok); !ok {
 		t.Fatal("сессия должна быть жива")
 	}
@@ -210,8 +210,8 @@ func TestSessionExpiresAbsolutely(t *testing.T) {
 
 func TestSessionsNonExclusiveKeepsMany(t *testing.T) {
 	ss := NewSessions(time.Hour, false)
-	ss.Create("a")
-	ss.Create("b")
+	ss.Create("a", nil)
+	ss.Create("b", nil)
 	if ss.Len() != 2 {
 		t.Errorf("ждали 2, есть %d", ss.Len())
 	}

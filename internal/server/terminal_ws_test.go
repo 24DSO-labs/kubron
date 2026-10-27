@@ -45,7 +45,7 @@ func newTermFixture(t *testing.T) *termFixture {
 	d, _ := NewDispatcher(&guardTarget{}, []string{"Login"}, nil)
 	f.srv = httptest.NewServer(NewHandler(d, nil, g))
 	t.Cleanup(f.srv.Close)
-	tok, _ := f.ss.Create("u1")
+	tok, _ := f.ss.Create("u1", nil)
 	f.cookie = cookieName + "=" + tok
 	return f
 }
@@ -149,7 +149,7 @@ func TestTerminalWSClosedWhenSessionEnds(t *testing.T) {
 	}
 	defer ws.Close()
 	time.Sleep(100 * time.Millisecond)
-	f.ss.Create("u2") // вытесняет сессию с терминалом
+	f.ss.Create("u2", nil) // вытесняет сессию с терминалом
 	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
 	if _, _, err := ws.ReadMessage(); err == nil {
 		t.Error("сокет должен закрыться")

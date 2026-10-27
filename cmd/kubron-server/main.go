@@ -63,6 +63,8 @@ func main() {
 	sessions := server.NewSessions(cfg.SessionTTL, true)
 	terminals := platform.Terminals()
 	guard := &server.Guard{Sessions: sessions, TrustProxy: cfg.TrustProxy, Hub: hub, Terminals: terminals}
+	guard.NewView = func(src string) any { return app.NewSessionView(core, src) }
+	sessions.Release = func(v any) { app.ReleaseView(v.(*app.App)) }
 	sessions.OnEnd = guard.CloseSession // закрытая сессия закрывает и свои WebSocket
 	go terminals.Run(ctx.Done(), 5*time.Second)
 	defer terminals.CloseAll()
