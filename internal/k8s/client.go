@@ -42,6 +42,10 @@ type ClusterConnection struct {
 	argo        *argoCache
 	argoRetryAt time.Time
 
+	helmMu      sync.Mutex
+	helm        *helmCache
+	helmRetryAt time.Time
+
 	// listAll кеширует проверку права на cluster-wide list (выбор нескольких namespace).
 	listAll listAllProbe
 }
@@ -59,6 +63,7 @@ func (c *ClusterConnection) overviewCache(onChange func()) *overviewCache {
 // Close останавливает фоновые informers подключения.
 func (c *ClusterConnection) Close() {
 	c.closeArgoCache()
+	c.closeHelmCache()
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 	if c.overview != nil {

@@ -29,15 +29,18 @@ const helmSecretType = "helm.sh/release.v1"
 
 // HelmReleaseInfo — установленный helm-релиз (последняя ревизия)
 type HelmReleaseInfo struct {
-	Name         string `json:"name"`
-	Namespace    string `json:"namespace"`
-	Chart        string `json:"chart"`
-	ChartVersion string `json:"chartVersion"`
-	AppVersion   string `json:"appVersion"`
-	Revision     int    `json:"revision"`
-	Status       string `json:"status"`
-	Updated      string `json:"updated"`
-	Description  string `json:"description"`
+	Name             string `json:"name"`
+	Namespace        string `json:"namespace"`
+	Chart            string `json:"chart"`
+	ChartVersion     string `json:"chartVersion"`
+	AppVersion       string `json:"appVersion"`
+	Revision         int    `json:"revision"`
+	Status           string `json:"status"`
+	Updated          string `json:"updated"`
+	Description      string `json:"description"`
+	LatestVersion    string `json:"latestVersion"`
+	LatestRepo       string `json:"latestRepo"`
+	LatestDeprecated bool   `json:"latestDeprecated"`
 }
 
 // HelmChartInfo — агрегация установленных релизов по chart-у
@@ -152,14 +155,17 @@ func (m *Manager) listHelmPayloads() ([]helmPayload, error) {
 }
 
 func (m *Manager) GetHelmReleases() ([]HelmReleaseInfo, error) {
+	m.startHelmLive()
+
 	payloads, err := m.listHelmPayloads()
 	if err != nil {
 		return nil, err
 	}
 
+	findUpdate := helmUpdateFinder()
 	releases := make([]HelmReleaseInfo, 0, len(payloads))
 	for _, p := range payloads {
-		releases = append(releases, HelmReleaseInfo{
+		info := HelmReleaseInfo{
 			Name:         p.Name,
 			Namespace:    p.Namespace,
 			Chart:        p.Chart.Metadata.Name,
@@ -168,8 +174,14 @@ func (m *Manager) GetHelmReleases() ([]HelmReleaseInfo, error) {
 			Revision:     p.Version,
 			Status:       p.Info.Status,
 			Updated:      helmUpdated(p.Info.LastDeployed),
-			Description:  p.Info.Description,
-		})
+			Description:  p.Info.Description}
+		if u := findUpdate(info.Chart, info.ChartVersion); u != nil {
+			info.LatestVersion,
+				info.LatestRepo,
+				info.LatestDeprecated = u.Latest,
+				u.Repo, u.Deprecated
+		}
+		releases = append(releases, info)
 	}
 
 	sort.Slice(releases, func(i, j int) bool {

@@ -68,7 +68,7 @@ import ResourceDetailPanel from './ResourceDetailPanel.vue'
 import ConfirmationDialog from '../utils/ConfirmationDialog.vue'
 import ScaleDialog from '../panels/ScaleDialog.vue'
 import { getResourceById } from '../../resources/registry'
-import { findLoaded } from '../../resources/store'
+import { findLoaded, reloadActive } from '../../resources/store'
 import { itemName, itemNs } from '../../resources/utils'
 import { opened, pendingDelete, pendingBulkDelete, scaleTarget, resourceActions } from '../../resources/actions'
 import { pendingConfirm, answerConfirm } from '../../resources/confirm'
@@ -132,6 +132,28 @@ watch(
     }
   },
   { immediate: true },
+)
+
+// Live-обновление открытой панели: срабатывает вместе с refreshOn определения (если liveDetail: true)
+let refetchSeq = 0
+watch(
+  () => (def.value?.liveDetail ? def.value.refreshOn?.() : undefined),
+  async () => {
+    const o = opened.value
+    const d = def.value
+    if (!o || !d?.liveDetail || !d.api.get || !detail.value) return
+    const my = ++refetchSeq
+    const stale = () => my !== refetchSeq || opened.value !== o
+    try {
+      await reloadActive() // свежие поля элемента списка (ревизия, статус)
+      const fresh = await d.api.get(o.ns, o.name)
+      if (stale()) return
+      const row = findLoaded(d.view, o.ns, o.name)
+      detail.value = { ...detail.value, ...(row ?? {}), ...(fresh ?? {}) }
+    } catch {
+      // ресурс мог быть удалён: список обновится сам, панель не закрываем принудительно
+    }
+  },
 )
 
 const bulkTitle = computed(() => {

@@ -4,6 +4,7 @@
 import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
+import { helmLiveTick, startHelmLive } from '../../composables/useHelmLive'
 import { flatNameCol } from './common'
 
 export const helmChart = defineResource<k8s.HelmChartInfo>({
@@ -15,6 +16,9 @@ export const helmChart = defineResource<k8s.HelmChartInfo>({
   nav: { group: 'helm', label: 'Charts' },
   
   autoRefresh: true,
+
+  refreshOn: () => { startHelmLive(); return helmLiveTick.value },
+
   // icon: 'documentation',
   // агрегация установленных релизов по chart-у: без YAML и удаления
   editable: false,

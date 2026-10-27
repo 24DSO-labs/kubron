@@ -159,10 +159,10 @@ func TestNormalizeHelmRepoURL(t *testing.T) {
 
 func TestResolveChartURL(t *testing.T) {
 	cases := map[string]string{
-		"web-1.0.0.tgz":                    "https://r.io/stable/web-1.0.0.tgz",
-		"/charts/web.tgz":                  "https://r.io/charts/web.tgz",
-		"https://cdn.io/web.tgz":           "https://cdn.io/web.tgz",
-		"https://user:pw@cdn.io/web.tgz":   "https://cdn.io/web.tgz",
+		"web-1.0.0.tgz":                  "https://r.io/stable/web-1.0.0.tgz",
+		"/charts/web.tgz":                "https://r.io/charts/web.tgz",
+		"https://cdn.io/web.tgz":         "https://cdn.io/web.tgz",
+		"https://user:pw@cdn.io/web.tgz": "https://cdn.io/web.tgz",
 	}
 	for in, want := range cases {
 		got, err := resolveChartURL("https://r.io/stable", in)
