@@ -31,12 +31,36 @@ func (a *App) initAuthWith(st store.Store) {
 	}
 	svc.SetAuditor(a.audit)
 	// При выходе из учётной записи ничего из сессии не должно продолжать работать.
-	svc.SetOnLogout(func() {
-		a.pfMgr.StopAll()
-		a.k8sMgr.CloseAllTerminals()
-		a.k8sMgr.StopAllLogStreams()
-	})
+	svc.SetOnLogout(a.endSessionResources)
 	a.auth = svc
+}
+
+// endSessionResources останавливает всё, что запущено в сессии: port-forward, терминалы, потоки логов.
+// Пока менеджеры кластеров общие (этап 2, задача 2.3), очищается всё; позже — только ресурсы сессии.
+func (a *App) endSessionResources() {
+	a.pfMgr.StopAll()
+	a.k8sMgr.CloseAllTerminals()
+	a.k8sMgr.StopAllLogStreams()
+}
+
+// NewSessionView создаёт вид ядра для одной веб-сессии: общие менеджеры и хранилища, но своя
+// сессия пользователя (вход, права, простой). source — адрес клиента для блокировки перебора паролей.
+// Это функция пакета, а не метод App: она не должна попадать в привязки Wails и RPC.
+func NewSessionView(root *App, source string) *App {
+	v := *root
+	if root.auth == nil {
+		return &v
+	}
+	v.auth = root.auth.NewSession(source)
+	v.auth.SetOnLogout(v.endSessionResources)
+	return &v
+}
+
+// ReleaseView освобождает вид, созданный NewSessionView (сессия пользователя закрывается без очистки ресурсов).
+func ReleaseView(v *App) {
+	if v != nil && v.auth != nil {
+		v.auth.Release()
+	}
 }
 
 // auditedPermissions — права, использование которых попадает в журнал при разрешении.

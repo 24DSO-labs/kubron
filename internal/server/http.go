@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"mime"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -107,8 +108,21 @@ func RPCHandler(d *Dispatcher, g *Guard) http.Handler {
 				return
 			}
 		}
-		result, err := d.Call(method, args)
+		// Вид ядра для вызова: у вошедшей сессии — её собственный; вход выполняется на новом виде,
+		// который станет видом новой сессии; остальное (анонимные запросы) — общий экземпляр.
+		var target, fresh any
+		if g != nil {
+			switch {
+			case g.NewView != nil && (method == "Login" || method == "SetupAdmin"):
+				fresh = g.NewView(clientIP(r, g.TrustProxy))
+				target = fresh
+			case authed:
+				target = sess.View
+			}
+		}
+		result, err := d.CallOn(target, method, args)
 		if err != nil {
+			g.dropView(fresh)
 			status, code := MapError(err)
 			if status == http.StatusInternalServerError {
 				log.Printf("rpc %s: %v", method, err)
@@ -121,7 +135,7 @@ func RPCHandler(d *Dispatcher, g *Guard) http.Handler {
 			return
 		}
 		if g != nil {
-			result = g.afterCall(w, r, method, result, token, authed)
+			result = g.afterCall(w, r, method, result, token, authed, fresh)
 		}
 		writeJSON(w, http.StatusOK, rpcResponse{Result: result})
 	})
@@ -129,16 +143,18 @@ func RPCHandler(d *Dispatcher, g *Guard) http.Handler {
 
 // afterCall связывает результат метода с веб-сессией: вход открывает её, выход закрывает,
 // а стартовое состояние без сессии не раскрывает пользователя (ядро пока одно на всех).
-func (g *Guard) afterCall(w http.ResponseWriter, r *http.Request, method string, result any, token string, authed bool) any {
+func (g *Guard) afterCall(w http.ResponseWriter, r *http.Request, method string, result any, token string, authed bool, fresh any) any {
 	switch method {
 	case "Login", "SetupAdmin":
 		if u, ok := result.(*auth.UserInfo); ok && u != nil {
 			if authed {
 				g.Sessions.Delete(token)
 			}
-			tok, sess := g.Sessions.Create(u.ID)
+			tok, sess := g.Sessions.Create(u.ID, fresh)
 			g.setCookie(w, r, tok, time.Until(sess.Expires))
 			w.Header().Set(csrfHeader, sess.CSRF)
+		} else {
+			g.dropView(fresh)
 		}
 	case "Logout":
 		if authed {
@@ -201,4 +217,29 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	if err := json.NewEncoder(w).Encode(v); err != nil {
 		log.Printf("rpc: запись ответа: %v", err)
 	}
+}
+
+// dropView освобождает вид, который не стал видом сессии (вход не удался).
+func (g *Guard) dropView(view any) {
+	if view != nil && g.Sessions.Release != nil {
+		g.Sessions.Release(view)
+	}
+}
+
+// clientIP — адрес клиента для блокировки перебора паролей. За доверенным обратным прокси
+// берётся последний адрес из X-Forwarded-For (его дописал наш прокси; предыдущие может подделать клиент).
+func clientIP(r *http.Request, trustProxy bool) string {
+	if trustProxy {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			parts := strings.Split(xff, ",")
+			if ip := strings.TrimSpace(parts[len(parts)-1]); ip != "" {
+				return ip
+			}
+		}
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
 }

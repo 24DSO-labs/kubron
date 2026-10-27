@@ -26,7 +26,7 @@ func wsSetup(t *testing.T) (srv *httptest.Server, hub *Hub, ss *Sessions, cookie
 	}
 	srv = httptest.NewServer(NewHandler(d, nil, &Guard{Sessions: ss, Hub: hub}))
 	t.Cleanup(srv.Close)
-	tok, _ := ss.Create("u1")
+	tok, _ := ss.Create("u1", nil)
 	return srv, hub, ss, cookieName + "=" + tok
 }
 
@@ -86,8 +86,8 @@ func TestWSClosedWhenSessionEnds(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer ws.Close()
-	readJSON(t, ws) // ready
-	ss.Create("u2") // вытесняет первую сессию
+	readJSON(t, ws)      // ready
+	ss.Create("u2", nil) // вытесняет первую сессию
 	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
 	for {
 		if _, _, err := ws.ReadMessage(); err != nil {

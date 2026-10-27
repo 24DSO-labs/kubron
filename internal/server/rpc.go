@@ -28,9 +28,19 @@ func (e *BadArgsError) Error() string { return e.Msg }
 
 // Dispatcher вызывает экспортируемые методы объекта по имени с аргументами из JSON.
 // Вызываются только методы из allowlist; остальные недоступны, даже если существуют.
+//
+// Диспетчер не привязан к одному экземпляру: метод ищется по индексу и вызывается на экземпляре,
+// выбранном для запроса (CallOn) — так каждая веб-сессия работает со своим видом ядра (этап 2).
 type Dispatcher struct {
-	methods map[string]reflect.Value
+	target  any          // экземпляр по умолчанию (анонимный вид, десктоп)
+	ttype   reflect.Type // тип экземпляров: CallOn принимает только его
+	methods map[string]method
 	denied  map[string]string
+}
+
+type method struct {
+	idx int          // индекс метода в типе
+	typ reflect.Type // сигнатура без получателя
 }
 
 var errorType = reflect.TypeOf((*error)(nil)).Elem()
@@ -40,20 +50,20 @@ var errorType = reflect.TypeOf((*error)(nil)).Elem()
 // и сервер не должен стартовать.
 func NewDispatcher(target any, allowed []string, denied map[string]string) (*Dispatcher, error) {
 	tv := reflect.ValueOf(target)
-	d := &Dispatcher{methods: make(map[string]reflect.Value, len(allowed)), denied: denied}
+	d := &Dispatcher{target: target, ttype: tv.Type(), methods: make(map[string]method, len(allowed)), denied: denied}
 	for _, name := range allowed {
-		m := tv.MethodByName(name)
-		if !m.IsValid() {
+		tm, ok := tv.Type().MethodByName(name)
+		if !ok {
 			return nil, fmt.Errorf("allowlist: у %T нет метода %s", target, name)
 		}
-		t := m.Type()
+		t := tv.Method(tm.Index).Type()
 		if t.IsVariadic() {
 			return nil, fmt.Errorf("allowlist: метод %s variadic — не поддерживается", name)
 		}
 		if t.NumOut() > 2 || (t.NumOut() == 2 && t.Out(1) != errorType) {
 			return nil, fmt.Errorf("allowlist: метод %s должен возвращать (T), (error) или (T, error)", name)
 		}
-		d.methods[name] = m
+		d.methods[name] = method{idx: tm.Index, typ: t}
 	}
 	return d, nil
 }
@@ -71,14 +81,26 @@ func (d *Dispatcher) Methods() []string {
 // Call вызывает метод. args — JSON-значения позиционных аргументов. Паника метода
 // превращается в обычную ошибку: сервер не падает из-за одного запроса.
 func (d *Dispatcher) Call(name string, args []json.RawMessage) (result any, err error) {
-	m, ok := d.methods[name]
+	return d.CallOn(nil, name, args)
+}
+
+// CallOn — Call на указанном экземпляре (nil — экземпляр по умолчанию). Тип экземпляра должен
+// совпадать с типом, для которого построен диспетчер.
+func (d *Dispatcher) CallOn(target any, name string, args []json.RawMessage) (result any, err error) {
+	if target == nil {
+		target = d.target
+	}
+	if reflect.TypeOf(target) != d.ttype {
+		return nil, fmt.Errorf("диспетчер построен для %v, получен %T", d.ttype, target)
+	}
+	meth, ok := d.methods[name]
 	if !ok {
 		if _, denied := d.denied[name]; denied {
 			return nil, fmt.Errorf("%w: %s", ErrMethodDenied, name)
 		}
 		return nil, fmt.Errorf("%w: %s", ErrUnknownMethod, name)
 	}
-	t := m.Type()
+	t := meth.typ
 	if len(args) != t.NumIn() {
 		return nil, &BadArgsError{fmt.Sprintf("%s: ожидается аргументов: %d, получено: %d", name, t.NumIn(), len(args))}
 	}
@@ -96,7 +118,7 @@ func (d *Dispatcher) Call(name string, args []json.RawMessage) (result any, err 
 			result, err = nil, fmt.Errorf("внутренняя ошибка при выполнении %s", name)
 		}
 	}()
-	out := m.Call(in)
+	out := reflect.ValueOf(target).Method(meth.idx).Call(in)
 	switch len(out) {
 	case 0:
 		return nil, nil

@@ -54,9 +54,12 @@ const (
 	idleGrace = 30 * time.Second
 
 	freeAttempts = 5
-	baseLockout  = 15 * time.Second
-	maxLockout   = 5 * time.Minute
-	maxTracked   = 1024
+	// По адресу клиента порог выше (один адрес — часто целый офис за NAT) и счётчик забывается.
+	sourceFreeAttempts = 30
+	sourceWindow       = 15 * time.Minute
+	baseLockout        = 15 * time.Second
+	maxLockout         = 5 * time.Minute
+	maxTracked         = 1024
 )
 
 // UserInfo — безопасное представление пользователя для интерфейса (без хеша пароля).
@@ -83,6 +86,7 @@ type Status struct {
 type failure struct {
 	count       int
 	lockedUntil time.Time
+	last        time.Time // последняя неудача (для забывания счётчика по адресу)
 }
 
 // Recorder принимает события журнала аудита. Реализация (audit.Logger) не должна
@@ -95,23 +99,33 @@ type Actor struct {
 	Role     Role
 }
 
-// Service — аутентификация, сессия и управление пользователями.
-//
-// Приложение настольное: один процесс — один оператор, поэтому сессия одна и живёт в памяти
-// до выхода или закрытия приложения. Права текущего пользователя перечитываются из
-// хранилища при каждой проверке, так что смена роли действует немедленно.
-type Service struct {
-	mu         sync.Mutex
-	st         *store
-	sessionID  string
-	failures   map[string]*failure
-	now        func() time.Time
-	onLogout   func()
-	rec        Recorder
-	lastActive time.Time // последнее действие пользователя в интерфейсе (не вызов API)
+// shared — состояние, общее для всех сессий: хранилище пользователей, счётчики неудачных входов,
+// журнал аудита и реестр сессий. Всё защищено одним мьютексом mu.
+type shared struct {
+	mu       sync.Mutex
+	st       *store
+	failures map[string]*failure
+	now      func() time.Time
+	rec      Recorder
+	sessions map[*Service]struct{} // живые сессии, включая неявную сессию десктопа
 
 	dummyOnce sync.Once
 	dummyHash string
+}
+
+// Service — аутентификация, сессия и управление пользователями.
+//
+// Service — это ВИД на общее состояние (shared) со своей сессией: у каждого окна браузера свой
+// Service (NewSession), у десктопа — один неявный. Методы работают от имени пользователя именно
+// этой сессии; вход в одном виде не влияет на другие. Права пользователя перечитываются из
+// хранилища при каждой проверке, так что смена роли действует немедленно, а отключение, удаление
+// и смена пароля пользователя завершают его сессии (вызывая их обработчики очистки).
+type Service struct {
+	*shared
+	sessionID  string    // id пользователя этой сессии ("" — не вошёл)
+	lastActive time.Time // последнее действие пользователя в интерфейсе (не вызов API)
+	onLogout   func()    // очистка ресурсов этой сессии (терминалы, port-forward)
+	source     string    // откуда пришёл вход (IP) — для блокировки перебора паролей
 }
 
 // NewService открывает (или создаёт при первом запуске) хранилище пользователей в каталоге dir.
@@ -125,7 +139,57 @@ func NewServiceWithBackend(b Backend) (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Service{st: st, failures: map[string]*failure{}, now: time.Now}, nil
+	sh := &shared{st: st, failures: map[string]*failure{}, now: time.Now, sessions: map[*Service]struct{}{}}
+	svc := &Service{shared: sh}
+	sh.sessions[svc] = struct{}{}
+	return svc, nil
+}
+
+// NewSession создаёт новую независимую сессию (вид) поверх того же хранилища. source — адрес
+// клиента для блокировки перебора (может быть пустым). Освободить: Release.
+func (s *Service) NewSession(source string) *Service {
+	v := &Service{shared: s.shared, source: source}
+	s.mu.Lock()
+	s.sessions[v] = struct{}{}
+	s.mu.Unlock()
+	return v
+}
+
+// Release завершает сессию (с очисткой её ресурсов, если пользователь был вошёл) и убирает её
+// из реестра. Вызывается, когда браузерная сессия закончилась.
+func (s *Service) Release() {
+	s.mu.Lock()
+	had := s.sessionID != ""
+	s.sessionID = ""
+	hook := s.onLogout
+	delete(s.sessions, s)
+	s.mu.Unlock()
+	if had && hook != nil {
+		hook()
+	}
+}
+
+// endUserSessionsLocked сбрасывает все сессии пользователя userID, кроме except, и возвращает их
+// обработчики очистки — вызвать после снятия блокировки.
+func (s *Service) endUserSessionsLocked(userID string, except *Service, action string) []func() {
+	var hooks []func()
+	for v := range s.sessions {
+		if v == except || v.sessionID != userID {
+			continue
+		}
+		s.record(s.st.findByID(userID), "SessionEnd", audit.ResultOK, "причина: "+action)
+		v.sessionID = ""
+		if v.onLogout != nil {
+			hooks = append(hooks, v.onLogout)
+		}
+	}
+	return hooks
+}
+
+func runAll(hooks []func()) {
+	for _, h := range hooks {
+		h()
+	}
 }
 
 // SetOnLogout задаёт обработчик, вызываемый при завершении сессии
@@ -193,6 +257,9 @@ func (s *Service) sessionUserLocked() *UserRecord {
 	u := s.st.findByID(s.sessionID)
 	if u == nil || u.Disabled {
 		s.sessionID = ""
+		if hook := s.onLogout; hook != nil {
+			go hook() // ресурсы сессии нельзя оставлять работать без пользователя
+		}
 		return nil
 	}
 	if s.idleExpiredLocked() {
@@ -257,8 +324,21 @@ func (s *Service) ExpireIdle() bool {
 	return s.sessionUserLocked() == nil
 }
 
-// RunIdleWatcher периодически вызывает ExpireIdle, чтобы терминалы и port-forward закрывались
-// вовремя, даже если интерфейс больше ничего не вызывает. Возвращается при отмене ctx.
+// ExpireAllIdle завершает все сессии, простаивавшие дольше допустимого; возвращает их число.
+func (s *Service) ExpireAllIdle() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n := 0
+	for v := range s.sessions {
+		if v.sessionID != "" && v.sessionUserLocked() == nil {
+			n++
+		}
+	}
+	return n
+}
+
+// RunIdleWatcher периодически завершает простаивающие сессии (всех видов), чтобы терминалы и
+// port-forward закрывались вовремя, даже если интерфейс больше ничего не вызывает. Возвращается при отмене ctx.
 func (s *Service) RunIdleWatcher(ctx context.Context, every time.Duration) {
 	t := time.NewTicker(every)
 	defer t.Stop()
@@ -267,7 +347,7 @@ func (s *Service) RunIdleWatcher(ctx context.Context, every time.Duration) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			s.ExpireIdle()
+			s.ExpireAllIdle()
 		}
 	}
 }
@@ -402,7 +482,8 @@ func (s *Service) Login(username, password string) (*UserInfo, error) {
 		s.mu.Unlock()
 		return nil, ErrSetupRequired
 	}
-	if remaining := s.lockRemainingLocked(key); remaining > 0 {
+	ipKey := s.ipKey()
+	if remaining := max(s.lockRemainingLocked(key), s.lockRemainingLocked(ipKey)); remaining > 0 {
 		s.record(&UserRecord{Username: username}, "Login", audit.ResultDenied, "вход временно заблокирован после неудачных попыток")
 		s.mu.Unlock()
 		return nil, &LockedError{RetryAfter: remaining}
@@ -429,7 +510,8 @@ func (s *Service) Login(username, password string) (*UserInfo, error) {
 
 	s.mu.Lock()
 	if !ok || snapshot == nil {
-		s.recordFailureLocked(key)
+		s.recordFailureLocked(key, freeAttempts)
+		s.recordSourceFailureLocked(ipKey)
 		s.record(&UserRecord{Username: username}, "Login", audit.ResultFailed, ErrInvalidCredentials.Error())
 		s.mu.Unlock()
 		return nil, ErrInvalidCredentials
@@ -494,7 +576,27 @@ func (s *Service) lockRemainingLocked(key string) time.Duration {
 	return 0
 }
 
-func (s *Service) recordFailureLocked(key string) {
+// ipKey — ключ блокировки по адресу клиента ("" — адрес неизвестен, блокировки по адресу нет).
+func (s *Service) ipKey() string {
+	if s.source == "" {
+		return ""
+	}
+	return "ip:" + s.source
+}
+
+// recordSourceFailureLocked считает неудачу по адресу клиента: порог выше, чем по логину
+// (за одним адресом может быть целый офис), а счётчик забывается через sourceWindow.
+func (s *Service) recordSourceFailureLocked(key string) {
+	if key == "" {
+		return
+	}
+	if f := s.failures[key]; f != nil && s.now().Sub(f.last) > sourceWindow && f.lockedUntil.Before(s.now()) {
+		delete(s.failures, key)
+	}
+	s.recordFailureLocked(key, sourceFreeAttempts)
+}
+
+func (s *Service) recordFailureLocked(key string, free int) {
 	if len(s.failures) >= maxTracked {
 		now := s.now()
 		for k, f := range s.failures {
@@ -512,8 +614,9 @@ func (s *Service) recordFailureLocked(key string) {
 		s.failures[key] = f
 	}
 	f.count++
-	if f.count >= freeAttempts {
-		exp := f.count - freeAttempts
+	f.last = s.now()
+	if f.count >= free {
+		exp := f.count - free
 		if exp > 6 {
 			exp = 6
 		}
@@ -553,6 +656,8 @@ func (s *Service) ChangePassword(oldPassword, newPassword string) error {
 		return err
 	}
 
+	var hooks []func()
+	defer func() { runAll(hooks) }() // после снятия блокировки (defer выполняются в обратном порядке)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	rec := s.st.findByID(id)
@@ -569,6 +674,8 @@ func (s *Service) ChangePassword(oldPassword, newPassword string) error {
 	}
 	s.touchLocked()
 	s.record(rec, "ChangePassword", audit.ResultOK, "")
+	// Остальные сессии этого пользователя (другие браузеры) завершаются: пароль мог быть скомпрометирован
+	hooks = s.endUserSessionsLocked(id, s, "смена пароля")
 	return nil
 }
 
@@ -635,6 +742,8 @@ func (s *Service) CreateUser(username, password string, role Role) (*UserInfo, e
 //
 // fn возвращает описание изменения для журнала аудита (например, «admin → user»).
 func (s *Service) mutate(id, action string, fn func(actor, target *UserRecord) (string, error)) (*UserInfo, error) {
+	var hooks []func()
+	defer func() { runAll(hooks) }() // после снятия блокировки
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	actor, err := s.authorizeLocked(PermUsersManage)
@@ -664,6 +773,11 @@ func (s *Service) mutate(id, action string, fn func(actor, target *UserRecord) (
 		who += " " + change
 	}
 	s.record(actor, action, audit.ResultOK, who)
+	// Смена роли, отключение и новый временный пароль завершают сессии пользователя: уже открытые
+	// терминалы и port-forward не должны пережить потерю прав или пароля.
+	if prev.Role != target.Role || (!prev.Disabled && target.Disabled) || action == "ResetUserPassword" {
+		hooks = s.endUserSessionsLocked(target.ID, nil, action)
+	}
 	return toInfo(target), nil
 }
 
@@ -730,6 +844,8 @@ func (s *Service) ResetPassword(id, newPassword string) (*UserInfo, error) {
 
 // DeleteUser удаляет пользователя.
 func (s *Service) DeleteUser(id string) error {
+	var hooks []func()
+	defer func() { runAll(hooks) }() // после снятия блокировки
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	actor, err := s.authorizeLocked(PermUsersManage)
@@ -758,6 +874,7 @@ func (s *Service) DeleteUser(id string) error {
 		return fmt.Errorf("не удалось сохранить изменения: %w", err)
 	}
 	s.record(actor, "DeleteUser", audit.ResultOK, who)
+	hooks = s.endUserSessionsLocked(id, nil, "DeleteUser")
 	return nil
 }
 
