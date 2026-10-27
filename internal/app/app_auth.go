@@ -68,6 +68,7 @@ type sessionEmitter interface {
 
 // BindView привязывает вид к веб-сессии: события его менеджера уходят только её соединениям.
 func BindView(v *App, sessionID string) {
+	v.sessionID = sessionID
 	if em, ok := v.platform.(sessionEmitter); ok {
 		v.k8sMgr.SetNotifier(func(event string, data ...any) { em.EmitTo(sessionID, event, data...) })
 	}

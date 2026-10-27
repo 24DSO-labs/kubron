@@ -29,6 +29,19 @@ const (
 	logConnectWait = 20 * time.Second
 )
 
+// validStreamID: id приходит от клиента и входит в имя события, поэтому длина и алфавит ограничены.
+func validStreamID(id string) bool {
+	if id == "" || len(id) > 64 {
+		return false
+	}
+	for _, r := range id {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '_' || r == '-' || r == '.') {
+			return false
+		}
+	}
+	return true
+}
+
 // ─── Терминал ───
 
 // eventTerminalOutput — вывод терминала событиями (десктоп).
@@ -113,8 +126,8 @@ func (l *logStreams) stopAll() {
 // logs:data:<id> (пачками раз в 100 мс, только целые строки), конец — logs:end:<id>.
 // Фронтенд должен подписаться на события ДО вызова.
 func (m *Manager) StartLogStream(streamID, namespace, pod, container string, tail int64) error {
-	if streamID == "" {
-		return errors.New("не указан id потока логов")
+	if !validStreamID(streamID) {
+		return errors.New("некорректный id потока логов")
 	}
 	conn, err := m.GetActiveConnection()
 	if err != nil {
