@@ -71,7 +71,19 @@ A lightweight, open-source Kubernetes desktop IDE built with **Go** and **Wails*
 
 ### Download
 
-Grab the latest release for your platform on the [Releases](https://github.com/VadimIl224/kubron/releases) page.
+Grab the latest release for your platform on the [Releases](https://github.com/VadimIl224/kubron/releases) page:
+
+| Platform | File |
+|---|---|
+| Windows (x64) | `Kubron_<version>_windows-amd64.zip` |
+| Linux (x64) | `Kubron_<version>_linux-amd64.tar.gz` |
+| macOS (Apple Silicon and Intel) | `Kubron_<version>_macos-universal.zip` |
+
+Checksums are in `SHA256SUMS.txt`.
+
+> The builds are not code-signed yet. On Windows, SmartScreen may warn you (More info → Run anyway).
+> On macOS, right-click the app and choose Open, or run `xattr -dr com.apple.quarantine Kubron.app`.
+> On Linux, GTK 3 and WebKitGTK 4.1 are required (on Ubuntu 24.04: `libwebkit2gtk-4.1-0`).
 
 ### Build from source
 
