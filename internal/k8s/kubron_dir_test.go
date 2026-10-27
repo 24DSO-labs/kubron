@@ -8,16 +8,24 @@ import (
 	"testing"
 )
 
-func TestGetKubronDirHonorsEnv(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("KUBRON_DATA_DIR", dir)
-	if got := GetKubronDir(); got != dir {
-		t.Errorf("GetKubronDir() = %q, ждали %q", got, dir)
+func TestSetKubronDirOverridesDefault(t *testing.T) {
+	t.Cleanup(func() { SetKubronDir("") })
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	// Переменная окружения каталог данных не меняет (десктоп её игнорирует)
+	t.Setenv("KUBRON_DATA_DIR", t.TempDir())
+	want := filepath.Join(home, ".kubron")
+	if got := GetKubronDir(); got != want {
+		t.Fatalf("по умолчанию: %q, ждали %q", got, want)
 	}
-	t.Setenv("KUBRON_DATA_DIR", "")
-	t.Setenv("HOME", dir)
-	t.Setenv("USERPROFILE", dir)
-	if got, want := GetKubronDir(), filepath.Join(dir, ".kubron"); got != want {
-		t.Errorf("без переменной: %q, ждали %q", got, want)
+	custom := t.TempDir()
+	SetKubronDir(custom)
+	if got := GetKubronDir(); got != custom {
+		t.Errorf("после SetKubronDir: %q, ждали %q", got, custom)
+	}
+	SetKubronDir("")
+	if got := GetKubronDir(); got != want {
+		t.Errorf("после сброса: %q, ждали %q", got, want)
 	}
 }

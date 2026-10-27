@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 )
 
@@ -37,11 +38,25 @@ type ClusterStatus struct {
 	Error     string `json:"error"`
 }
 
-// GetKubronDir — каталог данных Kubron: KUBRON_DATA_DIR, иначе ~/.kubron.
-// Переменная нужна серверу (контейнер, тесты) и не меняет поведение десктопа.
+// dataDirOverride — каталог данных, заданный явно (kubron-server: --data-dir / KUBRON_DATA_DIR).
+var dataDirOverride atomic.Pointer[string]
+
+// SetKubronDir задаёт каталог данных вместо ~/.kubron; пустая строка возвращает умолчание.
+// Вызывается один раз при старте сервера, до открытия хранилищ. Десктоп его не вызывает и
+// переменные окружения для каталога данных не читает: общий терминал с выставленной
+// переменной не должен подменять данные пользователя.
+func SetKubronDir(dir string) {
+	if dir == "" {
+		dataDirOverride.Store(nil)
+		return
+	}
+	dataDirOverride.Store(&dir)
+}
+
+// GetKubronDir — каталог данных Kubron: заданный через SetKubronDir, иначе ~/.kubron.
 func GetKubronDir() string {
-	if dir := os.Getenv("KUBRON_DATA_DIR"); dir != "" {
-		return dir
+	if dir := dataDirOverride.Load(); dir != nil {
+		return *dir
 	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".kubron")
