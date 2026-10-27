@@ -59,6 +59,14 @@
         </div>
       </div>
 
+      <div v-if="busy && liveOp && step === 'preview'" class="hi-live">
+        <div class="hi-live-head">
+          <span>{{ liveOp.phase }}</span>
+          <button v-if="liveOp.cancelable && !liveOp.done" type="button" class="btn" @click="cancelHelmOp(liveOp.opId)">Отменить установку</button>
+        </div>
+        <pre v-if="liveOp.lines.length" class="hi-live-log">{{ liveOp.lines.slice(-6).join('\n') }}</pre>
+      </div>
+
       <p v-if="error" class="form-error hi-error">{{ error }}</p>
 
       <footer class="hi-foot">
@@ -82,6 +90,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import MonacoEditor from '../resource/MonacoEditor.vue'
 import MonacoReadonly from '../resource/MonacoReadonly.vue'
 import { callApp } from '../../resources/wails'
+import { cancelHelmOp, helmOps, runHelmOp } from '../../composables/useHelmOps'
 import { useK8s } from '../../composables/useK8s'
 import { useNotifications } from '../../composables/useNotifications'
 
@@ -108,6 +117,8 @@ const preview = ref<InstallResult | null>(null)
 const busy = ref(false)
 const error = ref('')
 const pressedOverlay = ref(false)
+const activeOpId = ref('')
+const liveOp = computed(() => helmOps.value.find(o => o.opId === activeOpId.value))
 
 const namespaceNames = computed(() => (namespaces.value ?? []).map(n => n.name))
 const nameBad = computed(() => releaseName.value !== '' && (releaseName.value.length > 53 || !RELEASE.test(releaseName.value)))
@@ -115,11 +126,11 @@ const nsBad = computed(() => namespace.value !== '' && !DNS_LABEL.test(namespace
 const nsIsNew = computed(() => DNS_LABEL.test(namespace.value) && !!namespaceNames.value.length && !namespaceNames.value.includes(namespace.value))
 const valid = computed(() => !!releaseName.value && !!namespace.value && !nameBad.value && !nsBad.value)
 
-function request() {
+function request(opId = '') {
   return {
     repo: props.repo, chart: props.chart, version: props.version,
     releaseName: releaseName.value, namespace: namespace.value, values: overrides.value,
-    createNamespace: createNamespace.value, wait: wait.value,
+    createNamespace: createNamespace.value, wait: wait.value, opId,
   }
 }
 
@@ -141,7 +152,11 @@ async function doInstall() {
   busy.value = true
   error.value = ''
   try {
-    const r = (await callApp('InstallHelmChart', request())) as InstallResult
+    const r = (await runHelmOp(
+      { op: 'install', namespace: namespace.value, release: releaseName.value, cancelable: true },
+      id => callApp('InstallHelmChart', request(id)),
+      id => { activeOpId.value = id },
+    )) as InstallResult
     notifications.notifySuccess(`${r.releaseName}: установлен в ${r.namespace} (ревизия ${r.revision}). Релизы: Helm → Releases`)
     emit('installed', r)
     emit('close')
@@ -189,6 +204,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 .hi-seg button { padding: 4px 14px; background: transparent; color: #9ca3af; border: 0; font: inherit; cursor: pointer; }
 .hi-seg button.on { background: #3b82f6; color: #fff; }
 .hi-error { margin: 0 20px; white-space: pre-wrap; max-height: 20vh; overflow: auto; }
+.hi-live { margin: 0 20px; padding: 8px 10px; border: 1px solid #313244; border-radius: 6px; font-size: 13px; color: #a6adc8; }
+.hi-live-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.hi-live-log { margin: 6px 0 0; padding: 6px 8px; background: #12141f; border-radius: 4px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; line-height: 1.4; color: #9ca3af; white-space: pre-wrap; max-height: 120px; overflow: auto; }
 .hi-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid #313244; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .hi-primary { background: #3b82f6; color: #fff; }

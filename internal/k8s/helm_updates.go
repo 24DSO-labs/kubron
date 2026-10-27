@@ -45,6 +45,7 @@ func helmUpdateFinder() func(chart, installed string) *helmUpdate {
 			}
 		}
 	}
+	repos = append(repos, ociIndexes()...)
 	return func(chart, installed string) *helmUpdate {
 		return findHelmUpdate(repos, chart, installed)
 	}

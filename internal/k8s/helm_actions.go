@@ -4,8 +4,10 @@
 package k8s
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -20,6 +22,12 @@ const helmActionTimeout = 5 * time.Minute
 // helmConfig создаёт action.Configuration для активного кластера и namespace релиза.
 // Подключаемся тем же kubeconfig и контекстом, что и основное подключение приложения.
 func (m *Manager) helmConfig(namespace string) (*action.Configuration, error) {
+	return m.helmConfigLogged(namespace, nil)
+}
+
+// helmConfigLogged — helmConfig с собственным обработчиком журнала Helm (прогресс операций).
+// Обработчик нужно задать ДО Init: Init раздаёт логгер клиенту Kubernetes и ожидателю готовности.
+func (m *Manager) helmConfigLogged(namespace string, h slog.Handler) (*action.Configuration, error) {
 	id := m.GetActiveContext()
 	if id == "" {
 		return nil, errors.New("нет активного подключения")
@@ -42,6 +50,9 @@ func (m *Manager) helmConfig(namespace string) (*action.Configuration, error) {
 	}
 
 	cfg := new(action.Configuration)
+	if h != nil {
+		cfg.SetLogger(h)
+	}
 	if err := cfg.Init(flags, namespace, "secret"); err != nil {
 		return nil, fmt.Errorf("не удалось инициализировать Helm: %w", err)
 	}
@@ -49,14 +60,21 @@ func (m *Manager) helmConfig(namespace string) (*action.Configuration, error) {
 }
 
 // RollbackHelmRelease откатывает релиз к ревизии. Helm создаёт НОВУЮ ревизию с содержимым старой.
-func (m *Manager) RollbackHelmRelease(namespace, name string, revision int) error {
+func (m *Manager) RollbackHelmRelease(namespace, name string, revision int, opID string) (err error) {
 	if err := validateHelmRef(namespace, name); err != nil {
 		return err
 	}
 	if revision <= 0 {
 		return fmt.Errorf("некорректная ревизия %d", revision)
 	}
-	cfg, err := m.helmConfig(namespace)
+	_, tr, err := m.beginHelmOp(context.Background(), opID, "rollback", namespace, name, false)
+	if err != nil {
+		return err
+	}
+	defer func() { tr.finish(err) }()
+
+	tr.setPhase(fmt.Sprintf("Откат к ревизии %d…", revision))
+	cfg, err := m.helmConfigLogged(namespace, tr.handler())
 	if err != nil {
 		return err
 	}
@@ -72,11 +90,18 @@ func (m *Manager) RollbackHelmRelease(namespace, name string, revision int) erro
 
 // UninstallHelmRelease удаляет релиз и его ресурсы. keepHistory оставляет записи ревизий
 // (тогда имя релиза можно переиспользовать только через upgrade --install).
-func (m *Manager) UninstallHelmRelease(namespace, name string, keepHistory bool) error {
+func (m *Manager) UninstallHelmRelease(namespace, name string, keepHistory bool, opID string) (err error) {
 	if err := validateHelmRef(namespace, name); err != nil {
 		return err
 	}
-	cfg, err := m.helmConfig(namespace)
+	_, tr, err := m.beginHelmOp(context.Background(), opID, "uninstall", namespace, name, false)
+	if err != nil {
+		return err
+	}
+	defer func() { tr.finish(err) }()
+
+	tr.setPhase("Удаление релиза…")
+	cfg, err := m.helmConfigLogged(namespace, tr.handler())
 	if err != nil {
 		return err
 	}
