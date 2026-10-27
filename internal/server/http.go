@@ -151,6 +151,9 @@ func (g *Guard) afterCall(w http.ResponseWriter, r *http.Request, method string,
 				g.Sessions.Delete(token)
 			}
 			tok, sess := g.Sessions.Create(u.ID, fresh)
+			if fresh != nil && g.Bind != nil {
+				g.Bind(fresh, sess.ID)
+			}
 			g.setCookie(w, r, tok, time.Until(sess.Expires))
 			w.Header().Set(csrfHeader, sess.CSRF)
 		} else {

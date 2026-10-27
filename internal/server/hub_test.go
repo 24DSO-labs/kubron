@@ -164,3 +164,22 @@ func TestSessionsOnEndNotified(t *testing.T) {
 		t.Errorf("Delete: %v", ended)
 	}
 }
+
+func TestHubEmitToReachesOnlyOwnerSession(t *testing.T) {
+	h := NewHub()
+	a1, a2, b := h.Register("A"), h.Register("A"), h.Register("B")
+	for _, c := range []*Conn{a1, a2, b} {
+		c.Subscribe([]string{"logs:data:1"}) // подписка на чужой id событий не даёт
+	}
+	h.EmitTo("A", "logs:data:1", "строка")
+	if m := recv(t, a1); m["event"] != "logs:data:1" {
+		t.Fatalf("кадр: %v", m)
+	}
+	recv(t, a2) // все соединения владельца
+	noFrame(t, b)
+
+	// Адресная доставка не обходит подписку.
+	a1.Unsubscribe([]string{"logs:data:1"})
+	h.EmitTo("A", "logs:data:1", "ещё")
+	noFrame(t, a1)
+}

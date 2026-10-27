@@ -175,6 +175,8 @@ type Guard struct {
 	// NewView создаёт вид ядра для нового входа (source — адрес клиента); nil — все сессии работают
 	// с общим экземпляром диспетчера (тесты). Освобождение — Sessions.Release.
 	NewView func(source string) any
+	// Bind сообщает виду идентификатор созданной для него веб-сессии (адресат событий); nil — не нужно.
+	Bind func(view any, sessionID string)
 
 	termConns termConns
 }

@@ -51,7 +51,7 @@ func NewSessionView(root *App, source string) *App {
 	// Свой вид менеджеров: активный кластер, терминалы, логи и port-forward принадлежат сессии;
 	// пул подключений (informers) общий.
 	v.k8sMgr = root.k8sMgr.ForSession()
-	v.k8sMgr.SetNotifier(root.platform.Emit)
+	v.k8sMgr.SetNotifier(nil) // события пойдут владельцу после BindView; до входа адресата нет
 	v.pfMgr = k8s.NewSessionPortForwardManager(v.k8sMgr)
 	if root.auth == nil {
 		return &v
@@ -59,6 +59,18 @@ func NewSessionView(root *App, source string) *App {
 	v.auth = root.auth.NewSession(source)
 	v.auth.SetOnLogout(v.endSessionResources)
 	return &v
+}
+
+// sessionEmitter — платформа, умеющая адресовать событие одной сессии (веб).
+type sessionEmitter interface {
+	EmitTo(sessionID, event string, data ...any)
+}
+
+// BindView привязывает вид к веб-сессии: события его менеджера уходят только её соединениям.
+func BindView(v *App, sessionID string) {
+	if em, ok := v.platform.(sessionEmitter); ok {
+		v.k8sMgr.SetNotifier(func(event string, data ...any) { em.EmitTo(sessionID, event, data...) })
+	}
 }
 
 // SetResourceLimits задаёт лимиты ресурсов на пользователя для видов, создаваемых после вызова.
