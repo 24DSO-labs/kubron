@@ -6,6 +6,7 @@ package k8s
 import (
 	"fmt"
 	"sync"
+	"time"
 )
 
 // connPool — общий для всех сессий пул подключений к кластерам.
@@ -22,11 +23,24 @@ type connPool struct {
 	entries map[string]*poolEntry
 	// closeFn вызывается, когда у кластера не осталось активных видов (по умолчанию — Close).
 	closeFn func(*ClusterConnection)
+	// idleTTL — через сколько после ухода последнего вида останавливаются informers (0 — сразу).
+	// Короткая задержка гасит «дребезг»: пользователь переключился на соседний кластер и вернулся.
+	idleTTL time.Duration
+	// flights — подключения, которые строятся прямо сейчас (singleflight по id кластера).
+	flights map[string]*flight
+}
+
+// flight — одно построение подключения; ожидающие получают тот же результат.
+type flight struct {
+	done chan struct{}
+	conn *ClusterConnection
+	err  error
 }
 
 type poolEntry struct {
-	conn *ClusterConnection
-	refs int
+	conn      *ClusterConnection
+	refs      int
+	idleTimer *time.Timer // отложенная остановка informers при refs == 0
 	// holders — виды, державшие кластер активным: им адресуются события кластера.
 	holders map[*Manager]struct{}
 }
@@ -35,6 +49,7 @@ func newConnPool() *connPool {
 	return &connPool{
 		entries: make(map[string]*poolEntry),
 		closeFn: func(c *ClusterConnection) { c.Close() },
+		flights: make(map[string]*flight),
 	}
 }
 
@@ -60,20 +75,48 @@ func (p *connPool) put(id string, conn *ClusterConnection) *ClusterConnection {
 }
 
 // getOrCreate возвращает существующее подключение или создаёт его через build.
-// build выполняется под блокировкой пула, поэтому параллельные вызовы для одного
-// кластера не создают два подключения.
+// Построение идёт вне блокировки пула (оно может ходить в сеть: oidc-password, дискавери), а
+// параллельные вызовы для одного кластера ждут один и тот же результат (singleflight): apiserver
+// и провайдер входа не получают лавину одинаковых запросов, а медленный кластер не блокирует остальные.
 func (p *connPool) getOrCreate(id string, build func() (*ClusterConnection, error)) (*ClusterConnection, error) {
 	p.mu.Lock()
-	defer p.mu.Unlock()
 	if e, ok := p.entries[id]; ok {
+		p.mu.Unlock()
 		return e.conn, nil
 	}
-	conn, err := build()
-	if err != nil {
-		return nil, err
+	if f, ok := p.flights[id]; ok {
+		p.mu.Unlock()
+		<-f.done
+		return f.conn, f.err
 	}
-	p.entries[id] = &poolEntry{conn: conn}
-	return conn, nil
+	f := &flight{done: make(chan struct{})}
+	p.flights[id] = f
+	p.mu.Unlock()
+
+	f.conn, f.err = safeBuild(build)
+
+	p.mu.Lock()
+	delete(p.flights, id)
+	if f.err == nil {
+		if e, ok := p.entries[id]; ok { // подключение успели положить через put
+			f.conn = e.conn
+		} else {
+			p.entries[id] = &poolEntry{conn: f.conn}
+		}
+	}
+	p.mu.Unlock()
+	close(f.done)
+	return f.conn, f.err
+}
+
+// safeBuild превращает панику построения в ошибку: иначе ожидающие вызовы повисли бы навсегда.
+func safeBuild(build func() (*ClusterConnection, error)) (conn *ClusterConnection, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			conn, err = nil, fmt.Errorf("подключение к кластеру: %v", r)
+		}
+	}()
+	return build()
 }
 
 func (p *connPool) has(id string) bool {
@@ -92,6 +135,10 @@ func (p *connPool) acquire(id string, holder *Manager) error {
 		return fmt.Errorf("кластер %s не подключён", id)
 	}
 	e.refs++
+	if e.idleTimer != nil { // кластер снова востребован: отложенная остановка отменяется
+		e.idleTimer.Stop()
+		e.idleTimer = nil
+	}
 	if holder != nil {
 		if e.holders == nil {
 			e.holders = map[*Manager]struct{}{}
@@ -129,7 +176,21 @@ func (p *connPool) release(id string, holder *Manager) {
 		e.refs--
 	}
 	if e.refs == 0 {
-		p.closeFn(e.conn)
+		if p.idleTTL <= 0 {
+			p.closeFn(e.conn)
+			return
+		}
+		if e.idleTimer != nil {
+			e.idleTimer.Stop()
+		}
+		e.idleTimer = time.AfterFunc(p.idleTTL, func() {
+			p.mu.Lock()
+			defer p.mu.Unlock()
+			if cur, ok := p.entries[id]; ok && cur == e && e.refs == 0 && e.idleTimer != nil {
+				e.idleTimer = nil
+				p.closeFn(e.conn)
+			}
+		})
 	}
 }
 
@@ -139,6 +200,10 @@ func (p *connPool) remove(id string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if e, ok := p.entries[id]; ok {
+		if e.idleTimer != nil {
+			e.idleTimer.Stop()
+			e.idleTimer = nil
+		}
 		p.closeFn(e.conn)
 		delete(p.entries, id)
 	}

@@ -106,6 +106,14 @@ func (m *Manager) SetLimits(l Limits) {
 	m.viewMu.Unlock()
 }
 
+// SetIdleTTL задаёт, через сколько после ухода последнего вида останавливаются informers кластера
+// (0 — сразу). Относится к общему пулу.
+func (m *Manager) SetIdleTTL(d time.Duration) {
+	m.pool.mu.Lock()
+	m.pool.idleTTL = d
+	m.pool.mu.Unlock()
+}
+
 // Limits возвращает действующие лимиты вида.
 func (m *Manager) Limits() Limits {
 	m.viewMu.RLock()
