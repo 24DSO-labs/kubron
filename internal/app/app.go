@@ -7,6 +7,7 @@ import (
 	"analog/internal/audit"
 	"analog/internal/auth"
 	"analog/internal/k8s"
+	"analog/internal/termbuf"
 	"context"
 	"errors"
 	"fmt"
@@ -1231,6 +1232,37 @@ func (a *App) StartTerminalSession(sessionID, namespace, pod, container, shell s
 		return err
 	}
 	return a.k8sMgr.StartTerminalSession(sessionID, namespace, pod, container, shell, cols, rows)
+}
+
+// terminalHost — оболочка, которая держит веб-терминалы (HTTP-оболочка). У десктопа её нет.
+type terminalHost interface{ Terminals() *termbuf.Registry }
+
+// OpenTerminal открывает терминал для веб-оболочки: идентификатор выдаёт сервер (неугадываемый),
+// вывод копится, пока браузер не подключится к WebSocket /api/terminal/{id}; ввод и размер идут
+// по этому же сокету. Десктоп использует StartTerminalSession.
+func (a *App) OpenTerminal(namespace, pod, container, shell string, cols, rows uint16) (string, error) {
+	if err := a.authz(auth.PermExec, "namespace", namespace, "pod", pod, "container", container, "shell", shell); err != nil {
+		return "", err
+	}
+	host, ok := a.platform.(terminalHost)
+	if !ok {
+		return "", errors.New("веб-терминал недоступен в этой оболочке")
+	}
+	reg := host.Terminals()
+	id := termbuf.NewID()
+	buf, err := reg.Register(id, termbuf.Hooks{
+		Input:  func(p []byte) error { return a.k8sMgr.WriteTerminal(id, p) },
+		Resize: func(c, r uint16) error { return a.k8sMgr.ResizeTerminal(id, c, r) },
+		Close:  func() { _ = a.k8sMgr.CloseTerminal(id) },
+	})
+	if err != nil {
+		return "", err
+	}
+	if err := a.k8sMgr.StartTerminalWithOutput(id, namespace, pod, container, shell, cols, rows, buf); err != nil {
+		reg.Remove(id)
+		return "", err
+	}
+	return id, nil
 }
 
 func (a *App) WriteTerminal(sessionID string, data []byte) error {

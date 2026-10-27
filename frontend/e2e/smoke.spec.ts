@@ -120,3 +120,46 @@ test('кластер: добавление kubeconfig текстом и чтен
   const ns = await (await rpc(page, 'GetNamespaces', [], csrf)).json()
   expect(JSON.stringify(ns.result)).toContain('kube-system')
 })
+
+test('терминал: OpenTerminal и бинарный WebSocket выполняют команду в поде', async ({ page }) => {
+  const kubeconfig = process.env.E2E_KUBECONFIG
+  const target = process.env.E2E_TERMINAL_POD // namespace/pod/container, в образе есть /bin/sh
+  test.skip(!kubeconfig || !target, 'нужны E2E_KUBECONFIG и E2E_TERMINAL_POD (namespace/pod/container)')
+  const [namespace, pod, container] = target!.split('/')
+
+  await page.goto('/')
+  const login = await rpc(page, 'Login', [USER, PASSWORD])
+  const csrf = login.headers()['x-csrf-token']
+  const list = await (await rpc(page, 'GetClusterStatuses', [], csrf)).json()
+  const cluster = list.result.find((c: { displayName: string }) => c.displayName === 'e2e-kind')
+  expect(cluster, 'кластер добавлен предыдущим тестом').toBeTruthy()
+  expect((await (await rpc(page, 'ConnectToCluster', [cluster.id], csrf)).json()).error).toBeUndefined()
+
+  // Старые методы с id от клиента закрыты в вебе
+  expect((await rpc(page, 'StartTerminalSession', ['mine', namespace, pod, container, '/bin/sh', 80, 24], csrf)).status()).toBe(403)
+
+  const open = await (await rpc(page, 'OpenTerminal', [namespace, pod, container, '/bin/sh', 80, 24], csrf)).json()
+  expect(open.error, JSON.stringify(open.error)).toBeUndefined()
+  const id: string = open.result
+  expect(id).toMatch(/^[0-9a-f]{32}$/)
+
+  // Команда выполняется в поде; результат вычислен оболочкой (в эхо ввода его нет)
+  const output = await page.evaluate(
+    ({ id }) => new Promise<string>((resolve, reject) => {
+      const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/terminal/${id}`)
+      ws.binaryType = 'arraybuffer'
+      let out = ''
+      const timer = setTimeout(() => reject(new Error('нет вывода команды: ' + out)), 20000)
+      ws.onopen = () => ws.send(new TextEncoder().encode('echo kubron-$((20+22))\n'))
+      ws.onmessage = e => {
+        out += new TextDecoder().decode(e.data as ArrayBuffer)
+        if (out.includes('kubron-42')) { clearTimeout(timer); ws.close(1000); resolve(out) }
+      }
+      ws.onerror = () => reject(new Error('ошибка WebSocket'))
+    }),
+    { id },
+  )
+  expect(output).toContain('kubron-42')
+
+  await rpc(page, 'CloseTerminal', [id], csrf)
+})
