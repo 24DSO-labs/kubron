@@ -49,7 +49,7 @@ data:
   password: UzNDUkVU
 `
 
-func release(version int, status string, extra map[string]any) map[string]any {
+func releasePayload(version int, status string, extra map[string]any) map[string]any {
 	p := map[string]any{
 		"name": "web", "namespace": "prod", "version": version,
 		"info":  map[string]any{"status": status, "description": "d"},
@@ -63,8 +63,8 @@ func release(version int, status string, extra map[string]any) map[string]any {
 
 func TestBuildHelmDetail(t *testing.T) {
 	secs := []corev1.Secret{
-		helmSecretFor(t, release(1, "superseded", nil)),
-		helmSecretFor(t, release(2, "deployed", map[string]any{"manifest": testHelmManifest})),
+		helmSecretFor(t, releasePayload(1, "superseded", nil)),
+		helmSecretFor(t, releasePayload(2, "deployed", map[string]any{"manifest": testHelmManifest})),
 	}
 	d, err := buildHelmDetail(secs, "prod", "web")
 	if err != nil {
@@ -105,7 +105,7 @@ func TestRedactHelmManifest(t *testing.T) {
 }
 
 func TestHelmContentFrom(t *testing.T) {
-	sec := helmSecretFor(t, release(3, "deployed", map[string]any{
+	sec := helmSecretFor(t, releasePayload(3, "deployed", map[string]any{
 		"config":   map[string]any{"replicas": 3},
 		"manifest": testHelmManifest,
 		"info":     map[string]any{"status": "deployed", "notes": "hello"},

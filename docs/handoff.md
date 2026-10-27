@@ -86,3 +86,8 @@ Kubron (Wails + Go + Vue) должен стать ещё и веб-прилож�
 - `kubron-server` отказывается стартовать с десктопным `frontend/dist` (`server.CheckWebBuild`, метка
   `<meta name="kubron-target" content="web">` в index.html веб-сборки): `wails build` перезаписывает `dist`,
   поэтому перед `go build ./cmd/kubron-server` всегда `npm run build:web`.
+
+## Заметки по Helm в веб-режиме (этап 3/5)
+- `AddHelmRepo/UpdateHelmRepos/SearchHelmCharts/GetHelmChartPackage` ходят по сети с сервера по URL от пользователя
+  (нужно ограничение адресов — защита от SSRF — и учёт прокси) и используют общий каталог Helm (`helmHomeDir`): репозитории
+  общие для всех пользователей. `AddHelmRepo/RemoveHelmRepo/UpdateHelmRepos` требуют `cluster.manage`.
