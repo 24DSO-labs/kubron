@@ -150,15 +150,7 @@ func readKubeconfigFile(path string) ([]byte, error) {
 }
 
 func readStoredKubeconfig(id string) ([]byte, error) {
-	path := GetClusterKubeconfigPath(id)
-	if path == "" {
-		return nil, fmt.Errorf("kubeconfig не найден для кластера %s", id)
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("не удалось прочитать kubeconfig: %w", err)
-	}
-	return data, nil
+	return clusterStore.Kubeconfig(id)
 }
 
 // ReadClusterKubeconfig возвращает текст сохранённого kubeconfig кластера (для правки в приложении).
@@ -338,8 +330,7 @@ func UpdateClusterSettings(id string, settings ClusterSettings, replace Kubeconf
 		return nil, err
 	}
 
-	kcPath := filepath.Join(getClustersDir(), meta.KubeconfigFile)
-	oldData, readErr := os.ReadFile(kcPath)
+	oldData, readErr := clusterStore.Kubeconfig(id)
 
 	var newData []byte
 	if !replace.isEmpty() {
@@ -372,12 +363,6 @@ func UpdateClusterSettings(id string, settings ClusterSettings, replace Kubeconf
 		}
 	}
 
-	if newData != nil {
-		if err := writeFileAtomic(kcPath, newData, 0600); err != nil {
-			return nil, fmt.Errorf("не удалось сохранить kubeconfig: %w", err)
-		}
-	}
-
 	changed := newData != nil || contextName != meta.ContextName
 	meta.DisplayName = settings.DisplayName
 	meta.Icon = settings.Icon
@@ -386,10 +371,8 @@ func UpdateClusterSettings(id string, settings ClusterSettings, replace Kubeconf
 	meta.DefaultNamespace = settings.DefaultNamespace
 	meta.ContextName = contextName
 
-	if err := SaveClusterMeta(meta); err != nil {
-		if newData != nil && readErr == nil {
-			_ = writeFileAtomic(kcPath, oldData, 0600) // возвращаем прежний kubeconfig
-		}
+	// Хранилище заменяет kubeconfig и метаданные вместе и при сбое возвращает прежний kubeconfig.
+	if err := clusterStore.Save(meta, newData); err != nil {
 		return nil, err
 	}
 	return &ClusterUpdateResult{Cluster: *meta, ConnectionChanged: changed}, nil
