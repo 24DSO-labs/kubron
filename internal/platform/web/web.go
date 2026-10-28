@@ -8,8 +8,8 @@ import (
 	"errors"
 	"sync"
 
-	"analog/internal/termbuf"
-	"analog/pkg/ext"
+	"github.com/VadimIl224/kubron/internal/termbuf"
+	"github.com/VadimIl224/kubron/pkg/ext"
 )
 
 // ErrNotSupported — операция есть только в десктопе.
