@@ -4,10 +4,10 @@
 package k8s
 
 import (
-	"analog/pkg/ext"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"github.com/VadimIl224/kubron/pkg/ext"
 	"path/filepath"
 	"strings"
 	"unicode"

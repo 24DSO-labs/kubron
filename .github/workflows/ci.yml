@@ -15,7 +15,7 @@ env:
 jobs:
   dco:
     name: DCO (Signed-off-by)
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -52,14 +52,14 @@ jobs:
       - name: Stub frontend/dist
         run: mkdir -p frontend/dist && touch frontend/dist/.keep
 
-      # Go: только разрешённые лицензии (свой модуль analog не проверяем).
+      # Go: только разрешённые лицензии (свой модуль kubron не проверяем).
       # go-licenses v1 не имеет флага --include_tags: теги сборки передаются через GOFLAGS.
       - name: go-licenses
         env:
           GOFLAGS: -tags=${{ env.GO_TAGS }}
         run: |
           go install github.com/google/go-licenses@v1.6.0
-          go-licenses check ./... --ignore analog \
+          go-licenses check ./... --ignore github.com/VadimIl224/kubron \
             --allowed_licenses=Apache-2.0,BSD-2-Clause,BSD-3-Clause,MIT,ISC,MPL-2.0
 
       # Фронтенд: только production-зависимости
@@ -101,6 +101,22 @@ jobs:
         run: go vet ./... && go test ./...
         working-directory: examples/ext-authenticator
 
+  lint:
+    name: Go (golangci-lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: System libraries (cgo, webkit)
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+      - name: Stub frontend/dist
+        run: mkdir -p frontend/dist && touch frontend/dist/.keep
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.15
+
   frontend:
     name: Frontend (test, type-check, build)
     runs-on: ubuntu-latest
@@ -141,11 +157,10 @@ jobs:
         working-directory: frontend
 
   # Сквозная проверка веб-версии: браузер → kubron-server → kind (docs/e2e.md).
-  # Пока не блокирует сборку: после первого стабильного зелёного прогона убрать continue-on-error.
+  # Блокирует сборку: gate этапов 1 и 2 (в том числе два пользователя одновременно).
   e2e:
     name: E2E (web, Playwright + kind)
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v5
 
@@ -189,6 +204,9 @@ jobs:
         run: |
           kubectl run e2e-shell --image=busybox:1.36 --restart=Never -- sleep 3600
           kubectl wait --for=condition=Ready pod/e2e-shell --timeout=120s
+          # Под, который пишет в stdout: нужен тесту «события и логи доходят только владельцу»
+          kubectl run e2e-logs --image=busybox:1.36 --restart=Never -- sh -c 'while true; do echo tick; sleep 1; done'
+          kubectl wait --for=condition=Ready pod/e2e-logs --timeout=120s
 
       - name: Export kubeconfig
         run: kind export kubeconfig --name kubron-e2e --kubeconfig "$RUNNER_TEMP/kind.kubeconfig"
@@ -210,6 +228,7 @@ jobs:
         env:
           E2E_KUBECONFIG: ${{ runner.temp }}/kind.kubeconfig
           E2E_TERMINAL_POD: default/e2e-shell/e2e-shell
+          E2E_LOG_POD: default/e2e-logs/e2e-logs
 
       - name: Server log
         if: always()

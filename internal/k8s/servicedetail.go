@@ -121,9 +121,7 @@ func (m *Manager) GetServiceDetail(namespace, name string) (*ServiceDetail, erro
 	}
 
 	var clusterIPs []string
-	for _, ip := range svc.Spec.ClusterIPs {
-		clusterIPs = append(clusterIPs, ip)
-	}
+	clusterIPs = append(clusterIPs, svc.Spec.ClusterIPs...)
 
 	ipFamilies := ""
 	for i, f := range svc.Spec.IPFamilies {
