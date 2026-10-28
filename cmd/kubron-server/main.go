@@ -18,11 +18,11 @@ import (
 	"syscall"
 	"time"
 
-	"analog/frontend"
-	"analog/internal/app"
-	"analog/internal/k8s"
-	webplatform "analog/internal/platform/web"
-	"analog/internal/server"
+	"github.com/VadimIl224/kubron/frontend"
+	"github.com/VadimIl224/kubron/internal/app"
+	"github.com/VadimIl224/kubron/internal/k8s"
+	webplatform "github.com/VadimIl224/kubron/internal/platform/web"
+	"github.com/VadimIl224/kubron/internal/server"
 )
 
 func main() {

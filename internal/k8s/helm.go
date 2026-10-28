@@ -5,12 +5,9 @@ package k8s
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"strings"
 	"time"
-
-	corev1 "k8s.io/api/core/v1"
 )
 
 /*
@@ -23,17 +20,17 @@ const helmSecretType = "helm.sh/release.v1"
 
 // HelmReleaseInfo — установленный helm-релиз (последняя ревизия)
 type HelmReleaseInfo struct {
-	Name             string `json:"name"`
-	Namespace        string `json:"namespace"`
-	Chart            string `json:"chart"`
-	ChartVersion     string `json:"chartVersion"`
-	AppVersion       string `json:"appVersion"`
-	Revision         int    `json:"revision"`
-	Status           string `json:"status"`
-	Updated          string `json:"updated"`
-	Description      string `json:"description"`
+	Name         string `json:"name"`
+	Namespace    string `json:"namespace"`
+	Chart        string `json:"chart"`
+	ChartVersion string `json:"chartVersion"`
+	AppVersion   string `json:"appVersion"`
+	Revision     int    `json:"revision"`
+	Status       string `json:"status"`
+	Updated      string `json:"updated"`
+	Description  string `json:"description"`
 
-	Storage          string `json:"storage"`       // secret | configmap: где Helm хранит ревизии релиза
+	Storage          string `json:"storage"` // secret | configmap: где Helm хранит ревизии релиза
 	LatestVersion    string `json:"latestVersion"`
 	LatestRepo       string `json:"latestRepo"`
 	LatestDeprecated bool   `json:"latestDeprecated"`
@@ -69,21 +66,6 @@ type helmPayload struct {
 			Description string `json:"description"`
 		} `json:"metadata"`
 	} `json:"chart"`
-}
-
-// readHelmSecret распаковывает release из секрета в out (структура с нужными json-полями).
-func readHelmSecret(sec *corev1.Secret, out any) error {
-	raw, ok := sec.Data["release"]
-	if !ok {
-		return fmt.Errorf("secret %s/%s: нет поля release", sec.Namespace, sec.Name)
-	}
-	return decodeHelmRaw(raw, "secret "+sec.Namespace+"/"+sec.Name, out)
-}
-
-func decodeHelmSecret(sec *corev1.Secret) (helmPayload, error) {
-	var p helmPayload
-	err := readHelmSecret(sec, &p)
-	return p, err
 }
 
 func helmUpdated(t time.Time) string {
@@ -134,7 +116,7 @@ func (m *Manager) GetHelmReleases() ([]HelmReleaseInfo, error) {
 			Updated:      helmUpdated(p.Info.LastDeployed),
 			Description:  p.Info.Description,
 			Storage:      p.Storage,
-			}
+		}
 		if u := findUpdate(info.Chart, info.ChartVersion); u != nil {
 			info.LatestVersion,
 				info.LatestRepo,

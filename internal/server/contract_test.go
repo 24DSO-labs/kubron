@@ -8,7 +8,7 @@ import (
 	"sort"
 	"testing"
 
-	"analog/internal/app"
+	"github.com/VadimIl224/kubron/internal/app"
 )
 
 // Каждый экспортируемый метод app.App обязан быть либо в allowlist, либо явно в списке запрещённых:
