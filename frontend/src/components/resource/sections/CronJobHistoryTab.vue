@@ -6,9 +6,9 @@
       <table class="rd-table">
         <thead>
           <tr>
-            <th>Job</th>
-            <th>Duration</th>
-            <th>Age</th>
+            <th>{{ $t('sections.cronJobHistory.job') }}</th>
+            <th>{{ $t('sections.cronJobHistory.duration') }}</th>
+            <th>{{ $t('common.age') }}</th>
             <th></th>
           </tr>
         </thead>
@@ -32,19 +32,19 @@
         </tbody>
       </table>
     </div>
-    <div v-else class="rd-empty">{{ loading ? 'Loading...' : 'No job history' }}</div>
+    <div v-else class="rd-empty">{{ loading ? $t('common.loading') : $t('sections.cronJobHistory.empty') }}</div>
 
     <!-- Контекстное меню -->
     <div v-if="menu" :style="menuStyle" class="cluster-context-menu" @click.stop>
-      <div class="ctx-menu-item" @click="menuAction('select')">Show Details</div>
+      <div class="ctx-menu-item" @click="menuAction('select')">{{ $t('resource.menu.showDetails') }}</div>
       <div class="ctx-menu-item" @click="menuAction('logs')">
-        <K8sIcon name="logs" alt="Logs" size="sm" /> Logs
+        <K8sIcon name="logs" alt="" size="sm" /> {{ $t('defs.menu.logs') }}
       </div>
       <div class="ctx-menu-item" @click="menuAction('edit')">
-        <K8sIcon name="edit" alt="Edit" size="sm" /> Edit
+        <K8sIcon name="edit" alt="" size="sm" /> {{ $t('common.edit') }}
       </div>
       <div class="ctx-menu-item ctx-menu-danger" @click="menuAction('delete')">
-        <K8sIcon name="delete" alt="Delete" size="sm" /> Delete
+        <K8sIcon name="delete" alt="" size="sm" /> {{ $t('common.delete') }}
       </div>
     </div>
 

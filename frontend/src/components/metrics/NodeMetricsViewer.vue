@@ -4,11 +4,11 @@
   <div class="nm-viewer">
     <div class="nm-tabs">
       <button
-        v-for="t in tabs"
-        :key="t.id"
-        :class="['nm-btn', { active: selected === t.id }]"
-        @click="selected = t.id"
-      >{{ t.label }}</button>
+        v-for="tb in tabs"
+        :key="tb.id"
+        :class="['nm-btn', { active: selected === tb.id }]"
+        @click="selected = tb.id"
+      >{{ tb.label }}</button>
     </div>
 
     <div class="nm-charts">
@@ -27,6 +27,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import MultiLineChart from './MultiLineChart.vue'
 import { usePrometheusRange } from '../../composables/useMetrics'
 
@@ -40,6 +41,7 @@ import { usePrometheusRange } from '../../composables/useMetrics'
  * Каждый запрос обязан вернуть ОДНУ серию: usePrometheusRange берёт result[0].
  */
 const props = defineProps<{ clusterName: string; nodeName: string }>()
+const { t } = useI18n()
 const { queryRange } = usePrometheusRange(props.clusterName)
 
 type Series = { label: string; data: [number, number][] }
@@ -98,58 +100,58 @@ const tabs = computed<TabDef[]>(() => {
   return [
     {
       id: 'cpu',
-      label: 'CPU',
+      label: t('metrics.tabs.cpu'),
       charts: [
-        chart('CPU', cores, [
-          ['CPU Usage', `sum(rate(node_cpu_seconds_total{mode!="idle",${n}}[5m]))`],
-          ['CPU Requests', `sum(${activePods(`kube_pod_container_resource_requests{resource="cpu",${k}}`)})`],
-          ['CPU Allocatable Capacity', `sum(kube_node_status_allocatable{resource="cpu",${k}})`],
-          ['CPU Capacity', `sum(kube_node_status_capacity{resource="cpu",${k}})`],
+        chart(t('metrics.cpu'), cores, [
+          [t('metrics.cpuUsage'), `sum(rate(node_cpu_seconds_total{mode!="idle",${n}}[5m]))`],
+          [t('metrics.cpuRequests'), `sum(${activePods(`kube_pod_container_resource_requests{resource="cpu",${k}}`)})`],
+          [t('metrics.cpuAllocatable'), `sum(kube_node_status_allocatable{resource="cpu",${k}})`],
+          [t('metrics.cpuCapacity'), `sum(kube_node_status_capacity{resource="cpu",${k}})`],
         ]),
       ],
     },
     {
       id: 'memory',
-      label: 'Memory',
+      label: t('metrics.tabs.memory'),
       charts: [
-        chart('Memory', bytes, [
-          ['Memory Usage', `sum(node_memory_MemTotal_bytes{${n}}) - sum(node_memory_MemAvailable_bytes{${n}})`],
+        chart(t('metrics.memory'), bytes, [
+          [t('metrics.memoryUsage'), `sum(node_memory_MemTotal_bytes{${n}}) - sum(node_memory_MemAvailable_bytes{${n}})`],
           [
-            'Workload Memory Usage',
+            t('metrics.workloadMemoryUsage'),
             `sum(${onNode('container_memory_working_set_bytes{container!="",container!="POD"}')})`,
           ],
-          ['Memory Requests', `sum(${activePods(`kube_pod_container_resource_requests{resource="memory",${k}}`)})`],
-          ['Memory Allocatable Capacity', `sum(kube_node_status_allocatable{resource="memory",${k}})`],
-          ['Memory Capacity', `sum(kube_node_status_capacity{resource="memory",${k}})`],
+          [t('metrics.memoryRequests'), `sum(${activePods(`kube_pod_container_resource_requests{resource="memory",${k}}`)})`],
+          [t('metrics.memoryAllocatable'), `sum(kube_node_status_allocatable{resource="memory",${k}})`],
+          [t('metrics.memoryCapacity'), `sum(kube_node_status_capacity{resource="memory",${k}})`],
         ]),
       ],
     },
     {
       id: 'network',
-      label: 'Network',
+      label: t('metrics.tabs.network'),
       charts: [
-        chart('Network Traffic', bytesPerSec, [
-          ['Receive', `sum(rate(node_network_receive_bytes_total{${n},${PHYSICAL_NICS}}[5m]))`],
-          ['Transmit', `sum(rate(node_network_transmit_bytes_total{${n},${PHYSICAL_NICS}}[5m]))`],
+        chart(t('metrics.networkTraffic'), bytesPerSec, [
+          [t('metrics.receive'), `sum(rate(node_network_receive_bytes_total{${n},${PHYSICAL_NICS}}[5m]))`],
+          [t('metrics.transmit'), `sum(rate(node_network_transmit_bytes_total{${n},${PHYSICAL_NICS}}[5m]))`],
         ]),
-        chart('Packet Errors & Drops (per second)', perSec, [
-          ['Receive Errors', `sum(rate(node_network_receive_errs_total{${n},${PHYSICAL_NICS}}[5m]))`],
-          ['Transmit Errors', `sum(rate(node_network_transmit_errs_total{${n},${PHYSICAL_NICS}}[5m]))`],
-          ['Receive Drops', `sum(rate(node_network_receive_drop_total{${n},${PHYSICAL_NICS}}[5m]))`],
-          ['Transmit Drops', `sum(rate(node_network_transmit_drop_total{${n},${PHYSICAL_NICS}}[5m]))`],
+        chart(t('metrics.packetErrors'), perSec, [
+          [t('metrics.receiveErrors'), `sum(rate(node_network_receive_errs_total{${n},${PHYSICAL_NICS}}[5m]))`],
+          [t('metrics.transmitErrors'), `sum(rate(node_network_transmit_errs_total{${n},${PHYSICAL_NICS}}[5m]))`],
+          [t('metrics.receiveDrops'), `sum(rate(node_network_receive_drop_total{${n},${PHYSICAL_NICS}}[5m]))`],
+          [t('metrics.transmitDrops'), `sum(rate(node_network_transmit_drop_total{${n},${PHYSICAL_NICS}}[5m]))`],
         ]),
       ],
     },
     {
       id: 'disk',
-      label: 'Disk',
+      label: t('metrics.tabs.disk'),
       charts: [
-        chart('Disk', bytes, [
+        chart(t('metrics.disk'), bytes, [
           [
-            'Disk Usage',
+            t('metrics.diskUsage'),
             `max(node_filesystem_size_bytes{${n},${ROOT_FS}}) - max(node_filesystem_avail_bytes{${n},${ROOT_FS}})`,
           ],
-          ['Disk Size', `max(node_filesystem_size_bytes{${n},${ROOT_FS}})`],
+          [t('metrics.diskSize'), `max(node_filesystem_size_bytes{${n},${ROOT_FS}})`],
         ]),
       ],
     },
@@ -157,7 +159,7 @@ const tabs = computed<TabDef[]>(() => {
 })
 
 const selected = ref('cpu')
-const current = computed(() => tabs.value.find(t => t.id === selected.value) ?? tabs.value[0])
+const current = computed(() => tabs.value.find(tb => tb.id === selected.value) ?? tabs.value[0])
 </script>
 
 <style scoped>

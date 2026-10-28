@@ -3,23 +3,23 @@
 <template>
   <div class="ov">
     <header class="ov-header">
-      <h1>Overview</h1>
+      <h1>{{ $t('overview.title') }}</h1>
       <div class="ov-header-right">
         <ClusterHealthChip v-if="data" :health="data.health" />
-        <span v-if="data && error" class="ov-stale" :title="error">Update failed, showing last data</span>
-        <span v-else-if="updatedAt" class="ov-updated">Updated {{ updatedAt.toLocaleTimeString() }}</span>
+        <span v-if="data && error" class="ov-stale" :title="error">{{ $t('overview.staleData') }}</span>
+        <span v-else-if="updatedAt" class="ov-updated">{{ $t('overview.updated', { time: formatTime(updatedAt) }) }}</span>
         <button type="button" class="ov-btn" :disabled="refreshing" @click="refresh">
-          {{ refreshing ? 'Refreshing…' : 'Refresh' }}
+          {{ refreshing ? $t('overview.refreshing') : $t('common.refresh') }}
         </button>
       </div>
     </header>
 
-    <p v-if="loading && !data" class="ov-state">Loading cluster data…</p>
+    <p v-if="loading && !data" class="ov-state">{{ $t('overview.loading') }}</p>
 
     <div v-else-if="!data" class="ov-state ov-state-error">
-      <p>Failed to load cluster overview</p>
+      <p>{{ $t('overview.loadFailed') }}</p>
       <p class="ov-state-detail">{{ error }}</p>
-      <button type="button" class="ov-btn ov-btn-primary" @click="refresh">Retry</button>
+      <button type="button" class="ov-btn ov-btn-primary" @click="refresh">{{ $t('common.retry') }}</button>
     </div>
 
     <template v-else>
@@ -72,6 +72,8 @@
 
 <script lang="ts" setup>
 import { computed, toRef } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { formatTime } from '../../i18n/format'
 import StatCard from '../overview/StatCard.vue'
 import ResourceUsageCard from '../overview/ResourceUsageCard.vue'
 import TopPodsCard from '../overview/TopPodsCard.vue'
@@ -100,6 +102,7 @@ import '../overview/overview.css'
 const props = withDefaults(defineProps<{ clusterName?: string }>(), { clusterName: '' })
 const emit = defineEmits<{ (e: 'navigate', view: string): void }>()
 
+const { t } = useI18n()
 const clusterRef = toRef(props, 'clusterName')
 const { data, loading, refreshing, error, updatedAt, refresh } = useOverview(clusterRef)
 const { data: hot, state: hotState } = useHotspots(clusterRef)
@@ -116,24 +119,26 @@ const stats = computed(() => {
 
   const nodesTone: Tone = o.totalNodes > 0 && o.readyNodes === 0 ? 'danger' : o.readyNodes < o.totalNodes ? 'warn' : 'ok'
   const podsTone: Tone = o.failedPods > 0 ? 'danger' : o.problemPodsTotal > 0 ? 'warn' : 'ok'
-  const podsSub = o.problemPodsTotal > 0 ? `Problems: ${o.problemPodsTotal} · Running: ${o.runningPods}` : `Running: ${o.runningPods}`
+  const podsSub = o.problemPodsTotal > 0 ? t('overview.stats.podsProblems', { problems: o.problemPodsTotal, running: o.runningPods }) : t('overview.stats.podsRunning', { n: o.runningPods })
   const restartsTone: Tone = o.oomKilledLast24h > 0 ? 'danger' : o.restartsLast24h > 0 ? 'warn' : 'ok'
   const topReason = o.warningReasons?.[0]
 
   return [
-    { title: 'Nodes', value: o.totalNodes, sub: `Ready: ${o.readyNodes}`, tone: nodesTone, view: 'nodes' },
-    { title: 'Pods', value: o.totalPods, sub: podsSub, tone: podsTone, view: 'pods' },
+    { title: t('overview.stats.nodes'), value: o.totalNodes, sub: t('overview.stats.nodesReady', { n: o.readyNodes }), tone: nodesTone, view: 'nodes' },
+    { title: t('overview.stats.pods'), value: o.totalPods, sub: podsSub, tone: podsTone, view: 'pods' },
     {
-      title: 'Restarts (24h)',
+      title: t('overview.stats.restarts'),
       value: o.restartsLast24h,
-      sub: o.oomKilledLast24h > 0 ? `OOMKilled: ${o.oomKilledLast24h}` : o.restartsLast24h > 0 ? 'Containers restarted' : 'No restarts',
+      sub: o.oomKilledLast24h > 0
+        ? t('overview.stats.oomKilled', { n: o.oomKilledLast24h })
+        : o.restartsLast24h > 0 ? t('overview.stats.containersRestarted') : t('overview.stats.noRestarts'),
       tone: restartsTone,
       view: 'pods',
     },
     {
-      title: 'Warnings (1h)',
+      title: t('overview.stats.warnings'),
       value: o.warningsLastHour,
-      sub: topReason ? `${topReason.reason} ×${topReason.count}` : 'No warnings',
+      sub: topReason ? `${topReason.reason} ×${topReason.count}` : t('overview.stats.noWarnings'),
       tone: (o.warningsLastHour > 0 ? 'warn' : 'ok') as Tone,
       view: 'events',
     },

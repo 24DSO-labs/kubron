@@ -4,12 +4,12 @@
   <div v-if="subsets.length" class="eps">
     <div v-for="(s, i) in subsets" :key="i" class="eps-subset">
       <div class="rd-row">
-        <span class="rd-label">Ports</span>
+        <span class="rd-label">{{ $t('defs.columns.ports') }}</span>
         <span class="rd-value rd-mono">{{ ports(s) }}</span>
       </div>
       <div class="rd-table-wrap">
         <table class="rd-table">
-          <thead><tr><th>IP</th><th>Hostname</th><th>Node</th><th>Target</th><th>State</th></tr></thead>
+          <thead><tr><th>{{ $t('defs.props.ip') }}</th><th>{{ $t('sections.endpointSubsets.hostname') }}</th><th>{{ $t('defs.columns.node') }}</th><th>{{ $t('defs.columns.target') }}</th><th>{{ $t('sections.endpointSubsets.state') }}</th></tr></thead>
           <tbody>
             <tr v-for="(a, j) in s.addresses" :key="j">
               <td class="rd-mono">{{ a.ip }}</td>
@@ -22,14 +22,14 @@
                 <a v-if="a.target" class="rd-link" @click="openRef(a.target)">{{ a.target.kind }}/{{ a.target.name }}</a>
                 <template v-else>—</template>
               </td>
-              <td><span class="rd-badge" :class="a.ready ? 'rd-ok' : 'rd-warn'">{{ a.ready ? 'Ready' : 'Not ready' }}</span></td>
+              <td><span class="rd-badge" :class="a.ready ? 'rd-ok' : 'rd-warn'">{{ a.ready ? $t('sections.endpointSubsets.ready') : $t('sections.endpointSubsets.notReady') }}</span></td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
   </div>
-  <div v-else class="rd-row"><span class="rd-label">Subsets</span><span class="rd-muted">—</span></div>
+  <div v-else class="rd-row"><span class="rd-label">{{ $t('sections.endpointSubsets.subsets') }}</span><span class="rd-muted">—</span></div>
 </template>
 
 <script lang="ts" setup>

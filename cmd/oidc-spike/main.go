@@ -27,16 +27,16 @@ import (
 )
 
 func main() {
-	kubeconfig := flag.String("kubeconfig", "", "путь к kubeconfig")
-	kctx := flag.String("context", "", "контекст kubeconfig (по умолчанию текущий)")
-	user := flag.String("user", "", "имя пользователя IdP")
-	issuer := flag.String("issuer", "", "переопределить issuer")
-	clientID := flag.String("client-id", "", "переопределить client-id")
+	kubeconfig := flag.String("kubeconfig", "", "path to kubeconfig")
+	kctx := flag.String("context", "", "kubeconfig context (defaults to the current one)")
+	user := flag.String("user", "", "IdP username")
+	issuer := flag.String("issuer", "", "override issuer")
+	clientID := flag.String("client-id", "", "override client-id")
 	flag.Parse()
 
 	pass := os.Getenv("KUBRON_SPIKE_PASSWORD")
 	if *kubeconfig == "" || *user == "" || pass == "" {
-		fmt.Fprintln(os.Stderr, "нужны --kubeconfig, --user и KUBRON_SPIKE_PASSWORD")
+		fmt.Fprintln(os.Stderr, "--kubeconfig, --user and KUBRON_SPIKE_PASSWORD are required")
 		os.Exit(2)
 	}
 
@@ -49,7 +49,7 @@ func main() {
 	oc := oidcpassword.Config{IssuerURL: *issuer, ClientID: *clientID, Username: *user, Password: pass}
 	if cfg.ExecProvider != nil {
 		p, ok, err := oidcpassword.ParseOIDCLoginExec(cfg.ExecProvider.Command, cfg.ExecProvider.Args)
-		fatal("exec-блок", err)
+		fatal("exec block", err)
 		if ok {
 			if oc.IssuerURL == "" {
 				oc.IssuerURL = p.IssuerURL
@@ -62,7 +62,7 @@ func main() {
 		}
 	}
 	if oc.IssuerURL == "" || oc.ClientID == "" {
-		fatal("параметры", fmt.Errorf("issuer/client-id не найдены ни в kubeconfig, ни во флагах"))
+		fatal("parameters", fmt.Errorf("issuer/client-id found neither in kubeconfig nor in flags"))
 	}
 	cfg.ExecProvider = nil // exec на сервере запрещён
 	src := oidcpassword.New(oc)
@@ -72,15 +72,15 @@ func main() {
 	defer cancel()
 
 	tok, exp, err := src.Token(ctx)
-	fatal("получение токена", err)
-	fmt.Printf("1) токен получен (%d байт), действует до %s, grant=%s\n", len(tok), exp.Format(time.RFC3339), src.LastGrant())
+	fatal("token request", err)
+	fmt.Printf("1) token received (%d bytes), valid until %s, grant=%s\n", len(tok), exp.Format(time.RFC3339), src.LastGrant())
 
 	cs, err := kubernetes.NewForConfig(cfg)
-	fatal("клиент", err)
+	fatal("client", err)
 	ns, err := cs.CoreV1().Namespaces().List(ctx, metav1.ListOptions{Limit: 5})
-	fatal("список namespace", err)
-	fmt.Printf("2) kube-apiserver принял токен, namespace'ов в первой странице: %d\n", len(ns.Items))
-	fmt.Println("3) для проверки обновления подожди до истечения токена (минус 30 с) и запусти повторно в цикле — grant должен стать refresh.")
+	fatal("list namespaces", err)
+	fmt.Printf("2) kube-apiserver accepted the token, namespaces on the first page: %d\n", len(ns.Items))
+	fmt.Println("3) to verify renewal, wait until the token expires (minus 30 s) and run again in a loop; the grant should become refresh.")
 }
 
 func fatal(what string, err error) {

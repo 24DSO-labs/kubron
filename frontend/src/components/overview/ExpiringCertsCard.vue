@@ -2,7 +2,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <section class="ov-card certs">
-    <h2 class="ov-card-title">Certificates</h2>
+    <h2 class="ov-card-title">{{ $t('overview.certs.title') }}</h2>
 
     <ul v-if="scan && scan.expiring.length" class="list">
       <li v-for="c in scan.expiring.slice(0, 5)" :key="`${c.namespace}/${c.name}`" class="row" :title="`${c.namespace}/${c.name}`">
@@ -10,25 +10,30 @@
         <span class="val" :class="tone(c.daysLeft)">{{ label(c.daysLeft) }}</span>
         <span class="sub">
           {{ c.namespace }}/{{ c.name }} · {{ date(c.notAfter) }}
-          <template v-if="c.managed"> · cert-manager</template>
+          <template v-if="c.managed"> · {{ 'cert-manager' }}</template>
         </span>
       </li>
     </ul>
-    <p v-else-if="scan" class="none">No TLS certificate expires within 30 days ({{ scan.checked }} checked)</p>
-    <p v-else class="none">Loading…</p>
+    <p v-else-if="scan" class="none">{{ $t('overview.certs.none', { checked: scan.checked }) }}</p>
+    <p v-else class="none">{{ $t('common.loading') }}</p>
 
-    <p v-if="scan && scan.expiring.length > 5" class="more">and {{ scan.expiring.length - 5 }} more</p>
+    <p v-if="scan && scan.expiring.length > 5" class="more">{{ $t('overview.certs.more', { n: scan.expiring.length - 5 }) }}</p>
   </section>
 </template>
 
 <script lang="ts" setup>
+import { useI18n } from 'vue-i18n'
+import { formatDate } from '../../i18n/format'
 import type { CertScan } from '../../types/insights'
 
 defineProps<{ scan: CertScan | null }>()
 
-const label = (d: number) => (d < 0 ? `expired ${-d}d ago` : d === 0 ? 'today' : `${d}d left`)
+const { t } = useI18n()
+
+const label = (d: number) =>
+  d < 0 ? t('overview.certs.expired', { n: -d }) : d === 0 ? t('overview.certs.today') : t('overview.certs.left', { n: d })
 const tone = (d: number) => (d <= 7 ? 'd' : 'w')
-const date = (iso: string) => new Date(iso).toLocaleDateString()
+const date = (iso: string) => formatDate(iso)
 </script>
 
 <style scoped>

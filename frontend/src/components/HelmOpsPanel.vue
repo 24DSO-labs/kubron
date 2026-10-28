@@ -7,15 +7,15 @@
         <span class="ho-icon" aria-hidden="true">{{ o.error ? '✕' : o.done ? '✓' : '⟳' }}</span>
         <span class="ho-title" :title="`${o.namespace}/${o.release}`">{{ LABEL[o.op] }} {{ o.release }}</span>
         <span class="ho-time">{{ elapsed(o) }}</span>
-        <button v-if="!o.done && o.cancelable" type="button" class="ho-btn" @click="cancelHelmOp(o.opId)">Отмена</button>
-        <button v-if="o.done" type="button" class="ho-btn" aria-label="Закрыть" @click="dismissHelmOp(o.opId)">✕</button>
+        <button v-if="!o.done && o.cancelable" type="button" class="ho-btn" @click="cancelHelmOp(o.opId)">{{ $t('helm.ops_panel.cancel') }}</button>
+        <button v-if="o.done" type="button" class="ho-btn" :aria-label="$t('helm.ops_panel.close')" @click="dismissHelmOp(o.opId)">✕</button>
       </div>
-      <div class="ho-phase">{{ o.error ? 'Ошибка' : o.done ? 'Готово' : o.phase }}<span class="ho-ns"> · {{ o.namespace }}</span></div>
+      <div class="ho-phase">{{ o.error ? $t('helm.ops_panel.error') : o.done ? $t('helm.ops_panel.done') : o.phase }}<span class="ho-ns"> · {{ o.namespace }}</span></div>
       <pre v-if="o.error" class="ho-log ho-error">{{ o.error }}</pre>
       <template v-else-if="o.lines.length">
         <pre class="ho-log">{{ (expanded[o.opId] ? o.lines.slice(-30) : o.lines.slice(-3)).join('\n') }}</pre>
         <button type="button" class="ho-more" @click="expanded[o.opId] = !expanded[o.opId]">
-          {{ expanded[o.opId] ? 'Свернуть журнал' : 'Показать журнал' }}
+          {{ expanded[o.opId] ? $t('helm.ops_panel.hideLog') : $t('helm.ops_panel.showLog') }}
         </button>
       </template>
     </div>
@@ -24,8 +24,10 @@
 
 <script lang="ts" setup>
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { cancelHelmOp, dismissHelmOp, HELM_OP_LABEL, helmOps, startHelmOps, type HelmOp } from '../composables/useHelmOps'
 
+const { t } = useI18n()
 const LABEL = HELM_OP_LABEL
 
 const expanded = reactive<Record<string, boolean>>({})
@@ -35,7 +37,7 @@ let timer: ReturnType<typeof setInterval> | undefined
 function elapsed(o: HelmOp) {
   const ms = o.done && o.elapsedMs ? o.elapsedMs : now.value - o.startedAt
   const s = Math.max(0, Math.floor(ms / 1000))
-  return s >= 60 ? `${Math.floor(s / 60)}м ${String(s % 60).padStart(2, '0')}с` : `${s}с`
+  return s >= 60 ? `${Math.floor(s / 60)}${t('helm.ops_panel.min')} ${String(s % 60).padStart(2, '0')}${t('helm.ops_panel.sec')}` : `${s}${t('helm.ops_panel.sec')}`
 }
 
 onMounted(() => {

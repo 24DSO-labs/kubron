@@ -26,7 +26,7 @@
           :active="activeTabId === tab.id" />
       </template>
       <div v-if="tabs.length === 0" class="no-tabs">
-        <p>No tabs open</p>
+        <p>{{ $t('utils.tab.noTabs') }}</p>
       </div>
     </div>
     <div class="resize-handle" @mousedown.stop="startResize"></div>

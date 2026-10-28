@@ -13,6 +13,7 @@ import ImagesSection from '../../components/resource/sections/ImagesSection.vue'
 import ConditionsSection from '../../components/resource/sections/ConditionsSection.vue'
 import JobStatsSection from '../../components/resource/sections/JobStatsSection.vue'
 import PodsTab from '../../components/resource/sections/PodsTab.vue'
+import { t } from '../../i18n'
 
 const jobStatus = (j: any): string => j.status || 'Running'
 
@@ -34,11 +35,11 @@ export const job = defineResource<k8s.JobInfo>({
   columns: [
     flatNameCol,
     { ...flatNsCol, link: (j: any) => j.namespace ? { id: 'namespace', ns: '', name: j.namespace } : null },
-    { key: 'completions', label: 'Completions' },
+    { key: 'completions', label: 'defs.columns.completions' },
     ageCol,
     {
       key: 'conditions',
-      label: 'Conditions',
+      label: 'defs.columns.conditions',
       formatter: jobConditions,
       colorFn: j => statusColor(jobStatus(j)),
     },
@@ -47,24 +48,24 @@ export const job = defineResource<k8s.JobInfo>({
   // Порядок панели: метрики -> Labels -> Annotations -> properties -> sections
   headSections: [workloadMetrics.job],
   properties: [
-    { label: 'Selector', value: j => j.selector },
+    { label: 'defs.columns.selector', value: j => j.selector },
     controlledByProp,
     managedByProp,
   ],
   sections: [ImagesSection, ConditionsSection, JobStatsSection],
-  tabs: [{ id: 'pods', label: 'Pods', component: PodsTab }],
+  tabs: [{ id: 'pods', label: 'defs.tabs.pods', component: PodsTab }],
 
   actions: [
     {
       id: 'retry',
       permission: Perm.Operate,
-      label: 'Retry',
+      label: 'common.retry',
       icon: 'restart',
       run: async (j, ctx) => {
-        if (!(await ctx.confirm(`Re-run job ${j.name}? The Job and its pods (with logs) will be deleted and created again.`))) return
+        if (!(await ctx.confirm(t('defs.job.retryConfirm', { name: j.name })))) return
         return ctx.perform(
           () => callApp('RetryJob', j.namespace, j.name),
-          `Job ${j.name} retry initiated`,
+          t('defs.job.retried', { name: j.name }),
         )
       },
     },

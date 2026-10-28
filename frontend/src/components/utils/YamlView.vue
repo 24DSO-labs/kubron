@@ -4,35 +4,38 @@
 <div class="yaml-view">
   <div class="editor-header">
     <div class="editor-title">
-      <span v-if="isCreate">New <strong>{{ tab.kindLabel }}</strong></span>
+      <i18n-t v-if="isCreate" keypath="utils.yaml.newKind" tag="span">
+        <template #kind><strong>{{ tab.kindLabel }}</strong></template>
+      </i18n-t>
       <span v-else>{{ tab.resourceType }} <strong>{{ tab.resourceName }}</strong></span>
-      <span v-if="tab.namespace" class="editor-namespace">in <a href="#" class="ns-link">{{ tab.namespace
-          }}</a></span>
-      <span v-if="isDirty && !isCreate" class="editor-dirty" title="Есть несохранённые изменения">●</span>
-      <span v-if="tab.view === 'diff'" class="editor-mode">Review changes</span>
+      <i18n-t v-if="tab.namespace" keypath="utils.yaml.inNamespace" tag="span" class="editor-namespace">
+        <template #namespace><a href="#" class="ns-link">{{ tab.namespace }}</a></template>
+      </i18n-t>
+      <span v-if="isDirty && !isCreate" class="editor-dirty" :title="$t('utils.yaml.unsaved')">●</span>
+      <span v-if="tab.view === 'diff'" class="editor-mode">{{ $t('utils.yaml.reviewChanges') }}</span>
     </div>
     <div class="editor-actions">
       <template v-if="isCreate">
-        <span class="editor-hint">Измените манифест и создайте объект</span>
+        <span class="editor-hint">{{ $t('utils.yaml.createHint') }}</span>
         <button class="btn btn-sm btn-save"
           :disabled="tab.saving || !hasContent"
-          title="Создать объект в кластере (Ctrl+S)"
-          @click="applyChanges()">{{ tab.saving ? '⏳ Creating...' : '✓ Create' }}</button>
+          :title="$t('utils.yaml.createTitle')"
+          @click="applyChanges()">{{ tab.saving ? `⏳ ${$t('utils.yaml.creating')}` : `✓ ${$t('common.create')}` }}</button>
       </template>
       <template v-else-if="tab.view === 'diff'">
-        <button class="btn btn-sm btn-secondary" @click="backToEdit()">← Back to editing</button>
+        <button class="btn btn-sm btn-secondary" @click="backToEdit()">← {{ $t('utils.yaml.backToEditing') }}</button>
         <button class="btn btn-sm btn-save"
           :disabled="tab.saving || !isDirty"
-          @click="applyChanges()">{{ tab.saving ? '⏳ Applying...' : '✓ Apply' }}</button>
+          @click="applyChanges()">{{ tab.saving ? `⏳ ${$t('utils.yaml.applying')}` : `✓ ${$t('common.apply')}` }}</button>
       </template>
       <template v-else>
         <button class="btn btn-sm btn-secondary" :disabled="tab.loading || tab.saving"
-          title="Перечитать манифест из кластера" @click="reloadYaml()">{{ tab.loading ? '⏳ Loading...' : '↻ Reload' }}</button>
-        <span v-if="!canEdit" class="editor-readonly" title="Для изменения ресурсов нужны права администратора">Только чтение</span>
+          :title="$t('utils.yaml.reloadTitle')" @click="reloadYaml()">{{ tab.loading ? `⏳ ${$t('common.loading')}` : `↻ ${$t('utils.yaml.reload')}` }}</button>
+        <span v-if="!canEdit" class="editor-readonly" :title="$t('utils.yaml.readOnlyTitle')">{{ $t('utils.yaml.readOnly') }}</span>
         <button v-else class="btn btn-sm btn-save"
           :disabled="tab.saving || !isDirty"
-          title="Посмотреть изменения и применить (Ctrl+S)"
-          @click="reviewChanges()">💾 Review &amp; Save</button>
+          :title="$t('utils.yaml.reviewSaveTitle')"
+          @click="reviewChanges()">💾 {{ $t('utils.yaml.reviewSave') }}</button>
       </template>
     </div>
   </div>
@@ -46,6 +49,8 @@
 <script lang="ts" setup>
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import * as monaco from 'monaco-editor'
+import { useI18n } from 'vue-i18n'
+import { errorText } from '../../composables/errorText'
 import { useNotifications } from '../../composables/useNotifications'
 import { can } from '../../composables/useAuth'
 import { Perm } from '../../types/auth'
@@ -56,6 +61,7 @@ import { callApp } from '../../platform/api'
 const props = defineProps<{ tab: YamlTab; active: boolean }>()
 const emit = defineEmits<{ (e: 'apply', tabId: string): void }>()
 
+const { t } = useI18n()
 const notifications = useNotifications()
 
 // Без права на запись YAML открывается только для просмотра
@@ -186,7 +192,7 @@ function backToEdit() {
 async function reloadYaml() {
   const tab = props.tab
   if (tab.loading || tab.saving) return
-  if (isDirty.value && !(await askConfirm('Discard unsaved changes and reload YAML from the cluster?'))) return
+  if (isDirty.value && !(await askConfirm(t('utils.yaml.discardConfirm')))) return
   tab.loading = true
   try {
     const fresh = await callApp('GetResourceYAML', tab.namespace, tab.resourceType, tab.resourceName, true)
@@ -194,7 +200,7 @@ async function reloadYaml() {
     tab.content = fresh
     tab.view = 'edit'
   } catch (e: any) {
-    notifications.notifyError(`Не удалось перечитать YAML: ${e?.message || e}`)
+    notifications.notifyError(t('utils.yaml.reloadError', { message: errorText(e) }))
   } finally {
     tab.loading = false
   }

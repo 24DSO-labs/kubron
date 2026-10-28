@@ -4,16 +4,16 @@
   <div class="users-view">
     <header class="users-head">
       <div>
-        <h2>Пользователи</h2>
-        <p class="users-sub">Локальные учётные записи и их роли</p>
+        <h2>{{ $t('users.title') }}</h2>
+        <p class="users-sub">{{ $t('users.subtitle') }}</p>
       </div>
-      <button class="btn" type="button" @click="openCreate">➕ Добавить пользователя</button>
+      <button class="btn" type="button" @click="openCreate">{{ $t('users.add') }}</button>
     </header>
 
     <!-- Роли и их права -->
     <section class="roles-grid">
       <article v-for="r in roles" :key="r.id" class="role-card">
-        <h4>{{ r.label }}</h4>
+        <h4>{{ roleName(r) }}</h4>
         <ul>
           <li v-for="p in r.permissions" :key="p">{{ permLabel(p) }}</li>
         </ul>
@@ -23,14 +23,11 @@
     <!-- Автовыход по бездействию -->
     <section class="sec-card">
       <div>
-        <h4>Автовыход при бездействии</h4>
-        <p>
-          Сеанс завершается, если пользователь не двигает мышь и не нажимает клавиши. Запущенные терминалы и проброс
-          портов при этом закрываются. Действует для всех учётных записей.
-        </p>
+        <h4>{{ $t('users.idle.title') }}</h4>
+        <p>{{ $t('users.idle.description') }}</p>
       </div>
       <select class="form-input idle-select" :value="auth.idleTimeoutMinutes.value" :disabled="savingIdle"
-        aria-label="Автовыход при бездействии" @change="changeIdle(($event.target as HTMLSelectElement).value)">
+        :aria-label="$t('users.idle.title')" @change="changeIdle(($event.target as HTMLSelectElement).value)">
         <option v-for="m in idleOptions" :key="m" :value="m">{{ idleLabel(m) }}</option>
       </select>
     </section>
@@ -40,77 +37,78 @@
     <table v-if="users.length" class="users-table">
       <thead>
         <tr>
-          <th>Логин</th>
-          <th>Роль</th>
-          <th>Статус</th>
-          <th>Последний вход</th>
-          <th class="col-actions">Действия</th>
+          <th>{{ $t('users.columns.login') }}</th>
+          <th>{{ $t('users.columns.role') }}</th>
+          <th>{{ $t('users.columns.status') }}</th>
+          <th>{{ $t('users.columns.lastLogin') }}</th>
+          <th class="col-actions">{{ $t('users.columns.actions') }}</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="u in users" :key="u.id" :class="{ disabled: u.disabled }">
           <td>
             <strong>{{ u.username }}</strong>
-            <span v-if="isSelf(u)" class="badge badge-you">это вы</span>
+            <span v-if="isSelf(u)" class="badge badge-you">{{ $t('users.you') }}</span>
           </td>
           <td>
             <select class="form-input role-select" :value="u.role" :disabled="isSelf(u) || busyId === u.id"
-              :title="isSelf(u) ? 'Свою роль изменить нельзя' : ''"
+              :title="isSelf(u) ? $t('users.cannotChangeOwnRole') : ''"
               @change="changeRole(u, ($event.target as HTMLSelectElement).value)">
-              <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.label }}</option>
+              <option v-for="r in roles" :key="r.id" :value="r.id">{{ roleName(r) }}</option>
             </select>
           </td>
           <td>
-            <span v-if="u.disabled" class="badge badge-off">Отключён</span>
-            <span v-else-if="u.mustChangePassword" class="badge badge-warn" title="Пользователь ещё не сменил временный пароль">
-              Временный пароль
+            <span v-if="u.disabled" class="badge badge-off">{{ $t('users.status.disabled') }}</span>
+            <span v-else-if="u.mustChangePassword" class="badge badge-warn" 
+            :title="$t('users.status.tempPasswordHint')">
+              {{ $t('users.status.tempPassword') }}
             </span>
-            <span v-else class="badge badge-ok">Активен</span>
+            <span v-else class="badge badge-ok">{{ $t('users.status.active') }}</span>
           </td>
           <td class="muted">{{ formatDate(u.lastLoginAt) }}</td>
           <td class="col-actions">
             <button class="btn btn-sm btn-secondary" type="button" :disabled="isSelf(u) || busyId === u.id"
-              :title="isSelf(u) ? 'Свой пароль меняется через меню пользователя' : ''" @click="openReset(u)">
-              Сбросить пароль
+              :title="isSelf(u) ? $t('users.ownPasswordHint') : ''" @click="openReset(u)">
+              {{ $t('users.resetPassword') }}
             </button>
             <button class="btn btn-sm btn-secondary" type="button" :disabled="isSelf(u) || busyId === u.id"
               @click="toggleDisabled(u)">
-              {{ u.disabled ? 'Включить' : 'Отключить' }}
+              {{ u.disabled ? $t('users.enable') : $t('users.disable') }}
             </button>
             <button class="btn btn-sm btn-danger" type="button" :disabled="isSelf(u) || busyId === u.id"
               @click="remove(u)">
-              Удалить
+              {{ $t('users.delete') }}
             </button>
           </td>
         </tr>
       </tbody>
     </table>
-    <p v-else-if="!loading" class="muted">Пользователей нет</p>
+    <p v-else-if="!loading" class="muted">{{ $t('users.empty') }}</p>
 
     <!-- Создание пользователя -->
     <div v-if="dialog === 'create'" class="dlg-overlay" @click.self="closeDialog">
       <form class="dlg" @submit.prevent="submitCreate" autocomplete="off">
-        <h3>Новый пользователь</h3>
+        <h3>{{ $t('users.create.title') }}</h3>
         <label class="auth-field">
-          <span>Логин</span>
+          <span>{{ $t('users.create.login') }}</span>
           <input ref="firstInput" v-model="form.username" :disabled="saving" required />
         </label>
         <label class="auth-field">
-          <span>Временный пароль</span>
+          <span>{{ $t('users.create.tempPassword') }}</span>
           <input v-model="form.password" type="text" autocomplete="off" :disabled="saving" required />
-          <small>Не короче {{ MIN_PASSWORD }} символов. При первом входе пользователь задаст свой пароль.</small>
+          <small>{{ $t('users.create.passwordHint', { n: MIN_PASSWORD }) }}</small>
         </label>
         <label class="auth-field">
-          <span>Роль</span>
+          <span>{{ $t('users.create.role') }}</span>
           <select v-model="form.role" class="form-input" :disabled="saving">
-            <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.label }}</option>
+            <option v-for="r in roles" :key="r.id" :value="r.id">{{ roleName(r) }}</option>
           </select>
         </label>
         <p v-if="dialogError" class="auth-error" role="alert">{{ dialogError }}</p>
         <div class="auth-actions">
-          <button class="auth-link" type="button" @click="closeDialog">Отмена</button>
+          <button class="auth-link" type="button" @click="closeDialog">{{ $t('common.cancel') }}</button>
           <button class="auth-submit" type="submit" :disabled="saving || !form.username || !form.password">
-            {{ saving ? 'Создание…' : 'Создать' }}
+            {{ saving ? $t('users.create.submitting') : $t('users.create.submit') }}
           </button>
         </div>
       </form>
@@ -119,17 +117,17 @@
     <!-- Сброс пароля -->
     <div v-if="dialog === 'reset' && target" class="dlg-overlay" @click.self="closeDialog">
       <form class="dlg" @submit.prevent="submitReset" autocomplete="off">
-        <h3>Сброс пароля: {{ target.username }}</h3>
+        <h3>{{ $t('users.reset.title', { name: target.username }) }}</h3>
         <label class="auth-field">
-          <span>Новый временный пароль</span>
+          <span>{{ $t('users.reset.newPassword') }}</span>
           <input ref="firstInput" v-model="form.password" type="text" autocomplete="off" :disabled="saving" required />
-          <small>Не короче {{ MIN_PASSWORD }} символов. Пользователь обязан сменить его при входе.</small>
+          <small>{{ $t('users.reset.passwordHint', { n: MIN_PASSWORD }) }}</small>
         </label>
         <p v-if="dialogError" class="auth-error" role="alert">{{ dialogError }}</p>
         <div class="auth-actions">
-          <button class="auth-link" type="button" @click="closeDialog">Отмена</button>
+          <button class="auth-link" type="button" @click="closeDialog">{{ $t('common.cancel') }}</button>
           <button class="auth-submit" type="submit" :disabled="saving || !form.password">
-            {{ saving ? 'Сохранение…' : 'Сбросить пароль' }}
+            {{ saving ? $t('users.reset.submitting') : $t('users.resetPassword') }}
           </button>
         </div>
       </form>
@@ -141,11 +139,16 @@
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { callApp } from '../../resources/wails'
 import { askConfirm } from '../../resources/confirm'
-import { errorText, useAuth } from '../../composables/useAuth'
+import { useI18n } from 'vue-i18n'
+import { errorText } from '../../composables/errorText'
+import { useAuth } from '../../composables/useAuth'
+import { formatDateTime } from '../../i18n/format'
+import { tl } from '../../i18n'
 import { useNotifications } from '../../composables/useNotifications'
 import { PERMISSION_LABELS, type RoleInfo, type UserInfo } from '../../types/auth'
 import { MIN_PASSWORD } from '../auth/constants'
 
+const { t, te } = useI18n()
 const auth = useAuth()
 const notifications = useNotifications()
 
@@ -171,17 +174,17 @@ const idleOptions = computed(() => {
 })
 
 function idleLabel(m: number): string {
-  if (m === 0) return 'Выключен'
-  if (m === 60) return '1 час'
-  if (m === 120) return '2 часа'
-  return `${m} мин`
+  if (m === 0) return t('users.idle.off')
+  if (m === 60) return t('users.idle.oneHour')
+  if (m === 120) return t('users.idle.twoHours')
+  return t('users.idle.minutes', { n: m })
 }
 
 async function changeIdle(value: string) {
   savingIdle.value = true
   try {
     await auth.setIdleTimeout(Number(value))
-    notifications.notifySuccess(`Автовыход: ${idleLabel(auth.idleTimeoutMinutes.value).toLowerCase()}`)
+    notifications.notifySuccess(t('users.idle.saved', { value: idleLabel(auth.idleTimeoutMinutes.value).toLocaleLowerCase() }))
   } catch (e) {
     notifications.notifyError(errorText(e))
   } finally {
@@ -189,13 +192,14 @@ async function changeIdle(value: string) {
   }
 }
 
-const permLabel = (p: string) => PERMISSION_LABELS[p] ?? p
+const permLabel = (p: string) => tl(PERMISSION_LABELS[p] ?? p)
+/** Роль: подпись из roles.*, иначе подпись бэкенда */
+const roleName = (r: RoleInfo) => (te(`roles.${r.id}`) ? t(`roles.${r.id}`) : r.label)
 const isSelf = (u: UserInfo) => u.id === auth.user.value?.id
 
 function formatDate(iso: string): string {
-  if (!iso) return 'ещё не входил'
-  const d = new Date(iso)
-  return isNaN(d.getTime()) ? '—' : d.toLocaleString('ru-RU')
+  if (!iso) return t('users.neverSignedIn')
+  return formatDateTime(iso) || t('common.dash')
 }
 
 async function load() {
@@ -231,24 +235,24 @@ async function act(u: UserInfo, fn: () => Promise<void>, ok: string) {
 }
 
 const changeRole = (u: UserInfo, role: string) =>
-  act(u, async () => replaceUser((await callApp('UpdateUserRole', u.id, role)) as UserInfo), `Роль «${u.username}» изменена`)
+  act(u, async () => replaceUser((await callApp('UpdateUserRole', u.id, role)) as UserInfo), t('users.toast.roleChanged', { name: u.username }))
 
 const toggleDisabled = (u: UserInfo) =>
   act(
     u,
     async () => replaceUser((await callApp('SetUserDisabled', u.id, !u.disabled)) as UserInfo),
-    u.disabled ? `«${u.username}» включён` : `«${u.username}» отключён`,
+    u.disabled ? t('users.toast.enabled', { name: u.username }) : t('users.toast.disabled', { name: u.username }),
   )
 
 async function remove(u: UserInfo) {
-  if (!(await askConfirm(`Удалить пользователя «${u.username}»? Это действие нельзя отменить.`))) return
+  if (!(await askConfirm(t('users.confirmDelete', { name: u.username })))) return
   await act(
     u,
     async () => {
       await callApp('DeleteUser', u.id)
       users.value = users.value.filter(x => x.id !== u.id)
     },
-    `Пользователь «${u.username}» удалён`,
+    t('users.toast.deleted', { name: u.username }),
   )
 }
 
@@ -293,15 +297,15 @@ const submitCreate = () =>
   submitDialog(async () => {
     const created = (await callApp('CreateUser', form.username.trim(), form.password, form.role)) as UserInfo
     users.value = [...users.value, created]
-    notifications.notifySuccess(`Пользователь «${created.username}» создан`)
+    notifications.notifySuccess(t('users.toast.created', { name: created.username }))
   })
 
 const submitReset = () =>
   submitDialog(async () => {
-    const t = target.value
-    if (!t) return
-    replaceUser((await callApp('ResetUserPassword', t.id, form.password)) as UserInfo)
-    notifications.notifySuccess(`Пароль «${t.username}» сброшен`)
+    const tgt = target.value
+    if (!tgt) return
+    replaceUser((await callApp('ResetUserPassword', tgt.id, form.password)) as UserInfo)
+    notifications.notifySuccess(t('users.toast.passwordReset', { name: tgt.username }))
   })
 
 onMounted(load)

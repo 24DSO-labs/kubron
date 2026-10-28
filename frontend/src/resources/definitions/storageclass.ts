@@ -7,8 +7,9 @@ import { callApp } from '../wails'
 import { flatNameCol, ageCol, controlledByProp, managedByProp } from './common'
 import StorageClassParametersTab from '../../components/resource/sections/StorageClassParametersTab.vue'
 import StorageClassVolumesTab from '../../components/resource/sections/StorageClassVolumesTab.vue'
+import { t } from '../../i18n'
 
-const yesNo = (v: boolean) => (v ? 'Yes' : 'No')
+const yesNo = (v: boolean) => (v ? t('common.yes') : t('common.no'))
 
 export const storageClass = defineResource<k8s.StorageClassInfo>({
   id: 'storageclass',
@@ -22,35 +23,35 @@ export const storageClass = defineResource<k8s.StorageClassInfo>({
 
   columns: [
     flatNameCol,
-    { key: 'provisioner', label: 'Provisioner' },
-    { key: 'reclaimPolicy', label: 'Reclaim Policy' },
-    { key: 'volumeBindingMode', label: 'Binding Mode' },
+    { key: 'provisioner', label: 'defs.columns.provisioner' },
+    { key: 'reclaimPolicy', label: 'defs.columns.reclaimPolicy' },
+    { key: 'volumeBindingMode', label: 'defs.columns.bindingMode' },
     {
       key: 'allowVolumeExpansion',
-      label: 'Expansion',
+      label: 'defs.columns.expansion',
       formatter: s => yesNo(s.allowVolumeExpansion),
     },
     {
       key: 'default',
-      label: 'Default',
+      label: 'defs.columns.default',
       formatter: s => yesNo(s.default),
       colorFn: s => (s.default ? '#4ade80' : '#868d8a'),
     },
-    { key: 'volumes', label: 'PVs', formatter: s => String(s.volumes?.length ?? 0) },
+    { key: 'volumes', label: 'defs.columns.pvs', formatter: s => String(s.volumes?.length ?? 0) },
     ageCol,
   ],
 
   // Name / Age / Created выводит шапка панели; Labels и Annotations — общие секции
   properties: [
-    { label: 'Provisioner', value: s => s.provisioner },
-    { label: 'Volume Binding Mode', value: s => s.volumeBindingMode },
-    { label: 'Reclaim Policy', value: s => s.reclaimPolicy },
+    { label: 'defs.columns.provisioner', value: s => s.provisioner },
+    { label: 'defs.props.volumeBindingMode', value: s => s.volumeBindingMode },
+    { label: 'defs.columns.reclaimPolicy', value: s => s.reclaimPolicy },
     controlledByProp,
     managedByProp,
   ],
   tabs: [
-    { id: 'parameters', label: 'Parameters', component: StorageClassParametersTab },
-    { id: 'volumes', label: 'Persistent Volumes', component: StorageClassVolumesTab },
+    { id: 'parameters', label: 'defs.tabs.parameters', component: StorageClassParametersTab },
+    { id: 'volumes', label: 'defs.tabs.persistentVolumes', component: StorageClassVolumesTab },
   ],
 
   api: {

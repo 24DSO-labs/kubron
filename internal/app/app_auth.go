@@ -179,9 +179,9 @@ func callerMethod(skip int) string {
 
 func (a *App) authUnavailable() error {
 	if a.authErr != nil {
-		return fmt.Errorf("подсистема авторизации недоступна: %w", a.authErr)
+		return fmt.Errorf("authorization subsystem is unavailable: %w", a.authErr)
 	}
-	return errors.New("подсистема авторизации не инициализирована")
+	return errors.New("authorization subsystem is not initialized")
 }
 
 // ─── Методы, доступные без права доступа ───────────────────

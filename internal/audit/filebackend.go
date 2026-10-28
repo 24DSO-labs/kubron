@@ -88,7 +88,7 @@ func readLines(path string) ([][]byte, error) {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("не удалось прочитать журнал: %w", err)
+		return nil, fmt.Errorf("failed to read journal: %w", err)
 	}
 	defer f.Close()
 

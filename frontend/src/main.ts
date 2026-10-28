@@ -3,9 +3,13 @@
 
 import {createApp} from 'vue'
 import App from './App.vue'
+import {i18n, initI18n} from './i18n'
 import './assets/migrated.css'
 import './assets/style.css'
 import './components/auth/auth.css'
 import './style.css'
 
-createApp(App).mount('#app')
+// Язык выбирается до монтирования: иначе на долю секунды мелькнёт английский интерфейс
+initI18n().finally(() => {
+  createApp(App).use(i18n).mount('#app')
+})

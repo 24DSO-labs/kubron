@@ -4,28 +4,28 @@
   <div v-if="can(Perm.PortForward)" class="pf-control">
     <div v-if="active" class="pf-active">
       <span class="pf-label">→ localhost:{{ active.localPort }}</span>
-      <button class="pf-btn-stop" @click="stop">Stop</button>
+      <button class="pf-btn-stop" @click="stop">{{ $t('defs.menu.stop') }}</button>
     </div>
     <template v-else>
-      <button class="pf-btn" @click="openModal">Forward...</button>
+      <button class="pf-btn" @click="openModal">{{ $t('sections.portForward.forward') }}</button>
     </template>
 
     <div v-if="showModal" class="pf-modal-overlay" @click="showModal = false">
       <div class="pf-modal" @click.stop>
         <div class="pf-modal-head">
-          <span>Port Forwarding for {{ resourceType }} {{ resourceName }}</span>
+          <span>{{ $t('sections.portForward.title', { type: resourceType, name: resourceName }) }}</span>
           <button class="pf-close" @click="showModal = false">✕</button>
         </div>
         <div class="pf-modal-body">
           <div class="pf-row">
-            <label class="pf-row-label">Local port to forward from:</label>
+            <label class="pf-row-label">{{ $t('sections.portForward.localPort') }}</label>
             <div class="pf-port-input-wrap">
               <input
                 ref="portInputRef"
                 v-model="localPortInput"
                 type="text"
                 class="pf-input"
-                :placeholder="isRandom ? 'Random' : ''"
+                :placeholder="isRandom ? $t('sections.portForward.random') : ''"
                 @focus="onPortFocus"
                 @blur="onPortBlur"
                 @keyup.enter="start"
@@ -38,12 +38,12 @@
           </label>
           <label class="pf-check">
             <input v-model="openInBrowser" type="checkbox" />
-            <span>Open in Browser</span>
+            <span>{{ $t('sections.portForward.openInBrowser') }}</span>
           </label>
         </div>
         <div class="pf-modal-foot">
-          <button class="pf-btn-secondary" @click="showModal = false">Cancel</button>
-          <button class="pf-btn-primary" @click="start" :disabled="loading">{{ loading ? '...' : 'Start' }}</button>
+          <button class="pf-btn-secondary" @click="showModal = false">{{ $t('common.cancel') }}</button>
+          <button class="pf-btn-primary" @click="start" :disabled="loading">{{ loading ? '...' : $t('sections.portForward.start') }}</button>
         </div>
       </div>
     </div>
@@ -58,6 +58,8 @@ import { can } from '../../../composables/useAuth'
 import { Perm } from '../../../types/auth'
 import { callApp } from '../../../resources/wails'
 import { openUrl } from '../../../platform/files'
+import { t } from '../../../i18n'
+import { errorText } from '../../../composables/errorText'
 
 const props = defineProps<{
   namespace: string
@@ -74,8 +76,6 @@ const isRandom = ref(true)
 const useHttps = ref(false)
 const openInBrowser = ref(true)
 const loading = ref(false)
-
-const errText = (e: any): string => e?.message || String(e)
 
 const active = computed(() => {
   return k8s.portForwards.value.find((s: any) => {
@@ -129,7 +129,7 @@ async function start() {
     }
     await k8s.refreshPortForwards()
     showModal.value = false
-    notifications.notifySuccess(`Port forward: localhost:${localPort} → ${props.resourceName}:${props.port}`)
+    notifications.notifySuccess(t('sections.portForward.started', { port: localPort, target: `${props.resourceName}:${props.port}` }))
 
     if (openInBrowser.value) {
       const protocol = useHttps.value ? 'https' : 'http'
@@ -137,7 +137,7 @@ async function start() {
     }
   } catch (e: any) {
     // Окно остаётся открытым: порт можно поправить и нажать Start ещё раз
-    notifications.notifyError(`Port forward: ${errText(e)}`)
+    notifications.notifyError(t('sections.portForward.startError', { error: errorText(e) }))
   } finally {
     loading.value = false
   }
@@ -148,9 +148,9 @@ async function stop() {
   try {
     await callApp('StopPortForward', active.value.id)
     await k8s.refreshPortForwards()
-    notifications.notifySuccess('Port forward остановлен')
+    notifications.notifySuccess(t('sections.portForward.stopped'))
   } catch (e: any) {
-    notifications.notifyError(`Остановка port forward: ${errText(e)}`)
+    notifications.notifyError(t('sections.portForward.stopError', { error: errorText(e) }))
   }
 }
 </script>

@@ -2,10 +2,10 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div v-if="rules.length" class="rules">
-    <div class="rules-title">Rules</div>
+    <div class="rules-title">{{ $t('defs.columns.rules') }}</div>
     <table class="rules-table">
       <thead>
-        <tr><th>API groups</th><th>Resources</th><th>Verbs</th></tr>
+        <tr><th>{{ $t('sections.rules.apiGroups') }}</th><th>{{ $t('defs.tabs.resources') }}</th><th>{{ $t('sections.rules.verbs') }}</th></tr>
       </thead>
       <tbody>
         <tr v-for="(r, i) in rules" :key="i">

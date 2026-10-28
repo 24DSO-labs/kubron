@@ -8,6 +8,7 @@ export const MAX_CLUSTER_NAME = 60
 export interface ClusterGlyph {
   /** Ключ, который хранится в метаданных кластера */
   key: string
+  /** Ключ подписи (cluster.glyph.*): текст рисует tl() */
   label: string
   /** Контуры в сетке 24×24: рисуются линией, поэтому наследуют цвет текста */
   paths: string[]
@@ -16,7 +17,7 @@ export interface ClusterGlyph {
 export const CLUSTER_GLYPHS: ClusterGlyph[] = [
   {
     key: 'server',
-    label: 'Сервер',
+    label: 'cluster.glyph.server',
     paths: [
       'M5 4h14a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
       'M5 13h14a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2z',
@@ -26,12 +27,12 @@ export const CLUSTER_GLYPHS: ClusterGlyph[] = [
   },
   {
     key: 'cloud',
-    label: 'Облако',
+    label: 'cluster.glyph.cloud',
     paths: ['M7 18a4 4 0 0 1-.6-7.96A5.5 5.5 0 0 1 17 8.5a4.75 4.75 0 0 1 0 9.5H7z'],
   },
   {
     key: 'database',
-    label: 'Данные',
+    label: 'cluster.glyph.database',
     paths: [
       'M4 5.5c0-1.66 3.58-3 8-3s8 1.34 8 3-3.58 3-8 3-8-1.34-8-3z',
       'M4 5.5v13c0 1.66 3.58 3 8 3s8-1.34 8-3v-13',
@@ -40,17 +41,17 @@ export const CLUSTER_GLYPHS: ClusterGlyph[] = [
   },
   {
     key: 'shield',
-    label: 'Защита',
+    label: 'cluster.glyph.shield',
     paths: ['M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6l8-3z'],
   },
   {
     key: 'flask',
-    label: 'Лаборатория',
+    label: 'cluster.glyph.flask',
     paths: ['M9 3h6', 'M10 3v6L5 18.5A2 2 0 0 0 6.8 21h10.4a2 2 0 0 0 1.8-2.5L14 9V3', 'M7.5 14h9'],
   },
   {
     key: 'cube',
-    label: 'Куб',
+    label: 'cluster.glyph.cube',
     paths: ['M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z', 'M12 12l8-4.5', 'M12 12v9', 'M12 12L4 7.5'],
   },
 ]
@@ -72,16 +73,17 @@ export const DEFAULT_CLUSTER_COLOR = CLUSTER_COLORS[0]
 export interface ClusterEnvironment {
   /** '' — окружение не задано */
   key: string
+  /** Ключ подписи (cluster.env.*): текст рисует tl() */
   label: string
   color: string
 }
 
 export const CLUSTER_ENVIRONMENTS: ClusterEnvironment[] = [
-  { key: '', label: 'Не задано', color: '#6c7086' },
-  { key: 'dev', label: 'Dev', color: '#73daca' },
-  { key: 'test', label: 'Test', color: '#e0af68' },
-  { key: 'stage', label: 'Stage', color: '#ff9e64' },
-  { key: 'prod', label: 'Prod', color: '#f7768e' },
+  { key: '', label: 'cluster.env.none', color: '#6c7086' },
+  { key: 'dev', label: 'cluster.env.dev', color: '#73daca' },
+  { key: 'test', label: 'cluster.env.test', color: '#e0af68' },
+  { key: 'stage', label: 'cluster.env.stage', color: '#ff9e64' },
+  { key: 'prod', label: 'cluster.env.prod', color: '#f7768e' },
 ]
 
 /** Значок по ключу; для '' и устаревших эмодзи — null (рисуется монограмма) */

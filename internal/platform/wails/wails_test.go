@@ -8,9 +8,9 @@ import "testing"
 func TestDesktopCapabilities(t *testing.T) {
 	c := (&Platform{}).Capabilities()
 	if !c.FileDialog || !c.PortForward || !c.NodeShell || !c.LocalKubeconfig {
-		t.Fatalf("в десктопе локальные возможности должны быть включены: %+v", c)
+		t.Fatalf("local capabilities must be enabled on desktop: %+v", c)
 	}
 	if c.SSO {
-		t.Fatal("SSO в десктопе не предлагается")
+		t.Fatal("SSO is not offered on desktop")
 	}
 }

@@ -57,7 +57,7 @@ func (m *Manager) SetDefaultIngressClass(name string, makeDefault bool) error {
 		}
 		body := fmt.Sprintf(`{"metadata":{"annotations":{%q:%s}}}`, defaultIngressClassAnnotation, val)
 		if _, err := ics.Patch(ctx, n, types.MergePatchType, []byte(body), metav1.PatchOptions{}); err != nil {
-			return fmt.Errorf("не удалось изменить IngressClass %s: %w", n, err)
+			return fmt.Errorf("failed to update IngressClass %s: %w", n, err)
 		}
 		return nil
 	}
@@ -76,7 +76,7 @@ func (m *Manager) SetDefaultIngressClass(name string, makeDefault bool) error {
 		}
 	}
 	if !found {
-		return fmt.Errorf("IngressClass %s не найден", name)
+		return fmt.Errorf("IngressClass %s not found", name)
 	}
 	if makeDefault {
 		for _, n := range others {

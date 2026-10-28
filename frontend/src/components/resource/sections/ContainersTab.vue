@@ -14,7 +14,7 @@
         <!-- Metrics -->
         <div v-if="clusterName" class="rd-block">
           <div class="rd-block-head" @click="flip(metricsOpen, c.name)">
-            <span>Metrics</span>
+            <span>{{ $t('defs.columns.metrics') }}</span>
             <span class="rd-arrow" :class="{ open: metricsOpen[c.name] }">›</span>
           </div>
           <div v-if="metricsOpen[c.name]" class="rd-block-body">
@@ -29,13 +29,13 @@
 
         <!-- Status -->
         <div class="rd-row">
-          <span class="rd-label">Status</span>
+          <span class="rd-label">{{ $t('common.status') }}</span>
           <span class="rd-value" :class="statusTextClass(c)">{{ statusText(c) }}</span>
         </div>
 
         <!-- Image -->
         <div class="rd-row">
-          <span class="rd-label">Image</span>
+          <span class="rd-label">{{ $t('sections.containers.image') }}</span>
           <span class="rd-value"><span v-if="c.image" class="ct-chip">{{ c.image }}</span><template v-else>—</template></span>
         </div>
 
@@ -47,7 +47,7 @@
 
         <!-- Ports -->
         <div v-if="c.ports?.length" class="rd-row">
-          <span class="rd-label">Ports</span>
+          <span class="rd-label">{{ $t('defs.columns.ports') }}</span>
           <div class="rd-value ct-ports">
             <div v-for="p in c.ports" :key="p.containerPort + '/' + p.protocol" class="ct-port">
               <a class="rd-link" href="#" @click.prevent>
@@ -65,8 +65,8 @@
 
 <!-- Environment -->
 <div class="rd-row rd-click" @click="flip(envOpen, c.name)">
-  <span class="rd-label">Environment<span class="rd-arrow" :class="{ open: envOpen[c.name] }">›</span></span>
-  <span class="rd-value">{{ envList(c).length }} Environmental Variables</span>
+  <span class="rd-label">{{ $t('sections.containers.environment') }}<span class="rd-arrow" :class="{ open: envOpen[c.name] }">›</span></span>
+  <span class="rd-value">{{ $t('sections.containers.envCount', envList(c).length) }}</span>
 
   <div v-if="envOpen[c.name]" class="rd-wide ct-env-box" @click.stop>
     <div v-if="!envList(c).length" class="rd-muted ct-env-empty">—</div>
@@ -77,7 +77,7 @@
     <template v-if="refOf(e.value)">
       <span class="ct-ref-badge" :class="'ct-ref-' + refOf(e.value)!.kind">{{ refOf(e.value)!.kind }}</span>
 
-      <span v-if="envKey(c, e) in secretValues" class="ct-env-plain">{{ secretValues[envKey(c, e)] || '(пусто)' }}</span>
+      <span v-if="envKey(c, e) in secretValues" class="ct-env-plain">{{ secretValues[envKey(c, e)] || $t('sections.containers.emptyValue') }}</span>
       <span v-else class="ct-ref-text">
         <template v-if="refOf(e.value)!.key">
           {{ refOf(e.value)!.name }}<span class="ct-ref-arrow"> → </span>{{ refOf(e.value)!.key }}
@@ -95,7 +95,7 @@
       v-if="refOf(e.value)?.kind === 'secret' && can(Perm.SecretsRead)"
       class="ct-env-eye"
       :disabled="secretLoading[envKey(c, e)]"
-      :title="envKey(c, e) in secretValues ? 'Hide' : 'Reveal'"
+      :title="envKey(c, e) in secretValues ? $t('sections.containers.hide') : $t('sections.containers.reveal')"
       @click.stop="toggleSecret(c, e)"
     >
       <K8sIcon :name="envKey(c, e) in secretValues ? 'view-off' : 'view'" size="sm" />
@@ -107,14 +107,14 @@
 
         <!-- Mounts -->
         <div class="rd-row rd-click" @click="flip(mountsClosed, c.name)">
-          <span class="rd-label">Mounts<span class="rd-arrow" :class="{ open: !mountsClosed[c.name] }">›</span></span>
-          <span v-if="mountsClosed[c.name]" class="rd-value">{{ mountList(c).length }} Mounts</span>
+          <span class="rd-label">{{ $t('sections.containers.mounts') }}<span class="rd-arrow" :class="{ open: !mountsClosed[c.name] }">›</span></span>
+          <span v-if="mountsClosed[c.name]" class="rd-value">{{ $t('sections.containers.mountsCount', mountList(c).length) }}</span>
           <div v-else class="rd-value ct-mounts" @click.stop>
             <div v-if="!mountList(c).length" class="rd-muted">—</div>
             <div v-for="m in mountList(c)" :key="m.mountPath + m.name" class="ct-mount">
               <span class="ct-chip ct-chip-block">{{ m.mountPath }}</span>
               <span class="ct-mount-from">
-                from {{ m.name }}<template v-if="m.subPath"> ({{ m.subPath }})</template>
+                {{ $t('sections.containers.mountFrom', { name: m.name }) }}<template v-if="m.subPath"> ({{ m.subPath }})</template>
                 ({{ m.readOnly ? 'ro' : 'rw' }})
               </span>
             </div>
@@ -123,11 +123,11 @@
 
         <!-- Requests / Limits -->
         <div class="rd-row">
-          <span class="rd-label">Requests</span>
+          <span class="rd-label">{{ $t('sections.containers.requests') }}</span>
           <span class="rd-value">{{ fmtRes(c, 'requests') }}</span>
         </div>
         <div class="rd-row">
-          <span class="rd-label">Limits</span>
+          <span class="rd-label">{{ $t('defs.columns.limits') }}</span>
           <span class="rd-value">{{ fmtRes(c, 'limits') }}</span>
         </div>
       </div>
@@ -145,6 +145,8 @@ import { callApp } from '../../../resources/wails'
 import { useNotifications } from '../../../composables/useNotifications'
 import { can } from '../../../composables/useAuth'
 import { Perm } from '../../../types/auth'
+import { t } from '../../../i18n'
+import { errorText } from '../../../composables/errorText'
 
 const props = defineProps<{ resource: any }>()
 const clusterName = inject(clusterNameKey, ref(undefined))
@@ -208,7 +210,7 @@ async function toggleSecret(c: any, e: { name: string; value: string }) {
     secretValues[k] = v ?? ''
   } catch (err: any) {
     console.error('GetSecretValue failed:', err)
-    secretErrors[k] = err?.message || String(err)
+    secretErrors[k] = errorText(err)
   } finally {
     secretLoading[k] = false
   }
@@ -220,8 +222,8 @@ async function toggleSecret(c: any, e: { name: string; value: string }) {
 // }
 
 function statusText(c: any): string {
-  const state = c.state || 'unknown'
-  return c.ready ? `${state}, ready` : state
+  const state = c.state || t('common.unknown')
+  return c.ready ? t('sections.containers.stateReady', { state }) : state
 }
 function statusClass(c: any): string {
   if (c.state === 'running' && c.ready) return 'ct-ok'
@@ -240,8 +242,8 @@ function fmtRes(c: any, kind: 'requests' | 'limits'): string {
   const cpu = kind === 'requests' ? r.requestsCpu : r.limitsCpu
   const mem = kind === 'requests' ? r.requestsMemory : r.limitsMemory
   const parts: string[] = []
-  if (cpu) parts.push(`CPU: ${cpu}`)
-  if (mem) parts.push(`Memory: ${mem}`)
+  if (cpu) parts.push(`${t('defs.columns.cpu')}: ${cpu}`)
+  if (mem) parts.push(`${t('defs.columns.memory')}: ${mem}`)
   return parts.length ? parts.join(', ') : '—'
 }
 </script>

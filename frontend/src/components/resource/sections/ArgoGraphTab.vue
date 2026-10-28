@@ -3,33 +3,33 @@
 <template>
   <div class="ag">
     <div class="ag-toolbar">
-      <select v-model="kindFilter" class="ag-select" title="Kind">
-        <option value="">All kinds</option>
+      <select v-model="kindFilter" class="ag-select" :title="$t('defs.columns.kind')">
+        <option value="">{{ $t('argo.graph.allKinds') }}</option>
         <option v-for="k in kinds" :key="k" :value="k">{{ k }}</option>
       </select>
-      <label class="ag-check"><input v-model="onlyProblems" type="checkbox" /> Only unhealthy / out of sync</label>
-      <button class="rd-btn" :disabled="loading" @click="load">Refresh</button>
+      <label class="ag-check"><input v-model="onlyProblems" type="checkbox" /> {{ $t('argo.graph.onlyProblems') }}</label>
+      <button class="rd-btn" :disabled="loading" @click="load">{{ $t('common.refresh') }}</button>
       <button
         class="rd-btn"
-        :title="expanded ? 'Restore panel width' : 'Expand the panel to the full content width'"
+        :title="expanded ? $t('panels.detail.restoreWidth') : $t('argo.graph.expandTitle')"
         :aria-pressed="expanded"
         @click="toggleExpanded"
-      >{{ expanded ? 'Collapse' : 'Expand' }}</button>
+      >{{ expanded ? $t('argo.graph.collapse') : $t('argo.graph.expand') }}</button>
       <span class="ag-legend">
-        <span class="ag-leg ag-owns">owns</span>
-        <span class="ag-leg ag-selects">selects</span>
-        <span class="ag-leg ag-routes">routes</span>
+        <span class="ag-leg ag-owns">{{ $t('argo.graph.legend.owns') }}</span>
+        <span class="ag-leg ag-selects">{{ $t('argo.graph.legend.selects') }}</span>
+        <span class="ag-leg ag-routes">{{ $t('argo.graph.legend.routes') }}</span>
       </span>
     </div>
 
     <div v-if="error" class="rd-empty">{{ error }}</div>
-    <div v-else-if="loading && !graph" class="rd-empty">Loading graph…</div>
+    <div v-else-if="loading && !graph" class="rd-empty">{{ $t('argo.graph.loading') }}</div>
     <template v-else-if="graph">
-      <div v-if="graph.truncated" class="ag-note ag-warn">Graph is limited to {{ graph.nodes.length }} nodes</div>
-      <div v-for="w in graph.warnings" :key="w" class="ag-note ag-warn">{{ w }}</div>
+      <div v-if="graph.truncated" class="ag-note ag-warn">{{ $t('argo.graph.limited', { n: graph.nodes.length }) }}</div>
+      <div v-for="w in graph.warnings" :key="w" class="ag-note ag-warn">{{ errorText(w) }}</div>
 
       <div v-if="layout.nodes.length > 1" class="ag-scroll">
-        <svg :width="layout.width + 2" :height="layout.height + 2" class="ag-svg" role="img" aria-label="Application resource graph">
+        <svg :width="layout.width + 2" :height="layout.height + 2" class="ag-svg" role="img" :aria-label="$t('argo.graph.ariaLabel')">
           <path v-for="e in layout.edges" :key="e.id" :d="e.d" class="ag-edge" :class="'ag-edge-' + e.type" />
           <g
             v-for="n in layout.nodes"
@@ -41,16 +41,16 @@
           >
             <title>{{ tooltip(n) }}</title>
             <rect :width="n.w" :height="n.h" rx="6" />
-            <text x="10" y="19" class="ag-kind">{{ n.kind }}<tspan v-if="n.hook"> · hook</tspan></text>
+            <text x="10" y="19" class="ag-kind">{{ n.kind }}<tspan v-if="n.hook"> · {{ $t('argo.hook') }}</tspan></text>
             <text x="10" y="35" class="ag-name">{{ truncate(n.name, 26) }}</text>
             <text v-if="n.status === 'OutOfSync'" :x="n.w - 10" y="19" text-anchor="end" class="ag-oos">OutOfSync</text>
           </g>
         </svg>
       </div>
-      <div v-else class="rd-empty">No resources reported by Argo CD</div>
+      <div v-else class="rd-empty">{{ $t('argo.resources.reported') }}</div>
 
       <div v-if="collapsedGroups.length" class="ag-note">
-        Collapsed groups (click a group or a button to expand):
+        {{ $t('argo.graph.collapsedGroups') }}
         <button v-for="g in collapsedGroups" :key="g.id" class="rd-btn ag-expand" @click="expand(g.id)">
           {{ g.name }}
         </button>
@@ -61,14 +61,17 @@
 
 <script lang="ts" setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { callApp } from '../../../resources/wails'
 import { getResourceById } from '../../../resources/registry'
 import { filterGraph, layoutGraph, needsAttention, GROUP_PREFIX, type PlacedNode } from '../../../resources/argoGraph'
+import { errorText } from '../../../composables/errorText'
 import { useDetailPanelSize } from '../../../composables/useDetailPanelSize'
 import { argoLiveTick } from '../../../composables/useArgoLive'
 import type { ArgoApplicationInfo, ArgoGraph } from '../../../types/argocd'
 
 const props = defineProps<{ resource: Partial<ArgoApplicationInfo> }>()
+const { t } = useI18n()
 const emit = defineEmits<{
   (e: 'open', p: { id: string; ns: string; name: string; item?: any }): void
 }>()
@@ -97,7 +100,7 @@ async function load() {
     error.value = ''
   } catch (e: any) {
     if (my !== seq) return
-    error.value = e?.message || String(e)
+    error.value = errorText(e)
   } finally {
     if (my === seq) loading.value = false
   }
@@ -157,13 +160,14 @@ function target(n: PlacedNode): { id: string; ns: string; name: string } | null 
 const isClickable = (n: PlacedNode) => n.id.startsWith(GROUP_PREFIX) || !!target(n)
 function onNodeClick(n: PlacedNode) {
   if (n.id.startsWith(GROUP_PREFIX)) return expand(n.id)
-  const t = target(n)
-  if (t) emit('open', t)
+  const tgt = target(n)
+  if (tgt) emit('open', tgt)
 }
 
 const tooltip = (n: PlacedNode) =>
-  [`${n.kind} ${n.name}`, n.namespace && `namespace: ${n.namespace}`, n.status && `sync: ${n.status}`,
-    n.health && `health: ${n.health}`, n.message].filter(Boolean).join('\n')
+  [`${n.kind} ${n.name}`, n.namespace && t('argo.graph.tip.namespace', { value: n.namespace }),
+    n.status && t('argo.graph.tip.sync', { value: n.status }),
+    n.health && t('argo.graph.tip.health', { value: n.health }), n.message].filter(Boolean).join('\n')
 
 const truncate = (s: string, max: number) => (s.length > max ? s.slice(0, max - 1) + '…' : s)
 </script>
