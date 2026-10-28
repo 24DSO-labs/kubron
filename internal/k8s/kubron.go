@@ -100,16 +100,12 @@ func SaveKubronConfig(config *KubronConfig) error {
 	return os.WriteFile(getConfigPath(), data, 0600)
 }
 
+// SaveClusterMeta сохраняет метаданные кластера (kubeconfig не меняется).
 func SaveClusterMeta(meta *ClusterMeta) error {
 	if !validClusterID(meta.ID) {
 		return fmt.Errorf("invalid cluster ID %q", meta.ID)
 	}
-	path := filepath.Join(getClustersDir(), meta.ID+".json")
-	data, err := json.MarshalIndent(meta, "", "  ")
-	if err != nil {
-		return err
-	}
-	return writeFileAtomic(path, data, 0600)
+	return clusterStore.Save(meta, nil)
 }
 
 // validClusterID отсекает идентификаторы, которые могли бы выйти за пределы каталога кластеров.
@@ -121,53 +117,11 @@ func LoadClusterMeta(id string) (*ClusterMeta, error) {
 	if !validClusterID(id) {
 		return nil, fmt.Errorf("invalid cluster ID %q", id)
 	}
-	path := filepath.Join(getClustersDir(), id+".json")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var meta ClusterMeta
-	if err := json.Unmarshal(data, &meta); err != nil {
-		return nil, err
-	}
-	return &meta, nil
+	return clusterStore.Get(id)
 }
 
 func ListClusters() ([]ClusterMeta, error) {
-	if err := InitKubronDir(); err != nil {
-		return nil, err
-	}
-
-	entries, err := os.ReadDir(getClustersDir())
-	if err != nil {
-		return nil, nil
-	}
-
-	var clusters []ClusterMeta
-	for _, entry := range entries {
-		if filepath.Ext(entry.Name()) != ".json" {
-			continue
-		}
-
-		data, err := os.ReadFile(filepath.Join(getClustersDir(), entry.Name()))
-		if err != nil {
-			continue
-		}
-
-		var meta ClusterMeta
-		if err := json.Unmarshal(data, &meta); err != nil {
-			continue
-		}
-
-		kcPath := filepath.Join(getClustersDir(), meta.KubeconfigFile)
-		if _, err := os.Stat(kcPath); os.IsNotExist(err) {
-			continue
-		}
-
-		clusters = append(clusters, meta)
-	}
-
-	return clusters, nil
+	return clusterStore.List()
 }
 
 // AddClusterFromFile копирует kubeconfig из файла в каталог Kubron и регистрирует кластер.
@@ -236,13 +190,13 @@ func addClusterFromData(data []byte, settings ClusterSettings) (*ClusterMeta, er
 		Color:            settings.Color,
 		Environment:      settings.Environment,
 		DefaultNamespace: settings.DefaultNamespace,
-		KubeconfigFile:   kcFile,
+		KubeconfigFile:   id + ".kubeconfig",
 		AddedAt:          time.Now().Format(time.RFC3339),
 		ContextName:      contextName,
 	}
 
-	if err := SaveClusterMeta(meta); err != nil {
-		_ = os.Remove(kcPath)
+	// Хранилище записывает kubeconfig и метаданные вместе: при сбое не остаётся полузаписанного кластера.
+	if err := clusterStore.Save(meta, data); err != nil {
 		return nil, err
 	}
 
@@ -266,12 +220,13 @@ func DeleteCluster(id string) error {
 	return nil
 }
 
+// GetClusterKubeconfigPath — путь к файлу kubeconfig кластера; пусто, если кластера нет или хранилище
+// не файловое (тогда kubeconfig читается через ClusterStore.Kubeconfig).
 func GetClusterKubeconfigPath(id string) string {
-	meta, err := LoadClusterMeta(id)
-	if err != nil {
-		return ""
+	if p, ok := clusterStore.(kubeconfigPather); ok {
+		return p.KubeconfigPath(id)
 	}
-	return filepath.Join(getClustersDir(), meta.KubeconfigFile)
+	return ""
 }
 
 func sanitizeID(name string) string {
