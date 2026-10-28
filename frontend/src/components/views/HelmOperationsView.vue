@@ -1,0 +1,207 @@
+<!-- Copyright 2026 The Kubron Authors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<template>
+  <div class="ho-view">
+    <header class="ho-head">
+      <div>
+        <h2>Операции Helm</h2>
+        <p class="ho-sub">История установок, обновлений values, откатов и удалений. Хранятся последние 200 операций, у каждой — журнал Helm.</p>
+      </div>
+      <div class="ho-head-actions">
+        <button class="btn" type="button" :disabled="loading" @click="load">Обновить</button>
+        <button v-if="canClear" class="btn ho-danger" type="button" :disabled="!records.length" @click="clearAll">Очистить</button>
+      </div>
+    </header>
+
+    <section v-if="running.length" class="ho-running" aria-label="Выполняются сейчас">
+      <h3>Выполняются</h3>
+      <div v-for="o in running" :key="o.opId" class="ho-run">
+        <span class="ho-spin" aria-hidden="true">⟳</span>
+        <strong>{{ LABEL[o.op] }} {{ o.release }}</strong>
+        <span class="ho-muted">{{ o.namespace }} · {{ o.phase }}</span>
+      </div>
+    </section>
+
+    <form class="ho-filters" @submit.prevent="load">
+      <input v-model="search" class="form-input" type="search" placeholder="Поиск: релиз, namespace, кластер, ошибка…" aria-label="Поиск" />
+      <select v-model="opFilter" class="form-input" aria-label="Операция" @change="load">
+        <option value="">Все операции</option>
+        <option v-for="(label, key) in LABEL" :key="key" :value="key">{{ label }}</option>
+      </select>
+      <select v-model="statusFilter" class="form-input" aria-label="Статус" @change="load">
+        <option value="">Любой статус</option>
+        <option value="success">Успешно</option>
+        <option value="failed">Ошибка</option>
+        <option value="canceled">Отменено</option>
+      </select>
+    </form>
+
+    <p v-if="error" class="form-error">{{ error }}</p>
+    <p v-else-if="loaded && !records.length" class="ho-empty">Операций пока нет{{ filtered ? ' по этому фильтру' : '' }}.</p>
+
+    <table v-if="records.length" class="ho-table">
+      <thead>
+        <tr><th>Время</th><th>Операция</th><th>Релиз</th><th>Кластер</th><th>Описание</th><th>Статус</th><th>Длительность</th></tr>
+      </thead>
+      <tbody>
+        <template v-for="r in records" :key="r.id">
+          <tr class="ho-row" :class="{ open: openId === r.id }" tabindex="0" @click="toggle(r)" @keydown.enter="toggle(r)">
+            <td class="ho-muted" :title="r.startedAt">{{ formatTime(r.startedAt) }}</td>
+            <td>{{ LABEL[r.op] || r.op }}</td>
+            <td><strong>{{ r.release }}</strong><span class="ho-muted"> · {{ r.namespace }}</span></td>
+            <td class="ho-muted">{{ r.cluster || '—' }}</td>
+            <td class="ho-desc" :title="r.detail">{{ r.detail }}<span v-if="r.revision" class="ho-muted"> #{{ r.revision }}</span></td>
+            <td><span class="ho-badge" :class="r.status">{{ STATUS[r.status] || r.status }}</span></td>
+            <td class="ho-muted">{{ formatDuration(r.durationMs) }}</td>
+          </tr>
+          <tr v-if="openId === r.id" class="ho-detail">
+            <td colspan="7">
+              <p v-if="detailLoading" class="ho-muted">Загрузка…</p>
+              <template v-else-if="detail">
+                <pre v-if="detail.error" class="ho-log ho-err">{{ detail.error }}</pre>
+                <pre v-if="detail.log && detail.log.length" class="ho-log">{{ detail.log.join('\n') }}</pre>
+                <p v-else-if="!detail.error" class="ho-muted">Журнал Helm для этой операции пуст.</p>
+              </template>
+              <p v-else-if="detailError" class="form-error">{{ detailError }}</p>
+            </td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { callApp } from '../../resources/wails'
+import { askConfirm } from '../../resources/confirm'
+import { can } from '../../composables/useAuth'
+import { useNotifications } from '../../composables/useNotifications'
+import { HELM_OP_LABEL, helmJournalTick, helmOps, startHelmOps } from '../../composables/useHelmOps'
+import { Perm } from '../../types/auth'
+
+interface Rec {
+  id: string; op: string; cluster: string; namespace: string; release: string; detail: string; revision: number
+  status: string; error: string; startedAt: string; finishedAt: string; durationMs: number; log?: string[]
+}
+
+const LABEL = HELM_OP_LABEL
+const STATUS: Record<string, string> = { success: 'Успешно', failed: 'Ошибка', canceled: 'Отменено' }
+
+const notifications = useNotifications()
+const canClear = computed(() => can(Perm.ClusterManage))
+const running = computed(() => helmOps.value.filter(o => !o.done))
+
+const records = ref<Rec[]>([])
+const loaded = ref(false)
+const loading = ref(false)
+const error = ref('')
+const search = ref('')
+const opFilter = ref('')
+const statusFilter = ref('')
+const filtered = computed(() => !!(search.value.trim() || opFilter.value || statusFilter.value))
+
+const openId = ref('')
+const detail = ref<Rec | null>(null)
+const detailLoading = ref(false)
+const detailError = ref('')
+
+function formatTime(iso: string) {
+  const d = new Date(iso)
+  return isNaN(d.getTime()) ? iso : d.toLocaleString()
+}
+
+function formatDuration(ms: number) {
+  const s = Math.round(ms / 1000)
+  if (s < 1) return '<1с'
+  return s >= 60 ? `${Math.floor(s / 60)}м ${String(s % 60).padStart(2, '0')}с` : `${s}с`
+}
+
+let seq = 0
+async function load() {
+  const my = ++seq
+  loading.value = true
+  error.value = ''
+  try {
+    const r = (await callApp('ListHelmOperations', {
+      op: opFilter.value, status: statusFilter.value, search: search.value, limit: 100,
+    })) as Rec[]
+    if (my !== seq) return
+    records.value = r ?? []
+    if (openId.value && !records.value.some(x => x.id === openId.value)) openId.value = ''
+    loaded.value = true
+  } catch (e: any) {
+    if (my === seq) error.value = e?.message || String(e)
+  } finally {
+    if (my === seq) loading.value = false
+  }
+}
+
+let dseq = 0
+async function toggle(r: Rec) {
+  if (openId.value === r.id) { openId.value = ''; return }
+  openId.value = r.id
+  detail.value = null
+  detailError.value = ''
+  detailLoading.value = true
+  const my = ++dseq
+  try {
+    const d = (await callApp('GetHelmOperation', r.id)) as Rec
+    if (my === dseq) detail.value = d
+  } catch (e: any) {
+    if (my === dseq) detailError.value = e?.message || String(e)
+  } finally {
+    if (my === dseq) detailLoading.value = false
+  }
+}
+
+async function clearAll() {
+  if (!(await askConfirm('Очистить историю Helm-операций? Журнал аудита это не затрагивает.'))) return
+  try {
+    await callApp('ClearHelmOperations')
+    openId.value = ''
+    notifications.notifySuccess('История операций очищена')
+  } catch (e: any) {
+    notifications.notifyError(`Очистка: ${e?.message || e}`)
+  } finally {
+    await load()
+  }
+}
+
+let debounce: ReturnType<typeof setTimeout> | undefined
+watch(search, () => { clearTimeout(debounce); debounce = setTimeout(load, 300) })
+watch(helmJournalTick, load) // операция завершилась — в журнале новая запись
+onMounted(() => { startHelmOps(); load() })
+onBeforeUnmount(() => clearTimeout(debounce))
+</script>
+
+<style scoped>
+.ho-view { padding: 24px; text-align: left; max-width: 1300px; }
+.ho-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.ho-head h2 { margin: 0; font-size: 22px; color: #89b4fa; }
+.ho-sub { margin: 4px 0 0; color: #a6adc8; font-size: 13px; }
+.ho-head-actions { display: flex; gap: 8px; }
+.ho-danger { color: #f38ba8; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ho-running { margin-bottom: 16px; padding: 10px 12px; border: 1px solid #313244; border-radius: 8px; }
+.ho-running h3 { margin: 0 0 6px; font-size: 13px; color: #cdd6f4; }
+.ho-run { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 0; }
+.ho-spin { color: #89b4fa; }
+.ho-filters { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; max-width: 800px; margin-bottom: 14px; }
+.ho-filters .form-input { width: 100%; box-sizing: border-box; padding: 8px 10px; }
+.ho-empty { color: #6c7086; font-size: 13px; }
+.ho-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ho-table th { text-align: left; padding: 8px 10px; color: #a6adc8; font-weight: 600; border-bottom: 1px solid #313244; }
+.ho-table td { padding: 8px 10px; border-bottom: 1px solid #232334; vertical-align: top; }
+.ho-row { cursor: pointer; }
+.ho-row:hover, .ho-row.open { background: rgba(137, 180, 250, 0.08); }
+.ho-muted { color: #6c7086; }
+.ho-desc { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ho-badge { padding: 1px 8px; border-radius: 10px; font-size: 12px; background: #313244; }
+.ho-badge.success { color: #a6e3a1; background: rgba(166, 227, 161, 0.12); }
+.ho-badge.failed { color: #f38ba8; background: rgba(243, 139, 168, 0.12); }
+.ho-badge.canceled { color: #f9e2af; background: rgba(249, 226, 175, 0.12); }
+.ho-detail td { background: #181825; }
+.ho-log { margin: 0 0 8px; padding: 8px 10px; background: #12141f; border-radius: 4px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; line-height: 1.45; color: #9ca3af; white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow: auto; }
+.ho-err { color: #f87171; }
+</style>

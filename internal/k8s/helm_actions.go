@@ -24,6 +24,25 @@ const helmActionTimeout = 5 * time.Minute
 // Подключаемся тем же kubeconfig и контекстом, что и основное подключение приложения.
 // Обработчик нужно задать ДО Init: Init раздаёт логгер клиенту Kubernetes и ожидателю готовности.
 func (m *Manager) helmConfigLogged(namespace string, h slog.Handler) (*action.Configuration, error) {
+	return m.helmConfigDriver(namespace, h, helmStorageSecret)
+}
+
+// helmConfigForRelease — конфигурация Helm с тем драйвером хранилища, где лежит релиз (Secret или ConfigMap):
+// иначе Helm не найдёт ревизии. Не найден релиз — Secret по умолчанию, ошибку «не найден» вернёт сам Helm.
+func (m *Manager) helmConfigForRelease(ctx context.Context, namespace, name string, h slog.Handler) (*action.Configuration, error) {
+	storage, err := m.helmStorageOf(ctx, namespace, name)
+	if err != nil {
+		return nil, fmt.Errorf("не удалось определить хранилище релиза %s/%s: %w", namespace, name, err)
+	}
+	return m.helmConfigDriver(namespace, h, storage)
+}
+
+// helmConfigDriver — helmConfigLogged с выбором хранилища релизов (secret | configmap).
+func (m *Manager) helmConfigDriver(namespace string, h slog.Handler, storage string) (*action.Configuration, error) {
+	driver, err := helmDriverName(storage)
+	if err != nil {
+		return nil, err
+	}
 	id := m.GetActiveContext()
 	if id == "" {
 		return nil, errors.New("нет активного подключения")
@@ -49,7 +68,7 @@ func (m *Manager) helmConfigLogged(namespace string, h slog.Handler) (*action.Co
 	if h != nil {
 		cfg.SetLogger(h)
 	}
-	if err := cfg.Init(flags, namespace, "secret"); err != nil {
+	if err := cfg.Init(flags, namespace, driver); err != nil {
 		return nil, fmt.Errorf("не удалось инициализировать Helm: %w", err)
 	}
 	return cfg, nil
@@ -69,8 +88,10 @@ func (m *Manager) RollbackHelmRelease(namespace, name string, revision int, opID
 	}
 	defer func() { tr.finish(err) }()
 
+	tr.note(fmt.Sprintf("к ревизии %d", revision))
+	tr.setRevision(revision)
 	tr.setPhase(fmt.Sprintf("Откат к ревизии %d…", revision))
-	cfg, err := m.helmConfigLogged(namespace, tr.handler())
+	cfg, err := m.helmConfigForRelease(context.Background(), namespace, name, tr.handler())
 	if err != nil {
 		return err
 	}
@@ -96,8 +117,11 @@ func (m *Manager) UninstallHelmRelease(namespace, name string, keepHistory bool,
 	}
 	defer func() { tr.finish(err) }()
 
+	if keepHistory {
+		tr.note("с сохранением истории")
+	}
 	tr.setPhase("Удаление релиза…")
-	cfg, err := m.helmConfigLogged(namespace, tr.handler())
+	cfg, err := m.helmConfigForRelease(context.Background(), namespace, name, tr.handler())
 	if err != nil {
 		return err
 	}

@@ -29,8 +29,9 @@ type HelmInstallRequest struct {
 	Namespace       string `json:"namespace"`
 	Values          string `json:"values"` // YAML с переопределениями (не полные values чарта)
 	CreateNamespace bool   `json:"createNamespace"`
-	Wait            bool   `json:"wait"` // ждать готовности ресурсов (до 5 минут)
-	OpID            string `json:"opId"` // идентификатор операции для helm:progress и отмены (необязателен)
+	Wait            bool   `json:"wait"`    // ждать готовности ресурсов (до 5 минут)
+	Storage         string `json:"storage"` // secret (по умолчанию) | configmap — где Helm хранит ревизии релиза
+	OpID            string `json:"opId"`    // идентификатор операции для helm:progress и отмены (необязателен)
 }
 
 // HelmInstallResult — итог установки или dry-run.
@@ -57,6 +58,9 @@ func validateHelmInstallRequest(r *HelmInstallRequest) error {
 	if r.Namespace == "" || len(validation.IsDNS1123Label(r.Namespace)) > 0 {
 		return fmt.Errorf("некорректный namespace %q", r.Namespace)
 	}
+	if _, err := helmDriverName(r.Storage); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -81,6 +85,7 @@ func (m *Manager) helmInstall(ctx context.Context, req HelmInstallRequest, dryRu
 		defer func() { tr.finish(err) }()
 	}
 
+	tr.note(fmt.Sprintf("%s/%s %s", req.Repo, req.Chart, req.Version))
 	tr.setPhase("Загрузка чарта…")
 	chrt, err := loadHelmChart(ctx, req.Repo, req.Chart, req.Version)
 	if err != nil {
@@ -100,7 +105,16 @@ func (m *Manager) helmInstall(ctx context.Context, req HelmInstallRequest, dryRu
 		}
 	}
 
-	cfg, err := m.helmConfigLogged(req.Namespace, tr.handler())
+	if !dryRun {
+		// Helm проверяет занятость имени только в выбранном хранилище: без этой проверки релиз с тем же
+		// именем мог бы появиться одновременно в Secret и в ConfigMap.
+		if st, err := m.helmStorageOf(ctx, req.Namespace, req.ReleaseName); err != nil {
+			return nil, fmt.Errorf("не удалось проверить имя релиза: %w", err)
+		} else if st != "" {
+			return nil, fmt.Errorf("релиз %s/%s уже существует (хранилище: %s)", req.Namespace, req.ReleaseName, st)
+		}
+	}
+	cfg, err := m.helmConfigDriver(req.Namespace, tr.handler(), req.Storage)
 	if err != nil {
 		return nil, err
 	}
@@ -134,6 +148,7 @@ func (m *Manager) helmInstall(ctx context.Context, req HelmInstallRequest, dryRu
 	if err != nil {
 		return nil, err
 	}
+	tr.setRevision(acc.Version())
 	return &HelmInstallResult{
 		ReleaseName: acc.Name(),
 		Namespace:   acc.Namespace(),

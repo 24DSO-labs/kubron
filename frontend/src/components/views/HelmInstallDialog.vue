@@ -31,6 +31,12 @@
           <label class="hi-check">
             <input v-model="wait" type="checkbox" /> Дождаться готовности ресурсов (до 5 минут, окно блокируется)
           </label>
+          <label class="hi-field">Хранилище релиза
+            <select v-model="storage" class="form-input" aria-label="Хранилище релиза">
+              <option value="secret">Secret (по умолчанию, как у helm CLI)</option>
+              <option value="configmap">ConfigMap (HELM_DRIVER=configmap)</option>
+            </select>
+          </label>
         </div>
 
         <div class="hi-editors">
@@ -109,6 +115,7 @@ const releaseName = ref(props.chart.toLowerCase().replace(/[^a-z0-9-]/g, '-').re
 const namespace = ref(selectedNamespaces.value[0] || 'default')
 const createNamespace = ref(false)
 const wait = ref(true)
+const storage = ref<'secret' | 'configmap'>('secret')
 const overrides = ref('')
 
 const step = ref<'form' | 'preview'>('form')
@@ -130,7 +137,7 @@ function request(opId = '') {
   return {
     repo: props.repo, chart: props.chart, version: props.version,
     releaseName: releaseName.value, namespace: namespace.value, values: overrides.value,
-    createNamespace: createNamespace.value, wait: wait.value, opId,
+    createNamespace: createNamespace.value, wait: wait.value, storage: storage.value, opId,
   }
 }
 

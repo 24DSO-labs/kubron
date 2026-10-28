@@ -863,6 +863,30 @@ func (a *App) RemoveHelmOCIChart(repo, chart string) error {
 	return a.k8sMgr.RemoveHelmOCIChart(repo, chart)
 }
 
+// ListHelmOperations — история Helm-операций (без журнала Helm).
+func (a *App) ListHelmOperations(q k8s.HelmOperationQuery) ([]k8s.HelmOperationRecord, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.ListHelmOperations(q)
+}
+
+// GetHelmOperation — запись истории вместе с журналом Helm.
+func (a *App) GetHelmOperation(id string) (*k8s.HelmOperationRecord, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetHelmOperation(id)
+}
+
+// ClearHelmOperations стирает историю Helm-операций.
+func (a *App) ClearHelmOperations() error {
+	if err := a.authz(auth.PermClusterManage); err != nil {
+		return err
+	}
+	return a.k8sMgr.ClearHelmOperations()
+}
+
 // === Events ===
 
 func (a *App) GetEvents(namespaces []string) ([]k8s.EventInfo, error) {

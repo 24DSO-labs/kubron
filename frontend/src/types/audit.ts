@@ -90,6 +90,7 @@ const ACTION_LABELS: Record<string, string> = {
 	UpdateHelmRepos: 'Helm: обновление индексов репозиториев',
   PreviewHelmInstall: 'Helm: предпросмотр установки',
   CancelHelmOperation: 'Helm: отмена операции',
+  ClearHelmOperations: 'Helm: очистка журнала операций',
   AddHelmOCIRepo: 'Helm: добавление OCI-реестра',
   AddHelmOCIChart: 'Helm: добавление чарта в OCI-реестр',
   RemoveHelmOCIChart: 'Helm: удаление чарта из OCI-реестра',
