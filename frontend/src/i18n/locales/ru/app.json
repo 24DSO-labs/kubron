@@ -1,0 +1,34 @@
+{
+  "header": {
+    "disconnect": "Отключиться от кластера"
+  },
+  "welcome": {
+    "title": "Добро пожаловать в Kubron!",
+    "addPrompt": "Добавьте кластер для начала работы",
+    "addButton": "Добавить кластер",
+    "noClusters": "Кластеры ещё не добавлены. Обратитесь к администратору."
+  },
+  "select": {
+    "title": "Выберите кластер",
+    "hint": "Кликните на иконку кластера слева для подключения"
+  },
+  "connecting": "Подключение...",
+  "errors": {
+    "unknownResource": "Неизвестный тип ресурса: {kind}",
+    "noWritePermission": "Недостаточно прав для изменения ресурсов",
+    "loadNamespaces": "Ошибка загрузки namespaces",
+    "generic": "Ошибка"
+  },
+  "yaml": {
+    "created": "{kind} \"{name}\" создан",
+    "updated": "{type} {name} обновлён",
+    "createError": "Ошибка создания: {message}",
+    "applyError": "Ошибка применения: {message}"
+  },
+  "content": {
+    "count": "{n} элемент | {n} элемента | {n} элементов",
+    "searchPlaceholder": "Поиск...",
+    "updated": "Обновлено {time}",
+    "refreshing": "Обновление…"
+  }
+}

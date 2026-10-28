@@ -1,0 +1,66 @@
+{
+  "status": {
+    "active": "Активен",
+    "notInstalled": "Не установлен",
+    "degraded": "Деградация",
+    "installing": "Установка…",
+    "unknown": "Неизвестно"
+  },
+  "chart": {
+    "current": "Текущее",
+    "noData": "Нет данных"
+  },
+  "ranges": {
+    "h1": "1 ч",
+    "h6": "6 ч",
+    "h24": "24 ч",
+    "d7": "7 дн."
+  },
+  "units": {
+    "cores": "ядер"
+  },
+  "tabs": {
+    "cpu": "CPU",
+    "memory": "Память",
+    "network": "Сеть",
+    "disk": "Диск",
+    "diskIo": "Диск I/O",
+    "duration": "Длительность"
+  },
+  "cpu": "CPU",
+  "memory": "Память",
+  "disk": "Диск",
+  "cpuUsage": "Использование CPU",
+  "cpuRequests": "CPU requests",
+  "cpuLimits": "CPU limits",
+  "cpuAllocatable": "CPU: доступная ёмкость",
+  "cpuCapacity": "CPU: ёмкость",
+  "memoryUsage": "Использование памяти",
+  "workloadMemoryUsage": "Память рабочих нагрузок",
+  "memoryRequests": "Memory requests",
+  "memoryLimits": "Memory limits",
+  "memoryAllocatable": "Память: доступная ёмкость",
+  "memoryCapacity": "Память: ёмкость",
+  "networkTraffic": "Сетевой трафик",
+  "packetErrors": "Ошибки и потери пакетов (в секунду)",
+  "receive": "Приём",
+  "transmit": "Передача",
+  "receiveErrors": "Ошибки приёма",
+  "transmitErrors": "Ошибки передачи",
+  "receiveDrops": "Потери при приёме",
+  "transmitDrops": "Потери при передаче",
+  "diskUsage": "Использование диска",
+  "diskSize": "Размер диска",
+  "diskCapacity": "Ёмкость диска",
+  "diskAvailable": "Свободно на диске",
+  "diskIo": "Диск I/O",
+  "fsUsage": "Использование файловой системы",
+  "fsWrites": "Запись на файловую систему",
+  "fsReads": "Чтение с файловой системы",
+  "volumeUsage": "Использование тома",
+  "bytesSent2xx": "Отправлено байт, статус 2xx",
+  "bytesSent5xx": "Отправлено байт, статус 5xx",
+  "request": "Запрос",
+  "response": "Ответ",
+  "ingressHint": "Метрики ingress-nginx: контроллер должен собираться Prometheus-ом Kubron."
+}
