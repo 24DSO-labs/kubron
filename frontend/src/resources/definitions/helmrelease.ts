@@ -48,6 +48,7 @@ export const helmRelease = defineResource<k8s.HelmReleaseInfo, k8s.HelmReleaseDe
     { label: 'Status', value: r => r.status, badge: r => badgeClass(r.status) },
     { label: 'Chart', value: r => r.chart },
     { label: 'Chart Version', value: r => r.chartVersion },
+    { label: 'Storage', value: r => (r.storage === 'configmap' ? 'ConfigMap' : 'Secret') },
     { label: 'Update available', value: r => (r.latestVersion ? `${r.latestVersion} (${r.latestRepo})` : '—') },
     { label: 'App Version', value: r => r.appVersion },
     { label: 'Revision', value: r => r.revision },

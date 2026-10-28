@@ -27,10 +27,14 @@ const (
 	helmProbeRetry = 30 * time.Second
 )
 
-var secretsGVR = schema.GroupVersionResource{Version: "v1", Resource: "secrets"}
+var (
+	secretsGVR    = schema.GroupVersionResource{Version: "v1", Resource: "secrets"}
+	configMapsGVR = schema.GroupVersionResource{Version: "v1", Resource: "configmaps"}
+)
 
-// helmCache следит за секретами owner=helm. Используется ТОЛЬКО metadata-informer: сами секреты
-// (поле data с релизом, values и манифестом) в память Kubron не попадают, а нужен лишь факт изменения.
+// helmCache следит за секретами и ConfigMap с меткой owner=helm (оба хранилища релизов Helm).
+// Используется ТОЛЬКО metadata-informer: сами объекты (поле data с релизом, values и манифестом)
+// в память Kubron не попадают, а нужен лишь факт изменения.
 // Список релизов по-прежнему читается прямым запросом по событию.
 type helmCache struct {
 	cancel context.CancelFunc
@@ -42,11 +46,10 @@ type helmCache struct {
 	onChange func()
 }
 
-func newHelmCache(md metadata.Interface, onChange func(), debounce time.Duration) (*helmCache, error) {
+func newHelmCache(md metadata.Interface, gvrs []schema.GroupVersionResource, onChange func(), debounce time.Duration) (*helmCache, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	factory := metadatainformer.NewFilteredSharedInformerFactory(md, 0, metav1.NamespaceAll,
 		func(o *metav1.ListOptions) { o.LabelSelector = "owner=helm" })
-	inf := factory.ForResource(secretsGVR).Informer()
 
 	c := &helmCache{cancel: cancel, debounce: debounce, onChange: onChange}
 	handler := cache.ResourceEventHandlerFuncs{
@@ -54,9 +57,11 @@ func newHelmCache(md metadata.Interface, onChange func(), debounce time.Duration
 		UpdateFunc: func(_, _ any) { c.changed() },
 		DeleteFunc: func(any) { c.changed() },
 	}
-	if _, err := inf.AddEventHandler(handler); err != nil {
-		cancel()
-		return nil, err
+	for _, gvr := range gvrs {
+		if _, err := factory.ForResource(gvr).Informer().AddEventHandler(handler); err != nil {
+			cancel()
+			return nil, err
+		}
 	}
 	factory.Start(ctx.Done())
 	return c, nil
@@ -93,9 +98,10 @@ func (c *helmCache) stop() {
 	}
 }
 
-// helmCache лениво запускает informer у активного подключения. Перед стартом проверяется право list:
-// без него reflector бесконечно повторял бы запрещённые запросы. Нет права — nil, следующая проба
-// не раньше helmProbeRetry (список всё равно обновляется таймером автообновления).
+// helmCache лениво запускает informer у активного подключения. Перед стартом проверяется право list: без него
+// reflector бесконечно повторял бы запрещённые запросы. Слежение включается за теми хранилищами (Secret,
+// ConfigMap), к которым есть доступ; нет доступа ни к одному — nil, следующая проба не раньше helmProbeRetry
+// (список всё равно обновляется таймером автообновления).
 func (c *ClusterConnection) helmCache(onChange func()) *helmCache {
 	c.helmMu.Lock()
 	defer c.helmMu.Unlock()
@@ -116,15 +122,28 @@ func (c *ClusterConnection) helmCache(onChange func()) *helmCache {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if _, err := md.Resource(secretsGVR).List(ctx, metav1.ListOptions{LabelSelector: "owner=helm", Limit: 1}); err != nil {
+
+	gvrs := probeHelmWatchable(ctx, md)
+	if len(gvrs) == 0 {
 		return fail()
 	}
-	hc, err := newHelmCache(md, onChange, helmChangeDebounce)
+	hc, err := newHelmCache(md, gvrs, onChange, helmChangeDebounce)
 	if err != nil {
 		return fail()
 	}
 	c.helm = hc
 	return hc
+}
+
+// probeHelmWatchable возвращает хранилища релизов, список которых доступен текущему пользователю.
+func probeHelmWatchable(ctx context.Context, md metadata.Interface) []schema.GroupVersionResource {
+	var out []schema.GroupVersionResource
+	for _, gvr := range []schema.GroupVersionResource{secretsGVR, configMapsGVR} {
+		if _, err := md.Resource(gvr).List(ctx, metav1.ListOptions{LabelSelector: "owner=helm", Limit: 1}); err == nil {
+			out = append(out, gvr)
+		}
+	}
+	return out
 }
 
 // closeHelmCache останавливает informer (вызывается из ClusterConnection.Close).

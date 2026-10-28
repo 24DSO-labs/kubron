@@ -27,6 +27,7 @@ export const NAV_GROUPS: Record<NavGroupId, NavGroupMeta> = {
   views: [
     { view: 'helm-repos', label: 'Repositories' },
     { view: 'helm-catalog', label: 'Catalog' },
+    { view: 'helm-ops', label: 'Operations' },
   ],
 },
   access: { title: 'Access Control', expanded: false },

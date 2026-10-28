@@ -28,6 +28,16 @@ export interface HelmOp {
   error: string
 }
 
+/** Растёт при каждом завершении операции: страница журнала перечитывает историю */
+export const helmJournalTick = ref(0)
+
+export const HELM_OP_LABEL: Record<string, string> = {
+  install: 'Установка',
+  upgrade: 'Обновление values',
+  rollback: 'Откат',
+  uninstall: 'Удаление',
+}
+
 /** Активные и недавно завершённые операции (завершённые без ошибки скрываются сами) */
 export const helmOps = ref<HelmOp[]>([])
 
@@ -74,6 +84,7 @@ function onProgress(p: any) {
     o.done = true
     o.error = p.error || ''
     if (!o.error) scheduleDismiss(o.opId)
+    helmJournalTick.value++
   }
 }
 
@@ -120,10 +131,12 @@ export async function runHelmOp<T>(meta: RunMeta, fn: (opId: string) => Promise<
     const r = await fn(opId)
     const o = find(opId)
     if (o && !o.done) { o.done = true; scheduleDismiss(opId) }
+    helmJournalTick.value++
     return r
   } catch (e: any) {
     const o = find(opId)
     if (o && !o.done) { o.done = true; o.error = e?.message || String(e) }
+    helmJournalTick.value++
     throw e
   }
 }

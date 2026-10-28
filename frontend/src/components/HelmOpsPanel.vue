@@ -24,14 +24,9 @@
 
 <script lang="ts" setup>
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { cancelHelmOp, dismissHelmOp, helmOps, startHelmOps, type HelmOp } from '../composables/useHelmOps'
+import { cancelHelmOp, dismissHelmOp, HELM_OP_LABEL, helmOps, startHelmOps, type HelmOp } from '../composables/useHelmOps'
 
-const LABEL: Record<string, string> = {
-  install: 'Установка',
-  upgrade: 'Обновление values',
-  rollback: 'Откат',
-  uninstall: 'Удаление',
-}
+const LABEL = HELM_OP_LABEL
 
 const expanded = reactive<Record<string, boolean>>({})
 const now = ref(Date.now())
