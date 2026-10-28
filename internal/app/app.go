@@ -4,13 +4,13 @@
 package app
 
 import (
-	"analog/internal/audit"
-	"analog/internal/auth"
-	"analog/internal/k8s"
-	"analog/internal/termbuf"
 	"context"
 	"errors"
 	"fmt"
+	"github.com/VadimIl224/kubron/internal/audit"
+	"github.com/VadimIl224/kubron/internal/auth"
+	"github.com/VadimIl224/kubron/internal/k8s"
+	"github.com/VadimIl224/kubron/internal/termbuf"
 	"net"
 	"strings"
 	"time"

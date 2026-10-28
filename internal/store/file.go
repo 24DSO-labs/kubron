@@ -4,9 +4,9 @@
 package store
 
 import (
-	"analog/internal/audit"
-	"analog/internal/auth"
-	"analog/internal/k8s"
+	"github.com/VadimIl224/kubron/internal/audit"
+	"github.com/VadimIl224/kubron/internal/auth"
+	"github.com/VadimIl224/kubron/internal/k8s"
 )
 
 // fileStore — хранилище десктопа: файлы в каталоге данных приложения (~/.kubron).
