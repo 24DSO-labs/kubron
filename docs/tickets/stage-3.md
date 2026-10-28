@@ -24,8 +24,8 @@
 
 | № | Тикет | Результат (критерий приёмки) | Оценка, ч-д | Зависит |
 |---|---|---|---|---|
-| 3.0 | `ClusterStore`: вынос кластеров из файловых функций | интерфейс `ClusterStore` (список, чтение/запись метаданных, kubeconfig как `[]byte`, удаление); файловая реализация даёт прежнее поведение десктопа (тесты `internal/k8s` без изменения ожиданий); `buildClusterConnection` строит конфиг из байт | 4 | — |
-| 3.1a | Схема БД и миграции | таблицы organizations, teams, users (+`external_id`, `provider`), memberships, clusters (`team_id`, `mode`, `encrypted_kubeconfig`), group_mappings (пустая, для этапа 6), audit_events, argo_tokens, sessions-заготовка; миграции применяются вперёд и откатываются в CI на PostgreSQL 16 (service-контейнер) | 3 | — |
+| 3.0 ✅ (код не компилировался у ассистента) | `ClusterStore`: вынос кластеров из файловых функций | интерфейс `ClusterStore` (список, чтение/запись метаданных, kubeconfig как `[]byte`, удаление); файловая реализация даёт прежнее поведение десктопа (тесты `internal/k8s` без изменения ожиданий); `buildClusterConnection` строит конфиг из байт | 4 | — |
+| 3.1a ✅ | Схема БД и миграции | таблицы organizations, teams, users (+`external_id`, `provider`), memberships, clusters (`team_id`, `mode`, `encrypted_kubeconfig`), group_mappings (пустая, для этапа 6), audit_events, argo_tokens, sessions-заготовка; миграции применяются вперёд и откатываются в CI на PostgreSQL 16 (service-контейнер) | 3 | — |
 | 3.1b | PostgreSQL-реализация `Store` | `Users`, `Audit`, `ArgoTokens`, `Clusters`, `Orgs/Teams/Memberships` поверх `pgx/v5`; тот же набор контрактных тестов гоняется на файловой и на PG-реализации; `--database-url`/`KUBRON_DATABASE_URL`; без URL сервер работает на файлах (один процесс) | 6 | 3.0, 3.1a |
 | 3.1c | Шифрование секретов | AES-GCM, ключ из `KUBRON_SECRET_KEY` (32 байта base64), идентификатор ключа в записи (задел под ротацию); без ключа сервер с PG не стартует; тест: в БД нет открытого kubeconfig, повреждённый шифротекст — ошибка, не «пусто» | 3 | 3.1b |
 | 3.1d | Миграция существующих данных | при первом запуске нового формата: одна организация, команда «Default»; пользователи переносятся: `admin` → org-admin + admin команды, `operator`/`user` → member + та же роль; кластеры → в «Default»; операция идемпотентна и делает резервную копию файлов | 2 | 3.1b |
@@ -62,3 +62,16 @@
 3. **Роли при переносе существующих пользователей:** `admin` → org-admin и администратор команды «Default», `operator`/`user` → member и та же роль — по умолчанию.
 4. **Ключ шифрования:** из переменной окружения/Secret (`KUBRON_SECRET_KEY`), без KMS; ротация — на этапе 4 — по умолчанию.
 5. **PostgreSQL в CI:** service-контейнер `postgres:16` в GitHub Actions (без testcontainers) — по умолчанию.
+
+## Статус реализации
+
+- **3.0:** `internal/k8s/cluster_store.go` — интерфейс `ClusterStore` (`List/Get/Kubeconfig/Save/Delete`), файловая реализация с прежним поведением
+  и необязательный `KubeconfigPath` (файловое хранилище отдаёт путь: client-go и Helm читают kubeconfig как раньше; остальные — байтами).
+  Пакетные функции (`ListClusters`, `AddClusterFromText`, `UpdateClusterSettings`, `DeleteCluster`…) стали обёртками. `Store.Clusters()` подключён в `app`.
+  Тесты: общий контракт хранилища (файловое и в памяти), жизненный цикл кластера и построение подключения на хранилище без файлов.
+  **Ограничение до 3.1b:** Helm читает kubeconfig файлом, для не-файловых хранилищ вернёт понятную ошибку — нужен свой `RESTClientGetter`.
+  `pkg/ext` (публичный SDK) кластеры пока не описывает: внешний `ext.Store` получает файловые кластеры ядра.
+- **3.1a:** `internal/pgstore/migrations/0001_init.*.sql` (10 таблиц; проверена на настоящем PostgreSQL 16: вперёд/назад/вперёд, ограничения целостности),
+  `internal/migrate` (мигратор без зависимостей: проверка контрольных сумм, дыр в журнале, блокировка `pg_advisory_lock`, откат; обновление
+  реплик по очереди не блокируется более новой схемой), `scripts/check-migrations.sh` и job `migrations` в CI (service-контейнер `postgres:16`).
+  Переходное поле `users.role` удаляется в 3.2. Go-драйвер (`pgx/v5`) подключается в 3.1b вместе с интеграционными тестами на PostgreSQL.
