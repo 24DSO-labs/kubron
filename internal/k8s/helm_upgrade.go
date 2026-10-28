@@ -65,7 +65,7 @@ func marshalHelmValues(v map[string]interface{}) (string, error) {
 // ResetValues=true: новые values заменяют прежние целиком, поэтому ключ, удалённый
 // в редакторе, возвращается к дефолту чарта.
 func (m *Manager) helmUpgradeValues(ctx context.Context, namespace, name string, vals map[string]interface{}, dryRun bool, logHandler slog.Handler) (cur, next helmrelease.Accessor, curVals map[string]interface{}, err error) {
-	cfg, err := m.helmConfigLogged(namespace, logHandler)
+	cfg, err := m.helmConfigForRelease(ctx, namespace, name, logHandler)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -150,6 +150,7 @@ func (m *Manager) UpgradeHelmRelease(namespace, name, valuesYAML, opID string) (
 	ctx, cancel := context.WithTimeout(ctx, helmUpgradeTimeout+30*time.Second)
 	defer cancel()
 
+	tr.note("изменение values")
 	tr.setPhase("Применение изменений и ожидание готовности…")
 	_, next, _, err := m.helmUpgradeValues(ctx, namespace, name, vals, false, tr.handler())
 	if err != nil {
@@ -158,5 +159,6 @@ func (m *Manager) UpgradeHelmRelease(namespace, name, valuesYAML, opID string) (
 		}
 		return 0, fmt.Errorf("апгрейд %s/%s: %w", namespace, name, err)
 	}
+	tr.setRevision(next.Version())
 	return next.Version(), nil
 }
