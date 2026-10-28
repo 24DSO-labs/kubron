@@ -19,13 +19,9 @@ import (
 // Rollback и uninstall ждут готовности ресурсов; больше — считаем операцию зависшей.
 const helmActionTimeout = 5 * time.Minute
 
-// helmConfig создаёт action.Configuration для активного кластера и namespace релиза.
+// helmConfigLogged создаёт action.Configuration для активного кластера и namespace релиза с
+// собственным обработчиком журнала Helm (прогресс операций; nil — журнал по умолчанию).
 // Подключаемся тем же kubeconfig и контекстом, что и основное подключение приложения.
-func (m *Manager) helmConfig(namespace string) (*action.Configuration, error) {
-	return m.helmConfigLogged(namespace, nil)
-}
-
-// helmConfigLogged — helmConfig с собственным обработчиком журнала Helm (прогресс операций).
 // Обработчик нужно задать ДО Init: Init раздаёт логгер клиенту Kubernetes и ожидателю готовности.
 func (m *Manager) helmConfigLogged(namespace string, h slog.Handler) (*action.Configuration, error) {
 	id := m.GetActiveContext()
