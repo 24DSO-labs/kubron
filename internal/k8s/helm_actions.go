@@ -71,7 +71,6 @@ func (m *Manager) helmConfigDriver(namespace string, h slog.Handler, storage str
 }
 
 // RollbackHelmRelease откатывает релиз к ревизии. Helm создаёт НОВУЮ ревизию с содержимым старой.
-
 func (m *Manager) RollbackHelmRelease(namespace, name string, revision int, opID string) (err error) {
 	if err := validateHelmRef(namespace, name); err != nil {
 		return err
