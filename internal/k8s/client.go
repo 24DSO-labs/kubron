@@ -86,6 +86,39 @@ type Manager struct {
 	notifyMu sync.RWMutex
 	notifier func(event string, data ...any)
 	logs     logStreams
+	limits   Limits // лимиты ресурсов вида; наследуются видами сессий
+}
+
+// Limits — ограничения на ресурсы одного вида (пользователя). 0 — без ограничения.
+type Limits struct {
+	Terminals    int
+	LogStreams   int
+	PortForwards int
+}
+
+// DefaultLimits — значения для сервера: 8 терминалов, 20 потоков логов, 10 port-forward на пользователя.
+func DefaultLimits() Limits { return Limits{Terminals: 8, LogStreams: 20, PortForwards: 10} }
+
+// SetLimits задаёт лимиты; виды, созданные ForSession после вызова, их наследуют.
+func (m *Manager) SetLimits(l Limits) {
+	m.viewMu.Lock()
+	m.limits = l
+	m.viewMu.Unlock()
+}
+
+// SetIdleTTL задаёт, через сколько после ухода последнего вида останавливаются informers кластера
+// (0 — сразу). Относится к общему пулу.
+func (m *Manager) SetIdleTTL(d time.Duration) {
+	m.pool.mu.Lock()
+	m.pool.idleTTL = d
+	m.pool.mu.Unlock()
+}
+
+// Limits возвращает действующие лимиты вида.
+func (m *Manager) Limits() Limits {
+	m.viewMu.RLock()
+	defer m.viewMu.RUnlock()
+	return m.limits
 }
 
 // SetNotifier задаёт функцию, которой бэкенд сообщает фронтенду о событиях (Wails EventsEmit).
@@ -93,6 +126,14 @@ func (m *Manager) SetNotifier(f func(event string, data ...any)) {
 	m.notifyMu.Lock()
 	m.notifier = f
 	m.notifyMu.Unlock()
+}
+
+// emitCluster сообщает об изменении данных кластера всем видам, у которых он активен:
+// кеши informers общие, а получатели — свои у каждой сессии.
+func (m *Manager) emitCluster(event, clusterName string) {
+	for _, h := range m.pool.holdersOf(clusterName) {
+		h.emit(event, clusterName)
+	}
 }
 
 func (m *Manager) emit(event string, data ...any) {
@@ -112,12 +153,12 @@ func (m *Manager) activateLocked(clusterID string) error {
 	if prev == clusterID {
 		return nil
 	}
-	if err := m.pool.acquire(clusterID); err != nil {
+	if err := m.pool.acquire(clusterID, m); err != nil {
 		return err
 	}
 	m.activeCtx = clusterID
 	if prev != "" {
-		m.pool.release(prev)
+		m.pool.release(prev, m)
 	}
 	return nil
 }
@@ -126,6 +167,7 @@ func NewManager() *Manager {
 	return &Manager{
 		pool:             newConnPool(),
 		terminalSessions: NewTerminalSessionManager(),
+		limits:           Limits{LogStreams: logMaxStreams}, // десктоп: прежний предел логов
 	}
 }
 
@@ -135,6 +177,7 @@ func (m *Manager) ForSession() *Manager {
 	return &Manager{
 		pool:             m.pool,
 		terminalSessions: NewTerminalSessionManager(),
+		limits:           m.Limits(),
 	}
 }
 
@@ -144,7 +187,7 @@ func (m *Manager) Detach() {
 	m.viewMu.Lock()
 	defer m.viewMu.Unlock()
 	if m.activeCtx != "" {
-		m.pool.release(m.activeCtx)
+		m.pool.release(m.activeCtx, m)
 		m.activeCtx = ""
 	}
 }

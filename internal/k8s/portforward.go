@@ -79,6 +79,11 @@ type PortForwardManager struct {
 	k8sMgr   *Manager
 }
 
+// NewSessionPortForwardManager — менеджер port-forward вида сессии (без очистки каталога данных).
+func NewSessionPortForwardManager(k8sMgr *Manager) *PortForwardManager {
+	return &PortForwardManager{sessions: make(map[string]*PortForwardSession), k8sMgr: k8sMgr}
+}
+
 func NewPortForwardManager(k8sMgr *Manager) *PortForwardManager {
 	// Ранние версии сохраняли сессии на диск и после перезапуска показывали
 	// «мёртвые» записи. Убираем оставшийся файл.
@@ -217,6 +222,10 @@ func (pfm *PortForwardManager) start(id, namespace, pod, service string, service
 		}
 		existing.stop()
 		delete(pfm.sessions, id)
+	}
+	if max := pfm.k8sMgr.Limits().PortForwards; max > 0 && len(pfm.sessions) >= max {
+		pfm.mu.Unlock()
+		return nil, fmt.Errorf("слишком много port-forward (максимум %d)", max)
 	}
 	pfm.sessions[id] = session
 	pfm.mu.Unlock()

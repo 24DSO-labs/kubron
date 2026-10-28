@@ -48,6 +48,7 @@
 import { computed, ref, watch } from 'vue'
 import MonacoDiff from '../MonacoDiff.vue'
 import { callApp } from '../../../resources/wails'
+import { runHelmOp } from '../../../composables/useHelmOps'
 import { askConfirm } from '../../../resources/confirm'
 import { reloadActive } from '../../../resources/store'
 import { itemName, itemNs } from '../../../resources/utils'
@@ -123,7 +124,8 @@ async function apply() {
   busy.value = true
   error.value = ''
   try {
-    const rev = await callApp('UpgradeHelmRelease', ns.value, name.value, edited.value)
+    const rev = await runHelmOp({ op: 'upgrade', namespace: ns.value, release: name.value, cancelable: true }, id =>
+      callApp('UpgradeHelmRelease', ns.value, name.value, edited.value, id))
     notifications.notifySuccess(`${name.value}: upgraded, revision #${rev}`)
     await reloadActive()
     await load()

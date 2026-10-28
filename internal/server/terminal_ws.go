@@ -56,7 +56,7 @@ func TerminalHandler(g *Guard) http.Handler {
 			return
 		}
 		id := r.PathValue("id")
-		if !g.Terminals.Exists(id) {
+		if !g.Terminals.OwnedBy(id, sess.ID) { // чужой терминал неотличим от несуществующего
 			writeError(w, http.StatusNotFound, "not_found", "терминал не найден")
 			return
 		}

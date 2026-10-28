@@ -29,6 +29,19 @@ const (
 	logConnectWait = 20 * time.Second
 )
 
+// validStreamID: id приходит от клиента и входит в имя события, поэтому длина и алфавит ограничены.
+func validStreamID(id string) bool {
+	if id == "" || len(id) > 64 {
+		return false
+	}
+	for _, r := range id {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '_' || r == '-' || r == '.') {
+			return false
+		}
+	}
+	return true
+}
+
 // ─── Терминал ───
 
 // eventTerminalOutput — вывод терминала событиями (десктоп).
@@ -67,7 +80,7 @@ type logStreams struct {
 	m  map[string]*logEntry
 }
 
-func (l *logStreams) add(id string, e *logEntry) bool {
+func (l *logStreams) add(id string, e *logEntry, max int) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.m == nil {
@@ -75,7 +88,7 @@ func (l *logStreams) add(id string, e *logEntry) bool {
 	}
 	if old, ok := l.m[id]; ok {
 		old.cancel()
-	} else if len(l.m) >= logMaxStreams {
+	} else if max > 0 && len(l.m) >= max {
 		return false
 	}
 	l.m[id] = e
@@ -113,8 +126,8 @@ func (l *logStreams) stopAll() {
 // logs:data:<id> (пачками раз в 100 мс, только целые строки), конец — logs:end:<id>.
 // Фронтенд должен подписаться на события ДО вызова.
 func (m *Manager) StartLogStream(streamID, namespace, pod, container string, tail int64) error {
-	if streamID == "" {
-		return errors.New("не указан id потока логов")
+	if !validStreamID(streamID) {
+		return errors.New("некорректный id потока логов")
 	}
 	conn, err := m.GetActiveConnection()
 	if err != nil {
@@ -134,10 +147,10 @@ func (m *Manager) StartLogStream(streamID, namespace, pod, container string, tai
 		return fmt.Errorf("не удалось получить логи: %w", err)
 	}
 	entry := &logEntry{cancel: cancel}
-	if !m.logs.add(streamID, entry) {
+	if !m.logs.add(streamID, entry, m.Limits().LogStreams) {
 		cancel()
 		stream.Close()
-		return fmt.Errorf("слишком много открытых потоков логов (максимум %d)", logMaxStreams)
+		return fmt.Errorf("слишком много открытых потоков логов (максимум %d)", m.Limits().LogStreams)
 	}
 	go m.pumpLogs(ctx, streamID, entry, stream)
 	return nil

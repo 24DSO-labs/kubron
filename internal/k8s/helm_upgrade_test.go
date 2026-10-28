@@ -52,7 +52,7 @@ func TestUpgradeValidatesBeforeNetwork(t *testing.T) {
 	if _, err := m.PreviewHelmUpgrade("prod", "web", "- x"); err == nil || !strings.Contains(err.Error(), "YAML") {
 		t.Errorf("не-map values: %v", err)
 	}
-	if _, err := m.UpgradeHelmRelease("prod", "", ""); err == nil {
+	if _, err := m.UpgradeHelmRelease("prod", "", "", ""); err == nil {
 		t.Error("пустое имя должно отклоняться")
 	}
 }

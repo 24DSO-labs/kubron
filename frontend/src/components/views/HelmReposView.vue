@@ -24,10 +24,15 @@
         autocomplete="off" />
       <input v-model="form.password" class="form-input" type="password" placeholder="Пароль (необязательно)" aria-label="Пароль"
         autocomplete="new-password" />
-      <label class="hr-check">
+      <input v-if="isOci" v-model.trim="form.charts" class="form-input hr-charts" placeholder="Чарты через запятую: podinfo, redis" aria-label="Чарты" />
+      <label v-if="!isOci" class="hr-check">
         <input v-model="form.insecureTLS" type="checkbox" /> Не проверять TLS-сертификат
       </label>
-      <p class="hr-note">Пароль сохраняется в repositories.yaml (права 0600) и отправляется только на хост репозитория. OCI-реестры пока не поддерживаются.</p>
+      <p v-if="isOci" class="hr-note">
+        У OCI-реестра нет списка чартов, поэтому перечислите нужные (например, адрес oci://ghcr.io/stefanprodan/charts и чарт podinfo).
+        Версии берутся из тегов. Незащищённый HTTP разрешён только для localhost.
+      </p>
+      <p class="hr-note">Пароль сохраняется с правами 0600 и отправляется только на хост репозитория.</p>
       <div class="hr-form-actions">
         <button class="btn" type="submit" :disabled="adding">{{ adding ? 'Проверяю репозиторий…' : 'Добавить' }}</button>
       </div>
@@ -44,7 +49,17 @@
       <tbody>
         <tr v-for="r in repos" :key="r.name">
           <td><strong>{{ r.name }}</strong></td>
-          <td class="hr-mono" :title="r.url">{{ r.url }}<span v-if="r.username" class="hr-tag">auth</span><span v-if="r.insecureTLS" class="hr-tag warn">no-tls-verify</span></td>
+          <td class="hr-mono" :title="r.url">
+            {{ r.url }}<span v-if="r.kind === 'oci'" class="hr-tag">oci</span><span v-if="r.username" class="hr-tag">auth</span><span v-if="r.insecureTLS" class="hr-tag warn">no-tls-verify</span>
+            <div v-if="r.kind === 'oci'" class="hr-chips">
+              <span v-for="c in r.chartNames" :key="c" class="hr-chip">
+                {{ c }}<button v-if="canManage" type="button" class="hr-chip-x" :aria-label="`Убрать ${c}`" :disabled="!!busy" @click="removeChart(r.name, c)">✕</button>
+              </span>
+              <form v-if="canManage" class="hr-chip-add" @submit.prevent="addChart(r.name)">
+                <input v-model.trim="newChart[r.name]" class="form-input" placeholder="+ чарт" aria-label="Добавить чарт" :disabled="!!busy" />
+              </form>
+            </div>
+          </td>
           <td>{{ r.updated ? r.charts : '—' }}</td>
           <td class="hr-muted" :title="r.updated">{{ formatTime(r.updated) }}</td>
           <td><span v-if="r.error" class="hr-bad" :title="r.error">{{ r.error }}</span><span v-else class="hr-ok">ок</span></td>
@@ -66,7 +81,10 @@ import { can } from '../../composables/useAuth'
 import { useNotifications } from '../../composables/useNotifications'
 import { Perm } from '../../types/auth'
 
-interface RepoInfo { name: string; url: string; username: string; insecureTLS: boolean; charts: number; updated: string; error: string }
+interface RepoInfo {
+  name: string; url: string; username: string; insecureTLS: boolean; charts: number; updated: string; error: string
+  kind: 'http' | 'oci'; chartNames: string[] | null
+}
 interface UpdateResult { name: string; charts: number; error: string }
 
 const notifications = useNotifications()
@@ -79,7 +97,9 @@ const error = ref('')
 const busy = ref('') // имя репозитория или '*' для «обновить все»
 const adding = ref(false)
 const showForm = ref(false)
-const form = reactive({ name: '', url: '', username: '', password: '', insecureTLS: false })
+const form = reactive({ name: '', url: '', username: '', password: '', insecureTLS: false, charts: '' })
+const newChart = reactive<Record<string, string>>({})
+const isOci = computed(() => form.url.trim().toLowerCase().startsWith('oci://'))
 
 function formatTime(iso: string) {
   if (!iso) return '—'
@@ -104,9 +124,14 @@ async function add() {
   adding.value = true
   error.value = ''
   try {
-    await callApp('AddHelmRepo', form.name, form.url, form.username, form.password, form.insecureTLS)
+    if (isOci.value) {
+      const charts = form.charts.split(/[\s,]+/).filter(Boolean)
+      await callApp('AddHelmOCIRepo', form.name, form.url, charts, form.username, form.password)
+    } else {
+      await callApp('AddHelmRepo', form.name, form.url, form.username, form.password, form.insecureTLS)
+    }
     notifications.notifySuccess(`Репозиторий ${form.name} добавлен`)
-    Object.assign(form, { name: '', url: '', username: '', password: '', insecureTLS: false })
+    Object.assign(form, { name: '', url: '', username: '', password: '', insecureTLS: false, charts: '' })
     showForm.value = false
     await load()
   } catch (e: any) {
@@ -140,6 +165,33 @@ async function runUpdate(name: string, key: string) {
 const update = (name: string) => runUpdate(name, name)
 const updateAll = () => runUpdate('', '*')
 
+async function addChart(repo: string) {
+  const chart = (newChart[repo] || '').trim()
+  if (!chart) return
+  busy.value = repo
+  try {
+    await callApp('AddHelmOCIChart', repo, chart)
+    newChart[repo] = ''
+  } catch (e: any) {
+    notifications.notifyError(`Добавление чарта: ${e?.message || e}`)
+  } finally {
+    busy.value = ''
+    await load()
+  }
+}
+
+async function removeChart(repo: string, chart: string) {
+  busy.value = repo
+  try {
+    await callApp('RemoveHelmOCIChart', repo, chart)
+  } catch (e: any) {
+    notifications.notifyError(`Удаление чарта: ${e?.message || e}`)
+  } finally {
+    busy.value = ''
+    await load()
+  }
+}
+
 async function remove(name: string) {
   if (!(await askConfirm(`Удалить репозиторий ${name}? Установленные из него релизы не затрагиваются.`))) return
   busy.value = name
@@ -170,6 +222,12 @@ onMounted(load)
 .hr-check { grid-column: 1 / -1; font-size: 13px; color: #a6adc8; display: flex; gap: 8px; align-items: center; }
 .hr-note { grid-column: 1 / -1; margin: 0; font-size: 12px; color: #6c7086; }
 .hr-form-actions { grid-column: 1 / -1; }
+.hr-charts { grid-column: 1 / -1; }
+.hr-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; align-items: center; }
+.hr-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 10px; background: #313244; color: #cdd6f4; font-size: 12px; }
+.hr-chip-x { background: none; border: 0; color: #a6adc8; cursor: pointer; font-size: 11px; padding: 0; }
+.hr-chip-x:hover { color: #f38ba8; }
+.hr-chip-add .form-input { width: 110px; padding: 2px 8px; font-size: 12px; }
 
 .hr-empty { color: #6c7086; font-size: 13px; margin: 16px 0; }
 .hr-table { width: 100%; border-collapse: collapse; font-size: 13px; }
