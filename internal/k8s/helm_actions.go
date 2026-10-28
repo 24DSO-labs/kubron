@@ -29,7 +29,11 @@ func (m *Manager) helmConfigForRelease(ctx context.Context, namespace, name stri
 	return m.helmConfigDriver(namespace, h, storage)
 }
 
-// helmConfigDriver — helmConfigLogged с выбором хранилища релизов (secret | configmap).
+// helmConfigDriver создаёт action.Configuration для активного кластера и namespace релиза с
+// собственным обработчиком журнала Helm (прогресс операций; nil — журнал по умолчанию) и
+// выбором хранилища релизов (secret | configmap).
+// Подключаемся тем же kubeconfig и контекстом, что и основное подключение приложения.
+// Обработчик нужно задать ДО Init: Init раздаёт логгер клиенту Kubernetes и ожидателю готовности.
 func (m *Manager) helmConfigDriver(namespace string, h slog.Handler, storage string) (*action.Configuration, error) {
 	driver, err := helmDriverName(storage)
 	if err != nil {
