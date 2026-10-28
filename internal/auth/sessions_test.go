@@ -292,3 +292,21 @@ func TestAuditAttributesActionsToSessionUserAndSource(t *testing.T) {
 		t.Errorf("SessionEnd должен нести адрес завершённой сессии: %+v", end)
 	}
 }
+
+func TestActiveReflectsSessionLifecycle(t *testing.T) {
+	root, _ := newTestService(t)
+	v := root.NewSession("10.0.0.1")
+	if v.Active() {
+		t.Fatal("до входа сессии нет")
+	}
+	if _, err := v.Setup("admin", goodPass); err != nil {
+		t.Fatal(err)
+	}
+	if !v.Active() {
+		t.Fatal("после входа сессия активна")
+	}
+	v.Logout()
+	if v.Active() {
+		t.Fatal("после выхода сессии нет")
+	}
+}

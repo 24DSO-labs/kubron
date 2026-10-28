@@ -110,3 +110,21 @@ func TestLoadConfigDataDir(t *testing.T) {
 		t.Errorf("по умолчанию пусто: %q", cfg.DataDir)
 	}
 }
+
+func TestLoadConfigResourceLimits(t *testing.T) {
+	cfg, err := LoadConfig(nil, env(nil), io.Discard)
+	if err != nil || cfg.MaxTerminals != 8 || cfg.MaxLogStreams != 20 || cfg.MaxPortForwards != 10 {
+		t.Fatalf("значения по умолчанию: %+v %v", cfg, err)
+	}
+	cfg, err = LoadConfig([]string{"--max-log-streams", "5"},
+		env(map[string]string{"KUBRON_MAX_TERMINALS": "3", "KUBRON_MAX_LOG_STREAMS": "9", "KUBRON_MAX_PORT_FORWARDS": "0"}), io.Discard)
+	if err != nil || cfg.MaxTerminals != 3 || cfg.MaxLogStreams != 5 || cfg.MaxPortForwards != 0 {
+		t.Fatalf("env и флаги (флаг важнее env, 0 — без ограничения): %+v %v", cfg, err)
+	}
+	if _, err := LoadConfig(nil, env(map[string]string{"KUBRON_MAX_TERMINALS": "много"}), io.Discard); err == nil {
+		t.Error("нечисловое значение должно отклоняться")
+	}
+	if _, err := LoadConfig([]string{"--max-terminals", "-1"}, env(nil), io.Discard); err == nil {
+		t.Error("отрицательный лимит должен отклоняться")
+	}
+}

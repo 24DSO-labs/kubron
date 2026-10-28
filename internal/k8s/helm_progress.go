@@ -113,7 +113,8 @@ func (m *Manager) CancelHelmOperation(opID string) error {
 	activeHelmOps.mu.Lock()
 	t := activeHelmOps.ops[opID]
 	activeHelmOps.mu.Unlock()
-	if t == nil {
+	// Чужую операцию (другой сессии) отменить нельзя; для неё она «не найдена», как и несуществующая.
+	if t == nil || t.m != m {
 		return errors.New("операция не найдена или уже завершена")
 	}
 	if t.cancel == nil {
