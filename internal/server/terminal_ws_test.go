@@ -13,7 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"analog/internal/termbuf"
+	"github.com/VadimIl224/kubron/internal/termbuf"
 )
 
 type termFixture struct {
@@ -34,7 +34,10 @@ func newTermFixture(t *testing.T) *termFixture {
 	f := &termFixture{reg: termbuf.NewRegistry(), ss: NewSessions(time.Hour, true), id: termbuf.NewID()}
 	g := &Guard{Sessions: f.ss, Terminals: f.reg}
 	f.ss.OnEnd = g.CloseSession
+	tok, sess := f.ss.Create("u1", nil)
+	f.cookie = cookieName + "=" + tok
 	buf, err := f.reg.Register(f.id, termbuf.Hooks{
+		Owner:  sess.ID,
 		Input:  func(p []byte) error { f.mu.Lock(); f.input = append(f.input, p...); f.mu.Unlock(); return nil },
 		Resize: func(c, r uint16) error { f.mu.Lock(); f.cols, f.rows = c, r; f.mu.Unlock(); return nil },
 	})
@@ -45,8 +48,6 @@ func newTermFixture(t *testing.T) *termFixture {
 	d, _ := NewDispatcher(&guardTarget{}, []string{"Login"}, nil)
 	f.srv = httptest.NewServer(NewHandler(d, nil, g))
 	t.Cleanup(f.srv.Close)
-	tok, _ := f.ss.Create("u1", nil)
-	f.cookie = cookieName + "=" + tok
 	return f
 }
 
@@ -153,5 +154,15 @@ func TestTerminalWSClosedWhenSessionEnds(t *testing.T) {
 	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
 	if _, _, err := ws.ReadMessage(); err == nil {
 		t.Error("сокет должен закрыться")
+	}
+}
+
+func TestTerminalWSForeignSessionGetsNotFound(t *testing.T) {
+	f := newTermFixture(t)
+	f.ss.Exclusive = false // две сессии одновременно: владелец терминала и посторонний
+	other, _ := f.ss.Create("u2", nil)
+	hdr := http.Header{"Cookie": {cookieName + "=" + other}, "Origin": {f.srv.URL}}
+	if _, resp, err := f.dial(f.id, hdr); err == nil || resp.StatusCode != 404 {
+		t.Errorf("чужой терминал должен быть неотличим от несуществующего: %v %v", err, resp)
 	}
 }

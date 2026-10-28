@@ -7,7 +7,7 @@ import (
 	"context"
 	"testing"
 
-	"analog/pkg/ext"
+	"github.com/VadimIl224/kubron/pkg/ext"
 )
 
 func TestExternalModuleRegistersAuthenticator(t *testing.T) {

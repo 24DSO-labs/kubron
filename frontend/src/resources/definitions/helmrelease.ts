@@ -5,6 +5,7 @@ import { defineResource } from '../types'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { helmLiveTick, startHelmLive } from '../../composables/useHelmLive'
+import { runHelmOp } from '../../composables/useHelmOps'
 import { flatNameCol, flatNsCol } from './common'
 import { badgeClass, statusColor } from '../status'
 import { helmContentTab } from '../helmTabs'
@@ -47,6 +48,7 @@ export const helmRelease = defineResource<k8s.HelmReleaseInfo, k8s.HelmReleaseDe
     { label: 'Status', value: r => r.status, badge: r => badgeClass(r.status) },
     { label: 'Chart', value: r => r.chart },
     { label: 'Chart Version', value: r => r.chartVersion },
+    { label: 'Storage', value: r => (r.storage === 'configmap' ? 'ConfigMap' : 'Secret') },
     { label: 'Update available', value: r => (r.latestVersion ? `${r.latestVersion} (${r.latestRepo})` : '—') },
     { label: 'App Version', value: r => r.appVersion },
     { label: 'Revision', value: r => r.revision },
@@ -75,7 +77,8 @@ actions: [
           `Uninstall release ${r.namespace}/${r.name}? All resources created by the release will be deleted from the cluster.`,
         ))) return
         try {
-          await callApp('UninstallHelmRelease', r.namespace, r.name, false)
+          await runHelmOp({ op: 'uninstall', namespace: r.namespace, release: r.name }, id =>
+            callApp('UninstallHelmRelease', r.namespace, r.name, false, id))
           ctx.notifySuccess(`Release ${r.name} uninstalled`)
           ctx.closeDetail()
           await ctx.reload()

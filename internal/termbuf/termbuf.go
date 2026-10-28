@@ -121,6 +121,8 @@ type Hooks struct {
 	Input  func(p []byte) error
 	Resize func(cols, rows uint16) error
 	Close  func() // завершить сессию (процесс и поток)
+	// Owner — идентификатор веб-сессии владельца; подключиться к терминалу может только она.
+	Owner string
 }
 
 type entry struct {
@@ -173,6 +175,14 @@ func (r *Registry) Remove(id string) {
 	r.mu.Lock()
 	delete(r.items, id)
 	r.mu.Unlock()
+}
+
+// OwnedBy — сессия зарегистрирована и принадлежит owner.
+func (r *Registry) OwnedBy(id, owner string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	e, ok := r.items[id]
+	return ok && e.hooks.Owner == owner
 }
 
 // Exists — сессия зарегистрирована.

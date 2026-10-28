@@ -240,3 +240,11 @@ func TestConcurrentDataAndAttach(t *testing.T) {
 	}()
 	wg.Wait()
 }
+
+func TestOwnedBy(t *testing.T) {
+	r := NewRegistry()
+	_, _ = r.Register("t", Hooks{Owner: "s1"})
+	if !r.OwnedBy("t", "s1") || r.OwnedBy("t", "s2") || r.OwnedBy("nope", "s1") {
+		t.Error("терминал доступен только владельцу")
+	}
+}
