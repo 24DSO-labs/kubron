@@ -4,12 +4,12 @@
 package auth
 
 import (
-	"analog/internal/audit"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/VadimIl224/kubron/internal/audit"
 	"strings"
 	"sync"
 	"time"

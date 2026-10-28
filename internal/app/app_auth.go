@@ -4,12 +4,12 @@
 package app
 
 import (
-	"analog/internal/audit"
-	"analog/internal/auth"
-	"analog/internal/k8s"
-	"analog/internal/store"
 	"errors"
 	"fmt"
+	"github.com/VadimIl224/kubron/internal/audit"
+	"github.com/VadimIl224/kubron/internal/auth"
+	"github.com/VadimIl224/kubron/internal/k8s"
+	"github.com/VadimIl224/kubron/internal/store"
 	"runtime"
 	"strings"
 	"time"
