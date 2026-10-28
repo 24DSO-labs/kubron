@@ -245,7 +245,7 @@ func (h *helmProgressHandler) Handle(_ context.Context, r slog.Record) error {
 		b.WriteString(" ")
 		b.WriteString(a.Key)
 		b.WriteString("=")
-		b.WriteString(fmt.Sprint(a.Value.Resolve().Any()))
+		fmt.Fprint(&b, a.Value.Resolve().Any())
 		return true
 	}
 	for _, a := range h.attrs {
