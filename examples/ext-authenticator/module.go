@@ -9,7 +9,7 @@ import (
 	"context"
 	"errors"
 
-	"analog/pkg/ext"
+	"github.com/VadimIl224/kubron/pkg/ext"
 )
 
 // Module подключается при сборке приложения: registry.Install(example.New(users)).
