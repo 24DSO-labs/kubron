@@ -5,8 +5,10 @@ package k8s
 
 import (
 	"context"
+	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"log/slog"
 	"strings"
 	"time"
@@ -65,6 +67,10 @@ func (m *Manager) helmConfigDriver(namespace string, h slog.Handler, storage str
 		cfg.SetLogger(h)
 	}
 	if err := cfg.Init(flags, namespace, driver); err != nil {
+	if h != nil {
+		cfg.SetLogger(h)
+	}
+	if err := cfg.Init(flags, namespace, driver); err != nil {
 		return nil, fmt.Errorf("не удалось инициализировать Helm: %w", err)
 	}
 	return cfg, nil
@@ -72,12 +78,23 @@ func (m *Manager) helmConfigDriver(namespace string, h slog.Handler, storage str
 
 // RollbackHelmRelease откатывает релиз к ревизии. Helm создаёт НОВУЮ ревизию с содержимым старой.
 func (m *Manager) RollbackHelmRelease(namespace, name string, revision int, opID string) (err error) {
+func (m *Manager) RollbackHelmRelease(namespace, name string, revision int, opID string) (err error) {
 	if err := validateHelmRef(namespace, name); err != nil {
 		return err
 	}
 	if revision <= 0 {
 		return fmt.Errorf("некорректная ревизия %d", revision)
 	}
+	_, tr, err := m.beginHelmOp(context.Background(), opID, "rollback", namespace, name, false)
+	if err != nil {
+		return err
+	}
+	defer func() { tr.finish(err) }()
+
+	tr.note(fmt.Sprintf("к ревизии %d", revision))
+	tr.setRevision(revision)
+	tr.setPhase(fmt.Sprintf("Откат к ревизии %d…", revision))
+	cfg, err := m.helmConfigForRelease(context.Background(), namespace, name, tr.handler())
 	_, tr, err := m.beginHelmOp(context.Background(), opID, "rollback", namespace, name, false)
 	if err != nil {
 		return err
@@ -104,9 +121,21 @@ func (m *Manager) RollbackHelmRelease(namespace, name string, revision int, opID
 // UninstallHelmRelease удаляет релиз и его ресурсы. keepHistory оставляет записи ревизий
 // (тогда имя релиза можно переиспользовать только через upgrade --install).
 func (m *Manager) UninstallHelmRelease(namespace, name string, keepHistory bool, opID string) (err error) {
+func (m *Manager) UninstallHelmRelease(namespace, name string, keepHistory bool, opID string) (err error) {
 	if err := validateHelmRef(namespace, name); err != nil {
 		return err
 	}
+	_, tr, err := m.beginHelmOp(context.Background(), opID, "uninstall", namespace, name, false)
+	if err != nil {
+		return err
+	}
+	defer func() { tr.finish(err) }()
+
+	if keepHistory {
+		tr.note("с сохранением истории")
+	}
+	tr.setPhase("Удаление релиза…")
+	cfg, err := m.helmConfigForRelease(context.Background(), namespace, name, tr.handler())
 	_, tr, err := m.beginHelmOp(context.Background(), opID, "uninstall", namespace, name, false)
 	if err != nil {
 		return err
