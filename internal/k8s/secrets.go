@@ -80,7 +80,7 @@ func (m *Manager) GetSecretValue(namespace, name, key string) (string, error) {
 	}
 	val, ok := sec.Data[key]
 	if !ok {
-		return "", fmt.Errorf("ключ %q не найден в секрете %s", key, name)
+		return "", fmt.Errorf("key %q not found in secret %s", key, name)
 	}
 	return string(val), nil
 }
@@ -101,7 +101,7 @@ func (m *Manager) GetSecretBase64Value(namespace, name, key string) (string, err
 	}
 	val, ok := sec.Data[key]
 	if !ok {
-		return "", fmt.Errorf("ключ %q не найден в секрете %s", key, name)
+		return "", fmt.Errorf("key %q not found in secret %s", key, name)
 	}
 	return base64.StdEncoding.EncodeToString(val), nil
 }
@@ -120,14 +120,14 @@ func (m *Manager) UpdateSecret(namespace, name string, data map[string]string) e
 
 	sec, err := conn.Client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("не удалось получить Secret: %w", err)
+		return fmt.Errorf("failed to get Secret: %w", err)
 	}
 
 	decoded := make(map[string][]byte, len(data))
 	for k, v := range data {
 		raw, err := base64.StdEncoding.DecodeString(strings.TrimSpace(v))
 		if err != nil {
-			return fmt.Errorf("значение ключа %q не является корректным base64: %w", k, err)
+			return fmt.Errorf("value of key %q is not valid base64: %w", k, err)
 		}
 		decoded[k] = raw
 	}
@@ -135,7 +135,7 @@ func (m *Manager) UpdateSecret(namespace, name string, data map[string]string) e
 
 	_, err = conn.Client.CoreV1().Secrets(namespace).Update(ctx, sec, metav1.UpdateOptions{})
 	if err != nil {
-		return fmt.Errorf("не удалось обновить Secret: %w", err)
+		return fmt.Errorf("failed to update Secret: %w", err)
 	}
 	return nil
 }

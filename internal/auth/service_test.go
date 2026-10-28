@@ -63,13 +63,13 @@ func TestFirstRunNeedsSetup(t *testing.T) {
 	s, _ := newTestService(t)
 	st := s.Status()
 	if !st.NeedsSetup || st.User != nil {
-		t.Fatalf("ожидалась первичная настройка, получено %+v", st)
+		t.Fatalf("expected initial setup, got %+v", st)
 	}
 	if _, err := s.Login("admin", goodPass); !errors.Is(err, ErrSetupRequired) {
-		t.Fatalf("вход до настройки: %v", err)
+		t.Fatalf("login before setup: %v", err)
 	}
 	if err := s.Authorize(PermRead); !errors.Is(err, ErrNotAuthenticated) {
-		t.Fatalf("без входа доступ должен быть закрыт, получено %v", err)
+		t.Fatalf("access must be denied without login, got %v", err)
 	}
 }
 
@@ -80,13 +80,13 @@ func TestSetupCreatesAdminOnlyOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	if u.Role != RoleAdmin || u.MustChangePassword {
-		t.Fatalf("неверный первый пользователь: %+v", u)
+		t.Fatalf("wrong first user: %+v", u)
 	}
 	if err := s.Authorize(PermUsersManage); err != nil {
-		t.Fatalf("после настройки админ должен быть вошёл: %v", err)
+		t.Fatalf("the admin must be logged in after setup: %v", err)
 	}
 	if _, err := s.Setup("evil", goodPass); !errors.Is(err, ErrSetupDone) {
-		t.Fatalf("повторная настройка должна быть запрещена: %v", err)
+		t.Fatalf("repeated setup must be forbidden: %v", err)
 	}
 }
 
@@ -101,25 +101,25 @@ func TestSetupValidation(t *testing.T) {
 	}
 	for _, c := range cases {
 		if _, err := s.Setup(c.user, c.pass); err == nil {
-			t.Errorf("Setup(%q, %q) должен был вернуть ошибку", c.user, c.pass)
+			t.Errorf("Setup(%q, %q) should have returned an error", c.user, c.pass)
 		}
 	}
 	if !s.Status().NeedsSetup {
-		t.Error("неудачные попытки не должны создавать пользователей")
+		t.Error("failed attempts must not create users")
 	}
 }
 
 func TestLoginLogout(t *testing.T) {
 	s, _ := setupWithUser(t)
 	if _, err := s.Login("BOB", "bobs-own-pass"); err != nil { // логин регистронезависим
-		t.Fatalf("вход: %v", err)
+		t.Fatalf("login: %v", err)
 	}
 	if err := s.Authorize(PermRead); err != nil {
 		t.Errorf("read: %v", err)
 	}
 	s.Logout()
 	if err := s.Authorize(PermRead); !errors.Is(err, ErrNotAuthenticated) {
-		t.Errorf("после выхода доступ должен закрыться, получено %v", err)
+		t.Errorf("access must be closed after logout, got %v", err)
 	}
 }
 
@@ -128,7 +128,7 @@ func TestLoginErrorsDoNotRevealUser(t *testing.T) {
 	_, e1 := s.Login("bob", "wrong-password")
 	_, e2 := s.Login("nobody", "wrong-password")
 	if !errors.Is(e1, ErrInvalidCredentials) || !errors.Is(e2, ErrInvalidCredentials) {
-		t.Fatalf("ожидалась одна и та же ошибка: %v / %v", e1, e2)
+		t.Fatalf("expected the same error: %v / %v", e1, e2)
 	}
 }
 
@@ -139,19 +139,19 @@ func TestUserRoleEnforcement(t *testing.T) {
 	}
 	for _, p := range []Permission{PermRead, PermSecretsRead} {
 		if err := s.Authorize(p); err != nil {
-			t.Errorf("user должен иметь %q: %v", p, err)
+			t.Errorf("user must have %q: %v", p, err)
 		}
 	}
 	for _, p := range []Permission{PermWrite, PermExec, PermPortForward, PermClusterManage, PermUsersManage} {
 		if err := s.Authorize(p); !errors.Is(err, ErrForbidden) {
-			t.Errorf("user не должен иметь %q, получено %v", p, err)
+			t.Errorf("user must not have %q, got %v", p, err)
 		}
 	}
 	if _, err := s.ListUsers(); !errors.Is(err, ErrForbidden) {
-		t.Errorf("ListUsers для user: %v", err)
+		t.Errorf("ListUsers for user: %v", err)
 	}
 	if _, err := s.CreateUser("eve", goodPass, RoleAdmin); !errors.Is(err, ErrForbidden) {
-		t.Errorf("CreateUser для user: %v", err)
+		t.Errorf("CreateUser for user: %v", err)
 	}
 }
 
@@ -162,7 +162,7 @@ func TestAdminCanDoEverything(t *testing.T) {
 	}
 	for _, p := range allPermissions {
 		if err := s.Authorize(p); err != nil {
-			t.Errorf("admin должен иметь %q: %v", p, err)
+			t.Errorf("admin must have %q: %v", p, err)
 		}
 	}
 }
@@ -181,26 +181,26 @@ func TestNewUserMustChangePassword(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !u.MustChangePassword {
-		t.Fatal("новый пользователь обязан сменить временный пароль")
+		t.Fatal("a new user must change the temporary password")
 	}
 	if err := s.Authorize(PermRead); !errors.Is(err, ErrPasswordChangeRequired) {
-		t.Fatalf("до смены пароля доступ закрыт: %v", err)
+		t.Fatalf("access is denied before the password change: %v", err)
 	}
 	if err := s.ChangePassword("temp-pass-1", "temp-pass-1"); err == nil {
-		t.Fatal("новый пароль не должен совпадать со старым")
+		t.Fatal("the new password must not match the old one")
 	}
 	if err := s.ChangePassword("nope-nope-1", "fresh-pass-1"); !errors.Is(err, ErrWrongPassword) {
-		t.Fatalf("неверный текущий пароль: %v", err)
+		t.Fatalf("wrong current password: %v", err)
 	}
 	if err := s.ChangePassword("temp-pass-1", "fresh-pass-1"); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Authorize(PermRead); err != nil {
-		t.Fatalf("после смены пароля доступ открыт: %v", err)
+		t.Fatalf("access is open after the password change: %v", err)
 	}
 	s.Logout()
 	if _, err := s.Login("bob", "temp-pass-1"); !errors.Is(err, ErrInvalidCredentials) {
-		t.Fatal("старый пароль должен перестать работать")
+		t.Fatal("the old password must stop working")
 	}
 	if _, err := s.Login("bob", "fresh-pass-1"); err != nil {
 		t.Fatal(err)
@@ -214,21 +214,21 @@ func TestLockoutAfterRepeatedFailures(t *testing.T) {
 
 	for i := 0; i < freeAttempts; i++ {
 		if _, err := s.Login("bob", "wrong-password"); !errors.Is(err, ErrInvalidCredentials) {
-			t.Fatalf("попытка %d: %v", i, err)
+			t.Fatalf("attempt %d: %v", i, err)
 		}
 	}
 	_, err := s.Login("bob", "bobs-own-pass") // даже верный пароль во время блокировки
 	var locked *LockedError
 	if !errors.As(err, &locked) {
-		t.Fatalf("ожидалась блокировка, получено %v", err)
+		t.Fatalf("expected a lockout, got %v", err)
 	}
-	if !strings.Contains(locked.Error(), "повторите через") {
-		t.Errorf("текст ошибки: %q", locked.Error())
+	if !strings.Contains(locked.Error(), "try again in") {
+		t.Errorf("error text: %q", locked.Error())
 	}
 
 	clock = clock.Add(baseLockout + time.Second)
 	if _, err := s.Login("bob", "bobs-own-pass"); err != nil {
-		t.Fatalf("после окончания блокировки вход должен работать: %v", err)
+		t.Fatalf("login must work after the lockout ends: %v", err)
 	}
 	// успешный вход сбрасывает счётчик
 	s.Logout()
@@ -236,7 +236,7 @@ func TestLockoutAfterRepeatedFailures(t *testing.T) {
 		_, _ = s.Login("bob", "wrong-password")
 	}
 	if _, err := s.Login("bob", "bobs-own-pass"); err != nil {
-		t.Fatalf("счётчик должен был сброситься: %v", err)
+		t.Fatalf("the counter must have been reset: %v", err)
 	}
 }
 
@@ -254,13 +254,13 @@ func TestLastAdminProtection(t *testing.T) {
 		}
 	}
 	if _, err := s.UpdateRole(adminID, RoleUser); !errors.Is(err, ErrSelfAction) {
-		t.Errorf("смена собственной роли: %v", err)
+		t.Errorf("changing own role: %v", err)
 	}
 	if _, err := s.SetDisabled(adminID, true); !errors.Is(err, ErrSelfAction) {
-		t.Errorf("отключение самого себя: %v", err)
+		t.Errorf("disabling yourself: %v", err)
 	}
 	if err := s.DeleteUser(adminID); !errors.Is(err, ErrSelfAction) {
-		t.Errorf("удаление самого себя: %v", err)
+		t.Errorf("deleting yourself: %v", err)
 	}
 }
 
@@ -272,10 +272,10 @@ func TestPromoteThenDemoteAdmin(t *testing.T) {
 	}
 	// теперь админов двое: второго можно разжаловать, а последнего (после этого) — нет
 	if _, err := s.UpdateRole(bob.ID, RoleUser); err != nil {
-		t.Fatalf("разжалование при двух админах: %v", err)
+		t.Fatalf("demotion with two admins: %v", err)
 	}
 	if _, err := s.UpdateRole(bob.ID, Role("root")); !errors.Is(err, ErrUnknownRole) {
-		t.Errorf("неизвестная роль: %v", err)
+		t.Errorf("unknown role: %v", err)
 	}
 }
 
@@ -290,11 +290,11 @@ func TestAdminCannotChangeOwnRoleEvenWithOtherAdmin(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := s.UpdateRole(admin.ID, RoleUser); !errors.Is(err, ErrSelfAction) {
-		t.Errorf("самопонижение при двух админах: %v", err)
+		t.Errorf("self-demotion with two admins: %v", err)
 	}
 	// «смена» на ту же роль — не изменение, ошибки быть не должно
 	if _, err := s.UpdateRole(admin.ID, RoleAdmin); err != nil {
-		t.Errorf("та же роль: %v", err)
+		t.Errorf("same role: %v", err)
 	}
 }
 
@@ -305,19 +305,19 @@ func TestRoleChangeAppliesImmediately(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := s.Authorize(PermWrite); !errors.Is(err, ErrForbidden) {
-		t.Fatal("bob не должен иметь write")
+		t.Fatal("bob must not have write")
 	}
 	s.mu.Lock()
 	s.st.findByID(bob.ID).Role = RoleAdmin
 	s.mu.Unlock()
 	if err := s.Authorize(PermWrite); err != nil {
-		t.Errorf("новая роль должна применяться без повторного входа: %v", err)
+		t.Errorf("the new role must apply without logging in again: %v", err)
 	}
 	s.mu.Lock()
 	s.st.findByID(bob.ID).Disabled = true
 	s.mu.Unlock()
 	if err := s.Authorize(PermRead); !errors.Is(err, ErrNotAuthenticated) {
-		t.Errorf("отключённый пользователь теряет сессию: %v", err)
+		t.Errorf("a disabled user loses the session: %v", err)
 	}
 }
 
@@ -329,7 +329,7 @@ func TestDisabledUserCannotLogin(t *testing.T) {
 	}
 	s.Logout()
 	if _, err := s.Login("bob", "bobs-own-pass"); !errors.Is(err, ErrAccountDisabled) {
-		t.Fatalf("отключённый вход: %v", err)
+		t.Fatalf("disabled login: %v", err)
 	}
 	loginAdmin(t, s)
 	if _, err := s.SetDisabled(bob.ID, false); err != nil {
@@ -337,7 +337,7 @@ func TestDisabledUserCannotLogin(t *testing.T) {
 	}
 	s.Logout()
 	if _, err := s.Login("bob", "bobs-own-pass"); err != nil {
-		t.Fatalf("после включения вход возможен: %v", err)
+		t.Fatalf("login is possible after enabling: %v", err)
 	}
 }
 
@@ -349,18 +349,18 @@ func TestAdminResetPassword(t *testing.T) {
 	}
 	s.Logout()
 	if _, err := s.Login("bob", "bobs-own-pass"); !errors.Is(err, ErrInvalidCredentials) {
-		t.Fatal("старый пароль должен быть недействителен")
+		t.Fatal("the old password must be invalid")
 	}
 	u, err := s.Login("bob", "reset-pass-9")
 	if err != nil || !u.MustChangePassword {
-		t.Fatalf("после сброса нужна обязательная смена пароля: %v %+v", err, u)
+		t.Fatalf("a mandatory password change is required after reset: %v %+v", err, u)
 	}
 	loginAdmin(t, s)
 	users, _ := s.ListUsers()
 	for _, u := range users {
 		if u.Username == "admin" {
 			if _, err := s.ResetPassword(u.ID, "whatever-123"); !errors.Is(err, ErrSelfAction) {
-				t.Errorf("сброс собственного пароля: %v", err)
+				t.Errorf("resetting own password: %v", err)
 			}
 		}
 	}
@@ -373,11 +373,11 @@ func TestDeleteUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := s.DeleteUser(bob.ID); !errors.Is(err, ErrUserNotFound) {
-		t.Errorf("повторное удаление: %v", err)
+		t.Errorf("repeated delete: %v", err)
 	}
 	s.Logout()
 	if _, err := s.Login("bob", "bobs-own-pass"); !errors.Is(err, ErrInvalidCredentials) {
-		t.Errorf("удалённый пользователь не может войти: %v", err)
+		t.Errorf("a deleted user cannot log in: %v", err)
 	}
 }
 
@@ -385,10 +385,10 @@ func TestDuplicateUsernameIsCaseInsensitive(t *testing.T) {
 	s, _ := setupWithUser(t)
 	loginAdmin(t, s)
 	if _, err := s.CreateUser("BOB", goodPass, RoleUser); !errors.Is(err, ErrUserExists) {
-		t.Fatalf("дубликат логина: %v", err)
+		t.Fatalf("duplicate username: %v", err)
 	}
 	if _, err := s.CreateUser("eve", goodPass, Role("root")); !errors.Is(err, ErrUnknownRole) {
-		t.Fatalf("неизвестная роль: %v", err)
+		t.Fatalf("unknown role: %v", err)
 	}
 }
 
@@ -403,16 +403,16 @@ func TestPersistenceAndFileSafety(t *testing.T) {
 		t.Fatal(err)
 	}
 	if strings.Contains(string(raw), goodPass) {
-		t.Fatal("пароль не должен храниться в открытом виде")
+		t.Fatal("the password must not be stored in plain text")
 	}
 	if !strings.Contains(string(raw), hashScheme+"$") {
-		t.Fatal("в файле должен быть хеш пароля")
+		t.Fatal("the file must contain a password hash")
 	}
 	if fi, err := os.Stat(path); err == nil && os.PathSeparator == '/' && fi.Mode().Perm() != 0o600 {
-		t.Errorf("права файла %v, ожидалось 0600", fi.Mode().Perm())
+		t.Errorf("file permissions %v, expected 0600", fi.Mode().Perm())
 	}
 	if leftovers, _ := filepath.Glob(filepath.Join(dir, "*.tmp")); len(leftovers) != 0 {
-		t.Errorf("остались временные файлы: %v", leftovers)
+		t.Errorf("temporary files left behind: %v", leftovers)
 	}
 
 	// новый экземпляр видит того же пользователя, но сессия не сохраняется
@@ -422,7 +422,7 @@ func TestPersistenceAndFileSafety(t *testing.T) {
 	}
 	st := s2.Status()
 	if st.NeedsSetup || st.User != nil {
-		t.Fatalf("после перезапуска нужен вход: %+v", st)
+		t.Fatalf("login is required after restart: %+v", st)
 	}
 	if _, err := s2.Login("admin", goodPass); err != nil {
 		t.Fatal(err)
@@ -435,7 +435,7 @@ func TestCorruptFileDoesNotReopenSetup(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := NewService(dir); err == nil {
-		t.Fatal("повреждённый файл должен приводить к ошибке, а не к пустому списку пользователей")
+		t.Fatal("a corrupted file must cause an error, not an empty user list")
 	}
 }
 
@@ -446,7 +446,7 @@ func TestNewerFileVersionRejected(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := NewService(dir); err == nil {
-		t.Fatal("файл более новой версии должен отвергаться")
+		t.Fatal("a file from a newer version must be rejected")
 	}
 }
 
@@ -458,7 +458,7 @@ func TestUserInfoHasNoSecrets(t *testing.T) {
 	}
 	b, _ := json.Marshal(u)
 	if strings.Contains(strings.ToLower(string(b)), "hash") || strings.Contains(string(b), goodPass) {
-		t.Fatalf("UserInfo не должен содержать хеш или пароль: %s", b)
+		t.Fatalf("UserInfo must not contain a hash or password: %s", b)
 	}
 }
 
@@ -472,7 +472,7 @@ func TestLogoutHook(t *testing.T) {
 	s.Logout()
 	s.Logout() // повторный выход без сессии не вызывает обработчик
 	if calls != 1 {
-		t.Fatalf("обработчик вызван %d раз, ожидался 1", calls)
+		t.Fatalf("handler called %d times, expected 1", calls)
 	}
 }
 
@@ -483,17 +483,17 @@ func TestPasswordHashing(t *testing.T) {
 	}
 	h2, _ := hashPassword(goodPass)
 	if h == h2 {
-		t.Error("соль должна быть случайной")
+		t.Error("the salt must be random")
 	}
 	if ok, _ := verifyPassword(goodPass, h); !ok {
-		t.Error("верный пароль не прошёл проверку")
+		t.Error("the correct password failed verification")
 	}
 	if ok, _ := verifyPassword(goodPass+"x", h); ok {
-		t.Error("неверный пароль прошёл проверку")
+		t.Error("a wrong password passed verification")
 	}
 	for _, bad := range []string{"", "x", "a$b$c$d", "pbkdf2-sha256$0$AA$AA", "pbkdf2-sha256$99999999999$AA$AA", "pbkdf2-sha256$1000$!!$!!"} {
 		if ok, _ := verifyPassword(goodPass, bad); ok {
-			t.Errorf("мусорный хеш %q принят", bad)
+			t.Errorf("garbage hash %q was accepted", bad)
 		}
 	}
 }
@@ -505,10 +505,10 @@ func TestRehashOnOutdatedParameters(t *testing.T) {
 	pbkdf2Iterations = old
 	ok, rehash := verifyPassword(goodPass, h)
 	if !ok || !rehash {
-		t.Fatalf("ok=%v rehash=%v: устаревший хеш должен подлежать пересчёту", ok, rehash)
+		t.Fatalf("ok=%v rehash=%v: an outdated hash must be rehashed", ok, rehash)
 	}
 	if _, rehash := verifyPassword(goodPass, mustHash(t, goodPass)); rehash {
-		t.Error("свежий хеш не должен пересчитываться")
+		t.Error("a fresh hash must not be rehashed")
 	}
 }
 

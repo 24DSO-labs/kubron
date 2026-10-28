@@ -21,7 +21,8 @@ export type PanelItem<T, D> = Item<T> & Partial<Item<D>>
 
 /** Колонка списка */
 export interface ColumnDef<T = any> {
-  key: string // dotted-path: 'metadata.name'
+  key: string // dotted-path: 'metadata.name'; он же стабильный идентификатор колонки (настройки, сортировка)
+  /** Ключ i18n (defs.*); рисуется через tl(), готовый текст (CRD) проходит как есть. Не идентификатор: для этого есть key */
   label: string
   className?: string
   component?: Component // кастомная ячейка (props: item, col)
@@ -52,10 +53,12 @@ export type NavGroupId = 'workloads' | 'config' | 'network' | 'storage' | 'helm'
 export interface ResourceNav {
   /** Без group пункт стоит на верхнем уровне */
   group?: NavGroupId
+  /** Ключ i18n (nav.* / defs.*); рисуется через tl() */
   label: string
 }
 
 export interface MenuItemDef {
+  /** Уже готовый текст (ResourceList переводит через tl()) */
   label: string
   action: string
   danger?: boolean
@@ -88,6 +91,7 @@ export interface ActionContext {
 }
 
 export interface PropertyDef<T = any> {
+  /** Ключ i18n (defs.*); рисуется через tl(), готовый текст (CRD) проходит как есть */
   label: string
   /** Значение многострочное (переводы строк \n сохраняются): например, Addresses узла */
   multiline?: boolean
@@ -106,6 +110,7 @@ export interface PropertyDef<T = any> {
 
 export interface ActionDef<T = any> {
   id: string // 'logs' | 'shell' | 'scale' ...
+  /** Ключ i18n (defs.menu.*); рисуется через tl() */
   label: string
   /** URL svg-иконки для кнопки в шапке панели; без иконки рисуется текст */
   icon?: string
@@ -129,6 +134,7 @@ export interface ActionDef<T = any> {
 
 export interface TabDef {
   id: string
+  /** Ключ i18n (defs.tabs.*); рисуется через tl() */
   label: string
   /** Получает prop `resource`; событие `open` ({ id, ns, name, item? }) открывает другой ресурс */
   component: Component
@@ -146,7 +152,7 @@ export interface ResourceDefinition<T = any, D = {}> {
   kind: string
   /** id во view / в Sidebar: 'roles' */
   view: string
-  /** Заголовок списка */
+  /** Заголовок списка: ключ i18n (defs.*) или готовый текст (CRD); рисуется через tl(). Не идентификатор: для настроек есть view */
   title: string
   icon?: string
   namespaced: boolean

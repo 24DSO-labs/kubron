@@ -3,7 +3,7 @@
 <template>
   <div v-if="rows.length" class="rd-table-wrap">
     <table class="rd-table">
-      <thead><tr><th>Kind</th><th>Name</th><th>Namespace</th></tr></thead>
+      <thead><tr><th>{{ $t('defs.columns.kind') }}</th><th>{{ $t('common.name') }}</th><th>{{ $t('common.namespace') }}</th></tr></thead>
       <tbody>
         <tr
           v-for="r in rows"
@@ -18,7 +18,7 @@
       </tbody>
     </table>
   </div>
-  <div v-else class="rd-empty">No resources in the release manifest</div>
+  <div v-else class="rd-empty">{{ $t('helm.resources.empty') }}</div>
 </template>
 
 <script lang="ts" setup>

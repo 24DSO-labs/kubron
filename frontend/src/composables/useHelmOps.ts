@@ -1,9 +1,17 @@
 // Copyright 2026 The Kubron Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import { ref } from 'vue'
+import { ref, getCurrentInstance } from 'vue'
 import { onEvent } from '../platform/events'
 import { callApp } from '../resources/wails'
+
+function t(key: string, params?: Record<string, unknown>): string {
+  const instance = getCurrentInstance()
+  if (instance?.appContext?.config?.globalProperties?.$t) {
+    return (instance.appContext.config.globalProperties.$t as any)(key, params)
+  }
+  return key
+}
 
 /** Событие бэкенда с прогрессом Helm-операции (internal/k8s/helm_progress.go) */
 const HELM_PROGRESS = 'helm:progress'
@@ -32,10 +40,10 @@ export interface HelmOp {
 export const helmJournalTick = ref(0)
 
 export const HELM_OP_LABEL: Record<string, string> = {
-  install: 'Установка',
-  upgrade: 'Обновление values',
-  rollback: 'Откат',
-  uninstall: 'Удаление',
+  install: t('helm.ops_panel.install'),
+  upgrade: t('helm.ops_panel.upgrade'),
+  rollback: t('helm.ops_panel.rollback'),
+  uninstall: t('helm.ops_panel.uninstall'),
 }
 
 /** Активные и недавно завершённые операции (завершённые без ошибки скрываются сами) */
@@ -123,7 +131,7 @@ export async function runHelmOp<T>(meta: RunMeta, fn: (opId: string) => Promise<
   startHelmOps()
   const opId = newOpId()
   helmOps.value.push({
-    opId, op: meta.op, namespace: meta.namespace, release: meta.release, phase: 'Запуск…', lines: [],
+    opId, op: meta.op, namespace: meta.namespace, release: meta.release, phase: t('helm.ops_panel.starting'), lines: [],
     startedAt: Date.now(), elapsedMs: 0, cancelable: !!meta.cancelable, done: false, error: '',
   })
   onStart?.(opId)

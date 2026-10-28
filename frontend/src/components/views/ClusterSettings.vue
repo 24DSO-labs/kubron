@@ -2,7 +2,28 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="settings-page">
-    <h1 class="settings-title">Настройки кластера</h1>
+    <h1 class="settings-title">{{ $t('settings.title') }}</h1>
+
+    <!-- Language -->
+    <div class="settings-card">
+      <div class="settings-card-header">
+        <div class="settings-card-header-row">
+          <div class="settings-card-header-left">
+            <div class="settings-card-icon-wrap blue">
+              <svg class="settings-card-icon blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+              </svg>
+            </div>
+            <div>
+              <h2 class="settings-card-heading">{{ $t('settings.language.title') }}</h2>
+              <p class="settings-card-description">{{ $t('settings.language.description') }}</p>
+            </div>
+          </div>
+          <LanguageSwitcher />
+        </div>
+      </div>
+    </div>
 
     <!-- App Settings -->
     <div class="settings-card">
@@ -16,8 +37,8 @@
               </svg>
             </div>
             <div>
-              <h2 class="settings-card-heading">Авто-обновление</h2>
-              <p class="settings-card-description">Периодическое обновление списков ресурсов</p>
+              <h2 class="settings-card-heading">{{ $t('settings.refresh.title') }}</h2>
+              <p class="settings-card-description">{{ $t('settings.refresh.description') }}</p>
             </div>
           </div>
         </div>
@@ -27,7 +48,7 @@
         <div class="settings-setting-row">
           <div class="settings-setting-field">
             <label class="settings-label">
-              Интервал обновления
+              {{ $t('settings.refresh.interval') }}
             </label>
             <div class="settings-setting-row-input">
               <input
@@ -38,10 +59,10 @@
                 class="settings-input"
                 placeholder="10"
               />
-              <span class="settings-input-placeholder">секунд</span>
+              <span class="settings-input-placeholder">{{ $t('settings.refresh.seconds') }}</span>
             </div>
             <p class="settings-hint">
-              0 — авто-обновление отключено. Списки обновляются только вручную.
+              {{ $t('settings.refresh.hint') }}
             </p>
           </div>
           <button
@@ -49,7 +70,7 @@
             :disabled="!settingsLoaded"
             class="settings-save-btn"
           >
-            Сохранить
+            {{ $t('common.save') }}
           </button>
         </div>
       </div>
@@ -68,7 +89,7 @@
               </svg>
             </div>
             <div>
-              <h2 class="settings-card-heading">Стек метрик</h2>
+              <h2 class="settings-card-heading">{{ $t('settings.metrics.title') }}</h2>
               <p class="settings-card-description">Prometheus + Node Exporter + Kube State Metrics</p>
             </div>
           </div>
@@ -79,14 +100,13 @@
       <div class="settings-card-body">
         <!-- NOT INSTALLED -->
         <div v-if="currentState === 'not_installed'">
-          <p class="settings-not-installed-text">
-            Установите стек метрик Kubron для включения мониторинга кластера с графиками CPU, памяти и сети. Создаёт пространство имён
-            <code class="settings-code-inline">kubron-metrics</code>.
-          </p>
+          <i18n-t keypath="settings.metrics.installHint" tag="p" class="settings-not-installed-text">
+            <template #namespace><code class="settings-code-inline">kubron-metrics</code></template>
+          </i18n-t>
 
           <div class="settings-components-list">
             <h4 class="settings-components-title">
-              Компоненты
+              {{ $t('settings.metrics.components') }}
             </h4>
             <div class="settings-components-list-inner">
               <div v-for="c in componentsList" :key="c.name"
@@ -106,9 +126,9 @@
               <path class="opacity-75" fill="currentColor"
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
             </svg>
-            {{ loading ? 'Установка...' : 'Установить стек метрик' }}
+            {{ loading ? $t('settings.metrics.installing') : $t('settings.metrics.install') }}
           </button>
-          <p v-else class="settings-not-installed-text">Установка стека метрик доступна администратору.</p>
+          <p v-else class="settings-not-installed-text">{{ $t('settings.metrics.adminOnly') }}</p>
         </div>
 
         <!-- INSTALLING -->
@@ -116,7 +136,7 @@
           <div class="settings-installing-status">
             <div class="settings-installing-spinner"></div>
             <p class="settings-installing-text">
-              Установка стека метрик... Это может занять несколько минут.
+              {{ $t('settings.metrics.installingStatus') }}
             </p>
           </div>
         </div>
@@ -124,14 +144,14 @@
         <!-- INSTALLED -->
         <div v-else-if="currentState === 'installed'">
           <p class="settings-installed-status-text">
-            Стек метрик работает. Данные мониторинга собираются.
+            {{ $t('settings.metrics.running') }}
           </p>
 
           <!-- Running components -->
           <div v-if="status?.components"
             class="settings-installed-components">
             <h4 class="settings-installed-components-title">
-              Работающие компоненты
+              {{ $t('settings.metrics.runningComponents') }}
             </h4>
             <div class="settings-installed-components-inner">
               <div v-for="(comp, name) in status.components" :key="name"
@@ -143,7 +163,7 @@
                   <span class="text-gray-300">{{ fmtName(name as string) }}</span>
                 </div>
                 <span class="text-gray-500 text-xs">
-                  {{ comp.availableReplicas }}/{{ comp.replicas }} готово
+                  {{ $t('settings.metrics.ready', { available: comp.availableReplicas, total: comp.replicas }) }}
                 </span>
               </div>
             </div>
@@ -153,26 +173,26 @@
           <div v-if="canModify" class="settings-uninstall-section">
             <div class="settings-uninstall-row">
               <div>
-                <p class="text-sm text-gray-300">Удалить стек метрик</p>
+                <p class="text-sm text-gray-300">{{ $t('settings.metrics.uninstall') }}</p>
                 <p class="text-xs text-gray-500 mt-0.5">
-                  Удаляет пространство имён kubron-metrics и все данные
+                  {{ $t('settings.metrics.uninstallHint') }}
                 </p>
               </div>
               <div v-if="!showConfirm">
                 <button @click="showConfirm = true"
                   class="settings-delete-btn">
-                  Удалить
+                  {{ $t('common.delete') }}
                 </button>
               </div>
               <div v-else class="settings-confirm-bar">
-                <span class="settings-confirm-text">Вы уверены?</span>
+                <span class="settings-confirm-text">{{ $t('settings.metrics.confirm') }}</span>
                 <button @click="showConfirm = false"
                   class="settings-cancel-btn">
-                  Отмена
+                  {{ $t('common.cancel') }}
                 </button>
                 <button @click="handleUninstall" :disabled="loading"
                   class="settings-confirm-btn">
-                  Подтвердить удаление
+                  {{ $t('settings.metrics.confirmUninstall') }}
                 </button>
               </div>
             </div>
@@ -191,7 +211,7 @@
                      0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
               </svg>
               <div>
-                <p class="text-sm text-yellow-300 font-medium">Стек метрик неработоспособен</p>
+                <p class="text-sm text-yellow-300 font-medium">{{ $t('settings.metrics.degraded') }}</p>
                 <p class="text-xs text-yellow-400/70 mt-1">{{ status?.message }}</p>
               </div>
             </div>
@@ -207,7 +227,7 @@
                   <span class="text-gray-300">{{ fmtName(name as string) }}</span>
                 </div>
                 <span :class="['text-xs', comp.ready ? 'text-gray-500' : 'text-red-400']">
-                  {{ comp.availableReplicas }}/{{ comp.replicas }} готово
+                  {{ $t('settings.metrics.ready', { available: comp.availableReplicas, total: comp.replicas }) }}
                 </span>
               </div>
             </div>
@@ -216,27 +236,27 @@
           <div class="flex items-center gap-2">
             <button @click="fetchStatus"
               class="settings-refresh-btn">
-              Обновить
+              {{ $t('common.refresh') }}
             </button>
             <button v-if="canModify" @click="handleReinstall" :disabled="loading"
               class="settings-reinstall-btn">
-              Переустановить
+              {{ $t('settings.metrics.reinstall') }}
             </button>
             <button v-if="canModify" @click="showConfirm = true"
               class="settings-delete-btn">
-              Удалить
+              {{ $t('common.delete') }}
             </button>
           </div>
 
           <div v-if="showConfirm" class="settings-confirm-bar">
-            <span class="settings-confirm-text">Вы уверены?</span>
+            <span class="settings-confirm-text">{{ $t('settings.metrics.confirm') }}</span>
             <button @click="showConfirm = false"
               class="settings-cancel-btn">
-              Отмена
+              {{ $t('common.cancel') }}
             </button>
             <button @click="handleUninstall" :disabled="loading"
               class="settings-confirm-btn">
-              Подтвердить
+              {{ $t('common.confirm') }}
             </button>
           </div>
         </div>
@@ -252,6 +272,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+import LanguageSwitcher from '../LanguageSwitcher.vue'
 import MetricsStatusBadge from '../metrics/MetricsStatusBadge.vue'
 import { useMetricsStatus } from '../../composables/useMetrics'
 import { useAppSettings } from '../../composables/useAppSettings'
@@ -261,6 +283,8 @@ import { Perm } from '../../types/auth'
 const props = defineProps<{
   clusterName: string
 }>()
+
+const { t } = useI18n()
 
 // Установка и удаление стека метрик изменяют кластер
 const canModify = computed(() => can(Perm.Write))
@@ -285,11 +309,11 @@ const currentState = computed(() => {
   return status.value.status
 })
 
-const componentsList = [
-  { name: 'Prometheus', desc: 'сбор и хранение метрик', dotColor: 'bg-orange-400' },
-  { name: 'Node Exporter', desc: 'метрики оборудования и ОС', dotColor: 'bg-green-400' },
-  { name: 'Kube State Metrics', desc: 'метрики объектов Kubernetes', dotColor: 'bg-blue-400' },
-]
+const componentsList = computed(() => [
+  { name: 'Prometheus', desc: t('settings.metrics.componentPrometheus'), dotColor: 'bg-orange-400' },
+  { name: 'Node Exporter', desc: t('settings.metrics.componentNodeExporter'), dotColor: 'bg-green-400' },
+  { name: 'Kube State Metrics', desc: t('settings.metrics.componentKubeState'), dotColor: 'bg-blue-400' },
+])
 
 function fmtName(raw: string): string {
   return raw

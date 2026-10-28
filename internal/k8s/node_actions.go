@@ -51,7 +51,7 @@ func (m *Manager) CordonNode(name string, cordon bool) error {
 func setUnschedulable(ctx context.Context, conn *ClusterConnection, name string, v bool) error {
 	patch := fmt.Sprintf(`{"spec":{"unschedulable":%t}}`, v)
 	if _, err := conn.Client.CoreV1().Nodes().Patch(ctx, name, types.MergePatchType, []byte(patch), metav1.PatchOptions{}); err != nil {
-		return fmt.Errorf("не удалось изменить узел %s: %w", name, err)
+		return fmt.Errorf("failed to update node %s: %w", name, err)
 	}
 	return nil
 }
@@ -77,7 +77,7 @@ func (m *Manager) DrainNode(name string) error {
 		FieldSelector: "spec.nodeName=" + name,
 	})
 	if err != nil {
-		return fmt.Errorf("не удалось получить поды узла %s: %w", name, err)
+		return fmt.Errorf("failed to get pods of node %s: %w", name, err)
 	}
 
 	var evict []corev1.Pod
@@ -95,7 +95,7 @@ func (m *Manager) DrainNode(name string) error {
 	}
 	if len(orphans) > 0 {
 		sort.Strings(orphans)
-		return fmt.Errorf("узел %s закрыт для планирования, но не очищен: поды без контроллера не пересоздадутся (%s)",
+		return fmt.Errorf("node %s is cordoned but not drained: pods without a controller will not be recreated (%s)",
 			name, summarize(orphans))
 	}
 
@@ -119,7 +119,7 @@ func (m *Manager) DrainNode(name string) error {
 
 	if len(failed) > 0 {
 		sort.Strings(failed)
-		return fmt.Errorf("не удалось эвакуировать %d из %d подов: %s", len(failed), len(evict), summarize(failed))
+		return fmt.Errorf("failed to evict %d of %d pods: %s", len(failed), len(evict), summarize(failed))
 	}
 	return nil
 }
@@ -138,7 +138,7 @@ func evictAndWait(ctx context.Context, conn *ClusterConnection, pod *corev1.Pod)
 		}
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("эвакуацию блокирует PodDisruptionBudget")
+			return fmt.Errorf("eviction is blocked by a PodDisruptionBudget")
 		case <-time.After(5 * time.Second):
 		}
 	}
@@ -152,7 +152,7 @@ func evictAndWait(ctx context.Context, conn *ClusterConnection, pod *corev1.Pod)
 		}
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("под не завершился за отведённое время")
+			return fmt.Errorf("pod did not terminate within the allotted time")
 		case <-time.After(time.Second):
 		}
 	}
@@ -178,7 +178,7 @@ func summarize(items []string) string {
 	if len(items) <= max {
 		return strings.Join(items, "; ")
 	}
-	return fmt.Sprintf("%s; и ещё %d", strings.Join(items[:max], "; "), len(items)-max)
+	return fmt.Sprintf("%s; and %d more", strings.Join(items[:max], "; "), len(items)-max)
 }
 
 // ─── Shell на узле ─────────────────────────────────────────
@@ -202,7 +202,7 @@ func (m *Manager) StartNodeShell(node string) (*NodeShellSession, error) {
 	defer cancel()
 
 	if _, err := conn.Client.CoreV1().Nodes().Get(ctx, node, metav1.GetOptions{}); err != nil {
-		return nil, fmt.Errorf("узел %s: %w", node, err)
+		return nil, fmt.Errorf("node %s: %w", node, err)
 	}
 
 	pod := &corev1.Pod{
@@ -242,7 +242,7 @@ func (m *Manager) StartNodeShell(node string) (*NodeShellSession, error) {
 
 	created, err := conn.Client.CoreV1().Pods(nodeShellNamespace).Create(ctx, pod, metav1.CreateOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("не удалось создать под для shell на узле %s: %w", node, err)
+		return nil, fmt.Errorf("failed to create shell pod on node %s: %w", node, err)
 	}
 	fail := func(err error) (*NodeShellSession, error) {
 		deleteNodeShellPod(conn, nodeShellNamespace, created.Name)
@@ -256,20 +256,20 @@ func (m *Manager) StartNodeShell(node string) (*NodeShellSession, error) {
 			case corev1.PodRunning:
 				return &NodeShellSession{Namespace: nodeShellNamespace, Pod: created.Name, Container: "shell"}, nil
 			case corev1.PodFailed, corev1.PodSucceeded:
-				return fail(fmt.Errorf("под для shell завершился до запуска"))
+				return fail(fmt.Errorf("shell pod terminated before starting"))
 			}
 			for _, cs := range p.Status.ContainerStatuses {
 				if w := cs.State.Waiting; w != nil {
 					switch w.Reason {
 					case "ErrImagePull", "ImagePullBackOff", "InvalidImageName", "CreateContainerConfigError":
-						return fail(fmt.Errorf("под для shell не запустился (%s): %s", w.Reason, w.Message))
+						return fail(fmt.Errorf("shell pod failed to start (%s): %s", w.Reason, w.Message))
 					}
 				}
 			}
 		}
 		select {
 		case <-ctx.Done():
-			return fail(fmt.Errorf("таймаут запуска shell на узле %s (%s)", node, nodeShellStartTimeout))
+			return fail(fmt.Errorf("timed out starting shell on node %s (%s)", node, nodeShellStartTimeout))
 		case <-time.After(500 * time.Millisecond):
 		}
 	}

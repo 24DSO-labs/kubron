@@ -102,16 +102,16 @@ func (m *Manager) GetMetricsStatus() (*MetricsStackStatus, error) {
 
 	if time.Since(ns.CreationTimestamp.Time) < metricsInstallGrace {
 		status.Status = "installing"
-		status.Message = "Компоненты запускаются"
+		status.Message = "Components are starting"
 		return status, nil
 	}
 
 	status.Status = "degraded"
 	switch {
 	case len(missing) > 0:
-		status.Message = "Не найдены компоненты: " + strings.Join(missing, ", ")
+		status.Message = "Components not found: " + strings.Join(missing, ", ")
 	default:
-		status.Message = "Не готовы компоненты: " + strings.Join(notReady, ", ")
+		status.Message = "Components not ready: " + strings.Join(notReady, ", ")
 	}
 	return status, nil
 }

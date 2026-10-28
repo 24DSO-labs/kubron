@@ -40,15 +40,15 @@ export interface RoleInfo {
   permissions: string[]
 }
 
-/** Подписи прав для интерфейса управления пользователями */
+/** Подписи прав для интерфейса управления пользователями: ключи auth.perm.*, текст рисует tl() */
 export const PERMISSION_LABELS: Record<string, string> = {
-  [Perm.Read]: 'Просмотр ресурсов, логов, метрик, YAML',
-  [Perm.SecretsRead]: 'Просмотр значений секретов',
-  [Perm.Operate]: 'Операции с нагрузками: масштабирование, перезапуск, откат',
-  [Perm.Write]: 'Удаление ресурсов и правка YAML',
-  [Perm.Exec]: 'Терминал в подах',
-  [Perm.PortForward]: 'Проброс портов',
-  [Perm.ClusterManage]: 'Управление кластерами',
-  [Perm.UsersManage]: 'Управление пользователями',
-  [Perm.AuditRead]: 'Просмотр журнала аудита',
+  [Perm.Read]: 'auth.perm.read',
+  [Perm.SecretsRead]: 'auth.perm.secretsRead',
+  [Perm.Operate]: 'auth.perm.operate',
+  [Perm.Write]: 'auth.perm.write',
+  [Perm.Exec]: 'auth.perm.exec',
+  [Perm.PortForward]: 'auth.perm.portforward',
+  [Perm.ClusterManage]: 'auth.perm.clustersManage',
+  [Perm.UsersManage]: 'auth.perm.usersManage',
+  [Perm.AuditRead]: 'auth.perm.auditRead',
 }

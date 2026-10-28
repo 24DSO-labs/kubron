@@ -124,14 +124,14 @@ func (m *Manager) ScaleReplicaSet(namespace, name string, replicas int32) error 
 
 	scale, err := conn.Client.AppsV1().ReplicaSets(namespace).GetScale(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("не удалось получить scale: %w", err)
+		return fmt.Errorf("failed to get scale: %w", err)
 	}
 
 	scale.Spec.Replicas = replicas
 
 	_, err = conn.Client.AppsV1().ReplicaSets(namespace).UpdateScale(ctx, name, scale, metav1.UpdateOptions{})
 	if err != nil {
-		return fmt.Errorf("не удалось масштабировать: %w", err)
+		return fmt.Errorf("failed to scale: %w", err)
 	}
 
 	return nil

@@ -34,13 +34,13 @@ func TestDeleteClusterRemovesArgoToken(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := loadArgoToken("c1"); !errors.Is(err, ErrArgoTokenNotSet) {
-		t.Errorf("токен удалённого кластера остался: %v", err)
+		t.Errorf("token of the deleted cluster is still there: %v", err)
 	}
 	if got, err := loadArgoToken("c2"); err != nil || got != "other.tok" {
-		t.Errorf("токен другого кластера пострадал: %q %v", got, err)
+		t.Errorf("token of another cluster was affected: %q %v", got, err)
 	}
 	// Повторное удаление (токена и файлов уже нет) — не ошибка.
 	if err := DeleteCluster("c1"); err != nil {
-		t.Errorf("повторное удаление: %v", err)
+		t.Errorf("repeated delete: %v", err)
 	}
 }

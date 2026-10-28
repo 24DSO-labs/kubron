@@ -2,9 +2,9 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="rd-row" :class="{ 'rd-click': lines.length }" @click="toggle">
-    <span class="rd-label">{{ title }}<span v-if="lines.length" class="rd-arrow" :class="{ open }">›</span></span>
+    <span class="rd-label">{{ tl(title) }}<span v-if="lines.length" class="rd-arrow" :class="{ open }">›</span></span>
     <span v-if="!lines.length" class="rd-muted">—</span>
-    <span v-else-if="!open" class="rd-muted">{{ groups }} {{ groups === 1 ? 'Rule' : 'Rules' }}</span>
+    <span v-else-if="!open" class="rd-muted">{{ $t('sections.codeBlock.rules', groups) }}</span>
   </div>
 
   <div v-if="open && lines.length" class="rd-code">
@@ -43,6 +43,7 @@ export default { inheritAttrs: false }
 <script lang="ts" setup>
 /** Блок кода (YAML-подобный) со сворачиванием: используется для Affinity */
 import { ref, computed } from 'vue'
+import { tl } from '../../../i18n'
 
 const props = defineProps<{ title: string; lines: string[] }>()
 

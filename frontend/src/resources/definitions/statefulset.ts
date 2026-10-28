@@ -14,6 +14,7 @@ import TolerationsSection from '../../components/resource/sections/TolerationsSe
 import NodeAffinitySection from '../../components/resource/sections/NodeAffinitySection.vue'
 import PodAntiAffinitySection from '../../components/resource/sections/PodAntiAffinitySection.vue'
 import PodsTab from '../../components/resource/sections/PodsTab.vue'
+import { t } from '../../i18n'
 
 function stsStatus(s: any): string {
   const desired = s.replicas ?? 0
@@ -38,7 +39,7 @@ export const statefulSet = defineResource<k8s.StatefulSetInfo>({
     { ...flatNsCol, link: (s: any) => s.namespace ? { id: 'namespace', ns: '', name: s.namespace } : null },
     {
       key: 'pods',
-      label: 'Pods',
+      label: 'defs.columns.pods',
       formatter: s => `${s.readyReplicas ?? 0}/${s.replicas ?? 0}`,
       colorFn: s => stsStatus(s) === 'Scaled to 0' ? '#888' : (s.readyReplicas === s.replicas ? '#4ade80' : '#facc15'),
     },
@@ -47,36 +48,36 @@ export const statefulSet = defineResource<k8s.StatefulSetInfo>({
 
   headSections: [workloadMetrics.statefulset],
   properties: [
-    { label: 'Selector', value: s => s.selector },
-    { label: 'Node Selector', value: s => s.nodeSelector },
-    { label: 'Status', value: stsStatus, badge: s => badgeClass(stsStatus(s)) },
+    { label: 'defs.columns.selector', value: s => s.selector },
+    { label: 'defs.columns.nodeSelector', value: s => s.nodeSelector },
+    { label: 'common.status', value: stsStatus, badge: s => badgeClass(stsStatus(s)) },
     controlledByProp,
     managedByProp,
   ],
   sections: [ImagesSection, TolerationsSection, NodeAffinitySection, PodAntiAffinitySection],
   tabs: [
-    { id: 'pods', label: 'Pods', component: PodsTab },
+    { id: 'pods', label: 'defs.tabs.pods', component: PodsTab },
   ],
 
   actions: [
-    { id: 'scale', permission: Perm.Operate, label: 'Scale', icon: 'scale', run: (d, ctx) => ctx.requestScale(d, 'StatefulSet') },
+    { id: 'scale', permission: Perm.Operate, label: 'defs.menu.scale', icon: 'scale', run: (d, ctx) => ctx.requestScale(d, 'StatefulSet') },
     {
       id: 'restart',
       permission: Perm.Operate,
-      label: 'Restart',
+      label: 'defs.menu.restart',
       icon: 'restart',
       run: async (s, ctx) => {
-        if (!(await ctx.confirm(`Restart statefulset ${s.name}?`))) return
+        if (!(await ctx.confirm(t('defs.statefulSet.restartConfirm', { name: s.name })))) return
         return ctx.perform(
           () => callApp('RestartStatefulSet', s.namespace, s.name),
-          `StatefulSet ${s.name}: restart initiated`,
+          t('defs.statefulSet.restarted', { name: s.name }),
         )
       },
     },
     {
       id: 'logs',
       permission: Perm.Read,
-      label: 'View logs',
+      label: 'defs.menu.viewLogs',
       icon: 'logs',
       run: (s, ctx) => ctx.openResourceLogs('statefulset', s.namespace, s.name),
     },

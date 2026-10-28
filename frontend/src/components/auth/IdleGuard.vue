@@ -3,14 +3,13 @@
 <template>
   <div v-if="warning" class="idle-overlay" role="alertdialog" aria-modal="true" aria-labelledby="idle-title">
     <div class="idle-dialog">
-      <h3 id="idle-title">Сеанс скоро завершится</h3>
-      <p>
-        Вы давно ничего не делали. Через <strong>{{ remaining }}</strong> с вы будете выведены из системы:
-        запущенные терминалы и проброс портов будут закрыты.
-      </p>
+      <h3 id="idle-title">{{ $t('auth.idle.title') }}</h3>
+      <i18n-t keypath="auth.idle.body" tag="p">
+        <template #seconds><strong>{{ remaining }}</strong></template>
+      </i18n-t>
       <div class="idle-actions">
-        <button class="auth-link" type="button" @click="auth.logout()">Выйти сейчас</button>
-        <button ref="continueBtn" class="auth-submit" type="button" @click="keepAlive">Продолжить работу</button>
+        <button class="auth-link" type="button" @click="auth.logout()">{{ $t('auth.idle.logoutNow') }}</button>
+        <button ref="continueBtn" class="auth-submit" type="button" @click="keepAlive">{{ $t('auth.idle.keepWorking') }}</button>
       </div>
     </div>
   </div>
@@ -19,7 +18,8 @@
 <script lang="ts" setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { callApp, NOT_AUTHENTICATED } from '../../resources/wails'
-import { errorText, useAuth } from '../../composables/useAuth'
+import { errorText } from '../../composables/errorText'
+import { useAuth } from '../../composables/useAuth'
 
 /**
  * Автовыход по бездействию.

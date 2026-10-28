@@ -67,12 +67,12 @@ func TestBuildApplicationsGroupsByInstanceAndName(t *testing.T) {
 
 	apps := buildApplications(deps, nil, nil, svcs, ings, nil)
 	if len(apps) != 2 {
-		t.Fatalf("ожидалось 2 приложения, получено %d: %+v", len(apps), apps)
+		t.Fatalf("expected 2 applications, got %d: %+v", len(apps), apps)
 	}
 
 	main, hook := apps[0], apps[1]
 	if main.Name != "external-secrets" || main.Version != "v0.10.7" || main.ManagedBy != "Helm" || main.Status != "Running" {
-		t.Errorf("основное приложение: %+v", main)
+		t.Errorf("main application: %+v", main)
 	}
 	if hook.Name != "external-secrets-webhook" || hook.Status != "Progressing" {
 		t.Errorf("webhook: %+v", hook)
@@ -84,7 +84,7 @@ func TestBuildApplicationsGroupsByInstanceAndName(t *testing.T) {
 		t.Errorf("exposed urls: %v", hook.ExposedURLs)
 	}
 	if len(main.InternalURLs) != 0 || len(main.ExposedURLs) != 0 {
-		t.Errorf("у основного приложения нет сервисов: %+v", main)
+		t.Errorf("main application has no services: %+v", main)
 	}
 	if want := map[string]string{labelAppInstance: "external-secrets", labelAppName: "external-secrets"}; !reflect.DeepEqual(main.Selector, want) {
 		t.Errorf("selector: %v", main.Selector)

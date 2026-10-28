@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /** Чистые функции Argo CD: подписи, приоритет «проблемности» и сводка для дашборда (без Vue и Wails) */
+import { t } from '../i18n'
 import type { ArgoApplicationInfo } from '../types/argocd'
 
 /** repoURL без схемы и .git: https://github.com/acme/app.git -> github.com/acme/app */
@@ -12,7 +13,7 @@ export function shortRepo(url?: string): string {
 
 /** Путь в репозитории или имя Helm-чарта */
 export function argoPathOrChart(a: Pick<ArgoApplicationInfo, 'path' | 'chart'>): string {
-  return a.chart ? `${a.chart} (chart)` : a.path || ''
+  return a.chart ? t('argo.chartLabel', { chart: a.chart }) : a.path || ''
 }
 
 export function shortRevision(rev?: string): string {
@@ -29,7 +30,7 @@ export function argoDestination(a: Pick<ArgoApplicationInfo, 'destName' | 'destS
 
 /** Метка кластера назначения (без namespace), для группировки на дашборде */
 export function argoCluster(a: Pick<ArgoApplicationInfo, 'destName' | 'destServer'>): string {
-  return a.destName || (a.destServer === 'https://kubernetes.default.svc' ? 'in-cluster' : a.destServer) || 'unknown'
+  return a.destName || (a.destServer === 'https://kubernetes.default.svc' ? 'in-cluster' : a.destServer) || t('argo.unknownCluster')
 }
 
 /** 0 — всё хорошо; чем больше, тем приоритетнее показать приложение (Degraded/Missing выше OutOfSync) */

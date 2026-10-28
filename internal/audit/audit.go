@@ -137,7 +137,7 @@ func parseTime(s, field string) (time.Time, error) {
 	}
 	t, err := time.Parse(time.RFC3339, s)
 	if err != nil {
-		return time.Time{}, fmt.Errorf("фильтр %s: ожидается дата в формате RFC3339", field)
+		return time.Time{}, fmt.Errorf("filter %s: expected a date in RFC3339 format", field)
 	}
 	return t, nil
 }

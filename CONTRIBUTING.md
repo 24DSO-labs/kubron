@@ -30,6 +30,13 @@ git commit -s -m "feat: ..."
 
 Добавить автоматически: `python3 scripts/license-headers.py --fix`. CI без заголовка падает.
 
+## Тексты интерфейса и локализация
+
+Пользовательский текст в код не вставляется: он живёт в `frontend/src/i18n/locales/<язык>/*.json`,
+а в коде — `t('раздел.ключ')`. Базовый язык — английский; русский (и будущие языки) — переводы.
+Новая ошибка в Go (`errors.New`, `fmt.Errorf`) — только по-английски и с записью в `backend.json`.
+Правила и проверки — [docs/i18n.md](docs/i18n.md); проверка: `npm run i18n:check` в `frontend/`.
+
 ## Зависимости
 
 CI проверяет лицензии зависимостей: Go — `go-licenses`, фронтенд — `license-checker`.
@@ -41,5 +48,5 @@ CI проверяет лицензии зависимостей: Go — `go-lice
 ```
 gofmt -l .
 go vet ./... && go test ./...
-cd frontend && npm test
+cd frontend && npm test && npm run i18n:check
 ```

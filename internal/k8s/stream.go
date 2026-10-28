@@ -126,8 +126,10 @@ func (l *logStreams) stopAll() {
 // logs:data:<id> (пачками раз в 100 мс, только целые строки), конец — logs:end:<id>.
 // Фронтенд должен подписаться на события ДО вызова.
 func (m *Manager) StartLogStream(streamID, namespace, pod, container string, tail int64) error {
+
 	if !validStreamID(streamID) {
-		return errors.New("некорректный id потока логов")
+		return errors.New("log stream ID is not specified")
+
 	}
 	conn, err := m.GetActiveConnection()
 	if err != nil {
@@ -144,13 +146,15 @@ func (m *Manager) StartLogStream(streamID, namespace, pod, container string, tai
 	connectTimer.Stop()
 	if err != nil {
 		cancel()
-		return fmt.Errorf("не удалось получить логи: %w", err)
+		return fmt.Errorf("failed to get logs: %w", err)
 	}
 	entry := &logEntry{cancel: cancel}
 	if !m.logs.add(streamID, entry, m.Limits().LogStreams) {
 		cancel()
 		stream.Close()
-		return fmt.Errorf("слишком много открытых потоков логов (максимум %d)", m.Limits().LogStreams)
+
+		return fmt.Errorf("too many open log streams (maximum %d)", m.Limits().LogStreams)
+
 	}
 	go m.pumpLogs(ctx, streamID, entry, stream)
 	return nil

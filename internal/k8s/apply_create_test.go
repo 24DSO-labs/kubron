@@ -39,7 +39,7 @@ func plainDeployment() string { return strings.Replace(deploymentYAML, "%s\n", "
 func TestCreateResourceYAML(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("namespace по умолчанию — default", func(t *testing.T) {
+	t.Run("default namespace is default", func(t *testing.T) {
 		m, dyn := newCreateManager(t)
 		name, err := m.CreateResourceYAML("", "deployment", plainDeployment())
 		if err != nil || name != "web" {
@@ -47,85 +47,85 @@ func TestCreateResourceYAML(t *testing.T) {
 		}
 		got, err := dyn.Resource(kindTable["deployment"].gvr).Namespace("default").Get(ctx, "web", metav1.GetOptions{})
 		if err != nil {
-			t.Fatalf("объект не создан в default: %v", err)
+			t.Fatalf("object was not created in default: %v", err)
 		}
 		if got.GetNamespace() != "default" {
 			t.Errorf("namespace = %q", got.GetNamespace())
 		}
 	})
 
-	t.Run("namespace из манифеста важнее аргумента", func(t *testing.T) {
+	t.Run("manifest namespace wins over the argument", func(t *testing.T) {
 		m, dyn := newCreateManager(t)
 		yml := strings.Replace(deploymentYAML, "%s", "  namespace: prod", 1)
 		if _, err := m.CreateResourceYAML("staging", "deployment", yml); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := dyn.Resource(kindTable["deployment"].gvr).Namespace("prod").Get(ctx, "web", metav1.GetOptions{}); err != nil {
-			t.Errorf("ожидали объект в prod: %v", err)
+			t.Errorf("expected the object in prod: %v", err)
 		}
 	})
 
-	t.Run("аргумент namespace, если в манифесте не указан", func(t *testing.T) {
+	t.Run("namespace argument when the manifest has none", func(t *testing.T) {
 		m, dyn := newCreateManager(t)
 		if _, err := m.CreateResourceYAML("staging", "deployment", plainDeployment()); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := dyn.Resource(kindTable["deployment"].gvr).Namespace("staging").Get(ctx, "web", metav1.GetOptions{}); err != nil {
-			t.Errorf("ожидали объект в staging: %v", err)
+			t.Errorf("expected the object in staging: %v", err)
 		}
 	})
 
-	t.Run("повторное создание — ошибка, а не перезапись", func(t *testing.T) {
+	t.Run("creating again is an error, not an overwrite", func(t *testing.T) {
 		m, _ := newCreateManager(t)
 		yml := plainDeployment()
 		if _, err := m.CreateResourceYAML("", "deployment", yml); err != nil {
 			t.Fatal(err)
 		}
 		_, err := m.CreateResourceYAML("", "deployment", yml)
-		if err == nil || !strings.Contains(err.Error(), "уже существует") {
-			t.Fatalf("ожидалась ошибка «уже существует», получено %v", err)
+		if err == nil || !strings.Contains(err.Error(), "already exists") {
+			t.Fatalf("expected an \"already exists\" error, got %v", err)
 		}
 	})
 
-	t.Run("чужой apiVersion отклоняется", func(t *testing.T) {
+	t.Run("a foreign apiVersion is rejected", func(t *testing.T) {
 		m, _ := newCreateManager(t)
 		yml := "apiVersion: v1\nkind: Deployment\nmetadata:\n  name: web\n"
 		if _, err := m.CreateResourceYAML("", "deployment", yml); err == nil || !strings.Contains(err.Error(), "apiVersion") {
-			t.Fatalf("ожидалась ошибка apiVersion, получено %v", err)
+			t.Fatalf("expected an apiVersion error, got %v", err)
 		}
 	})
 
-	t.Run("без имени", func(t *testing.T) {
+	t.Run("without a name", func(t *testing.T) {
 		m, _ := newCreateManager(t)
 		yml := "apiVersion: apps/v1\nkind: Deployment\nmetadata: {}\n"
 		if _, err := m.CreateResourceYAML("", "deployment", yml); err == nil || !strings.Contains(err.Error(), "metadata.name") {
-			t.Fatalf("ожидалась ошибка про metadata.name, получено %v", err)
+			t.Fatalf("expected an error about metadata.name, got %v", err)
 		}
 	})
 
-	t.Run("без kind", func(t *testing.T) {
+	t.Run("without kind", func(t *testing.T) {
 		m, _ := newCreateManager(t)
 		yml := "apiVersion: apps/v1\nmetadata:\n  name: web\n"
 		if _, err := m.CreateResourceYAML("", "deployment", yml); err == nil || !strings.Contains(strings.ToLower(err.Error()), "kind") {
-			t.Fatalf("ожидалась ошибка про kind, получено %v", err)
+			t.Fatalf("expected an error about kind, got %v", err)
 		}
 	})
 
-	t.Run("некорректный YAML", func(t *testing.T) {
+	t.Run("invalid YAML", func(t *testing.T) {
 		m, _ := newCreateManager(t)
 		if _, err := m.CreateResourceYAML("", "deployment", "apiVersion: [unclosed"); err == nil {
-			t.Fatal("ожидалась ошибка парсинга")
+			t.Fatal("expected a parse error")
 		}
 	})
 
-	t.Run("неизвестный тип", func(t *testing.T) {
+	t.Run("unknown type", func(t *testing.T) {
 		m, _ := newCreateManager(t)
 		if _, err := m.CreateResourceYAML("", "nosuchkind", plainDeployment()); err == nil {
-			t.Fatal("ожидалась ошибка: тип не поддерживается")
+			t.Fatal("expected an error: type is not supported")
 		}
 	})
 
-	t.Run("кластерный ресурс: namespace отбрасывается", func(t *testing.T) {
+	t.Run("cluster-scoped resource: namespace is dropped", func(t *testing.T) {
 		m, dyn := newCreateManager(t)
 		yml := "apiVersion: rbac.authorization.k8s.io/v1\nkind: ClusterRole\nmetadata:\n  name: viewer\n  namespace: default\nrules: []\n"
 		name, err := m.CreateResourceYAML("default", "clusterrole", yml)
@@ -137,13 +137,13 @@ func TestCreateResourceYAML(t *testing.T) {
 			t.Fatal(err)
 		}
 		if got.GetNamespace() != "" {
-			t.Errorf("у кластерного объекта остался namespace %q", got.GetNamespace())
+			t.Errorf("a cluster-scoped object kept namespace %q", got.GetNamespace())
 		}
 	})
 
-	t.Run("нет активного подключения", func(t *testing.T) {
+	t.Run("no active connection", func(t *testing.T) {
 		if _, err := NewManager().CreateResourceYAML("", "deployment", plainDeployment()); err == nil {
-			t.Fatal("ожидалась ошибка")
+			t.Fatal("expected an error")
 		}
 	})
 }
@@ -151,18 +151,18 @@ func TestCreateResourceYAML(t *testing.T) {
 func TestManifestNamespaceAndName(t *testing.T) {
 	const pod = "apiVersion: v1\nkind: Pod\nmetadata:\n  name: p\n  namespace: n\n"
 	if ns := ManifestNamespace(pod, "fb"); ns != "n" {
-		t.Errorf("namespace из манифеста: %q", ns)
+		t.Errorf("namespace from the manifest: %q", ns)
 	}
 	if name := ManifestName(pod); name != "p" {
 		t.Errorf("name: %q", name)
 	}
 	if ns := ManifestNamespace("apiVersion: v1\nkind: Pod\nmetadata:\n  name: p\n", "fb"); ns != "fb" {
-		t.Errorf("без namespace в манифесте ожидали fallback, получили %q", ns)
+		t.Errorf("expected the fallback without a namespace in the manifest, got %q", ns)
 	}
 	if ns := ManifestNamespace("apiVersion: [unclosed", "fb"); ns != "fb" {
-		t.Errorf("для мусора ожидали fallback, получили %q", ns)
+		t.Errorf("expected the fallback for garbage, got %q", ns)
 	}
 	if name := ManifestName("apiVersion: [unclosed"); name != "" {
-		t.Errorf("для мусора ожидали пустое имя, получили %q", name)
+		t.Errorf("expected an empty name for garbage, got %q", name)
 	}
 }

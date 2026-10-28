@@ -9,18 +9,20 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   status: string
 }>()
+const { t } = useI18n()
 
 const label = computed(() => {
   switch (props.status) {
-    case 'installed': return 'Active'
-    case 'not_installed': return 'Not Installed'
-    case 'degraded': return 'Degraded'
-    case 'installing': return 'Installing...'
-    default: return 'Unknown'
+    case 'installed': return t('metrics.status.active')
+    case 'not_installed': return t('metrics.status.notInstalled')
+    case 'degraded': return t('metrics.status.degraded')
+    case 'installing': return t('metrics.status.installing')
+    default: return t('metrics.status.unknown')
   }
 })
 

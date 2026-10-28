@@ -4,6 +4,7 @@
 import { ref, shallowRef, onMounted, onUnmounted, watch, type Ref } from 'vue'
 import { callApp } from '../resources/wails'
 import type { ArgoApplicationInfo } from '../types/argocd'
+import { errorText } from './errorText'
 import { argoActionTick } from '../resources/argoActions'
 import { argoLiveTick } from './useArgoLive'
 
@@ -64,7 +65,7 @@ export function useArgoApplications(clusterName: Ref<string>) {
       error.value = ''
     } catch (e: any) {
       if (mySeq !== seq) return
-      error.value = e?.message || String(e)
+      error.value = errorText(e)
     } finally {
       if (mySeq === seq) {
         loading.value = false

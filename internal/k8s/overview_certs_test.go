@@ -61,7 +61,7 @@ func TestScanTLSSecrets(t *testing.T) {
 	}, now)
 
 	if scan.Checked != 6 {
-		t.Errorf("checked=%d, want 6 (мусор не считается)", scan.Checked)
+		t.Errorf("checked=%d, want 6 (garbage is not counted)", scan.Checked)
 	}
 	var names []string
 	for _, c := range scan.Expiring {

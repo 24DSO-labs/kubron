@@ -30,20 +30,20 @@ export const runtimeClass = defineResource<k8s.RuntimeClassInfo>({
 
   columns: [
     flatNameCol,
-    { key: 'handler', label: 'Handler' },
+    { key: 'handler', label: 'defs.columns.handler' },
     ageCol,
   ],
 
   properties: [
-    { label: 'Handler', value: (r: any) => r.handler },
-    { label: 'Finalizers', value: (r: any) => (r.finalizers ?? []).join(', ') },
+    { label: 'defs.columns.handler', value: (r: any) => r.handler },
+    { label: 'defs.props.finalizers', value: (r: any) => (r.finalizers ?? []).join(', ') },
     controlledByProp,
     managedByProp,
   ],
-  sections: [mapSection('Overhead', 'overhead'), mapSection('Node Selector', 'nodeSelector'), TolerationsSection],
+  sections: [mapSection('defs.runtimeClass.overhead', 'overhead'), mapSection('defs.columns.nodeSelector', 'nodeSelector'), TolerationsSection],
 
   tabs: [
-    { id: 'pods', label: 'Pods', component: podsByClassTab('runtimeClassName') },
+    { id: 'pods', label: 'defs.tabs.pods', component: podsByClassTab('runtimeClassName') },
   ],
 
   api: {

@@ -9,6 +9,7 @@ import { useK8s } from '../../composables/useK8s'
 import { flatNsCol } from './common'
 import { badgeClass, statusColor } from '../status'
 import { openUrl } from '../../platform/files'
+import { t } from '../../i18n'
 
 const k8s = useK8s()
 
@@ -24,33 +25,33 @@ export const portForward = defineResource<models.PortForwardSession>({
   editable: false,
 
   columns: [
-    { key: 'target', label: 'Target', className: 'resource-name' },
+    { key: 'target', label: 'defs.columns.target', className: 'resource-name' },
     { ...flatNsCol, link: (pf: any) => pf.namespace ? { id: 'namespace', ns: '', name: pf.namespace } : null },
-    { key: 'localPort', label: 'Local Port', formatter: (pf: any) => `localhost:${pf.localPort}` },
-    { key: 'podPort', label: 'Remote Port' },
-    { key: 'status', label: 'Status', colorFn: pf => statusColor(pf.status) },
+    { key: 'localPort', label: 'defs.columns.localPort', formatter: (pf: any) => `localhost:${pf.localPort}` },
+    { key: 'podPort', label: 'defs.columns.remotePort' },
+    { key: 'status', label: 'common.status', colorFn: pf => statusColor(pf.status) },
   ],
 
   properties: [
-    { label: 'Target', value: (pf: any) => pf.target },
-    { label: 'Namespace', value: pf => pf.namespace, link: (pf: any) => pf.namespace ? { id: 'namespace', ns: '', name: pf.namespace } : null },
-    { label: 'Pod', value: pf => pf.pod, link: (pf: any) => ({ id: 'pod', ns: pf.namespace, name: pf.pod }) },
+    { label: 'defs.columns.target', value: (pf: any) => pf.target },
+    { label: 'common.namespace', value: pf => pf.namespace, link: (pf: any) => pf.namespace ? { id: 'namespace', ns: '', name: pf.namespace } : null },
+    { label: 'defs.props.pod', value: pf => pf.pod, link: (pf: any) => ({ id: 'pod', ns: pf.namespace, name: pf.pod }) },
     {
-      label: 'Service',
+      label: 'defs.props.service',
       value: (pf: any) => (pf.service ? `${pf.service}:${pf.servicePort}` : '—'),
       link: (pf: any) => (pf.service ? { id: 'service', ns: pf.namespace, name: pf.service } : null),
     },
-    { label: 'Local Port', value: pf => pf.localPort },
-    { label: 'Remote Port', value: pf => pf.podPort },
-    { label: 'Status', value: pf => pf.status, badge: pf => badgeClass(pf.status) },
-    { label: 'Error', value: (pf: any) => pf.error || '—' },
+    { label: 'defs.columns.localPort', value: pf => pf.localPort },
+    { label: 'defs.columns.remotePort', value: pf => pf.podPort },
+    { label: 'common.status', value: pf => pf.status, badge: pf => badgeClass(pf.status) },
+    { label: 'common.error', value: (pf: any) => pf.error || '—' },
   ],
 
   actions: [
     {
       id: 'open',
       permission: Perm.PortForward,
-      label: 'Open in browser',
+      label: 'defs.menu.openInBrowser',
       icon: 'open-browser',
       when: (pf: any) => pf.status === 'active',
       run: (pf: any) => openUrl(`http://localhost:${pf.localPort}`),
@@ -58,13 +59,13 @@ export const portForward = defineResource<models.PortForwardSession>({
     {
       id: 'stop',
       permission: Perm.PortForward,
-      label: 'Stop',
+      label: 'defs.menu.stop',
       icon: 'stop',
       danger: true,
       run: (pf: any, ctx) =>
         ctx.perform(
           () => callApp('StopPortForward', pf.id),
-          `Port forward :${pf.localPort} → ${pf.target} остановлен`,
+          t('defs.portForward.stopped', { port: pf.localPort, target: pf.target }),
         ),
     },
   ],

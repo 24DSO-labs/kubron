@@ -3,7 +3,7 @@
 <template>
   <div class="pvc-metrics">
     <MultiLineChart
-      title="Volume usage"
+      :title="$t('metrics.volumeUsage')"
       unit=""
       :fetch-data="fetchData"
       :format-value="formatSize"
@@ -13,9 +13,11 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import MultiLineChart from './MultiLineChart.vue'
 import { usePrometheusRange } from '../../composables/useMetrics'
 
+const { t } = useI18n()
 const props = defineProps<{ clusterName: string; namespace: string; claim: string }>()
 const { queryRange } = usePrometheusRange(props.clusterName)
 
@@ -33,9 +35,9 @@ async function fetchData(start: number, end: number, step: number) {
     queryRange(q('kubelet_volume_stats_available_bytes'), start, end, step),
   ])
   return [
-    { label: 'Disk Usage', data: used },
-    { label: 'Disk Capacity', data: capacity },
-    { label: 'Disk Available', data: available },
+    { label: t('metrics.diskUsage'), data: used },
+    { label: t('metrics.diskCapacity'), data: capacity },
+    { label: t('metrics.diskAvailable'), data: available },
   ]
 }
 

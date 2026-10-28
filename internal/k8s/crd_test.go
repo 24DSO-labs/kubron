@@ -81,7 +81,7 @@ func TestListCustomResources(t *testing.T) {
 		t.Errorf("conditions: %+v", items[0].Conditions)
 	}
 	if one, _ := listCustomResources(ctx, dyn, "example.com", "v1", "widgets", "b"); len(one) != 1 {
-		t.Errorf("фильтр по namespace: %+v", one)
+		t.Errorf("namespace filter: %+v", one)
 	}
 }
 
@@ -97,7 +97,7 @@ func TestCustomKindRejectsNonCRD(t *testing.T) {
 		{"example.com", "v1", "widgets/x"},
 	} {
 		if _, _, err := customKindFor(ctx, dyn, c[0], c[1], c[2]); err == nil {
-			t.Errorf("%v: ожидалась ошибка", c)
+			t.Errorf("%v: expected an error", c)
 		}
 	}
 	if ki, _, err := customKindFor(ctx, dyn, "example.com", "v1", "widgets"); err != nil || !ki.namespaced {

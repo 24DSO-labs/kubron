@@ -4,6 +4,7 @@
 import { ref, computed } from 'vue'
 import { uid } from '../resources/uid'
 import { callApp } from '../platform/api'
+import { t } from '../i18n'
 
 export type TabType = 'logs' | 'yaml' | 'terminal'
 
@@ -127,7 +128,7 @@ async function openTerminalTab(
     id,
     type: 'terminal',
     icon: mode === 'shell' ? '🖥' : '📎',
-    title: mode === 'shell' ? `Terminal: ${pod}/${container}` : `Attach: ${pod}/${container}`,
+    title: t(mode === 'shell' ? 'utils.tab.terminalTitle' : 'utils.tab.attachTitle', { target: `${pod}/${container}` }),
     resourceType,
     resourceName,
     namespace,
@@ -203,7 +204,7 @@ function openCreateYamlTab(resourceType: string, kindLabel: string, content: str
     id,
     type: 'yaml',
     icon: '➕',
-    title: `New ${kindLabel}`,
+    title: t('utils.tab.newTitle', { kind: kindLabel }),
     resourceType,
     resourceName: '',
     // namespace задаёт сам манифест, поэтому в заголовке его не показываем

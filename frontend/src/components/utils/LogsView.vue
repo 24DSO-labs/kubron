@@ -4,29 +4,29 @@
 <div class="logs-view">
   <div class="logs-toolbar">
     <div class="toolbar-group">
-      <label>Pods:</label>
+      <label>{{ $t('utils.logs.pods') }}:</label>
       <select :value="tab.selectedPodName" @change="onPodChange($event)"
         class="select-pod">
-        <option value="">All Pods</option>
+        <option value="">{{ $t('utils.logs.allPods') }}</option>
         <option v-for="pod in tab.pods" :key="pod.name" :value="pod.name">{{ pod.name }}</option>
       </select>
     </div>
     <div class="toolbar-group">
-      <label>Containers:</label>
+      <label>{{ $t('utils.logs.containers') }}:</label>
       <select :value="tab.selectedContainer" @change="onContainerChange($event)"
         class="select-container">
-        <option value="">All Containers</option>
+        <option value="">{{ $t('utils.logs.allContainers') }}</option>
         <option v-for="container in availableContainers" :key="container" :value="container">
           {{ container }}</option>
       </select>
     </div>
     <div class="toolbar-group">
-      <label>Lines:</label>
+      <label>{{ $t('utils.logs.lines') }}:</label>
       <input v-model.number="logLines" type="number" min="10" max="10000" @change="loadLogs()"
         class="input-lines" />
     </div>
     <div class="toolbar-group search-group">
-      <input v-model="searchText" type="text" placeholder="Search in logs" class="input-search" />
+      <input v-model="searchText" type="text" :placeholder="$t('utils.logs.searchPlaceholder')" class="input-search" />
     </div>
     <div class="toolbar-actions">
       <button @click="showTimestamp = !showTimestamp" class="btn-action" :class="{ active: showTimestamp }"><img
@@ -39,21 +39,23 @@
           class="icon-svg" /></button>
     </div>
   </div>
-<div class="logs-info"><span>Namespace: <strong>{{ tab.namespace }}</strong> | {{ tab.resourceType }}:
-    <strong>{{ tab.resourceName }}</strong> | Pods: <strong>{{ tab.pods.length }}</strong></span>
-  <span v-if="live" class="live-dot">● live</span>
-  <button v-if="!follow" class="btn-action" @click="jumpToEnd">↓ to end</button>
+<div class="logs-info"><span>{{ $t('common.namespace') }}: <strong>{{ tab.namespace }}</strong> | {{ tab.resourceType }}:
+    <strong>{{ tab.resourceName }}</strong> | {{ $t('utils.logs.pods') }}: <strong>{{ tab.pods.length }}</strong></span>
+  <span v-if="live" class="live-dot">● {{ $t('utils.logs.live') }}</span>
+  <button v-if="!follow" class="btn-action" @click="jumpToEnd">↓ {{ $t('utils.logs.toEnd') }}</button>
 </div>
 <div ref="contentEl" class="logs-content" @scroll="onScroll">
-  <div v-if="tab.loading" class="logs-loading">⏳ Loading...</div>
+  <div v-if="tab.loading" class="logs-loading">⏳ {{ $t('common.loading') }}</div>
   <pre v-else-if="tab.rawLogs" class="logs-text" :class="{ 'no-wrap': !wrapLines }" v-html="highlightedLogs"></pre>
-  <div v-else class="logs-empty">{{ live ? 'Waiting for logs…' : tab.pods.length ? 'No logs' : 'No pods found' }}</div>
+  <div v-else class="logs-empty">{{ live ? $t('utils.logs.waiting') : tab.pods.length ? $t('utils.logs.noLogs') : $t('utils.logs.noPods') }}</div>
 </div>
 </div>
 </template>
 
 <script lang="ts" setup>
 
+import { useI18n } from 'vue-i18n'
+import { errorText } from '../../composables/errorText'
 import { getWorkloadPods } from '../../resources/workloadPods'
 import { containersOf } from '../../resources/utils'
 import type { LogsTab } from '../../composables/useTabbedPanel'
@@ -67,6 +69,7 @@ import { uid } from '../../resources/uid'
 import { callApp } from '../../platform/api'
 
 const props = defineProps<{ tab: LogsTab; active: boolean }>()
+const { t } = useI18n()
 
 
 const TS_RE = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z[+-]?\d{0,2}:?\d{0,2})\s+(.*)$/
@@ -137,7 +140,7 @@ async function loadResourcePods() {
       tab.selectedContainer = defaultContainer(tab.pods[0])
     }
     if (tab.selectedPodName || tab.pods.length > 0) await loadLogs()
-  } catch (e: any) { tab.rawLogs = `Error: ${e}` }
+  } catch (e: any) { tab.rawLogs = t('utils.logs.error', { message: errorText(e) }) }
   finally { tab.loading = false }
 }
 
@@ -232,7 +235,7 @@ async function loadLogs() {
       onEvent(`logs:data:${id}`, (chunk: string) => append(multi ? tagPod(pod.name, chunk) : chunk)),
       onEvent(`logs:end:${id}`, (reason: string) => {
         const why = reason && reason !== 'eof' ? `: ${reason}` : ''
-        append(`\n[${multi ? pod.name + ' ' : ''}stream closed${why}]\n`)
+        append(`\n${t('utils.logs.streamClosed', { pod: multi ? pod.name + ' ' : '', reason: why })}\n`)
         dropStream(s)
       }),
     )
@@ -240,7 +243,7 @@ async function loadLogs() {
     try {
       await callApp('StartLogStream', id, tab.namespace, pod.name, container, logLines.value)
     } catch (e: any) {
-      if (gen === generation) append(`\n[${pod.name}: ${e?.message || e}]\n`)
+      if (gen === generation) append(`\n[${pod.name}: ${errorText(e)}]\n`)
       dropStream(s)
     }
     if (gen !== generation) { stopStream(s); return } // пока ждали, запустили новую загрузку

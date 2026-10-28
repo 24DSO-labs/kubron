@@ -2,17 +2,18 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="rd-section">
-    <div class="rd-section-title">Workload Resources</div>
+    <div class="rd-section-title">{{ $t('argo.resources.workloads') }}</div>
     <ResourcesTable :rows="workloads" kinds-clickable @open="emit('open', $event)" />
   </div>
   <div class="rd-section">
-    <div class="rd-section-title">Other Resources</div>
+    <div class="rd-section-title">{{ $t('argo.resources.others') }}</div>
     <ResourcesTable :rows="others" @open="emit('open', $event)" />
   </div>
 </template>
 
 <script lang="ts" setup>
 import { computed, defineComponent, h, type PropType } from 'vue'
+import { t } from '../../../i18n'
 
 /** Workload-ы и прочие ресурсы приложения (Name / Kind / Component, как в Lens) */
 const props = defineProps<{ resource: any }>()
@@ -40,10 +41,10 @@ const ResourcesTable = defineComponent({
   emits: ['open'],
   setup(p, { emit: e }) {
     return () => {
-      if (!p.rows.length) return h('div', { class: 'rd-empty' }, 'No resources available')
+      if (!p.rows.length) return h('div', { class: 'rd-empty' }, t('argo.resources.empty'))
       const ns = props.resource?.namespace ?? ''
       return h('div', { class: 'rd-table-wrap' }, h('table', { class: 'rd-table' }, [
-        h('thead', h('tr', ['Name', 'Kind', 'Component'].map(c => h('th', c)))),
+        h('thead', h('tr', [t('common.name'), t('defs.columns.kind'), t('defs.props.component')].map(c => h('th', c)))),
         h('tbody', p.rows.map(r => {
           const id = KIND_IDS[r.kind]
           return h('tr', {

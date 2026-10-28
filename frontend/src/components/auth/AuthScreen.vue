@@ -2,45 +2,45 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="auth-screen">
+    <div class="auth-lang"><LanguageSwitcher /></div>
     <div class="auth-card">
       <img src="../../assets/images/logo.svg" alt="Kubron" class="auth-logo" />
 
       <!-- Загрузка -->
-      <p v-if="mode === 'loading'" class="auth-hint">Загрузка…</p>
+      <p v-if="mode === 'loading'" class="auth-hint">{{ $t('auth.loading') }}</p>
 
       <!-- Критическая ошибка хранилища пользователей: входить нельзя -->
       <template v-else-if="mode === 'fatal'">
-        <h1>Вход недоступен</h1>
+        <h1>{{ $t('auth.fatal.title') }}</h1>
         <p class="auth-error" role="alert">{{ auth.fatalError.value }}</p>
-        <p class="auth-hint">
-          Файл пользователей <code>~/.kubron/users.json</code> не удалось прочитать.
-          Восстановите его из резервной копии или обратитесь к администратору.
-        </p>
+        <i18n-t keypath="auth.fatal.hint" tag="p" class="auth-hint">
+          <template #file><code>~/.kubron/users.json</code></template>
+        </i18n-t>
       </template>
 
       <!-- Первый запуск -->
       <template v-else-if="mode === 'setup'">
-        <h1>Добро пожаловать в Kubron</h1>
-        <p class="auth-hint">Первый запуск: создайте учётную запись администратора.</p>
+        <h1>{{ $t('auth.setup.title') }}</h1>
+        <p class="auth-hint">{{ $t('auth.setup.hint') }}</p>
         <form class="auth-form" @submit.prevent="submitSetup" autocomplete="off">
           <label class="auth-field">
-            <span>Логин</span>
+            <span>{{ $t('auth.fields.username') }}</span>
             <input ref="firstInput" v-model="username" autocomplete="username" :disabled="busy" required />
-            <small>3–32 символа: латиница, цифры, «.», «-», «_»</small>
+            <small>{{ $t('auth.setup.usernameHint') }}</small>
           </label>
           <label class="auth-field">
-            <span>Пароль</span>
+            <span>{{ $t('auth.fields.password') }}</span>
             <input v-model="password" type="password" autocomplete="new-password" :disabled="busy" required />
-            <small>Не короче {{ MIN_PASSWORD }} символов</small>
+            <small>{{ $t('auth.fields.minLength', { min: MIN_PASSWORD }) }}</small>
           </label>
           <label class="auth-field">
-            <span>Повторите пароль</span>
+            <span>{{ $t('auth.fields.confirmPassword') }}</span>
             <input v-model="confirm" type="password" autocomplete="new-password" :disabled="busy" required />
           </label>
           <p v-if="error" class="auth-error" role="alert">{{ error }}</p>
           <div class="auth-actions">
             <button class="auth-submit" type="submit" :disabled="busy || !username || !password || !confirm">
-              {{ busy ? 'Создание…' : 'Создать администратора' }}
+              {{ busy ? $t('auth.setup.submitting') : $t('auth.setup.submit') }}
             </button>
           </div>
         </form>
@@ -48,21 +48,21 @@
 
       <!-- Вход -->
       <template v-else-if="mode === 'login'">
-        <h1>Вход</h1>
+        <h1>{{ $t('auth.login.title') }}</h1>
         <p v-if="auth.notice.value" class="auth-notice" role="status">{{ auth.notice.value }}</p>
         <form class="auth-form" @submit.prevent="submitLogin">
           <label class="auth-field">
-            <span>Логин</span>
+            <span>{{ $t('auth.fields.username') }}</span>
             <input ref="firstInput" v-model="username" autocomplete="username" :disabled="busy" required />
           </label>
           <label class="auth-field">
-            <span>Пароль</span>
+            <span>{{ $t('auth.fields.password') }}</span>
             <input v-model="password" type="password" autocomplete="current-password" :disabled="busy" required />
           </label>
           <p v-if="error" class="auth-error" role="alert">{{ error }}</p>
           <div class="auth-actions">
             <button class="auth-submit" type="submit" :disabled="busy || !username || !password">
-              {{ busy ? 'Вход…' : 'Войти' }}
+              {{ busy ? $t('auth.login.submitting') : $t('auth.login.submit') }}
             </button>
           </div>
         </form>
@@ -70,13 +70,11 @@
 
       <!-- Обязательная смена временного пароля -->
       <template v-else-if="mode === 'change-password'">
-        <h1>Смена пароля</h1>
-        <p class="auth-hint">
-          Вам выдан временный пароль. Задайте собственный, чтобы продолжить работу.
-        </p>
+        <h1>{{ $t('auth.forced.title') }}</h1>
+        <p class="auth-hint">{{ $t('auth.forced.hint') }}</p>
         <ChangePasswordForm>
           <template #secondary>
-            <button class="auth-link" type="button" @click="auth.logout()">Выйти</button>
+            <button class="auth-link" type="button" @click="auth.logout()">{{ $t('auth.menu.logout') }}</button>
           </template>
         </ChangePasswordForm>
       </template>
@@ -86,12 +84,16 @@
 
 <script lang="ts" setup>
 import { nextTick, ref, watch } from 'vue'
-import { errorText, useAuth } from '../../composables/useAuth'
+import { useI18n } from 'vue-i18n'
+import { errorText } from '../../composables/errorText'
+import { useAuth } from '../../composables/useAuth'
+import LanguageSwitcher from '../LanguageSwitcher.vue'
 import ChangePasswordForm from './ChangePasswordForm.vue'
 import { MIN_PASSWORD } from './constants'
 
 const props = defineProps<{ mode: 'loading' | 'fatal' | 'setup' | 'login' | 'change-password' }>()
 
+const { t } = useI18n()
 const auth = useAuth()
 const username = ref('')
 const password = ref('')
@@ -116,11 +118,11 @@ watch(
 async function submitSetup() {
   error.value = ''
   if (password.value.length < MIN_PASSWORD) {
-    error.value = `Пароль должен содержать не менее ${MIN_PASSWORD} символов`
+    error.value = t('auth.errors.passwordTooShort', { min: MIN_PASSWORD })
     return
   }
   if (password.value !== confirm.value) {
-    error.value = 'Пароли не совпадают'
+    error.value = t('auth.errors.passwordMismatch')
     return
   }
   await run(() => auth.setup(username.value, password.value))
@@ -170,6 +172,7 @@ async function run(fn: () => Promise<void>) {
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
   text-align: center;
 }
+.auth-lang { position: absolute; top: 16px; right: 16px; }
 .auth-logo { height: 36px; margin-bottom: 18px; }
 h1 { margin: 0 0 8px; font-size: 20px; font-weight: 700; color: #cdd6f4; }
 .auth-hint { margin: 0 0 18px; font-size: 13px; line-height: 1.5; color: #a6adc8; }

@@ -4,17 +4,17 @@
   <div class="ho-view">
     <header class="ho-head">
       <div>
-        <h2>Операции Helm</h2>
-        <p class="ho-sub">История установок, обновлений values, откатов и удалений. Хранятся последние 200 операций, у каждой — журнал Helm.</p>
+         <h2>{{ $t('helm.operations.title') }}</h2>
+        <p class="ho-sub">{{ $t('helm.operations.subtitle') }}</p>
       </div>
       <div class="ho-head-actions">
-        <button class="btn" type="button" :disabled="loading" @click="load">Обновить</button>
-        <button v-if="canClear" class="btn ho-danger" type="button" :disabled="!records.length" @click="clearAll">Очистить</button>
+        <button class="btn" type="button" :disabled="loading" @click="load">{{ $t('helm.operations.refresh') }}</button>
+        <button v-if="canClear" class="btn ho-danger" type="button" :disabled="!records.length" @click="clearAll">{{ $t('helm.operations.clear') }}</button>
       </div>
     </header>
 
-    <section v-if="running.length" class="ho-running" aria-label="Выполняются сейчас">
-      <h3>Выполняются</h3>
+    <section v-if="running.length" class="ho-running" :aria-label="$t('helm.operations.running')">
+      <h3>{{ $t('helm.operations.running') }}</h3>
       <div v-for="o in running" :key="o.opId" class="ho-run">
         <span class="ho-spin" aria-hidden="true">⟳</span>
         <strong>{{ LABEL[o.op] }} {{ o.release }}</strong>
@@ -23,44 +23,44 @@
     </section>
 
     <form class="ho-filters" @submit.prevent="load">
-      <input v-model="search" class="form-input" type="search" placeholder="Поиск: релиз, namespace, кластер, ошибка…" aria-label="Поиск" />
-      <select v-model="opFilter" class="form-input" aria-label="Операция" @change="load">
-        <option value="">Все операции</option>
+      <input v-model="search" class="form-input" type="search" :placeholder="$t('helm.operations.searchPlaceholder')" :aria-label="$t('helm.operations.searchAria')" />
+      <select v-model="opFilter" class="form-input" :aria-label="$t('helm.operations.allOps')" @change="load">
+        <option value="">{{ $t('helm.operations.allOps') }}</option>
         <option v-for="(label, key) in LABEL" :key="key" :value="key">{{ label }}</option>
       </select>
-      <select v-model="statusFilter" class="form-input" aria-label="Статус" @change="load">
-        <option value="">Любой статус</option>
-        <option value="success">Успешно</option>
-        <option value="failed">Ошибка</option>
-        <option value="canceled">Отменено</option>
+      <select v-model="statusFilter" class="form-input" :aria-label="$t('helm.operations.anyStatus')" @change="load">
+        <option value="">{{ $t('helm.operations.anyStatus') }}</option>
+        <option value="success">{{ $t('helm.operations.success') }}</option>
+        <option value="failed">{{ $t('helm.operations.failed') }}</option>
+        <option value="canceled">{{ $t('helm.operations.canceled') }}</option>
       </select>
     </form>
 
     <p v-if="error" class="form-error">{{ error }}</p>
-    <p v-else-if="loaded && !records.length" class="ho-empty">Операций пока нет{{ filtered ? ' по этому фильтру' : '' }}.</p>
+    <p v-else-if="loaded && !records.length" class="ho-empty">{{ $t('helm.operations.noOps', { filtered }) }}</p>
 
     <table v-if="records.length" class="ho-table">
       <thead>
-        <tr><th>Время</th><th>Операция</th><th>Релиз</th><th>Кластер</th><th>Описание</th><th>Статус</th><th>Длительность</th></tr>
+        <tr><th>{{ $t('helm.operations.time') }}</th><th>{{ $t('helm.operations.operation') }}</th><th>{{ $t('helm.operations.release') }}</th><th>{{ $t('helm.operations.cluster') }}</th><th>{{ $t('helm.operations.detail') }}</th><th>{{ $t('common.status') }}</th><th>{{ $t('helm.operations.duration') }}</th></tr>
       </thead>
       <tbody>
         <template v-for="r in records" :key="r.id">
           <tr class="ho-row" :class="{ open: openId === r.id }" tabindex="0" @click="toggle(r)" @keydown.enter="toggle(r)">
             <td class="ho-muted" :title="r.startedAt">{{ formatTime(r.startedAt) }}</td>
-            <td>{{ LABEL[r.op] || r.op }}</td>
+            <td>{{ LABEL.value[r.op] || r.op }}</td>
             <td><strong>{{ r.release }}</strong><span class="ho-muted"> · {{ r.namespace }}</span></td>
-            <td class="ho-muted">{{ r.cluster || '—' }}</td>
+            <td class="ho-muted">{{ r.cluster || $t('common.dash') }}</td>
             <td class="ho-desc" :title="r.detail">{{ r.detail }}<span v-if="r.revision" class="ho-muted"> #{{ r.revision }}</span></td>
             <td><span class="ho-badge" :class="r.status">{{ STATUS[r.status] || r.status }}</span></td>
             <td class="ho-muted">{{ formatDuration(r.durationMs) }}</td>
           </tr>
           <tr v-if="openId === r.id" class="ho-detail">
             <td colspan="7">
-              <p v-if="detailLoading" class="ho-muted">Загрузка…</p>
+              <p v-if="detailLoading" class="ho-muted">{{ $t('helm.operations.loading') }}</p>
               <template v-else-if="detail">
                 <pre v-if="detail.error" class="ho-log ho-err">{{ detail.error }}</pre>
                 <pre v-if="detail.log && detail.log.length" class="ho-log">{{ detail.log.join('\n') }}</pre>
-                <p v-else-if="!detail.error" class="ho-muted">Журнал Helm для этой операции пуст.</p>
+                <p v-else-if="!detail.error" class="ho-muted">{{ $t('helm.operations.emptyLog') }}</p>
               </template>
               <p v-else-if="detailError" class="form-error">{{ detailError }}</p>
             </td>
@@ -73,11 +73,14 @@
 
 <script lang="ts" setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { callApp } from '../../resources/wails'
 import { askConfirm } from '../../resources/confirm'
 import { can } from '../../composables/useAuth'
 import { useNotifications } from '../../composables/useNotifications'
 import { HELM_OP_LABEL, helmJournalTick, helmOps, startHelmOps } from '../../composables/useHelmOps'
+
+const { t } = useI18n()
 import { Perm } from '../../types/auth'
 
 interface Rec {
@@ -85,8 +88,9 @@ interface Rec {
   status: string; error: string; startedAt: string; finishedAt: string; durationMs: number; log?: string[]
 }
 
-const LABEL = HELM_OP_LABEL
-const STATUS: Record<string, string> = { success: 'Успешно', failed: 'Ошибка', canceled: 'Отменено' }
+const RAW_LABEL = HELM_OP_LABEL
+const LABEL: any = computed(() => ({ install: t('helm.ops_panel.install'), upgrade: t('helm.ops_panel.upgrade'), rollback: t('helm.ops_panel.rollback'), uninstall: t('helm.ops_panel.uninstall') }))
+const STATUS: Record<string, string> = { success: t('helm.operations.success'), failed: t('helm.operations.failed'), canceled: t('helm.operations.canceled') }
 
 const notifications = useNotifications()
 const canClear = computed(() => can(Perm.ClusterManage))
@@ -113,8 +117,8 @@ function formatTime(iso: string) {
 
 function formatDuration(ms: number) {
   const s = Math.round(ms / 1000)
-  if (s < 1) return '<1с'
-  return s >= 60 ? `${Math.floor(s / 60)}м ${String(s % 60).padStart(2, '0')}с` : `${s}с`
+  if (s < 1) return '<1' + t('helm.ops_panel.sec')
+  return s >= 60 ? `${Math.floor(s / 60)}${t('helm.ops_panel.min')} ${String(s % 60).padStart(2, '0')}${t('helm.ops_panel.sec')}` : `${s}${t('helm.ops_panel.sec')}`
 }
 
 let seq = 0
@@ -156,13 +160,13 @@ async function toggle(r: Rec) {
 }
 
 async function clearAll() {
-  if (!(await askConfirm('Очистить историю Helm-операций? Журнал аудита это не затрагивает.'))) return
+  if (!(await askConfirm(t('helm.operations.confirmClear')))) return
   try {
     await callApp('ClearHelmOperations')
     openId.value = ''
-    notifications.notifySuccess('История операций очищена')
+    notifications.notifySuccess(t('helm.operations.cleared'))
   } catch (e: any) {
-    notifications.notifyError(`Очистка: ${e?.message || e}`)
+    notifications.notifyError(t('helm.operations.clearError', { message: e?.message || String(e) }))
   } finally {
     await load()
   }
