@@ -4,14 +4,15 @@
 package app
 
 import (
-	"analog/internal/audit"
-	"analog/internal/auth"
-	"analog/internal/k8s"
-	"analog/internal/store"
 	"errors"
 	"fmt"
+	"github.com/VadimIl224/kubron/internal/audit"
+	"github.com/VadimIl224/kubron/internal/auth"
+	"github.com/VadimIl224/kubron/internal/k8s"
+	"github.com/VadimIl224/kubron/internal/store"
 	"runtime"
 	"strings"
+	"time"
 )
 
 // initAuth открывает хранилище пользователей. Если файл повреждён, приложение остаётся
@@ -48,6 +49,11 @@ func (a *App) endSessionResources() {
 // Это функция пакета, а не метод App: она не должна попадать в привязки Wails и RPC.
 func NewSessionView(root *App, source string) *App {
 	v := *root
+	// Свой вид менеджеров: активный кластер, терминалы, логи и port-forward принадлежат сессии;
+	// пул подключений (informers) общий.
+	v.k8sMgr = root.k8sMgr.ForSession()
+	v.k8sMgr.SetNotifier(nil) // события пойдут владельцу после BindView; до входа адресата нет
+	v.pfMgr = k8s.NewSessionPortForwardManager(v.k8sMgr)
 	if root.auth == nil {
 		return &v
 	}
@@ -56,9 +62,34 @@ func NewSessionView(root *App, source string) *App {
 	return &v
 }
 
-// ReleaseView освобождает вид, созданный NewSessionView (сессия пользователя закрывается без очистки ресурсов).
+// sessionEmitter — платформа, умеющая адресовать событие одной сессии (веб).
+type sessionEmitter interface {
+	EmitTo(sessionID, event string, data ...any)
+}
+
+// BindView привязывает вид к веб-сессии: события его менеджера уходят только её соединениям.
+func BindView(v *App, sessionID string) {
+	v.sessionID = sessionID
+	if em, ok := v.platform.(sessionEmitter); ok {
+		v.k8sMgr.SetNotifier(func(event string, data ...any) { em.EmitTo(sessionID, event, data...) })
+	}
+}
+
+// SetResourceLimits задаёт лимиты ресурсов на пользователя для видов, создаваемых после вызова.
+func SetResourceLimits(root *App, l k8s.Limits) { root.k8sMgr.SetLimits(l) }
+
+// SetClusterIdleTTL задаёт задержку остановки informers кластера после ухода последнего пользователя.
+func SetClusterIdleTTL(root *App, d time.Duration) { root.k8sMgr.SetIdleTTL(d) }
+
+// ReleaseView освобождает вид, созданный NewSessionView: останавливает ресурсы сессии,
+// снимает отметку активного кластера в общем пуле и закрывает сессию пользователя.
 func ReleaseView(v *App) {
-	if v != nil && v.auth != nil {
+	if v == nil {
+		return
+	}
+	v.endSessionResources()
+	v.k8sMgr.Detach()
+	if v.auth != nil {
 		v.auth.Release()
 	}
 }
@@ -125,7 +156,7 @@ func (a *App) auditCall(actor auth.Actor, result string, p auth.Permission, kv [
 	}
 	a.audit.Record(audit.Event{
 		User: actor.Username, Role: string(actor.Role),
-		Action: action, Result: result, Detail: strings.Join(parts, " "),
+		Action: action, Result: result, Detail: strings.Join(parts, " "), Source: actor.Source,
 	})
 }
 

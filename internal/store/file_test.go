@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"analog/internal/audit"
-	"analog/internal/auth"
+	"github.com/VadimIl224/kubron/internal/audit"
+	"github.com/VadimIl224/kubron/internal/auth"
 )
 
 // Файловое хранилище должно давать рабочие реализации всех интерфейсов.

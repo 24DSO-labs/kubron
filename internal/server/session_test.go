@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"analog/internal/auth"
+	"github.com/VadimIl224/kubron/internal/auth"
 )
 
 // guardTarget имитирует ядро с одной общей сессией: Login запоминает пользователя.

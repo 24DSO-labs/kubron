@@ -26,8 +26,10 @@ func (f *fakeTarget) Write(id string, b []byte) error { f.lastBytes = b; return 
 func (f *fakeTarget) Pair() (string, error)           { return "", errors.New("нет") }
 func (f *fakeTarget) Variadic(xs ...int) int          { return len(xs) }
 func (f *fakeTarget) TooMany() (int, int, error)      { return 0, 0, nil }
-func (f *fakeTarget) hidden() int                     { return 1 }
 func (f *fakeTarget) Secret() string                  { return "s" }
+
+//nolint:unused // нужен тесту: неэкспортируемые методы не должны быть доступны через RPC
+func (f *fakeTarget) hidden() int { return 1 }
 
 func raw(vals ...string) []json.RawMessage {
 	out := make([]json.RawMessage, len(vals))

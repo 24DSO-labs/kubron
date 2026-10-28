@@ -104,6 +104,13 @@ var exactPermission = map[string]Permission{
 	"StartLogStream":          PermRead,
 	"StopLogStream":           PermRead,
 	"GetHelmReleaseContent":   PermSecretsRead,
+	"CancelHelmOperation":     PermWrite,
+	"ListHelmOperations":      PermRead,
+	"GetHelmOperation":        PermRead,
+	"ClearHelmOperations":     PermClusterManage,
+	"AddHelmOCIRepo":          PermClusterManage,
+	"AddHelmOCIChart":         PermClusterManage,
+	"RemoveHelmOCIChart":      PermClusterManage,
 }
 
 // Глаголы, по которым метод считается изменяющим: слабое право чтения для них недопустимо.

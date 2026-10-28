@@ -4,9 +4,9 @@
 package app
 
 import (
-	"analog/internal/audit"
-	"analog/internal/auth"
 	"errors"
+	"github.com/VadimIl224/kubron/internal/audit"
+	"github.com/VadimIl224/kubron/internal/auth"
 	"testing"
 )
 
