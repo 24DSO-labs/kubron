@@ -4,9 +4,9 @@
 package k8s
 
 import (
-	"analog/pkg/ext"
 	"errors"
 	"fmt"
+	"github.com/VadimIl224/kubron/pkg/ext"
 	"os"
 	"path/filepath"
 	"strings"

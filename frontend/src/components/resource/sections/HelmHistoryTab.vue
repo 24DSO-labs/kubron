@@ -48,6 +48,7 @@
 import { computed, ref, watch } from 'vue'
 import { badgeClass } from '../../../resources/status'
 import { callApp } from '../../../resources/wails'
+import { runHelmOp } from '../../../composables/useHelmOps'
 import { askConfirm } from '../../../resources/confirm'
 import { reloadActive } from '../../../resources/store'
 import { itemName, itemNs } from '../../../resources/utils'
@@ -70,7 +71,8 @@ async function rollback(revision: number) {
   if (!(await askConfirm(`Roll back ${name.value} to revision #${revision}? A new revision with its contents will be created.`))) return
   busy.value = true
   try {
-    await callApp('RollbackHelmRelease', ns.value, name.value, revision)
+    await runHelmOp({ op: 'rollback', namespace: ns.value, release: name.value }, id =>
+      callApp('RollbackHelmRelease', ns.value, name.value, revision, id))
     notifications.notifySuccess(`${name.value}: rolled back to #${revision}`)
     await reloadActive()
   } catch (e: any) {

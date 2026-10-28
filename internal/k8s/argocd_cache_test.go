@@ -161,7 +161,8 @@ func TestConnectionArgoCacheLifecycle(t *testing.T) {
 			return true, nil, apierrors.NewForbidden(schema.GroupResource{Group: argoGroup, Resource: "applications"}, "", nil)
 		})
 		conn := &ClusterConnection{DynamicClient: dyn}
-		if conn.argoCache(nil) != nil || conn.argoCache(nil) != nil {
+		first, second := conn.argoCache(nil), conn.argoCache(nil)
+		if first != nil || second != nil {
 			t.Fatal("без прав кеша быть не должно")
 		}
 		if lists.Load() != 1 {
