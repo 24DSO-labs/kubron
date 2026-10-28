@@ -4,8 +4,8 @@
 package auth
 
 import (
-	"analog/internal/audit"
 	"errors"
+	"github.com/VadimIl224/kubron/internal/audit"
 	"sync"
 	"testing"
 	"time"

@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"analog/internal/termbuf"
+	"github.com/VadimIl224/kubron/internal/termbuf"
 )
 
 // Session — веб-сессия браузера: привязывает cookie к пользователю и CSRF-токену.

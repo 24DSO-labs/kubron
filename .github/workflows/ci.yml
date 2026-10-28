@@ -52,14 +52,14 @@ jobs:
       - name: Stub frontend/dist
         run: mkdir -p frontend/dist && touch frontend/dist/.keep
 
-      # Go: только разрешённые лицензии (свой модуль analog не проверяем).
+      # Go: только разрешённые лицензии (свой модуль kubron не проверяем).
       # go-licenses v1 не имеет флага --include_tags: теги сборки передаются через GOFLAGS.
       - name: go-licenses
         env:
           GOFLAGS: -tags=${{ env.GO_TAGS }}
         run: |
           go install github.com/google/go-licenses@v1.6.0
-          go-licenses check ./... --ignore analog \
+          go-licenses check ./... --ignore github.com/VadimIl224/kubron \
             --allowed_licenses=Apache-2.0,BSD-2-Clause,BSD-3-Clause,MIT,ISC,MPL-2.0
 
       # Фронтенд: только production-зависимости
