@@ -131,6 +131,26 @@ func (s *Sessions) Delete(token string) {
 	}
 }
 
+// Reap завершает сессии, у которых истёк срок или чей вид ядра больше не жив (alive == false:
+// ядро закрыло пользовательскую сессию из-за простоя, отключения пользователя и т. п.). Без фоновой
+// уборки такие сессии держали бы ссылки пула подключений, пока кто-нибудь не обратится к серверу.
+// Возвращает число завершённых сессий.
+func (s *Sessions) Reap(alive func(view any) bool) int {
+	s.mu.Lock()
+	ended := s.sweepLocked()
+	if alive != nil {
+		for k, it := range s.items {
+			if it.View != nil && !alive(it.View) {
+				delete(s.items, k)
+				ended = append(ended, *it)
+			}
+		}
+	}
+	s.mu.Unlock()
+	s.notify(ended)
+	return len(ended)
+}
+
 // Len — число живых сессий (для тестов и метрик).
 func (s *Sessions) Len() int {
 	s.mu.Lock()
