@@ -23,7 +23,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"analog/internal/oidcpassword"
+	"github.com/VadimIl224/kubron/internal/oidcpassword"
 )
 
 func main() {

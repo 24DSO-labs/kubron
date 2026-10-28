@@ -13,8 +13,6 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/validation"
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/yaml"
@@ -110,13 +108,11 @@ func (m *Manager) GetHelmReleaseDetail(namespace, name string) (*HelmReleaseDeta
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	list, err := conn.Client.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: labels.SelectorFromSet(labels.Set{"owner": "helm", "name": name}).String(),
-	})
+	items, err := listHelmStored(ctx, conn.Client, namespace, helmReleaseSelector(name))
 	if err != nil {
 		return nil, err
 	}
-	return buildHelmDetail(list.Items, namespace, name)
+	return buildHelmDetailStored(items, namespace, name)
 }
 
 // GetHelmReleaseContent: values / notes / манифест ревизии (revision <= 0 — последняя).
@@ -132,47 +128,50 @@ func (m *Manager) GetHelmReleaseContent(namespace, name string, revision int) (*
 	defer cancel()
 
 	if revision <= 0 {
-		list, err := conn.Client.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{
-			LabelSelector: labels.SelectorFromSet(labels.Set{"owner": "helm", "name": name}).String(),
-		})
+		items, err := listHelmStored(ctx, conn.Client, namespace, helmReleaseSelector(name))
 		if err != nil {
 			return nil, err
 		}
-		var latest *corev1.Secret
+		var latest *helmStored
 		best := 0
-		for i := range list.Items {
+		for i := range items {
 			var p helmFull
-			if string(list.Items[i].Type) != helmSecretType || readHelmSecret(&list.Items[i], &p) != nil {
+			if items[i].decode(&p) != nil {
 				continue
 			}
 			if p.Version > best {
-				best, latest = p.Version, &list.Items[i]
+				best, latest = p.Version, &items[i]
 			}
 		}
 		if latest == nil {
 			return nil, fmt.Errorf("релиз %s/%s не найден", namespace, name)
 		}
-		return helmContentFrom(latest)
+		return helmContentFromStored(*latest)
 	}
 
-	sec, err := conn.Client.CoreV1().Secrets(namespace).Get(ctx, helmSecretName(name, revision), metav1.GetOptions{})
+	it, err := getHelmStored(ctx, conn.Client, namespace, name, revision)
 	if err != nil {
 		return nil, fmt.Errorf("ревизия %d релиза %s/%s: %w", revision, namespace, name, err)
 	}
-	if string(sec.Type) != helmSecretType {
-		return nil, fmt.Errorf("секрет %s не является релизом Helm", sec.Name)
-	}
-	return helmContentFrom(sec)
+	return helmContentFromStored(it)
 }
 
+// buildHelmDetail оставлен для секретов (тесты и прежние вызовы); работает через общую реализацию.
 func buildHelmDetail(secrets []corev1.Secret, releaseNS, name string) (*HelmReleaseDetail, error) {
-	var all []helmFull
+	items := make([]helmStored, 0, len(secrets))
 	for i := range secrets {
-		if string(secrets[i].Type) != helmSecretType {
-			continue
+		if s, ok := helmStoredFromSecret(&secrets[i]); ok {
+			items = append(items, s)
 		}
+	}
+	return buildHelmDetailStored(items, releaseNS, name)
+}
+
+func buildHelmDetailStored(items []helmStored, releaseNS, name string) (*HelmReleaseDetail, error) {
+	var all []helmFull
+	for i := range items {
 		var p helmFull
-		if err := readHelmSecret(&secrets[i], &p); err != nil {
+		if err := items[i].decode(&p); err != nil {
 			continue // битая ревизия не должна ломать панель
 		}
 		all = append(all, p)
@@ -231,8 +230,12 @@ func helmResources(manifest, releaseNS string) []HelmResourceRef {
 }
 
 func helmContentFrom(sec *corev1.Secret) (*HelmReleaseContent, error) {
+	return helmContentFromStored(helmStored{Name: sec.Name, Namespace: sec.Namespace, Storage: helmStorageSecret, Raw: sec.Data["release"]})
+}
+
+func helmContentFromStored(it helmStored) (*HelmReleaseContent, error) {
 	var p helmFull
-	if err := readHelmSecret(sec, &p); err != nil {
+	if err := it.decode(&p); err != nil {
 		return nil, err
 	}
 	c := &HelmReleaseContent{Revision: p.Version, Notes: p.Info.Notes, Manifest: redactHelmManifest(p.Manifest)}
