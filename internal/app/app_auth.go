@@ -24,6 +24,7 @@ func (a *App) initAuth(dir string) {
 // initAuthWith подключает хранилища: пользователи, журнал аудита, токены Argo CD.
 func (a *App) initAuthWith(st store.Store) {
 	k8s.SetTokenStore(st.ArgoTokens())
+	k8s.SetClusterStore(st.Clusters())
 	a.audit = audit.New(st.Audit())
 	svc, err := auth.NewServiceWithBackend(st.Users())
 	if err != nil {

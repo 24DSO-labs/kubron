@@ -49,7 +49,8 @@ func (m *Manager) helmConfigDriver(namespace string, h slog.Handler, storage str
 	}
 	kubeconfig := GetClusterKubeconfigPath(id)
 	if kubeconfig == "" {
-		return nil, fmt.Errorf("kubeconfig не найден для кластера %s", id)
+		// Helm читает kubeconfig файлом: для хранилищ без файлов нужен собственный RESTClientGetter (задача 3.1b).
+		return nil, fmt.Errorf("kubeconfig-файл кластера %s недоступен: Helm работает только с файловым хранилищем кластеров", id)
 	}
 
 	flags := genericclioptions.NewConfigFlags(false)
