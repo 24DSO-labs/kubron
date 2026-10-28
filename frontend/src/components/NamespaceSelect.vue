@@ -25,8 +25,8 @@
         v-model="query"
         class="ns-search"
         type="text"
-        placeholder="Search namespaces…"
-        aria-label="Search namespaces"
+        :placeholder="$t('helm.namespace_select.searchPlaceholder')"
+        :aria-label="$t('helm.namespace_select.searchAria')"
         role="combobox"
         aria-expanded="true"
         :aria-controls="listId"
@@ -35,7 +35,7 @@
         spellcheck="false"
       />
 
-      <ul :id="listId" class="ns-list" role="listbox" aria-multiselectable="true" aria-label="Namespaces">
+      <ul :id="listId" class="ns-list" role="listbox" aria-multiselectable="true" :aria-label="$t('helm.namespace_select.label')">
         <li
           v-for="(row, i) in rows"
           :id="optionId(i)"
@@ -52,14 +52,14 @@
             v-if="row.error"
             class="ns-noaccess"
             :title="row.error"
-          >нет доступа</span>
+          >{{ $t('helm.namespace_select.noAccess') }}</span>
         </li>
-        <li v-if="!rows.length" class="ns-empty" role="presentation">No namespaces found</li>
+        <li v-if="!rows.length" class="ns-empty" role="presentation">{{ $t('helm.namespace_select.noNamespaces') }}</li>
       </ul>
 
       <div class="ns-footer">
-        <button type="button" class="ns-link" :disabled="!filtered.length || atLimit" @click="selectShown">Select shown</button>
-        <button type="button" class="ns-link" :disabled="!draft.length" @click="clear">Clear</button>
+        <button type="button" class="ns-link" :disabled="!filtered.length || atLimit" @click="selectShown">{{ $t('helm.namespace_select.selectShown') }}</button>
+        <button type="button" class="ns-link" :disabled="!draft.length" @click="clear">{{ $t('helm.namespace_select.clear') }}</button>
         <span v-if="atLimit" class="ns-limit">max {{ MAX_NAMESPACES }}</span>
       </div>
     </div>

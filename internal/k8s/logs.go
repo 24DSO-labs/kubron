@@ -73,13 +73,13 @@ func (m *Manager) GetPodLogs(namespace, name, container string, lines int64) (st
 	req := conn.Client.CoreV1().Pods(namespace).GetLogs(name, opts)
 	stream, err := req.Stream(ctx)
 	if err != nil {
-		return "", fmt.Errorf("не удалось получить логи: %w", err)
+		return "", fmt.Errorf("failed to get logs: %w", err)
 	}
 	defer stream.Close()
 
 	data, err := io.ReadAll(stream)
 	if err != nil {
-		return "", fmt.Errorf("ошибка чтения логов: %w", err)
+		return "", fmt.Errorf("failed to read logs: %w", err)
 	}
 
 	return string(data), nil

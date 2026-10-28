@@ -84,10 +84,10 @@ type helmFull struct {
 
 func validateHelmRef(namespace, name string) error {
 	if namespace == "" || len(validation.IsDNS1123Label(namespace)) > 0 {
-		return fmt.Errorf("некорректный namespace %q", namespace)
+		return fmt.Errorf("invalid namespace %q", namespace)
 	}
 	if name == "" || len(validation.IsDNS1123Subdomain(name)) > 0 {
-		return fmt.Errorf("некорректное имя релиза %q", name)
+		return fmt.Errorf("invalid release name %q", name)
 	}
 	return nil
 }
@@ -144,16 +144,18 @@ func (m *Manager) GetHelmReleaseContent(namespace, name string, revision int) (*
 			}
 		}
 		if latest == nil {
-			return nil, fmt.Errorf("релиз %s/%s не найден", namespace, name)
+			return nil, fmt.Errorf("release %s/%s not found", namespace, name)
 		}
 		return helmContentFromStored(*latest)
 	}
 
 	it, err := getHelmStored(ctx, conn.Client, namespace, name, revision)
 	if err != nil {
-		return nil, fmt.Errorf("ревизия %d релиза %s/%s: %w", revision, namespace, name, err)
+		return nil, fmt.Errorf("revision %d of release %s/%s: %w", revision, namespace, name, err)
 	}
+
 	return helmContentFromStored(it)
+
 }
 
 // buildHelmDetail оставлен для секретов (тесты и прежние вызовы); работает через общую реализацию.
@@ -177,7 +179,7 @@ func buildHelmDetailStored(items []helmStored, releaseNS, name string) (*HelmRel
 		all = append(all, p)
 	}
 	if len(all) == 0 {
-		return nil, fmt.Errorf("релиз %s/%s не найден", releaseNS, name)
+		return nil, fmt.Errorf("release %s/%s not found", releaseNS, name)
 	}
 	sort.Slice(all, func(i, j int) bool { return all[i].Version > all[j].Version })
 
@@ -308,7 +310,7 @@ func redactHelmManifest(manifest string) string {
 			break
 		}
 		if err != nil {
-			return "# не удалось разобрать манифест"
+			return "# failed to parse manifest"
 		}
 		text := strings.TrimSpace(string(doc))
 		if text == "" {
@@ -338,7 +340,7 @@ func redactSecretDoc(text string) string {
 	}
 	out, err := yaml.Marshal(m)
 	if err != nil {
-		return "# Secret (значения скрыты)"
+		return "# Secret (values hidden)"
 	}
 	// комментарии в начале документа («# Source: ...») сохраняем
 	var head []string

@@ -41,7 +41,8 @@
     "noFile": "Файл не выбран",
     "kubeconfigText": "Текст kubeconfig",
     "textHint": "Содержимое будет сохранено в каталоге Kubron, права доступа — только для вас.",
-    "submit": "Добавить кластер"
+    "submit": "Добавить кластер",
+    "uploadFromFile": "Загрузить из файла…"
   },
   "edit": {
     "kubeconfig": "Kubeconfig",

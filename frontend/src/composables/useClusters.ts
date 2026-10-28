@@ -8,6 +8,7 @@ import type {
 import { askConfirm } from '../resources/confirm'
 import { errorText } from './errorText'
 import { callApp } from '../platform/api'
+import { t } from '../i18n'
 
 const clusters = ref<ClusterStatus[]>([])
 const activeClusterId = ref('')
@@ -29,16 +30,16 @@ async function connectToCluster(id: string) {
     activeClusterId.value = id
     await loadClusters()
   } catch (e: any) {
-    clusterError.value = 'Ошибка: ' + (e.message || e)
+    clusterError.value = t('cluster.errorPrefix', { message: errorText(e) })
     throw e
   }
 }
 
 async function pickKubeconfigFile(): Promise<string> {
   try {
-    return (await callApp('PickKubeconfigFile')) || ''
+    return (await callApp('PickKubeconfigFile', t('cluster.pickKubeconfigTitle'))) || ''
   } catch (e: any) {
-    clusterError.value = e.message || String(e)
+    clusterError.value = errorText(e)
     return ''
   }
 }
@@ -71,15 +72,15 @@ async function addClusterFromText(text: string, settings: ClusterSettings): Prom
 async function deleteCluster(id: string) {
   // Свой диалог вместо window.confirm: в Wails нативный confirm работает не на всех ОС
   const name = clusters.value.find(c => c.id === id)?.displayName ?? id
-  if (!(await askConfirm(`Удалить кластер «${name}»? Его kubeconfig будет удалён из Kubron.`))) return
+  if (!(await askConfirm(t('cluster.deleteConfirm', { name })))) return
   try {
     await callApp('DeleteCluster', id)
     if (activeClusterId.value === id) {
       activeClusterId.value = ''
     }
     await loadClusters()
-  } catch (e: any) {
-    clusterError.value = e.message || String(e)
+  } catch (e) {
+    clusterError.value = errorText(e)
   }
 }
 

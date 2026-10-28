@@ -16,7 +16,7 @@ import (
 func TestCoreDoesNotImportWails(t *testing.T) {
 	files, err := filepath.Glob("*.go")
 	if err != nil || len(files) == 0 {
-		t.Fatalf("нет файлов: %v", err)
+		t.Fatalf("no files: %v", err)
 	}
 	fset := token.NewFileSet()
 	for _, f := range files {
@@ -26,11 +26,11 @@ func TestCoreDoesNotImportWails(t *testing.T) {
 		}
 		file, err := parser.ParseFile(fset, f, src, parser.ImportsOnly)
 		if err != nil {
-			t.Fatalf("разбор %s: %v", f, err)
+			t.Fatalf("parsing %s: %v", f, err)
 		}
 		for _, imp := range file.Imports {
 			if strings.Contains(imp.Path.Value, "github.com/wailsapp/wails") {
-				t.Errorf("%s импортирует %s: используйте интерфейс Platform", f, imp.Path.Value)
+				t.Errorf("%s imports %s: use the Platform interface", f, imp.Path.Value)
 			}
 		}
 	}

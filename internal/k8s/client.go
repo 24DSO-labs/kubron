@@ -227,7 +227,7 @@ func (m *Manager) LoadContexts() ([]ContextInfo, error) {
 	path := GetKubeconfigPath()
 	config, err := clientcmd.LoadFromFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("не удалось загрузить kubeconfig: %w", err)
+		return nil, fmt.Errorf("failed to load kubeconfig: %w", err)
 	}
 
 	m.viewMu.Lock()
@@ -251,16 +251,16 @@ func (m *Manager) LoadContexts() ([]ContextInfo, error) {
 func buildConnection(name string, config *rest.Config) (*ClusterConnection, error) {
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка создания клиента: %w", err)
+		return nil, fmt.Errorf("failed to create client: %w", err)
 	}
 	dynClient, err := dynamic.NewForConfig(config)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка создания dynamic клиента: %w", err)
+		return nil, fmt.Errorf("failed to create dynamic client: %w", err)
 	}
 
 	discClient, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка создания discovery клиента: %w", err)
+		return nil, fmt.Errorf("failed to create discovery client: %w", err)
 	}
 
 	return &ClusterConnection{
@@ -291,7 +291,7 @@ func (m *Manager) GetActiveConnection() (*ClusterConnection, error) {
 	m.viewMu.RUnlock()
 	conn, exists := m.pool.get(id)
 	if !exists {
-		return nil, fmt.Errorf("нет активного подключения")
+		return nil, fmt.Errorf("no active connection")
 	}
 	return conn, nil
 }
@@ -329,12 +329,12 @@ func (m *Manager) ConnectToCluster(clusterID string) error {
 func buildClusterConnection(clusterID string) (*ClusterConnection, error) {
 	kcPath := GetClusterKubeconfigPath(clusterID)
 	if kcPath == "" {
-		return nil, fmt.Errorf("kubeconfig не найден для кластера %s", clusterID)
+		return nil, fmt.Errorf("kubeconfig not found for cluster %s", clusterID)
 	}
 
 	meta, err := LoadClusterMeta(clusterID)
 	if err != nil {
-		return nil, fmt.Errorf("метаданные кластера не найдены: %w", err)
+		return nil, fmt.Errorf("cluster metadata not found: %w", err)
 	}
 
 	overrides := &clientcmd.ConfigOverrides{}
@@ -347,7 +347,7 @@ func buildClusterConnection(clusterID string) (*ClusterConnection, error) {
 		overrides,
 	).ClientConfig()
 	if err != nil {
-		return nil, fmt.Errorf("ошибка конфигурации: %w", err)
+		return nil, fmt.Errorf("configuration error: %w", err)
 	}
 
 	config.QPS = 50

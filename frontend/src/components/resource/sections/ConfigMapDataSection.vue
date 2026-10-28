@@ -13,7 +13,7 @@
           :disabled="saving[key] || !dirty[key]"
           @click="saveKey(key)"
         >
-          {{ saving[key] ? 'Сохранение…' : 'Save' }}
+          {{ saving[key] ? $t('common.saving') : $t('common.save') }}
         </button>
       </div>
     </div>
@@ -36,6 +36,8 @@ if (typeof window !== 'undefined') {
 }
 import { callApp } from '../../../resources/wails'
 import { useNotifications } from '../../../composables/useNotifications'
+import { t } from '../../../i18n'
+import { errorText } from '../../../composables/errorText'
 
 const props = defineProps<{ resource: any }>()
 const entries = computed(() => Object.entries(props.resource?.data ?? {}) as [string, string][])
@@ -146,7 +148,7 @@ async function saveKey(key: string) {
   const namespace = props.resource?.namespace
   const name = props.resource?.name
   if (!namespace || !name) {
-    notifyError('Не удалось определить namespace или имя ConfigMap')
+    notifyError(t('sections.configMapData.noTarget'))
     return
   }
 
@@ -162,10 +164,9 @@ async function saveKey(key: string) {
     if (editor) {
       editor.setValue(newValue)
     }
-    notifySuccess(`Ключ "${key}" сохранён`)
+    notifySuccess(t('sections.shared.keySaved', { key }))
   } catch (e: any) {
-    const msg = typeof e === 'string' ? e : e?.message ?? 'Ошибка сохранения'
-    notifyError(msg)
+    notifyError(errorText(e) || t('sections.shared.saveFailed'))
   } finally {
     saving[key] = false
   }

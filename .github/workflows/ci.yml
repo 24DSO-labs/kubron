@@ -147,6 +147,10 @@ jobs:
       - run: npm test
         working-directory: frontend
 
+      # полнота переводов и ссылки на ключи (без зависимостей, см. docs/i18n.md)
+      - run: npm run i18n:check
+        working-directory: frontend
+
       # frontend/wailsjs генерируется из Go-кода и не хранится в репозитории: без него vue-tsc не пройдёт
       - name: Generate Wails bindings
         run: |

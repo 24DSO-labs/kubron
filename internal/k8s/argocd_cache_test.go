@@ -33,7 +33,7 @@ func waitFor(t *testing.T, what string, cond func() bool) {
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	t.Fatalf("не дождались: %s", what)
+	t.Fatalf("timed out waiting for: %s", what)
 }
 
 func TestArgoCacheListAndNamespaceFilter(t *testing.T) {
@@ -48,7 +48,7 @@ func TestArgoCacheListAndNamespaceFilter(t *testing.T) {
 	}
 	defer ac.stop()
 
-	waitFor(t, "синхронизация informer", ac.inf.HasSynced)
+	waitFor(t, "informer sync", ac.inf.HasSynced)
 
 	all, ok := ac.list(nsScope{})
 	if !ok || len(all) != 3 || all[0].Name != "x" || all[2].Namespace != "ns-b" {
@@ -100,7 +100,7 @@ func TestArgoCacheNotifiesOncePerBurst(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer ac.stop()
-	waitFor(t, "синхронизация informer", ac.inf.HasSynced)
+	waitFor(t, "informer sync", ac.inf.HasSynced)
 
 	gvr := kindTable["application"].gvr
 	for _, name := range []string{"a", "b", "c"} {
@@ -108,18 +108,19 @@ func TestArgoCacheNotifiesOncePerBurst(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	waitFor(t, "уведомление", func() bool { return calls.Load() >= 1 })
+	waitFor(t, "notification", func() bool { return calls.Load() >= 1 })
 	time.Sleep(150 * time.Millisecond)
 	if got := calls.Load(); got != 1 {
-		t.Fatalf("серия из 3 изменений должна дать 1 уведомление, получили %d", got)
+		t.Fatalf("a burst of 3 changes must give 1 notification, got %d", got)
 	}
-	waitFor(t, "объекты в кеше", func() bool { l, _ := ac.list(nsScope{}); return len(l) == 3 })
+
+	waitFor(t, "objects in cache", func() bool { l, _ := ac.list(nsScope{}); return len(l) == 3 })
 
 	// Удаление тоже уведомляет.
 	if err := dyn.Resource(gvr).Namespace("argocd").Delete(context.Background(), "a", metav1.DeleteOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, "уведомление об удалении", func() bool { return calls.Load() >= 2 })
+	waitFor(t, "delete notification", func() bool { return calls.Load() >= 2 })
 }
 
 func TestArgoCacheStopSilencesNotifications(t *testing.T) {
@@ -129,31 +130,31 @@ func TestArgoCacheStopSilencesNotifications(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, "синхронизация informer", ac.inf.HasSynced)
+	waitFor(t, "informer sync", ac.inf.HasSynced)
 
 	_, _ = dyn.Resource(kindTable["application"].gvr).Namespace("argocd").Create(context.Background(), argoObj("Application", "argocd", "a", nil), metav1.CreateOptions{})
-	waitFor(t, "таймер взведён", func() bool { ac.mu.Lock(); defer ac.mu.Unlock(); return ac.timer != nil })
+	waitFor(t, "timer armed", func() bool { ac.mu.Lock(); defer ac.mu.Unlock(); return ac.timer != nil })
 	ac.stop()
 	time.Sleep(100 * time.Millisecond)
 	if calls.Load() != 0 {
-		t.Fatalf("после stop уведомлений быть не должно, получили %d", calls.Load())
+		t.Fatalf("no notifications are expected after stop, got %d", calls.Load())
 	}
 }
 
 func TestConnectionArgoCacheLifecycle(t *testing.T) {
-	t.Run("есть права: кеш создаётся один раз, Close останавливает", func(t *testing.T) {
+	t.Run("has permissions: cache is created once, Close stops it", func(t *testing.T) {
 		conn := &ClusterConnection{DynamicClient: newFakeArgoDyn(argoObj("Application", "argocd", "a", nil))}
 		first := conn.argoCache(nil)
 		if first == nil || conn.argoCache(nil) != first {
-			t.Fatal("кеш должен создаваться лениво и один раз")
+			t.Fatal("the cache must be created lazily and only once")
 		}
 		conn.Close()
 		if conn.argo != nil || !first.stopped {
-			t.Fatal("Close должен остановить и сбросить кеш")
+			t.Fatal("Close must stop and reset the cache")
 		}
 	})
 
-	t.Run("нет прав на list: nil и пауза до следующей пробы", func(t *testing.T) {
+	t.Run("no list permission: nil and a pause until the next probe", func(t *testing.T) {
 		dyn := newFakeArgoDyn()
 		var lists atomic.Int32
 		dyn.PrependReactor("list", "applications", func(clienttesting.Action) (bool, runtime.Object, error) {
@@ -161,12 +162,14 @@ func TestConnectionArgoCacheLifecycle(t *testing.T) {
 			return true, nil, apierrors.NewForbidden(schema.GroupResource{Group: argoGroup, Resource: "applications"}, "", nil)
 		})
 		conn := &ClusterConnection{DynamicClient: dyn}
+
 		first, second := conn.argoCache(nil), conn.argoCache(nil)
 		if first != nil || second != nil {
-			t.Fatal("без прав кеша быть не должно")
+			t.Fatal("there must be no cache without permissions")
+
 		}
 		if lists.Load() != 1 {
-			t.Fatalf("повторная проба до истечения паузы запрещена, LIST вызван %d раз", lists.Load())
+			t.Fatalf("a repeated probe before the pause expires is not allowed, LIST called %d times", lists.Load())
 		}
 	})
 }
@@ -181,14 +184,14 @@ func TestGetArgoApplicationsUsesCacheAfterSync(t *testing.T) {
 	conn := &ClusterConnection{Name: "c", DynamicClient: dyn}
 	ac := conn.argoCache(nil)
 	if ac == nil {
-		t.Fatal("кеш не создан")
+		t.Fatal("cache was not created")
 	}
 	defer conn.Close()
-	waitFor(t, "синхронизация informer", ac.inf.HasSynced)
+	waitFor(t, "informer sync", ac.inf.HasSynced)
 
 	before := lists.Load()
 	got, ok := ac.list(nsScope{})
 	if !ok || len(got) != 1 || lists.Load() != before {
-		t.Fatalf("чтение из кеша не должно обращаться к API: ok=%v n=%d lists %d→%d", ok, len(got), before, lists.Load())
+		t.Fatalf("reading from the cache must not call the API: ok=%v n=%d lists %d→%d", ok, len(got), before, lists.Load())
 	}
 }

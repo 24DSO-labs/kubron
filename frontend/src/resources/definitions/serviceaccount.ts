@@ -16,8 +16,8 @@ export const serviceAccount = defineResource({
   columns: [nameCol, { ...nsCol, link: (r: any) => r.metadata?.namespace ? { id: 'namespace', ns: '', name: r.metadata.namespace } : null }, ageCol],
   // TODO: сверить поля с ServiceAccountDetailPanel (secrets / imagePullSecrets)
   properties: [
-    { label: 'Secrets', value: r => r.secrets?.length ?? 0 },
-    { label: 'Image pull secrets', value: r => r.imagePullSecrets?.length ?? 0 },
+    { label: 'defs.props.secrets', value: r => r.secrets?.length ?? 0 },
+    { label: 'defs.props.imagePullSecrets', value: r => r.imagePullSecrets?.length ?? 0 },
     controlledByProp,
     managedByProp,
   ],

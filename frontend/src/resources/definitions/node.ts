@@ -13,6 +13,8 @@ import NodeCapacityTab from '../../components/resource/sections/NodeCapacityTab.
 import NodeAllocatableTab from '../../components/resource/sections/NodeAllocatableTab.vue'
 import NodePodsTab from '../../components/resource/sections/NodePodsTab.vue'
 import { Perm } from '../../types/auth'
+import { t } from '../../i18n'
+import { errorText } from '../../composables/errorText'
 
 /** Цвет Conditions: зелёный — Ready без проблем, жёлтый — Ready с pressure, красный — NotReady */
 const conditionsColor = (n: any): string => {
@@ -33,15 +35,15 @@ export const node = defineResource<k8s.NodeInfo, k8s.NodeDetail>({
 
   columns: [
     flatNameCol,
-    { key: 'cpu', label: 'CPU', width: 100, component: NodeUsageCell },
-    { key: 'memory', label: 'Memory', width: 100, component: NodeUsageCell, sortValue: (n: any) => n.usage?.memory?.pct },
-    { key: 'disk', label: 'Disk', width: 100, component: NodeUsageCell, sortValue: (n: any) => n.usage?.disk?.pct },
-    { key: 'taints', label: 'Taints', width: 80 },
+    { key: 'cpu', label: 'defs.columns.cpu', width: 100, component: NodeUsageCell },
+    { key: 'memory', label: 'defs.columns.memory', width: 100, component: NodeUsageCell, sortValue: (n: any) => n.usage?.memory?.pct },
+    { key: 'disk', label: 'defs.columns.disk', width: 100, component: NodeUsageCell, sortValue: (n: any) => n.usage?.disk?.pct },
+    { key: 'taints', label: 'defs.columns.taints', width: 80 },
     // kubectl показывает <none> для worker, в списке оставляем пусто
-    { key: 'roles', label: 'Roles', formatter: n => (n.roles === '<none>' ? '' : n.roles) },
-    { key: 'version', label: 'Version' },
+    { key: 'roles', label: 'defs.columns.roles', formatter: n => (n.roles === '<none>' ? '' : n.roles) },
+    { key: 'version', label: 'defs.columns.version' },
     ageCol,
-    { key: 'conditions', label: 'Conditions', colorFn: conditionsColor },
+    { key: 'conditions', label: 'defs.columns.conditions', colorFn: conditionsColor },
   ],
 
   // Использование CPU / памяти / диска подмешивается к строкам, когда придут метрики
@@ -72,71 +74,71 @@ export const node = defineResource<k8s.NodeInfo, k8s.NodeDetail>({
   headSections: [NodeMetricsSection],
   properties: [
     {
-      label: 'Addresses',
+      label: 'defs.props.addresses',
       multiline: true,
       value: n => (n.addresses ?? []).map(a => `${a.type}: ${a.address}`).join('\n'),
     },
-    { label: 'OS', value: n => (n.operatingSystem ? `${n.operatingSystem} (${n.architecture})` : n.architecture) },
-    { label: 'OS Image', value: n => n.osImage },
-    { label: 'Kernel version', value: n => n.kernelVersion },
-    { label: 'Container runtime', value: n => n.containerRuntime },
-    { label: 'Kubelet version', value: n => n.kubeVersion },
+    { label: 'defs.props.os', value: n => (n.operatingSystem ? `${n.operatingSystem} (${n.architecture})` : n.architecture) },
+    { label: 'defs.props.osImage', value: n => n.osImage },
+    { label: 'defs.props.kernelVersion', value: n => n.kernelVersion },
+    { label: 'defs.props.containerRuntime', value: n => n.containerRuntime },
+    { label: 'defs.props.kubeletVersion', value: n => n.kubeVersion },
     controlledByProp,
     managedByProp,
   ],
   sections: [NodeTaintsSection, NodeConditionsSection],
   tabs: [
-    { id: 'capacity', label: 'Capacity', component: NodeCapacityTab },
-    { id: 'allocatable', label: 'Allocatable', component: NodeAllocatableTab },
-    { id: 'pods', label: 'Pods', component: NodePodsTab },
+    { id: 'capacity', label: 'defs.tabs.capacity', component: NodeCapacityTab },
+    { id: 'allocatable', label: 'defs.tabs.allocatable', component: NodeAllocatableTab },
+    { id: 'pods', label: 'defs.tabs.pods', component: NodePodsTab },
   ],
 
   actions: [
     {
       id: 'shell',
-      label: 'Shell',
+      label: 'defs.menu.shell',
       icon: 'terminal',
       permission: Perm.Exec,
       run: async (n, ctx) => {
         if (!(await ctx.confirm(
-          `Open a root shell on node ${n.name}? A privileged helper pod is created in kube-system and removed when the session ends.`,
+          t('defs.node.shellConfirm', { name: n.name }),
         ))) return
         try {
           const s = await callApp('StartNodeShell', n.name)
           await ctx.openAttach(s.namespace, s.pod, s.container)
         } catch (e: any) {
-          ctx.notifyError(`Shell: ${e?.message || e}`)
+          ctx.notifyError(t('defs.node.shellError', { error: errorText(e) }))
         }
       },
     },
     {
       id: 'cordon',
-      label: 'Cordon',
+      label: 'defs.menu.cordon',
       icon: 'pause',
       permission: Perm.Operate,
       when: n => !n.unschedulable,
       run: (n, ctx) =>
-        ctx.perform(() => callApp('CordonNode', n.name, true), `Node ${n.name} cordoned`),
+        ctx.perform(() => callApp('CordonNode', n.name, true), t('defs.node.cordoned', { name: n.name })),
     },
     {
       id: 'uncordon',
-      label: 'Uncordon',
+      label: 'defs.menu.uncordon',
       icon: 'play',
       permission: Perm.Operate,
       when: n => !!n.unschedulable,
       run: (n, ctx) =>
-        ctx.perform(() => callApp('CordonNode', n.name, false), `Node ${n.name} uncordoned`),
+        ctx.perform(() => callApp('CordonNode', n.name, false), t('defs.node.uncordoned', { name: n.name })),
     },
     {
       id: 'drain',
-      label: 'Drain',
+      label: 'defs.menu.drain',
       icon: 'evict',
       permission: Perm.Write,
       run: async (n, ctx) => {
         if (!(await ctx.confirm(
-          `Drain node ${n.name}? It will be cordoned and its pods evicted (DaemonSet and static pods are skipped). This can take a few minutes.`,
+          t('defs.node.drainConfirm', { name: n.name }),
         ))) return
-        return ctx.perform(() => callApp('DrainNode', n.name), `Node ${n.name} drained`)
+        return ctx.perform(() => callApp('DrainNode', n.name), t('defs.node.drained', { name: n.name }))
       },
     },
   ],

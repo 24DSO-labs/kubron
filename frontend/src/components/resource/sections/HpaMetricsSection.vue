@@ -2,12 +2,12 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="hm">
-    <div class="hm-title">Metrics</div>
-    <div v-if="!metrics.length" class="rd-muted">No metrics configured</div>
+    <div class="hm-title">{{ $t('defs.columns.metrics') }}</div>
+    <div v-if="!metrics.length" class="rd-muted">{{ $t('sections.hpaMetrics.empty') }}</div>
     <div v-else class="rd-table-wrap">
       <table class="rd-table">
         <thead>
-          <tr><th>Type</th><th>Name</th><th>Current</th><th>Target</th></tr>
+          <tr><th>{{ $t('defs.columns.type') }}</th><th>{{ $t('common.name') }}</th><th>{{ $t('defs.columns.current') }}</th><th>{{ $t('defs.columns.target') }}</th></tr>
         </thead>
         <tbody>
           <tr v-for="(m, i) in metrics" :key="i">

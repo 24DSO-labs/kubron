@@ -42,7 +42,7 @@ func (m *Manager) RestartDeployment(namespace, name string) error {
 		ctx, name, types.StrategicMergePatchType, []byte(patch), metav1.PatchOptions{},
 	)
 	if err != nil {
-		return fmt.Errorf("не удалось перезапустить deployment: %w", err)
+		return fmt.Errorf("failed to restart deployment: %w", err)
 	}
 
 	return nil
@@ -137,7 +137,7 @@ func (m *Manager) RollbackDeployment(namespace, name string, revision int64) err
 		}
 	}
 	if target == nil {
-		return fmt.Errorf("ревизия %d не найдена", revision)
+		return fmt.Errorf("revision %d not found", revision)
 	}
 
 	// Как и kubectl rollout undo: берём template целевого ReplicaSet без лейбла
@@ -148,7 +148,7 @@ func (m *Manager) RollbackDeployment(namespace, name string, revision int64) err
 
 	_, err = conn.Client.AppsV1().Deployments(namespace).Update(ctx, dep, metav1.UpdateOptions{})
 	if err != nil {
-		return fmt.Errorf("не удалось откатить: %w", err)
+		return fmt.Errorf("failed to roll back: %w", err)
 	}
 
 	return nil

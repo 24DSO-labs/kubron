@@ -9,7 +9,7 @@
           'chart-range-btn',
           selectedRange === range.value ? 'active' : 'inactive'
         ]">
-          {{ range.label }}
+          {{ $t(`metrics.ranges.${range.key}`) }}
         </button>
       </div>
     </div>
@@ -28,14 +28,14 @@
         </svg>
         <p class="chart-error-text">{{ error }}</p>
         <button @click="loadData" class="chart-retry-btn">
-          Retry
+          {{ $t('common.retry') }}
         </button>
       </div>
     </div>
 
     <!-- No data -->
     <div v-else-if="!dataPoints.length" class="chart-no-data">
-      <p class="chart-no-data-text">No data available</p>
+      <p class="chart-no-data-text">{{ $t('metrics.chart.noData') }}</p>
     </div>
 
     <!-- Chart -->
@@ -48,7 +48,7 @@
 
     <!-- Current value -->
     <div v-if="currentValue !== null" class="chart-current-value-row">
-      <span class="chart-current-label">Current</span>
+      <span class="chart-current-label">{{ $t('metrics.chart.current') }}</span>
       <div>
         <span class="chart-current-value">{{ formattedCurrentValue }}</span>
         <span v-if="unit" class="chart-current-unit">{{ unit }}</span>
@@ -60,6 +60,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { Line } from 'vue-chartjs'
+import { useI18n } from 'vue-i18n'
+import { errorText } from '../../composables/errorText'
+import { formatClock, formatDateTime, formatMonthDay } from '../../i18n/format'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -87,11 +90,13 @@ const props = withDefaults(defineProps<{
   refreshIntervalMs: 30000,
 })
 
+const { t } = useI18n()
+
 const timeRanges = [
-  { label: '1h', value: 3600 },
-  { label: '6h', value: 21600 },
-  { label: '24h', value: 86400 },
-  { label: '7d', value: 604800 },
+  { key: 'h1', value: 3600 },
+  { key: 'h6', value: 21600 },
+  { key: 'h24', value: 86400 },
+  { key: 'd7', value: 604800 },
 ]
 
 const selectedRange = ref(3600)
@@ -106,7 +111,7 @@ const currentValue = computed(() => {
 })
 
 const formattedCurrentValue = computed(() => {
-  if (currentValue.value === null) return '—'
+  if (currentValue.value === null) return t('common.dash')
   if (props.formatValue) return props.formatValue(currentValue.value)
   return currentValue.value.toFixed(2)
 })
@@ -154,7 +159,7 @@ const chartOptions = computed(() => ({
           const idx = items[0].dataIndex
           const ts = dataPoints.value[idx]?.[0]
           if (!ts) return ''
-          return new Date(ts * 1000).toLocaleString()
+          return formatDateTime(ts * 1000)
         },
         label: (context: any) => {
           const val = context.parsed.y
@@ -194,10 +199,7 @@ const chartOptions = computed(() => ({
 
 function formatTimestamp(ts: number): string {
   const d = new Date(ts * 1000)
-  if (selectedRange.value <= 86400) {
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  }
-  return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
+  return selectedRange.value <= 86400 ? formatClock(d) : formatMonthDay(d)
 }
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -216,8 +218,8 @@ async function loadData() {
     // ~200 точек на график
     const step = Math.max(Math.floor(selectedRange.value / 200), 15)
     dataPoints.value = await props.fetchData(startUnix, endUnix, step)
-  } catch (e: any) {
-    error.value = e.message || String(e)
+  } catch (e) {
+    error.value = errorText(e)
   } finally {
     loading.value = false
   }

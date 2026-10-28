@@ -132,7 +132,7 @@ func (p *connPool) acquire(id string, holder *Manager) error {
 	defer p.mu.Unlock()
 	e, ok := p.entries[id]
 	if !ok {
-		return fmt.Errorf("кластер %s не подключён", id)
+		return fmt.Errorf("cluster %s is not connected", id)
 	}
 	e.refs++
 	if e.idleTimer != nil { // кластер снова востребован: отложенная остановка отменяется
