@@ -10,6 +10,12 @@
 5. (Нужны `E2E_KUBECONFIG` и `E2E_TERMINAL_POD=namespace/pod/container`, в образе должен быть `/bin/sh`) терминал: `OpenTerminal` выдаёт
    серверный id, по бинарному WebSocket `/api/terminal/{id}` команда выполняется в поде; `StartTerminalSession` с id клиента закрыт.
 
+6. (`two-users.spec.ts`, gate этапа 2) два пользователя одновременно, у каждого своя сессия: оба видят себя в `AuthStatus`, права по роли
+   (`ListUsers`: admin 200, user 403), в журнале аудита входы записаны от имени каждого с адресом, активный кластер у каждого свой
+   (нужен `E2E_KUBECONFIG`), чужой терминал недоступен (нужен `E2E_TERMINAL_POD`), события логов приходят только владельцу потока
+   (нужен `E2E_LOG_POD=namespace/pod/container` — под, пишущий в stdout), выход одного не затрагивает другого.
+   Файл выполняется после `smoke.spec.ts` (по алфавиту) и использует созданные им администратора и кластер `e2e-kind`.
+
 ## Локальный запуск
 ```bash
 cd frontend && npm ci && npm run build:web && cd ..
