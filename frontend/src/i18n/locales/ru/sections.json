@@ -1,0 +1,221 @@
+{
+  "shared": {
+    "address": "Адрес",
+    "zone": "Зона",
+    "host": "Хост",
+    "path": "Путь",
+    "secret": "Секрет",
+    "resource": "Ресурс",
+    "min": "Мин.",
+    "max": "Макс.",
+    "noLimits": "Лимиты не заданы",
+    "all": "Все",
+    "keySaved": "Ключ \"{key}\" сохранён",
+    "saveFailed": "Ошибка сохранения"
+  },
+  "binding": {
+    "role": "Роль:",
+    "subjects": "Субъекты:"
+  },
+  "codeBlock": {
+    "rules": "{n} правило | {n} правила | {n} правил"
+  },
+  "connection": {
+    "clusterIps": "Cluster IPs",
+    "ipFamilies": "Семейства IP",
+    "ipFamilyPolicy": "Политика семейства IP",
+    "externalIps": "Внешние IP"
+  },
+  "endpointSliceEntries": {
+    "serving": "Обслуживает",
+    "terminating": "Завершается",
+    "empty": "Нет endpoints"
+  },
+  "endpointSubsets": {
+    "hostname": "Имя хоста",
+    "state": "Состояние",
+    "ready": "Готов",
+    "notReady": "Не готов",
+    "subsets": "Подмножества"
+  },
+  "endpoints": {
+    "count": "{n} endpoint | {n} endpoints | {n} endpoints"
+  },
+  "endpointsTab": {
+    "empty": "Нет Endpoints"
+  },
+  "hpaMetrics": {
+    "empty": "Метрики не настроены"
+  },
+  "images": {
+    "title": "Образы"
+  },
+  "ingressClassUsedBy": {
+    "implicit": "(по умолчанию)"
+  },
+  "ingressRules": {
+    "defaultBackend": "бэкенд по умолчанию",
+    "backend": "Бэкенд",
+    "empty": "Нет правил"
+  },
+  "jobStats": {
+    "parallelism": "Параллелизм",
+    "backoffLimit": "Лимит повторов"
+  },
+  "limitRange": {
+    "defaultRequest": "Запрос по умолчанию",
+    "maxRatio": "Макс. отношение лимит/запрос"
+  },
+  "networkPolicyRules": {
+    "from": "Откуда",
+    "to": "Куда",
+    "notApplied": "Не применяется этой политикой",
+    "deniedIngress": "Правил нет: весь входящий трафик запрещён",
+    "deniedEgress": "Правил нет: весь исходящий трафик запрещён"
+  },
+  "nodeAffinity": {
+    "title": "Node Affinities"
+  },
+  "nodeConditions": {
+    "cordoned": "Узел изолирован (cordoned)"
+  },
+  "nodePods": {
+    "empty": "На этом узле нет подов",
+    "cpuNoMetrics": "CPU: нет метрик",
+    "cpuTip": "CPU: {value} ({pct}% узла)",
+    "memNoMetrics": "Память: нет метрик",
+    "memTip": "Память: {value} ({pct}% узла)"
+  },
+  "nodeUsage": {
+    "cores": "{label}: {pct}, {used} из {total} ядер",
+    "bytes": "{label}: {pct}, {used} из {total}"
+  },
+  "pvcSelector": {
+    "matchLabels": "Match Labels",
+    "matchExpressions": "Match Expressions"
+  },
+  "pvClaim": {
+    "empty": "Том не привязан к claim"
+  },
+  "pvProvider": {
+    "sourceProvider": "Провайдер источника",
+    "empty": "Нет данных провайдера"
+  },
+  "podAntiAffinity": {
+    "title": "Pod Anti Affinities"
+  },
+  "podVolumes": {
+    "groups": "{n} группа | {n} группы | {n} групп",
+    "title": "Тома"
+  },
+  "podsByClass": {
+    "empty": "Ни один под не использует этот класс"
+  },
+  "podsTab": {
+    "empty": "Нет доступных подов"
+  },
+  "quotaUsage": {
+    "scopes": "Области (scopes)",
+    "quotas": "Квоты",
+    "used": "Использовано",
+    "limit": "Лимит",
+    "usage": "Использование"
+  },
+  "rules": {
+    "apiGroups": "API-группы",
+    "verbs": "Глаголы (verbs)"
+  },
+  "serviceNetworkPolicies": {
+    "empty": "Ни одна сетевая политика не выбирает поды этого сервиса"
+  },
+  "servicePorts": {
+    "count": "{n} порт | {n} порта | {n} портов"
+  },
+  "storageClassParameters": {
+    "empty": "Нет параметров"
+  },
+  "storageClassVolumes": {
+    "empty": "Нет persistent volumes"
+  },
+  "tolerations": {
+    "title": "Tolerations",
+    "key": "Ключ",
+    "operator": "Оператор",
+    "effect": "Эффект",
+    "seconds": "Секунды"
+  },
+  "webhooks": {
+    "empty": "Webhooks не заданы",
+    "client": "Клиент",
+    "failurePolicy": "Failure Policy",
+    "matchPolicy": "Match Policy",
+    "sideEffects": "Side Effects",
+    "timeout": "Таймаут",
+    "reinvocationPolicy": "Reinvocation Policy",
+    "reviewVersions": "Review Versions",
+    "namespaceSelector": "Namespace Selector",
+    "objectSelector": "Object Selector",
+    "caBundle": "CA Bundle",
+    "set": "Задан",
+    "notSet": "Не задан",
+    "matchConditions": "Match Conditions",
+    "noRules": "Нет правил",
+    "operations": "Операции",
+    "apiVersions": "Версии API"
+  },
+  "revisions": {
+    "rollback": "Откатить",
+    "empty": "Нет доступных ревизий",
+    "loadError": "Ревизии: {error}",
+    "rollbackConfirm": "Откатить {name} на ревизию {revision}?",
+    "rollbackStarted": "{name}: откат на ревизию {revision} запущен",
+    "rollbackError": "Откат: {error}"
+  },
+  "configMapData": {
+    "noTarget": "Не удалось определить namespace или имя ConfigMap"
+  },
+  "secretData": {
+    "hide": "Скрыть (показать закодированное)",
+    "reveal": "Показать (раскодированное)",
+    "decoded": "Раскодировано",
+    "encoded": "Закодировано в Base64"
+  },
+  "containers": {
+    "image": "Образ",
+    "environment": "Окружение",
+    "envCount": "{n} переменная окружения | {n} переменные окружения | {n} переменных окружения",
+    "emptyValue": "(пусто)",
+    "hide": "Скрыть",
+    "reveal": "Показать",
+    "mounts": "Монтирования",
+    "mountsCount": "{n} монтирование | {n} монтирования | {n} монтирований",
+    "mountFrom": "из {name}",
+    "requests": "Запросы",
+    "stateReady": "{state}, готов"
+  },
+  "cronJobHistory": {
+    "job": "Job",
+    "duration": "Длительность",
+    "empty": "История заданий пуста"
+  },
+  "endpointSlices": {
+    "empty": "Нет Endpoint Slices",
+    "noEditPermission": "Недостаточно прав для редактирования",
+    "noDeletePermission": "Недостаточно прав для удаления",
+    "deleteConfirm": "Удалить EndpointSlice \"{name}\"?",
+    "deleted": "EndpointSlice \"{name}\" удалён",
+    "deleteFailed": "Не удалось удалить: {error}"
+  },
+  "portForward": {
+    "forward": "Пробросить...",
+    "title": "Проброс портов для {type} {name}",
+    "localPort": "Локальный порт для проброса:",
+    "random": "Случайный",
+    "openInBrowser": "Открыть в браузере",
+    "start": "Запустить",
+    "started": "Проброс порта: localhost:{port} → {target}",
+    "startError": "Проброс порта: {error}",
+    "stopped": "Port forward остановлен",
+    "stopError": "Остановка port forward: {error}"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "overview": "Обзор",
+  "settings": "Настройки",
+  "users": "Пользователи",
+  "audit": "Аудит",
+  "namespace": "Namespace",
+  "allNamespaces": "Все namespaces",
+  "resizeSidebar": "Изменить ширину меню",
+  "customResources": "Пользовательские ресурсы",
+  "definitions": "Определения",
+  "filterKinds": "Фильтр по kind…",
+  "groups": {
+    "workloads": "Рабочие нагрузки",
+    "config": "Конфигурация",
+    "network": "Сеть",
+    "storage": "Хранилище",
+    "helm": "Helm",
+    "access": "Контроль доступа",
+    "argocd": "Argo CD",
+    "argocdSettings": "Настройки"
+  },
+  "views": {
+    "argoDashboard": "Дашборд"
+  }
+}
