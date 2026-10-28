@@ -250,3 +250,41 @@ func TestCrossSiteFetchMetadataRejected(t *testing.T) {
 		t.Errorf("same-origin: %d", rec.Code)
 	}
 }
+
+func TestReapEndsSessionsWithDeadViewsAndReleasesThem(t *testing.T) {
+	ss := NewSessions(time.Hour, false)
+	var released []any
+	var ended []string
+	ss.Release = func(v any) { released = append(released, v) }
+	ss.OnEnd = func(id string) { ended = append(ended, id) }
+
+	live, dead := &struct{ n int }{1}, &struct{ n int }{2}
+	tokLive, sLive := ss.Create("a", live)
+	_, sDead := ss.Create("b", dead)
+	_, _ = ss.Create("c", nil) // без вида (общий экземпляр) уборка не трогает
+
+	n := ss.Reap(func(v any) bool { return v == live })
+	if n != 1 || len(released) != 1 || released[0] != dead || len(ended) != 1 || ended[0] != sDead.ID {
+		t.Fatalf("Reap=%d released=%v ended=%v", n, released, ended)
+	}
+	if _, ok := ss.Get(tokLive); !ok {
+		t.Error("живая сессия должна остаться")
+	}
+	if ss.Len() != 2 {
+		t.Errorf("осталось %d сессий, ожидалось 2 (живая и без вида)", ss.Len())
+	}
+	_ = sLive
+}
+
+func TestReapAlsoSweepsExpired(t *testing.T) {
+	ss := NewSessions(time.Hour, false)
+	now := time.Now()
+	ss.now = func() time.Time { return now }
+	var released int
+	ss.Release = func(any) { released++ }
+	ss.Create("a", &struct{}{})
+	now = now.Add(2 * time.Hour)
+	if n := ss.Reap(func(any) bool { return true }); n != 1 || released != 1 {
+		t.Fatalf("Reap=%d released=%d", n, released)
+	}
+}
