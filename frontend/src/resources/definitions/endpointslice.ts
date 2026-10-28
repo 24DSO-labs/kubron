@@ -19,21 +19,21 @@ export const endpointSlice = defineResource<k8s.EndpointSliceInfo>({
   columns: [
     flatNameCol,
     { ...flatNsCol, link: (e: any) => e.namespace ? { id: 'namespace', ns: '', name: e.namespace } : null },
-    { key: 'addressType', label: 'Address Type' },
-    { key: 'ports', label: 'Ports', formatter: (e: any) => (e.ports ?? []).join(', ') || '—' },
-        { key: 'endpointList', label: 'Endpoints', formatter: (e: any) => e.endpointList || '<none>' },
+    { key: 'addressType', label: 'defs.columns.addressType' },
+    { key: 'ports', label: 'defs.columns.ports', formatter: (e: any) => (e.ports ?? []).join(', ') || '—' },
+        { key: 'endpointList', label: 'defs.columns.endpoints', formatter: (e: any) => e.endpointList || '<none>' },
     ageCol,
   ],
 
   properties: [
     {
-      label: 'Service',
+      label: 'defs.props.service',
       value: (e: any) => e.service,
       link: (e: any) => (e.service ? { id: 'service', ns: e.namespace, name: e.service } : null),
     },
-    { label: 'Address Type', value: (e: any) => e.addressType },
-    { label: 'Ports', value: (e: any) => (e.ports ?? []).join(', ') },
-    { label: 'Ready endpoints', value: (e: any) => e.endpoints },
+    { label: 'defs.columns.addressType', value: (e: any) => e.addressType },
+    { label: 'defs.columns.ports', value: (e: any) => (e.ports ?? []).join(', ') },
+    { label: 'defs.props.readyEndpoints', value: (e: any) => e.endpoints },
     controlledByProp,
     managedByProp,
   ],

@@ -34,7 +34,7 @@ type argoAPIClient struct {
 func newArgoAPIClient(baseURL, token string) (*argoAPIClient, error) {
 	u, err := url.Parse(baseURL)
 	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
-		return nil, errors.New("некорректный адрес Argo CD")
+		return nil, errors.New("invalid Argo CD address")
 	}
 	tr := &http.Transport{}
 	// Сертификат argocd-server по умолчанию самоподписанный. Проверку отключаем только для loopback-туннеля:
@@ -95,16 +95,16 @@ func (c *argoAPIClient) managedResources(ctx context.Context, appNamespace, name
 	resp, err := c.hc.Do(req)
 	if err != nil {
 		// Ошибка транспорта содержит URL, но не заголовки: токен в неё не попадает.
-		return nil, fmt.Errorf("запрос к Argo CD API: %w", err)
+		return nil, fmt.Errorf("Argo CD API request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, argoAPIMaxBody+1))
 	if err != nil {
-		return nil, fmt.Errorf("чтение ответа Argo CD API: %w", err)
+		return nil, fmt.Errorf("failed to read Argo CD API response: %w", err)
 	}
 	if len(body) > argoAPIMaxBody {
-		return nil, errors.New("ответ Argo CD API слишком большой")
+		return nil, errors.New("Argo CD API response is too large")
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, argoAPIStatusError(resp.StatusCode, body)
@@ -114,7 +114,7 @@ func (c *argoAPIClient) managedResources(ctx context.Context, appNamespace, name
 		Items []argoManagedResource `json:"items"`
 	}
 	if err := json.Unmarshal(body, &out); err != nil {
-		return nil, errors.New("Argo CD API вернул неожиданный ответ (проверьте версию сервера и server.rootpath)")
+		return nil, errors.New("Argo CD API returned an unexpected response (check the server version and server.rootpath)")
 	}
 	return out.Items, nil
 }
@@ -123,11 +123,11 @@ func (c *argoAPIClient) managedResources(ctx context.Context, appNamespace, name
 func argoAPIStatusError(status int, body []byte) error {
 	switch status {
 	case http.StatusUnauthorized:
-		return errors.New("токен Argo CD недействителен или истёк")
+		return errors.New("Argo CD token is invalid or expired")
 	case http.StatusForbidden:
-		return errors.New("у токена Argo CD нет прав на это приложение")
+		return errors.New("Argo CD token has no permission for this application")
 	case http.StatusNotFound:
-		return errors.New("приложение не найдено в Argo CD (проверьте, что оно управляется этим Argo CD)")
+		return errors.New("application not found in Argo CD (check that it is managed by this Argo CD)")
 	}
 	var e struct {
 		Message string `json:"message"`

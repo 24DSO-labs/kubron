@@ -4,6 +4,7 @@
 import { ref, shallowRef, onMounted, onUnmounted, watch, type Ref } from 'vue'
 import { callApp } from '../resources/wails'
 import { onEvent } from '../platform/events'
+import { errorText } from './errorText'
 import type { ClusterOverview } from '../types/overview'
 
 // Основное обновление приходит событием от бэкенда (informers); таймер — подстраховка
@@ -41,9 +42,9 @@ export function useOverview(clusterName: Ref<string>) {
       data.value = res
       updatedAt.value = new Date()
       error.value = ''
-    } catch (e: any) {
+    } catch (e) {
       if (mySeq !== seq) return
-      error.value = e?.message || String(e)
+      error.value = errorText(e)
     } finally {
       if (mySeq === seq) {
         loading.value = false

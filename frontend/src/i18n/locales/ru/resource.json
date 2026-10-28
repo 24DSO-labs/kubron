@@ -1,0 +1,37 @@
+{
+  "columns": {
+    "title": "Колонки",
+    "settings": "Настройка колонок",
+    "moveUp": "Выше",
+    "moveDown": "Ниже",
+    "reset": "Сбросить колонки"
+  },
+  "table": {
+    "selectAll": "Выбрать все",
+    "resetWidth": "Двойной клик — сбросить ширину",
+    "deleteSelected": "Удалить выбранные ({n})",
+    "selectToDelete": "Выберите строки чекбоксами, чтобы удалить их"
+  },
+  "list": {
+    "empty": "Нет {title}",
+    "create": "Создать {kind}"
+  },
+  "menu": {
+    "showDetails": "Показать детали",
+    "viewYaml": "Просмотр YAML"
+  },
+  "detail": {
+    "labels": "Лейблы",
+    "annotations": "Аннотации"
+  },
+  "events": {
+    "empty": "Нет событий"
+  },
+  "host": {
+    "unknownType": "Неизвестный тип ресурса: {id}",
+    "notFound": "{kind} \"{name}\" не найден"
+  },
+  "props": {
+    "apiVersion": "Версия API"
+  }
+}

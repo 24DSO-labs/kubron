@@ -3,7 +3,7 @@
 <template>
   <div v-if="provider" class="pv-tab">
     <div class="rd-row pv-row">
-      <span class="rd-label">Source Provider</span>
+      <span class="rd-label">{{ $t('sections.pvProvider.sourceProvider') }}</span>
       <span class="rd-value">{{ provider.source }}</span>
     </div>
     <div v-for="f in provider.fields" :key="f.name" class="rd-row pv-row">
@@ -11,7 +11,7 @@
       <span class="rd-value">{{ f.value }}</span>
     </div>
   </div>
-  <div v-else class="rd-empty">No provider data</div>
+  <div v-else class="rd-empty">{{ $t('sections.pvProvider.empty') }}</div>
 </template>
 
 <script lang="ts" setup>

@@ -159,12 +159,12 @@ func diffResource(it argoManagedResource) (ArgoResourceDiff, bool) {
 
 	if len(liveText) > argoDiffMaxLines || len(desiredText) > argoDiffMaxLines {
 		res.Truncated = true
-		res.Diff = "(манифест слишком большой для построчного сравнения)"
+		res.Diff = "(manifest is too large for a line-by-line diff)"
 		return res, true
 	}
 	res.Diff = unifiedDiff(liveText, desiredText, argoDiffContext)
 	if len(res.Diff) > argoDiffMaxTextBytes {
-		res.Diff = res.Diff[:argoDiffMaxTextBytes] + "\n… (diff обрезан)"
+		res.Diff = res.Diff[:argoDiffMaxTextBytes] + "\n… (diff truncated)"
 		res.Truncated = true
 	}
 	return res, true
@@ -234,7 +234,7 @@ func manifestLines(m map[string]any) []string {
 	}
 	b, err := yaml.Marshal(m)
 	if err != nil {
-		return []string{"(не удалось сериализовать манифест)"}
+		return []string{"(failed to serialize manifest)"}
 	}
 	return strings.Split(strings.TrimRight(string(b), "\n"), "\n")
 }

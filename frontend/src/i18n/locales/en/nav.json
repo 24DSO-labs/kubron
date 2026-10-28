@@ -1,0 +1,25 @@
+{
+  "overview": "Overview",
+  "settings": "Settings",
+  "users": "Users",
+  "audit": "Audit",
+  "namespace": "Namespace",
+  "allNamespaces": "All namespaces",
+  "resizeSidebar": "Resize sidebar",
+  "customResources": "Custom resources",
+  "definitions": "Definitions",
+  "filterKinds": "Filter kinds…",
+  "groups": {
+    "workloads": "Workloads",
+    "config": "Config",
+    "network": "Network",
+    "storage": "Storage",
+    "helm": "Helm",
+    "access": "Access Control",
+    "argocd": "Argo CD",
+    "argocdSettings": "Settings"
+  },
+  "views": {
+    "argoDashboard": "Dashboard"
+  }
+}

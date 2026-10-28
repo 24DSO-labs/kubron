@@ -73,12 +73,16 @@ func (a *App) GetClusterStatuses() []k8s.ClusterStatus {
 }
 
 // PickKubeconfigFile opens a native file dialog and returns the chosen path
-// (empty string when the dialog was cancelled).
-func (a *App) PickKubeconfigFile() (string, error) {
+// (empty string when the dialog was cancelled). The dialog title is supplied
+// by the frontend (already translated); an empty title falls back to English.
+func (a *App) PickKubeconfigFile(title string) (string, error) {
 	if err := a.authz(auth.PermClusterManage); err != nil {
 		return "", err
 	}
-	return a.platform.PickFile("Выберите kubeconfig файл")
+	if title == "" {
+		title = "Select kubeconfig file"
+	}
+	return a.platform.PickFile(title)
 }
 
 // AddClusterFromFile adds a cluster from a kubeconfig file previously chosen

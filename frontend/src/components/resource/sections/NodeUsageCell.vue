@@ -11,12 +11,14 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
+import { t, tl } from '../../../i18n'
+import { formatNumber } from '../../../i18n/format'
 
 const props = defineProps<{ item: any; col: any }>()
 
 interface Usage { pct: number; used: number; total: number }
 
-const LABELS: Record<string, string> = { cpu: 'CPU', memory: 'Memory', disk: 'Disk' }
+const LABELS: Record<string, string> = { cpu: 'defs.columns.cpu', memory: 'defs.columns.memory', disk: 'defs.columns.disk' }
 
 const usage = computed<Usage | null>(() => {
   const u = props.item?.usage?.[props.col.key]
@@ -50,10 +52,10 @@ const cores = (v: number) => (Number.isInteger(v) ? String(v) : String(parseFloa
 const tip = computed(() => {
   const u = usage.value
   if (!u) return ''
-  const label = LABELS[props.col.key] ?? props.col.label
-  const pct = `${u.pct.toFixed(2)}%`
-  if (props.col.key === 'cpu') return `${label}: ${pct}, ${cores(u.used)} of ${cores(u.total)} cores`
-  return `${label}: ${pct}, ${bytes(u.used)} of ${bytes(u.total, true)}`
+  const label = tl(LABELS[props.col.key] ?? props.col.label)
+  const pct = `${formatNumber(u.pct, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
+  if (props.col.key === 'cpu') return t('sections.nodeUsage.cores', { label, pct, used: cores(u.used), total: cores(u.total) })
+  return t('sections.nodeUsage.bytes', { label, pct, used: bytes(u.used), total: bytes(u.total, true) })
 })
 </script>
 

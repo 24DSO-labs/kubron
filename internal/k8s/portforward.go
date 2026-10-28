@@ -108,10 +108,10 @@ func (pfm *PortForwardManager) StartServicePortForward(namespace, serviceName st
 
 	svc, err := conn.Client.CoreV1().Services(namespace).Get(ctx, serviceName, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("сервис не найден: %w", err)
+		return nil, fmt.Errorf("service not found: %w", err)
 	}
 	if len(svc.Spec.Selector) == 0 {
-		return nil, fmt.Errorf("у сервиса %s нет selector", serviceName)
+		return nil, fmt.Errorf("service %s has no selector", serviceName)
 	}
 
 	var svcPort *corev1.ServicePort
@@ -122,19 +122,19 @@ func (pfm *PortForwardManager) StartServicePortForward(namespace, serviceName st
 		}
 	}
 	if svcPort == nil {
-		return nil, fmt.Errorf("у сервиса %s нет порта %d", serviceName, servicePort)
+		return nil, fmt.Errorf("service %s has no port %d", serviceName, servicePort)
 	}
 
 	pods, err := conn.Client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labels.SelectorFromSet(svc.Spec.Selector).String(),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("не удалось найти поды: %w", err)
+		return nil, fmt.Errorf("failed to find pods: %w", err)
 	}
 
 	pod := pickReadyPod(pods.Items)
 	if pod == nil {
-		return nil, fmt.Errorf("нет готовых подов для сервиса %s", serviceName)
+		return nil, fmt.Errorf("no ready pods for service %s", serviceName)
 	}
 
 	podPort, err := resolveTargetPort(svcPort, pod)
@@ -178,7 +178,7 @@ func resolveTargetPort(sp *corev1.ServicePort, pod *corev1.Pod) (int, error) {
 			}
 		}
 	}
-	return 0, fmt.Errorf("порт %q не найден в контейнерах пода %s", tp.StrVal, pod.Name)
+	return 0, fmt.Errorf("port %q not found in containers of pod %s", tp.StrVal, pod.Name)
 }
 
 func (pfm *PortForwardManager) start(id, namespace, pod, service string, servicePort, localPort, podPort int) (*PortForwardSession, error) {
@@ -240,7 +240,7 @@ func (pfm *PortForwardManager) start(id, namespace, pod, service string, service
 
 	transport, upgrader, err := spdy.RoundTripperFor(conn.Config)
 	if err != nil {
-		return fail(fmt.Errorf("ошибка создания transport: %w", err))
+		return fail(fmt.Errorf("failed to create transport: %w", err))
 	}
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, &url.URL{
 		Scheme: reqURL.Scheme,
@@ -251,7 +251,7 @@ func (pfm *PortForwardManager) start(id, namespace, pod, service string, service
 	readyChan := make(chan struct{})
 	fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", localPort, podPort)}, session.stopChan, readyChan, nil, nil)
 	if err != nil {
-		return fail(fmt.Errorf("ошибка создания port-forward: %w", err))
+		return fail(fmt.Errorf("failed to create port-forward: %w", err))
 	}
 
 	done := make(chan error, 1)
@@ -266,7 +266,7 @@ func (pfm *PortForwardManager) start(id, namespace, pod, service string, service
 		if pfm.sessions[id] != session {
 			return
 		}
-		msg := "соединение закрыто"
+		msg := "connection closed"
 		if err != nil {
 			msg = err.Error()
 		}
@@ -285,11 +285,11 @@ func (pfm *PortForwardManager) start(id, namespace, pod, service string, service
 		return &snap, nil
 	case err := <-done:
 		if err == nil {
-			err = fmt.Errorf("соединение закрыто до готовности")
+			err = fmt.Errorf("connection closed before becoming ready")
 		}
-		return fail(fmt.Errorf("не удалось запустить port-forward: %w", err))
+		return fail(fmt.Errorf("failed to start port-forward: %w", err))
 	case <-time.After(portForwardReadyTimeout):
-		return fail(fmt.Errorf("таймаут установления port-forward (%s)", portForwardReadyTimeout))
+		return fail(fmt.Errorf("timed out establishing port-forward (%s)", portForwardReadyTimeout))
 	}
 }
 
@@ -303,7 +303,7 @@ func (pfm *PortForwardManager) StopPortForward(id string) error {
 	pfm.mu.Unlock()
 
 	if !ok {
-		return fmt.Errorf("сессия не найдена: %s", id)
+		return fmt.Errorf("session not found: %s", id)
 	}
 	session.stop()
 	return nil

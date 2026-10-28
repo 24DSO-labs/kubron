@@ -6,10 +6,10 @@
       <header class="cl-head">
         <ClusterAvatar :name="name" :icon="icon" :color="color" :environment="environment" :size="44" show-env />
         <div class="cl-head-text">
-          <div :id="`${uid}-title`" class="cl-title">{{ name.trim() || 'Новый кластер' }}</div>
+          <div :id="`${uid}-title`" class="cl-title">{{ name.trim() || $t('cluster.dialog.newTitle') }}</div>
           <div class="cl-subtitle cl-mono">{{ subtitle }}</div>
         </div>
-        <button type="button" class="cl-close" aria-label="Закрыть" @click="emit('close')">
+        <button type="button" class="cl-close" :aria-label="$t('common.close')" @click="emit('close')">
           <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
             <path d="M2 2l10 10M12 2L2 12" />
           </svg>
@@ -18,38 +18,38 @@
 
       <div class="cl-body">
         <section class="cl-section">
-          <h3 class="cl-section-title">Основное</h3>
+          <h3 class="cl-section-title">{{ $t('cluster.dialog.sectionMain') }}</h3>
           <div class="cl-field">
-            <label :for="`${uid}-name`" class="cl-label">Название</label>
+            <label :for="`${uid}-name`" class="cl-label">{{ $t('cluster.dialog.name') }}</label>
             <input :id="`${uid}-name`" ref="nameInput" v-model="name" class="cl-input" :maxlength="MAX_CLUSTER_NAME"
-              placeholder="Например, Production EU" autocomplete="off" spellcheck="false"
+              :placeholder="$t('cluster.dialog.namePlaceholder')" autocomplete="off" spellcheck="false"
               @keydown.enter.prevent="submit" />
           </div>
         </section>
 
         <section class="cl-section">
-          <h3 class="cl-section-title">Подключение</h3>
+          <h3 class="cl-section-title">{{ $t('cluster.dialog.sectionConnection') }}</h3>
 
           <div class="cl-field">
-            <div class="cl-segment cl-method" role="radiogroup" aria-label="Источник kubeconfig">
+            <div class="cl-segment cl-method" role="radiogroup" :aria-label="$t('cluster.dialog.kubeconfigSource')">
               <button type="button" role="radio" class="cl-segment-item" :class="{ on: method === 'file' }"
-                :aria-checked="method === 'file'" @click="setMethod('file')">Файл</button>
+                :aria-checked="method === 'file'" @click="setMethod('file')">{{ $t('cluster.dialog.methodFile') }}</button>
               <button type="button" role="radio" class="cl-segment-item" :class="{ on: method === 'text' }"
-                :aria-checked="method === 'text'" @click="setMethod('text')">Вставить текст</button>
+                :aria-checked="method === 'text'" @click="setMethod('text')">{{ $t('cluster.dialog.methodText') }}</button>
             </div>
 
             <div v-if="method === 'file'" class="cl-pick">
               <button type="button" class="cl-btn" @click="chooseFile">
-                {{ filePath ? 'Выбрать другой…' : 'Выбрать kubeconfig…' }}
+                {{ filePath ? $t('cluster.dialog.chooseOther') : $t('cluster.dialog.chooseFile') }}
               </button>
               <span v-if="filePath" class="cl-pick-path cl-mono" :title="filePath">{{ filePath }}</span>
-              <span v-else class="cl-hint" style="margin: 0">Файл не выбран</span>
+              <span v-else class="cl-hint" style="margin: 0">{{ $t('cluster.dialog.noFile') }}</span>
             </div>
             <template v-else>
               <textarea v-model="text" class="cl-textarea cl-mono" spellcheck="false"
-                placeholder="apiVersion: v1&#10;kind: Config&#10;…" aria-label="Текст kubeconfig"
+                placeholder="apiVersion: v1&#10;kind: Config&#10;…" :aria-label="$t('cluster.dialog.kubeconfigText')"
                 @input="onTextInput"></textarea>
-              <p class="cl-hint">Содержимое будет сохранено в каталоге Kubron, права доступа — только для вас.</p>
+              <p class="cl-hint">{{ $t('cluster.dialog.textHint') }}</p>
             </template>
 
             <p v-if="hasSource && probe.inspectError.value" class="cl-hint is-error">{{ probe.inspectError.value }}</p>
@@ -61,7 +61,7 @@
         </section>
 
         <section class="cl-section">
-          <h3 class="cl-section-title">Оформление</h3>
+          <h3 class="cl-section-title">{{ $t('cluster.dialog.sectionAppearance') }}</h3>
           <ClusterAppearanceFields v-model:icon="icon" v-model:color="color" v-model:environment="environment"
             :name="name" />
         </section>
@@ -71,10 +71,10 @@
 
       <footer class="cl-foot">
         <span class="cl-foot-spacer"></span>
-        <button type="button" class="cl-btn" @click="emit('close')">Отмена</button>
+        <button type="button" class="cl-btn" @click="emit('close')">{{ $t('common.cancel') }}</button>
         <button type="button" class="cl-btn cl-btn-primary" :disabled="!canSubmit" @click="submit">
           <span v-if="saving" class="cl-spin" aria-hidden="true"></span>
-          Добавить кластер
+          {{ $t('cluster.dialog.submit') }}
         </button>
       </footer>
     </div>
@@ -83,6 +83,7 @@
 
 <script lang="ts" setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { AddClusterPayload, ClusterSettings, KubeconfigSource } from '../types'
 import { NO_KUBECONFIG_SOURCE, pickContextName, useKubeconfigProbe } from '../composables/useKubeconfigProbe'
 import ClusterAvatar from './cluster/ClusterAvatar.vue'
@@ -98,6 +99,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ (e: 'close'): void }>()
 
+const { t } = useI18n()
 const uid = useId()
 const probe = useKubeconfigProbe()
 
@@ -135,7 +137,7 @@ const dirty = computed(() =>
 )
 
 const subtitle = computed(
-  () => probe.info.value?.contexts.find(c => c.name === contextName.value)?.server || 'Добавление кластера в Kubron',
+  () => probe.info.value?.contexts.find(c => c.name === contextName.value)?.server || t('cluster.dialog.addSubtitle'),
 )
 
 async function inspectSource() {

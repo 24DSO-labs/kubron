@@ -1,0 +1,35 @@
+{
+  "title": "Cluster settings",
+  "refresh": {
+    "title": "Auto-refresh",
+    "description": "Periodic refresh of resource lists",
+    "interval": "Refresh interval",
+    "seconds": "seconds",
+    "hint": "0 disables auto-refresh. Lists are refreshed manually only."
+  },
+  "language": {
+    "title": "Language",
+    "description": "Interface language. The choice is remembered on this device."
+  },
+  "metrics": {
+    "title": "Metrics stack",
+    "installHint": "Install the Kubron metrics stack to enable cluster monitoring with CPU, memory and network charts. It creates the {namespace} namespace.",
+    "components": "Components",
+    "componentPrometheus": "metrics collection and storage",
+    "componentNodeExporter": "hardware and OS metrics",
+    "componentKubeState": "Kubernetes object metrics",
+    "install": "Install metrics stack",
+    "installing": "Installing…",
+    "adminOnly": "Installing the metrics stack is available to administrators.",
+    "installingStatus": "Installing the metrics stack… This may take a few minutes.",
+    "running": "The metrics stack is running. Monitoring data is being collected.",
+    "runningComponents": "Running components",
+    "ready": "{available}/{total} ready",
+    "uninstall": "Remove metrics stack",
+    "uninstallHint": "Removes the kubron-metrics namespace and all its data",
+    "confirm": "Are you sure?",
+    "confirmUninstall": "Confirm removal",
+    "degraded": "The metrics stack is not working",
+    "reinstall": "Reinstall"
+  }
+}

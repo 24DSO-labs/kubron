@@ -17,12 +17,12 @@ export const configMap = defineResource<k8s.ConfigMapInfo, k8s.ConfigMapInfo>({
   nav: { group: 'config', label: 'Config Maps' },
 
   autoRefresh: true,
-  columns: [flatNameCol, { ...flatNsCol, link: (c: any) => c.namespace ? { id: 'namespace', ns: '', name: c.namespace } : null }, { key: 'dataCount', label: 'Keys' }, ageCol],
+  columns: [flatNameCol, { ...flatNsCol, link: (c: any) => c.namespace ? { id: 'namespace', ns: '', name: c.namespace } : null }, { key: 'dataCount', label: 'defs.columns.keys' }, ageCol],
 
   properties: [controlledByProp, managedByProp],
 
   tabs: [
-    { id: 'data', label: 'Data', component: ConfigMapDataSection },
+    { id: 'data', label: 'defs.tabs.data', component: ConfigMapDataSection },
   ],
 
   api: {

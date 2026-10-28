@@ -15,7 +15,7 @@ export const role = defineResource({
   namespaced: true,
   nav: { group: 'access', label: 'Roles' },
   columns: [nameCol, { ...nsCol, link: (r: any) => r.metadata?.namespace ? { id: 'namespace', ns: '', name: r.metadata.namespace } : null }, ageCol],
-  properties: [{ label: 'Rules', value: r => r.rules?.length ?? 0 }, controlledByProp, managedByProp],
+  properties: [{ label: 'defs.columns.rules', value: r => r.rules?.length ?? 0 }, controlledByProp, managedByProp],
   sections: [RulesSection],
   api: {
     list: ns => callApp('GetRoles', ns),

@@ -30,29 +30,29 @@ export const horizontalPodAutoscaler = defineResource<k8s.HPAInfo>({
   columns: [
     flatNameCol,
     { ...flatNsCol, link: (h: any) => h.namespace ? { id: 'namespace', ns: '', name: h.namespace } : null },
-    { key: 'metricsSummary', label: 'Metrics', formatter: (h: any) => h.metricsSummary || '—' },
-    { key: 'minReplicas', label: 'Min Pods' },
-    { key: 'maxReplicas', label: 'Max Pods' },
-    { key: 'currentReplicas', label: 'Replicas' },
-    { key: 'status', label: 'Status', formatter: (h: any) => h.status || '—', colorFn: (h: any) => (scalingOk(h) ? '#4ade80' : '#facc15') },
+    { key: 'metricsSummary', label: 'defs.columns.metrics', formatter: (h: any) => h.metricsSummary || '—' },
+    { key: 'minReplicas', label: 'defs.columns.minPods' },
+    { key: 'maxReplicas', label: 'defs.columns.maxPods' },
+    { key: 'currentReplicas', label: 'defs.columns.replicas' },
+    { key: 'status', label: 'common.status', formatter: (h: any) => h.status || '—', colorFn: (h: any) => (scalingOk(h) ? '#4ade80' : '#facc15') },
     ageCol,
   ],
 
   properties: [
     {
-      label: 'Reference',
+      label: 'defs.props.reference',
       value: (h: any) => `${h.referenceKind}/${h.referenceName}`,
       link: (h: any) => {
         const id = TARGET_IDS[h.referenceKind]
         return id && h.referenceName ? { id, ns: h.namespace, name: h.referenceName } : null
       },
     },
-    { label: 'Min Replicas', value: (h: any) => h.minReplicas },
-    { label: 'Max Replicas', value: (h: any) => h.maxReplicas },
-    { label: 'Current Replicas', value: (h: any) => h.currentReplicas },
-    { label: 'Desired Replicas', value: (h: any) => h.desiredReplicas },
-    { label: 'Last Scale', value: (h: any) => h.lastScaleTime },
-    { label: 'Finalizers', value: (h: any) => (h.finalizers ?? []).join(', ') },
+    { label: 'defs.props.minReplicas', value: (h: any) => h.minReplicas },
+    { label: 'defs.props.maxReplicas', value: (h: any) => h.maxReplicas },
+    { label: 'defs.props.currentReplicas', value: (h: any) => h.currentReplicas },
+    { label: 'defs.props.desiredReplicas', value: (h: any) => h.desiredReplicas },
+    { label: 'defs.props.lastScale', value: (h: any) => h.lastScaleTime },
+    { label: 'defs.props.finalizers', value: (h: any) => (h.finalizers ?? []).join(', ') },
     controlledByProp,
     managedByProp,
   ],

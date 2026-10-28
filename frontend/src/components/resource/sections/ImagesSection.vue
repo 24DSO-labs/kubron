@@ -2,7 +2,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="rd-row">
-    <span class="rd-label">Images</span>
+    <span class="rd-label">{{ $t('sections.images.title') }}</span>
     <div class="rd-value rd-pairs">
       <div v-for="img in images" :key="img" class="rd-mono">{{ img }}</div>
       <span v-if="!images.length" class="rd-muted">—</span>

@@ -52,10 +52,10 @@ func ParseOIDCLoginExec(command string, args []string) (p ExecParams, ok bool, e
 		}
 	}
 	if grant != "password" {
-		return p, true, fmt.Errorf("grant-type %q не поддерживается: в веб-режиме доступен только password", grant)
+		return p, true, fmt.Errorf("grant-type %q is not supported: only password is available in web mode", grant)
 	}
 	if p.IssuerURL == "" || p.ClientID == "" {
-		return p, true, fmt.Errorf("в exec-блоке нет --oidc-issuer-url или --oidc-client-id")
+		return p, true, fmt.Errorf("exec block has no --oidc-issuer-url or --oidc-client-id")
 	}
 	return p, true, nil
 }

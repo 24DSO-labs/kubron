@@ -3,7 +3,7 @@
 <template>
 <div class="terminal-view">
   <div class="terminal-header">
-    <div class="terminal-title"><span>{{ tab.mode === 'shell' ? 'Terminal' : 'Attach' }}:
+    <div class="terminal-title"><span>{{ tab.mode === 'shell' ? $t('utils.terminal.shell') : $t('utils.terminal.attach') }}:
         <strong>{{ tab.container }}</strong> @ {{ tab.pod }}</span></div>
     <div class="terminal-controls">
       <select :value="tab.container"
@@ -21,6 +21,7 @@
 
 <script lang="ts" setup>
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
@@ -30,6 +31,7 @@ import { onEvent } from '../../platform/events'
 import { callApp } from '../../platform/api'
 
 const props = defineProps<{ tab: TerminalTab; active: boolean }>()
+const { t } = useI18n()
 
 const DEFAULT_COLS = 80
 const DEFAULT_ROWS = 24
@@ -159,7 +161,7 @@ async function initTerminal() {
       }),
       onEvent(`terminal:exit:${sessionID}`, () => {
         if (s.aborted) return
-        terminal.write('\r\n[Session ended]\r\n')
+        terminal.write(`\r\n${t('utils.terminal.sessionEnded')}\r\n`)
         setState('🔴', false)
       }),
     )

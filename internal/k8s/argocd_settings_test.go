@@ -68,14 +68,14 @@ func TestArgoSettingsNoSecretLeak(t *testing.T) {
 	all := string(raw1) + string(raw2)
 	for _, m := range argoSecretMarkers {
 		if strings.Contains(all, m) {
-			t.Errorf("секрет %q попал в ответ: %s", m, all)
+			t.Errorf("secret %q leaked into the response: %s", m, all)
 		}
 	}
 	if len(repos) != 1 || len(clusters) != 1 {
 		t.Fatalf("repos=%d clusters=%d", len(repos), len(clusters))
 	}
 	if repos[0].URL != "https://git.example.com/o/r.git" || clusters[0].Server != "https://k8s.example.com" {
-		t.Errorf("userinfo не вырезан: %+v %+v", repos[0], clusters[0])
+		t.Errorf("userinfo was not stripped: %+v %+v", repos[0], clusters[0])
 	}
 }
 
@@ -108,8 +108,8 @@ func TestParseArgoClusterAuthType(t *testing.T) {
 		config string
 		want   string
 	}{
-		{"нет config", "", "none"},
-		{"битый json", "{not json", "unknown"},
+		{"no config", "", "none"},
+		{"broken json", "{not json", "unknown"},
 		{"token", `{"bearerToken":"x"}`, "token"},
 		{"tls", `{"tlsClientConfig":{"certData":"a"}}`, "tls"},
 		{"basic", `{"username":"u"}`, "basic"},

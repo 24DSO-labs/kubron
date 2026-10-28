@@ -3,36 +3,36 @@
 <template>
   <div class="conn-tab">
     <div class="rd-row">
-      <span class="rd-label">Cluster IP</span>
+      <span class="rd-label">{{ $t('defs.columns.clusterIp') }}</span>
       <span class="rd-value">{{ resource.clusterIP || '—' }}</span>
     </div>
     <div v-if="resource.clusterIPs?.length" class="rd-row">
-      <span class="rd-label">Cluster IPs</span>
+      <span class="rd-label">{{ $t('sections.connection.clusterIps') }}</span>
       <span class="rd-value">{{ resource.clusterIPs.join(', ') }}</span>
     </div>
     <div class="rd-row">
-      <span class="rd-label">IP families</span>
+      <span class="rd-label">{{ $t('sections.connection.ipFamilies') }}</span>
       <span class="rd-value">{{ resource.ipFamilies || '—' }}</span>
     </div>
     <div class="rd-row">
-      <span class="rd-label">IP family policy</span>
+      <span class="rd-label">{{ $t('sections.connection.ipFamilyPolicy') }}</span>
       <span class="rd-value">{{ resource.ipFamilyPolicy || '—' }}</span>
     </div>
     <div class="rd-row">
-      <span class="rd-label">External IPs</span>
+      <span class="rd-label">{{ $t('sections.connection.externalIps') }}</span>
       <span class="rd-value">{{ resource.externalIPs?.join(', ') || '—' }}</span>
     </div>
     <div v-if="ports.length" class="rd-row">
-      <span class="rd-label">Ports</span>
+      <span class="rd-label">{{ $t('defs.columns.ports') }}</span>
       <div class="rd-value conn-ports">
         <div v-for="p in ports" :key="p.port + '/' + p.protocol" class="conn-port">
           <span class="conn-port-main">{{ formatPort(p) }}</span>
           <div v-if="resource.externalName" class="rd-row">
-            <span class="rd-label">External name</span>
+            <span class="rd-label">{{ $t('defs.props.externalName') }}</span>
             <span class="rd-value">{{ resource.externalName }}</span>
           </div>
           <div v-if="resource.loadBalancer?.length" class="rd-row">
-            <span class="rd-label">Load balancer</span>
+            <span class="rd-label">{{ $t('defs.props.loadBalancer') }}</span>
             <span class="rd-value">{{ resource.loadBalancer.join(', ') }}</span>
           </div>
           <PortForwardControl :namespace="resource.namespace" :resource-name="resource.name" :port="p.port"

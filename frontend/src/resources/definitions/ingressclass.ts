@@ -8,8 +8,9 @@ import { flatNameCol, ageCol, controlledByProp, managedByProp } from './common'
 import { badgeClass } from '../status'
 import IngressClassUsedBySection from '../../components/resource/sections/IngressClassUsedBySection.vue'
 import { Perm } from '../../types/auth'
+import { t } from '../../i18n'
 
-const yesNo = (v: boolean) => (v ? 'True' : 'False')
+const yesNo = (v: boolean) => (v ? t('defs.values.true') : t('defs.values.false'))
 
 export const ingressClass = defineResource<k8s.IngressClassInfo>({
   id: 'ingressclass',
@@ -22,25 +23,25 @@ export const ingressClass = defineResource<k8s.IngressClassInfo>({
 
   columns: [
     flatNameCol,
-    { key: 'controller', label: 'Controller' },
-    { key: 'paramsKind', label: 'Parameters', formatter: (c: any) => (c.paramsKind ? `${c.paramsKind}/${c.paramsName}` : '—') },
-    { key: 'default', label: 'Default', formatter: (c: any) => yesNo(c.default), colorFn: (c: any) => (c.default ? '#4ade80' : '#868d8a') },
+    { key: 'controller', label: 'defs.columns.controller' },
+    { key: 'paramsKind', label: 'defs.columns.parameters', formatter: (c: any) => (c.paramsKind ? `${c.paramsKind}/${c.paramsName}` : '—') },
+    { key: 'default', label: 'defs.columns.default', formatter: (c: any) => yesNo(c.default), colorFn: (c: any) => (c.default ? '#4ade80' : '#868d8a') },
     {
       key: 'usedBy',
-      label: 'Used by',
+      label: 'defs.columns.usedBy',
       formatter: (c: any) => (c.usedBy ?? []).map((u: any) => u.name).join(', ') || '—',
     },
     ageCol,
   ],
 
   properties: [
-    { label: 'Controller', value: (c: any) => c.controller },
-    { label: 'Default', value: (c: any) => yesNo(c.default), badge: (c: any) => (c.default ? badgeClass('Active') : 'rd-unk') },
-    { label: 'Parameters Kind', value: (c: any) => c.paramsKind },
-    { label: 'Parameters Name', value: (c: any) => c.paramsName },
-    { label: 'Parameters API Group', value: (c: any) => c.paramsApiGroup },
-    { label: 'Parameters Scope', value: (c: any) => c.paramsScope },
-    { label: 'Parameters Namespace', value: (c: any) => c.paramsNamespace },
+    { label: 'defs.columns.controller', value: (c: any) => c.controller },
+    { label: 'defs.columns.default', value: (c: any) => yesNo(c.default), badge: (c: any) => (c.default ? badgeClass('Active') : 'rd-unk') },
+    { label: 'defs.props.parametersKind', value: (c: any) => c.paramsKind },
+    { label: 'defs.props.parametersName', value: (c: any) => c.paramsName },
+    { label: 'defs.props.parametersApiGroup', value: (c: any) => c.paramsApiGroup },
+    { label: 'defs.props.parametersScope', value: (c: any) => c.paramsScope },
+    { label: 'defs.props.parametersNamespace', value: (c: any) => c.paramsNamespace },
     controlledByProp,
     managedByProp,
   ],
@@ -48,26 +49,26 @@ export const ingressClass = defineResource<k8s.IngressClassInfo>({
     actions: [
     {
       id: 'setdefault',
-      label: 'Set as default',
+      label: 'defs.menu.setDefault',
       icon: 'star',
       permission: Perm.Write,
       when: (c: any) => !c.default,
       run: (c: any, ctx) =>
         ctx.perform(
           () => callApp('SetDefaultIngressClass', c.name, true),
-          `IngressClass ${c.name} is now default`,
+          t('defs.ingressClass.nowDefault', { name: c.name }),
         ),
     },
     {
       id: 'unsetdefault',
-      label: 'Unset default',
+      label: 'defs.menu.unsetDefault',
       icon: 'star',
       permission: Perm.Write,
       when: (c: any) => !!c.default,
       run: (c: any, ctx) =>
         ctx.perform(
           () => callApp('SetDefaultIngressClass', c.name, false),
-          `IngressClass ${c.name} is no longer default`,
+          t('defs.ingressClass.noLongerDefault', { name: c.name }),
         ),
     },
   ],

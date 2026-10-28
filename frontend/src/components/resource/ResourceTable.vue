@@ -24,20 +24,20 @@
         ref="allBox"
         type="checkbox"
         class="row-check"
-        title="Выбрать все"
+        :title="$t('resource.table.selectAll')"
         :checked="allSelected"
         @change="emit('toggle-all')"
       />
     </th>
     <th v-for="col in visibleColumns" :key="col.key" :data-col="col.key" :aria-sort="ariaSort(col)">
       <button v-if="isSortable(col)" type="button" class="th-sort" @click="onSort(col)">
-        {{ col.label }}<span class="sort-ind" aria-hidden="true">{{ sortIndicator(col) }}</span>
+        {{ tl(col.label) }}<span class="sort-ind" aria-hidden="true">{{ sortIndicator(col) }}</span>
       </button>
-      <template v-else>{{ col.label }}</template>
+      <template v-else>{{ tl(col.label) }}</template>
       <span
         class="col-resizer"
         :class="{ active: resizingKey === col.key }"
-        title="Двойной клик — сбросить ширину"
+        :title="$t('resource.table.resetWidth')"
         @pointerdown.prevent.stop="startResize(col.key, $event)"
         @pointermove="onDrag"
         @pointerup="stopDrag"
@@ -103,7 +103,7 @@
         class="fab fab-minus"
         :class="{ 'fab-danger': selectedCount > 0 }"
         :disabled="selectedCount === 0"
-        :title="selectedCount > 0 ? `Удалить выбранные (${selectedCount})` : 'Выберите строки чекбоксами, чтобы удалить их'"
+        :title="selectedCount > 0 ? $t('resource.table.deleteSelected', { n: selectedCount }) : $t('resource.table.selectToDelete')"
         @click="emit('delete-selected')"
       >
         −<span v-if="selectedCount > 0" class="fab-badge">{{ selectedCount }}</span>
@@ -112,7 +112,7 @@
         v-if="showCreate"
         type="button"
         class="fab fab-plus"
-        :title="createTitle ?? 'Создать'"
+        :title="createTitle ?? $t('common.create')"
         @click="emit('create')"
       >
         +
@@ -129,7 +129,7 @@
         @mouseleave="onLeave"
         @click="entry.submenu ? undefined : choose(entry.action)"
       >
-        <span class="ctx-menu-arrow">{{ entry.submenu ? '‹' : '' }}</span>{{ entry.label }}
+        <span class="ctx-menu-arrow">{{ entry.submenu ? '‹' : '' }}</span>{{ tl(entry.label) }}
         <div v-if="entry.submenu && openSub === i" class="ctx-menu-sub">
           <div
             v-for="s in entry.submenu"
@@ -137,7 +137,7 @@
             class="ctx-menu-sub-item"
             @click.stop="choose(entry.action, s.arg)"
           >
-            {{ s.label }}
+            {{ tl(s.label) }}
           </div>
         </div>
       </div>
@@ -156,6 +156,7 @@ import type { ColumnDef, MenuItemDef } from '../../resources/types'
 import './resource.css'
 import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import RollingValue from './RollingValue.vue'
+import { tl } from '../../i18n'
 import ColumnsMenu from './ColumnsMenu.vue'
 import {
   isSortable, loadPrefs, nextSort, resolveColumns, savePrefs, sortItems,
@@ -210,7 +211,8 @@ const MIN_COL = 50
 const DEFAULT_COL = 140 // ширина колонки, показанной уже после замера раскладки
 const ACTION_COL = 56
 const SELECT_COL = 40
-const storageKey = () => `kubron:colwidths:${props.title}`
+// Ключ — стабильный идентификатор списка (view), а не переводимый заголовок
+const storageKey = () => `kubron:colwidths:${props.prefsKey ?? props.title}`
 
 const tableRef = ref<HTMLTableElement | null>(null)
 const widths = reactive<Record<string, number>>({})

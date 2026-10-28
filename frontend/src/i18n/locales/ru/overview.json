@@ -1,0 +1,127 @@
+{
+  "title": "Обзор",
+  "updated": "Обновлено {time}",
+  "staleData": "Не удалось обновить, показаны последние данные",
+  "refreshing": "Обновление…",
+  "loading": "Загрузка данных кластера…",
+  "loadFailed": "Не удалось загрузить обзор кластера",
+  "stats": {
+    "nodes": "Узлы",
+    "pods": "Поды",
+    "restarts": "Перезапуски (24 ч)",
+    "warnings": "Предупреждения (1 ч)",
+    "nodesReady": "Готовы: {n}",
+    "podsRunning": "Запущены: {n}",
+    "podsProblems": "Проблемы: {problems} · Запущены: {running}",
+    "oomKilled": "OOMKilled: {n}",
+    "containersRestarted": "Контейнеры перезапускались",
+    "noRestarts": "Перезапусков нет",
+    "noWarnings": "Предупреждений нет"
+  },
+  "cores": "{value} ядер",
+  "time": {
+    "justNow": "только что",
+    "minutesAgo": "{n} мин назад",
+    "hoursAgo": "{n} ч назад",
+    "daysAgo": "{n} дн. назад"
+  },
+  "usage": {
+    "title": "Использование ресурсов",
+    "memory": "Память",
+    "cpuDetail": "{used} / {total} ядер",
+    "requestedCpu": "Запрошено {used} / {total} ядер ({percent}%)",
+    "requestedMemory": "Запрошено {used} / {total} ({percent}%)",
+    "installingTitle": "Стек метрик устанавливается",
+    "installingText": "Данные появятся, когда компоненты запустятся.",
+    "degradedTitle": "Стек метрик не работает",
+    "degradedText": "Проверьте компоненты в настройках кластера.",
+    "openSettings": "Открыть настройки",
+    "unavailableTitle": "Метрики недоступны",
+    "unavailableText": "Установите стек метрик в настройках кластера, чтобы видеть загрузку CPU и памяти.",
+    "install": "Установить метрики"
+  },
+  "topPods": {
+    "title": "Ближе всего к лимиту",
+    "memory": "Память",
+    "usedOfLimit": "{used} от лимита",
+    "emptyMemory": "Нет подов с лимитами памяти",
+    "emptyCpu": "Нет подов с лимитами CPU",
+    "needMetrics": "Установите стек метрик в настройках кластера, чтобы увидеть это"
+  },
+  "storage": {
+    "title": "Хранилище",
+    "empty": "Метрик томов пока нет (kubelet сообщает только о примонтированных томах)",
+    "needMetrics": "Установите стек метрик в настройках кластера, чтобы видеть использование томов",
+    "pvcPending": "{n} PVC в Pending",
+    "pvcLost": "{n} PVC в Lost"
+  },
+  "warnings": {
+    "title": "Предупреждения за последний час",
+    "empty": "За последний час предупреждений нет",
+    "viewAll": "Все события →"
+  },
+  "workloads": {
+    "title": "Рабочие нагрузки",
+    "countOf": "{n} из {total}",
+    "allNamespaces": "Все namespace",
+    "search": "Поиск рабочих нагрузок…",
+    "searchLabel": "Поиск рабочих нагрузок",
+    "type": "Тип",
+    "ready": "Готовы",
+    "upToDate": "Актуальны",
+    "noMatch": "Ничего не подходит под фильтр",
+    "empty": "В кластере нет рабочих нагрузок"
+  },
+  "problems": {
+    "title": "Требуют внимания",
+    "restarts": "{n} перезапуск | {n} перезапуска | {n} перезапусков",
+    "empty": "Все поды в порядке",
+    "viewAll": "Все поды ({total}) →"
+  },
+  "health": {
+    "title": "Состояние кластера",
+    "score": "Оценка состояния {score} из 100",
+    "status": {
+      "Healthy": "Исправен",
+      "Degraded": "Деградация",
+      "Critical": "Критическое"
+    },
+    "component": {
+      "healthy": "Исправен",
+      "unhealthy": "Неисправен",
+      "unknown": "Неизвестно"
+    },
+    "chipBad": "{names}: неисправно",
+    "chipOk": "Control plane исправен"
+  },
+  "changes": {
+    "title": "Что изменилось",
+    "window60": "1 ч",
+    "window360": "6 ч",
+    "window1440": "24 ч",
+    "empty": "За этот период изменений нет"
+  },
+  "capacity": {
+    "title": "Запас для планирования",
+    "largestSlot": "Самый большой свободный слот",
+    "on": "на {node}",
+    "free": "свободно {value}",
+    "hint": "По requests; узлы в cordon и NotReady пропускаются. Полосы: CPU, память.",
+    "empty": "Нет узлов для планирования"
+  },
+  "blockers": {
+    "title": "Блокировки",
+    "quotas": "Квоты близки к лимиту",
+    "pdbs": "PDB блокирует drain",
+    "pdbDetail": "исправны {healthy} из {expected}, нужно {desired}",
+    "none": "Нет квот выше {percent}% и PodDisruptionBudget, блокирующих выселение"
+  },
+  "certs": {
+    "title": "Сертификаты",
+    "expired": "истёк {n} дн. назад",
+    "today": "сегодня",
+    "left": "осталось {n} дн.",
+    "none": "Ни один TLS-сертификат не истекает в ближайшие 30 дней (проверено: {checked})",
+    "more": "и ещё {n}"
+  }
+}

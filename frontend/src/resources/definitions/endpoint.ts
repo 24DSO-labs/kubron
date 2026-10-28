@@ -19,12 +19,12 @@ export const endpoint = defineResource<k8s.EndpointListInfo>({
   columns: [
     flatNameCol,
     { ...flatNsCol, link: (e: any) => e.namespace ? { id: 'namespace', ns: '', name: e.namespace } : null },
-    { key: 'endpoints', label: 'Endpoints' },
+    { key: 'endpoints', label: 'defs.columns.endpoints' },
     ageCol,
   ],
   properties: [
-    { label: 'Service', value: e => e.name, link: e => ({ id: 'service', ns: e.namespace, name: e.name }) },
-    { label: 'Ready addresses', value: e => e.addresses },
+    { label: 'defs.props.service', value: e => e.name, link: e => ({ id: 'service', ns: e.namespace, name: e.name }) },
+    { label: 'defs.props.readyAddresses', value: e => e.addresses },
     controlledByProp,
     managedByProp,
   ],

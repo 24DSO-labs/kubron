@@ -29,14 +29,14 @@ func argoObj(kind, ns, name string, extra map[string]interface{}) *unstructured.
 }
 
 func TestParseArgoApplicationSet(t *testing.T) {
-	t.Run("пустой объект", func(t *testing.T) {
+	t.Run("empty object", func(t *testing.T) {
 		got := parseArgoApplicationSet(argoObj("ApplicationSet", "argocd", "empty", nil))
 		if got.AppCount != 0 || len(got.Generators) != 0 || !got.Healthy || got.Applications == nil {
 			t.Errorf("defaults: %+v", got)
 		}
 	})
 
-	t.Run("генераторы, шаблон, приложения, ошибка", func(t *testing.T) {
+	t.Run("generators, template, applications, error", func(t *testing.T) {
 		got := parseArgoApplicationSet(argoObj("ApplicationSet", "argocd", "set", map[string]interface{}{
 			"spec": map[string]interface{}{
 				"generators": []interface{}{
@@ -77,7 +77,7 @@ func TestParseArgoApplicationSet(t *testing.T) {
 		}
 	})
 
-	t.Run("fallback на applicationStatus", func(t *testing.T) {
+	t.Run("fallback to applicationStatus", func(t *testing.T) {
 		got := parseArgoApplicationSet(argoObj("ApplicationSet", "argocd", "old", map[string]interface{}{
 			"status": map[string]interface{}{"applicationStatus": []interface{}{
 				map[string]interface{}{"application": "x", "status": "Healthy", "message": "ok"},
@@ -90,14 +90,14 @@ func TestParseArgoApplicationSet(t *testing.T) {
 }
 
 func TestParseArgoProject(t *testing.T) {
-	t.Run("пустой объект", func(t *testing.T) {
+	t.Run("empty object", func(t *testing.T) {
 		got := parseArgoProject(argoObj("AppProject", "argocd", "p", nil))
 		if got.SourceRepos == nil || got.Destinations == nil || got.Roles == nil {
-			t.Errorf("срезы должны быть не-nil (JSON []): %+v", got)
+			t.Errorf("slices must be non-nil (JSON []): %+v", got)
 		}
 	})
 
-	t.Run("поля проекта", func(t *testing.T) {
+	t.Run("project fields", func(t *testing.T) {
 		got := parseArgoProject(argoObj("AppProject", "argocd", "p", map[string]interface{}{
 			"spec": map[string]interface{}{
 				"description": "team",
@@ -130,7 +130,7 @@ func TestParseArgoProject(t *testing.T) {
 		// Отрицательный тест: JWT-токены не должны попасть в ответ.
 		raw, _ := json.Marshal(got)
 		if strings.Contains(string(raw), "secret-token-id") || strings.Contains(string(raw), "u:tok") {
-			t.Errorf("чувствительные данные в ответе: %s", raw)
+			t.Errorf("sensitive data in the response: %s", raw)
 		}
 	})
 }
