@@ -157,11 +157,10 @@ jobs:
         working-directory: frontend
 
   # Сквозная проверка веб-версии: браузер → kubron-server → kind (docs/e2e.md).
-  # Пока не блокирует сборку: после первого стабильного зелёного прогона убрать continue-on-error.
+  # Блокирует сборку: gate этапов 1 и 2 (в том числе два пользователя одновременно).
   e2e:
     name: E2E (web, Playwright + kind)
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v5
 

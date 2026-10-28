@@ -29,4 +29,4 @@ PowerShell: `$env:KUBRON_DATA_DIR = New-Item -ItemType Directory -Path (Join-Pat
 
 ## CI
 Job `e2e` в `.github/workflows/ci.yml`: собирает веб-фронтенд и сервер, поднимает kind, запускает тесты.
-Пока job помечен `continue-on-error: true`; после первого стабильного зелёного прогона флаг нужно убрать.
+Job блокирующий (после первого зелёного прогона `continue-on-error` убран).
