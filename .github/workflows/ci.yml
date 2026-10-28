@@ -205,6 +205,9 @@ jobs:
         run: |
           kubectl run e2e-shell --image=busybox:1.36 --restart=Never -- sleep 3600
           kubectl wait --for=condition=Ready pod/e2e-shell --timeout=120s
+          # Под, который пишет в stdout: нужен тесту «события и логи доходят только владельцу»
+          kubectl run e2e-logs --image=busybox:1.36 --restart=Never -- sh -c 'while true; do echo tick; sleep 1; done'
+          kubectl wait --for=condition=Ready pod/e2e-logs --timeout=120s
 
       - name: Export kubeconfig
         run: kind export kubeconfig --name kubron-e2e --kubeconfig "$RUNNER_TEMP/kind.kubeconfig"
@@ -226,6 +229,7 @@ jobs:
         env:
           E2E_KUBECONFIG: ${{ runner.temp }}/kind.kubeconfig
           E2E_TERMINAL_POD: default/e2e-shell/e2e-shell
+          E2E_LOG_POD: default/e2e-logs/e2e-logs
 
       - name: Server log
         if: always()
