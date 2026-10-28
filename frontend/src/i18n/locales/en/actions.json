@@ -1,0 +1,13 @@
+{
+  "noPermission": "You do not have permission for this action",
+  "loadYamlFailed": "Failed to load YAML: {error}",
+  "deleteUnsupported": "Deleting {kind} is not supported",
+  "createUnsupported": "Creating {kind} is not supported",
+  "deleted": "{kind} \"{name}\" deleted",
+  "deleteFailed": "Delete failed: {error}",
+  "bulkDeleted": "{kind}: deleted {done} of {total}",
+  "bulkFailed": "Failed to delete {failed} of {total}: {list}",
+  "andMore": "and {n} more",
+  "unavailable": "\"{label}\" is not available for {name}",
+  "scaled": "{kind} {name} scaled to {n} replicas"
+}
