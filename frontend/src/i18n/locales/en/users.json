@@ -1,0 +1,60 @@
+{
+  "title": "Users",
+  "subtitle": "Local accounts and their roles",
+  "add": "➕ Add user",
+  "idle": {
+    "title": "Auto sign-out on inactivity",
+    "description": "The session ends if the user does not move the mouse or press keys. Running terminals and port forwards are closed. Applies to all accounts.",
+    "off": "Off",
+    "oneHour": "1 hour",
+    "twoHours": "2 hours",
+    "minutes": "{n} min",
+    "saved": "Auto sign-out: {value}"
+  },
+  "columns": {
+    "login": "Login",
+    "role": "Role",
+    "status": "Status",
+    "lastLogin": "Last sign-in",
+    "actions": "Actions"
+  },
+  "you": "you",
+  "cannotChangeOwnRole": "You cannot change your own role",
+  "status": {
+    "disabled": "Disabled",
+    "tempPassword": "Temporary password",
+    "tempPasswordHint": "The user has not changed the temporary password yet",
+    "active": "Active"
+  },
+  "neverSignedIn": "never signed in",
+  "resetPassword": "Reset password",
+  "ownPasswordHint": "Your own password is changed via the user menu",
+  "enable": "Enable",
+  "disable": "Disable",
+  "delete": "Delete",
+  "empty": "No users",
+  "create": {
+    "title": "New user",
+    "login": "Login",
+    "tempPassword": "Temporary password",
+    "passwordHint": "At least {n} characters. The user will set their own password on first sign-in.",
+    "role": "Role",
+    "submit": "Create",
+    "submitting": "Creating…"
+  },
+  "reset": {
+    "title": "Reset password: {name}",
+    "newPassword": "New temporary password",
+    "passwordHint": "At least {n} characters. The user must change it on sign-in.",
+    "submitting": "Saving…"
+  },
+  "toast": {
+    "roleChanged": "Role of “{name}” changed",
+    "enabled": "“{name}” enabled",
+    "disabled": "“{name}” disabled",
+    "deleted": "User “{name}” deleted",
+    "created": "User “{name}” created",
+    "passwordReset": "Password of “{name}” reset"
+  },
+  "confirmDelete": "Delete user “{name}”? This action cannot be undone."
+}

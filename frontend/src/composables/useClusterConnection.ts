@@ -5,6 +5,9 @@
 
 import { ref, computed, type Ref } from 'vue'
 import { useArgo } from './useArgo'
+import { useNotifications } from './useNotifications'
+import { errorText } from './errorText'
+import { t } from '../i18n'
 import { loadCustomResources, resetCustomResources } from '../resources/customResources'
 import type {
   AddClusterPayload, ClusterMeta, ClusterSettings, ClusterStatus, ClusterUpdateResult,
@@ -15,7 +18,6 @@ import type {
 export function useClusterConnection(deps: {
   clusters: Ref<ClusterStatus[]>
   activeClusterId: Ref<string>
-  error: Ref<string>
   selectedNamespace: Ref<string>
   namespaces: Ref<NamespaceInfo[]>
   currentView: Ref<string>
@@ -32,7 +34,7 @@ export function useClusterConnection(deps: {
   autoConnect: () => Promise<boolean>
 }) {
   const {
-    clusters, activeClusterId, error,
+    clusters, activeClusterId,
     selectedNamespace, namespaces, currentView,
     connectToCluster, loadNamespaces, refreshData,
     k8sDisconnect, loadClusters,
@@ -41,6 +43,7 @@ export function useClusterConnection(deps: {
   } = deps
 
   const { refreshArgo, resetArgo } = useArgo()
+  const notifications = useNotifications()
   const connecting = ref(false)
   const showAddCluster = ref(false)
   const editingClusterId = ref<string | null>(null)
@@ -64,7 +67,6 @@ export function useClusterConnection(deps: {
     if (activeClusterId.value === id) return
     try {
       connecting.value = true
-      error.value = ''
       await connectToCluster(id)
       await loadNamespaces()
 
@@ -75,7 +77,7 @@ export function useClusterConnection(deps: {
       void refreshArgo()
       await refreshData()
     } catch (e: any) {
-      error.value = 'Ошибка подключения: ' + (e.message || e)
+      notifications.notifyError(t('cluster.connectionError', { message: errorText(e) }))
     } finally {
       connecting.value = false
     }

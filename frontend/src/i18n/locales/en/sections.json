@@ -1,0 +1,221 @@
+{
+  "shared": {
+    "address": "Address",
+    "zone": "Zone",
+    "host": "Host",
+    "path": "Path",
+    "secret": "Secret",
+    "resource": "Resource",
+    "min": "Min",
+    "max": "Max",
+    "noLimits": "No limits defined",
+    "all": "All",
+    "keySaved": "Key \"{key}\" saved",
+    "saveFailed": "Save error"
+  },
+  "binding": {
+    "role": "Role:",
+    "subjects": "Subjects:"
+  },
+  "codeBlock": {
+    "rules": "{n} rule | {n} rules"
+  },
+  "connection": {
+    "clusterIps": "Cluster IPs",
+    "ipFamilies": "IP families",
+    "ipFamilyPolicy": "IP family policy",
+    "externalIps": "External IPs"
+  },
+  "endpointSliceEntries": {
+    "serving": "Serving",
+    "terminating": "Terminating",
+    "empty": "No endpoints"
+  },
+  "endpointSubsets": {
+    "hostname": "Hostname",
+    "state": "State",
+    "ready": "Ready",
+    "notReady": "Not ready",
+    "subsets": "Subsets"
+  },
+  "endpoints": {
+    "count": "{n} endpoint | {n} endpoints"
+  },
+  "endpointsTab": {
+    "empty": "No Endpoints"
+  },
+  "hpaMetrics": {
+    "empty": "No metrics configured"
+  },
+  "images": {
+    "title": "Images"
+  },
+  "ingressClassUsedBy": {
+    "implicit": "(default)"
+  },
+  "ingressRules": {
+    "defaultBackend": "default backend",
+    "backend": "Backend",
+    "empty": "No rules"
+  },
+  "jobStats": {
+    "parallelism": "Parallelism",
+    "backoffLimit": "Backoff Limit"
+  },
+  "limitRange": {
+    "defaultRequest": "Default request",
+    "maxRatio": "Max limit/request ratio"
+  },
+  "networkPolicyRules": {
+    "from": "From",
+    "to": "To",
+    "notApplied": "Not applied by this policy",
+    "deniedIngress": "No rules: all ingress traffic is denied",
+    "deniedEgress": "No rules: all egress traffic is denied"
+  },
+  "nodeAffinity": {
+    "title": "Node Affinities"
+  },
+  "nodeConditions": {
+    "cordoned": "Node is cordoned"
+  },
+  "nodePods": {
+    "empty": "No pods on this node",
+    "cpuNoMetrics": "CPU: no metrics",
+    "cpuTip": "CPU: {value} ({pct}% of node)",
+    "memNoMetrics": "Memory: no metrics",
+    "memTip": "Memory: {value} ({pct}% of node)"
+  },
+  "nodeUsage": {
+    "cores": "{label}: {pct}, {used} of {total} cores",
+    "bytes": "{label}: {pct}, {used} of {total}"
+  },
+  "pvcSelector": {
+    "matchLabels": "Match Labels",
+    "matchExpressions": "Match Expressions"
+  },
+  "pvClaim": {
+    "empty": "Volume is not bound to a claim"
+  },
+  "pvProvider": {
+    "sourceProvider": "Source Provider",
+    "empty": "No provider data"
+  },
+  "podAntiAffinity": {
+    "title": "Pod Anti Affinities"
+  },
+  "podVolumes": {
+    "groups": "{n} group | {n} groups",
+    "title": "Volumes"
+  },
+  "podsByClass": {
+    "empty": "No pods use this class"
+  },
+  "podsTab": {
+    "empty": "No pods available"
+  },
+  "quotaUsage": {
+    "scopes": "Scopes",
+    "quotas": "Quotas",
+    "used": "Used",
+    "limit": "Limit",
+    "usage": "Usage"
+  },
+  "rules": {
+    "apiGroups": "API groups",
+    "verbs": "Verbs"
+  },
+  "serviceNetworkPolicies": {
+    "empty": "No network policies select the pods of this service"
+  },
+  "servicePorts": {
+    "count": "{n} port | {n} ports"
+  },
+  "storageClassParameters": {
+    "empty": "No parameters"
+  },
+  "storageClassVolumes": {
+    "empty": "No persistent volumes"
+  },
+  "tolerations": {
+    "title": "Tolerations",
+    "key": "Key",
+    "operator": "Operator",
+    "effect": "Effect",
+    "seconds": "Seconds"
+  },
+  "webhooks": {
+    "empty": "No webhooks defined",
+    "client": "Client",
+    "failurePolicy": "Failure Policy",
+    "matchPolicy": "Match Policy",
+    "sideEffects": "Side Effects",
+    "timeout": "Timeout",
+    "reinvocationPolicy": "Reinvocation Policy",
+    "reviewVersions": "Review Versions",
+    "namespaceSelector": "Namespace Selector",
+    "objectSelector": "Object Selector",
+    "caBundle": "CA Bundle",
+    "set": "Set",
+    "notSet": "Not set",
+    "matchConditions": "Match Conditions",
+    "noRules": "No rules",
+    "operations": "Operations",
+    "apiVersions": "API versions"
+  },
+  "revisions": {
+    "rollback": "Rollback",
+    "empty": "No revisions available",
+    "loadError": "Revisions: {error}",
+    "rollbackConfirm": "Rollback {name} to revision {revision}?",
+    "rollbackStarted": "{name}: rollback to revision {revision} started",
+    "rollbackError": "Rollback: {error}"
+  },
+  "configMapData": {
+    "noTarget": "Could not determine the namespace or ConfigMap name"
+  },
+  "secretData": {
+    "hide": "Hide (show encoded)",
+    "reveal": "Reveal (show decoded)",
+    "decoded": "Decoded",
+    "encoded": "Base64 encoded"
+  },
+  "containers": {
+    "image": "Image",
+    "environment": "Environment",
+    "envCount": "{n} Environmental Variable | {n} Environmental Variables",
+    "emptyValue": "(empty)",
+    "hide": "Hide",
+    "reveal": "Reveal",
+    "mounts": "Mounts",
+    "mountsCount": "{n} Mount | {n} Mounts",
+    "mountFrom": "from {name}",
+    "requests": "Requests",
+    "stateReady": "{state}, ready"
+  },
+  "cronJobHistory": {
+    "job": "Job",
+    "duration": "Duration",
+    "empty": "No job history"
+  },
+  "endpointSlices": {
+    "empty": "No Endpoint Slices",
+    "noEditPermission": "Insufficient permissions to edit",
+    "noDeletePermission": "Insufficient permissions to delete",
+    "deleteConfirm": "Delete EndpointSlice \"{name}\"?",
+    "deleted": "EndpointSlice \"{name}\" deleted",
+    "deleteFailed": "Failed to delete: {error}"
+  },
+  "portForward": {
+    "forward": "Forward...",
+    "title": "Port Forwarding for {type} {name}",
+    "localPort": "Local port to forward from:",
+    "random": "Random",
+    "openInBrowser": "Open in Browser",
+    "start": "Start",
+    "started": "Port forward: localhost:{port} → {target}",
+    "startError": "Port forward: {error}",
+    "stopped": "Port forward stopped",
+    "stopError": "Failed to stop port forward: {error}"
+  }
+}

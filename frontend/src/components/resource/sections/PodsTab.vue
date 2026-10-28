@@ -5,7 +5,7 @@
     <table class="rd-table">
       <thead>
         <tr>
-          <th>Name</th><th>Node</th><th>Namespace</th><th>Controller</th><th>Ready</th><th>CPU</th><th>Memory</th><th>Status</th>
+          <th>{{ $t('common.name') }}</th><th>{{ $t('defs.columns.node') }}</th><th>{{ $t('common.namespace') }}</th><th>{{ $t('defs.columns.controller') }}</th><th>{{ $t('defs.columns.ready') }}</th><th>{{ $t('defs.columns.cpu') }}</th><th>{{ $t('defs.columns.memory') }}</th><th>{{ $t('common.status') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -22,12 +22,12 @@
           <td class="rd-mono">{{ p.ready }}</td>
           <td class="rd-mono">{{ formatCpu(metrics[p.name]?.totalCpu) }}</td>
           <td class="rd-mono">{{ formatMemory(metrics[p.name]?.totalMem) }}</td>
-          <td><span class="rd-badge" :class="badgeClass(p.status)">{{ p.status || 'Unknown' }}</span></td>
+          <td><span class="rd-badge" :class="badgeClass(p.status)">{{ p.status || $t('common.unknown') }}</span></td>
         </tr>
       </tbody>
     </table>
   </div>
-  <div v-else class="rd-empty">{{ loading ? 'Загрузка...' : 'No pods available' }}</div>
+  <div v-else class="rd-empty">{{ loading ? $t('common.loading') : $t('sections.podsTab.empty') }}</div>
 </template>
 
 <script lang="ts" setup>

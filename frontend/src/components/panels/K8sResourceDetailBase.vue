@@ -8,7 +8,7 @@
       class="detail-resizer"
       role="separator"
       aria-orientation="vertical"
-      aria-label="Resize details panel"
+      :aria-label="$t('panels.detail.resize')"
       tabindex="0"
       @pointerdown="startResize"
       @keydown="onResizerKey"
@@ -24,25 +24,25 @@
         <!-- Развернуть панель на всю область контента / вернуть ширину -->
         <button
           class="btn-action btn-expand"
-          :title="expanded ? 'Restore panel width' : 'Expand panel'"
-          :aria-label="expanded ? 'Restore panel width' : 'Expand panel'"
+          :title="expanded ? $t('panels.detail.restoreWidth') : $t('panels.detail.expand')"
+          :aria-label="expanded ? $t('panels.detail.restoreWidth') : $t('panels.detail.expand')"
           :aria-pressed="expanded"
           @click="toggleExpanded"
         >{{ expanded ? '⤡' : '⤢' }}</button>
 
         <!-- Edit button -->
-        <button v-if="showEdit !== false" class="btn-action" @click="emit('edit')" title="Edit">
-          <K8sIcon name="edit" alt="Edit" size="sm" />
+        <button v-if="showEdit !== false" class="btn-action" @click="emit('edit')" :title="$t('common.edit')">
+          <K8sIcon name="edit" :alt="$t('common.edit')" size="sm" />
         </button>
 
         <!-- Delete button -->
-        <button v-if="showDelete !== false" class="btn-action" @click="emit('delete')" title="Delete resource">
-          <K8sIcon name="delete" alt="Delete" size="sm" />
+        <button v-if="showDelete !== false" class="btn-action" @click="emit('delete')" :title="$t('panels.detail.deleteResource')">
+          <K8sIcon name="delete" :alt="$t('common.delete')" size="sm" />
         </button>
 
         <!-- Close button -->
-        <button class="btn-action" @click="emit('close')" title="Close">
-          <K8sIcon name="close" alt="Close" size="sm" />
+        <button class="btn-action" @click="emit('close')" :title="$t('common.close')">
+          <K8sIcon name="close" :alt="$t('common.close')" size="sm" />
         </button>
       </div>
     </div>
@@ -50,22 +50,22 @@
     <!-- Meta info (namespace, age, etc) -->
     <div v-if="showMetaInfo" class="detail-meta">
       <div class="meta-row">
-        <span class="meta-label">Name:</span>
+        <span class="meta-label">{{ $t('panels.detail.name') }}</span>
         <div class="name-with-copy">
           {{ resource.name }}
-          <button class="btn-copy" @click="copyToClipboard(resource.name)" title="Copy name">
-            <K8sIcon name="copy" alt="Copy" size="sm" />
+          <button class="btn-copy" @click="copyToClipboard(resource.name)" :title="$t('panels.detail.copyName')">
+            <K8sIcon name="copy" :alt="$t('common.copy')" size="sm" />
           </button>
         </div>
       </div>
       <div v-if="resource.namespace" class="meta-row">
-        <span class="meta-label">Namespace:</span>
+        <span class="meta-label">{{ $t('panels.detail.namespace') }}</span>
         <a class="meta-link" @click.prevent="onNamespaceClick">
           {{ resource.namespace }}
         </a>
       </div>
       <div v-if="resource.age" class="meta-row">
-        <span class="meta-label">Age:</span>
+        <span class="meta-label">{{ $t('panels.detail.age') }}</span>
         <div class="age-display">
           <div class="age-relative">{{ formatAgeRelative(resource.age) }}</div>
           <div class="age-absolute">{{ formatAgeAbsolute(resource.created) }}</div>
@@ -81,7 +81,7 @@
         :class="['tab', { active: activeTab === tab.id }]"
         @click="activeTab = tab.id"
       >
-        {{ tab.label }}
+        {{ tl(tab.label) }}
       </button>
     </div>
 
@@ -109,9 +109,13 @@
 
 <script lang="ts" setup>
 import { ref, computed, onBeforeUnmount } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { tl } from '../../i18n'
+import { formatDateTime } from '../../i18n/format'
 import K8sIcon from '../icons/K8sIcon.vue'
 import { DETAIL_DEFAULT_WIDTH, useDetailPanelSize } from '../../composables/useDetailPanelSize'
 import { useSidebarWidth } from '../../composables/useSidebarWidth'
+const { t } = useI18n()
 const { width: sidebarWidth } = useSidebarWidth()
 
 const panelStyle = computed(() => {
@@ -204,8 +208,8 @@ const showMetaInfo = computed(() => {
 
 const tabs = computed<DetailTab[]>(() => {
   const baseTabs: DetailTab[] = [
-    { id: 'properties', label: 'Properties' },
-    { id: 'events', label: 'Events' }
+    { id: 'properties', label: t('panels.detail.properties') },
+    { id: 'events', label: t('panels.detail.events') }
   ]
   if (props.customTabs) {
     return [...baseTabs, ...props.customTabs]
@@ -233,7 +237,7 @@ function formatAgeAbsolute(created: string): string {
   if (!created) return ''
   try {
     const date = new Date(created)
-    return date.toLocaleString()
+    return formatDateTime(date) || created
   } catch {
     return created
   }

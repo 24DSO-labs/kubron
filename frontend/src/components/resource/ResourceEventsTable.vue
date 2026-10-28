@@ -5,11 +5,11 @@
     <table class="rd-table">
       <thead>
         <tr>
-          <th>Type</th>
-          <th>Reason</th>
-          <th>Message</th>
-          <th>Count</th>
-          <th>Age</th>
+          <th>{{ $t('defs.columns.type') }}</th>
+          <th>{{ $t('defs.columns.reason') }}</th>
+          <th>{{ $t('defs.columns.message') }}</th>
+          <th>{{ $t('defs.columns.count') }}</th>
+          <th>{{ $t('common.age') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -23,7 +23,7 @@
       </tbody>
     </table>
   </div>
-  <div v-else class="rd-empty">No events</div>
+  <div v-else class="rd-empty">{{ $t('resource.events.empty') }}</div>
 </template>
 
 <script lang="ts" setup>

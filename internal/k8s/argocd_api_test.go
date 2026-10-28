@@ -35,7 +35,7 @@ func TestArgoAPIManagedResources(t *testing.T) {
 		t.Errorf("Authorization: %q", gotAuth)
 	}
 	if gotPath != "/argocd/api/v1/applications/my-app/managed-resources" || gotNS != "argocd" {
-		t.Errorf("запрос: path=%q appNamespace=%q (rootpath должен сохраняться)", gotPath, gotNS)
+		t.Errorf("request: path=%q appNamespace=%q (rootpath must be preserved)", gotPath, gotNS)
 	}
 	if len(items) != 1 || items[0].Kind != "Deployment" || items[0].PredictedLiveState != `{"a":2}` {
 		t.Errorf("items: %+v", items)
@@ -48,9 +48,9 @@ func TestArgoAPIStatusErrorsDoNotLeakToken(t *testing.T) {
 		body   string
 		want   string
 	}{
-		{401, `{"message":"` + testAPIToken + ` is bad"}`, "недействителен"}, // тело 401 игнорируется целиком
-		{403, `{}`, "нет прав"},
-		{404, `{}`, "не найдено"},
+		{401, `{"message":"` + testAPIToken + ` is bad"}`, "invalid or expired"}, // тело 401 игнорируется целиком
+		{403, `{}`, "no permission"},
+		{404, `{}`, "not found"},
 		{500, `{"message":"boom"}`, "HTTP 500: boom"},
 		{502, `not json`, "HTTP 502"},
 		{500, `{"message":"` + strings.Repeat("x", 500) + `"}`, "…"},
@@ -65,13 +65,13 @@ func TestArgoAPIStatusErrorsDoNotLeakToken(t *testing.T) {
 			c, _ := newArgoAPIClient(srv.URL, testAPIToken)
 			_, err := c.managedResources(context.Background(), "ns", "app")
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
-				t.Fatalf("ожидалась ошибка с %q, получили %v", tc.want, err)
+				t.Fatalf("expected an error containing %q, got %v", tc.want, err)
 			}
 			if strings.Contains(err.Error(), testAPIToken) {
-				t.Errorf("токен попал в текст ошибки: %v", err)
+				t.Errorf("token leaked into the error text: %v", err)
 			}
 			if len(err.Error()) > 300 {
-				t.Errorf("текст ошибки не ограничен: %d байт", len(err.Error()))
+				t.Errorf("error text is not limited: %d bytes", len(err.Error()))
 			}
 		})
 	}
@@ -81,7 +81,7 @@ func TestArgoAPIBadJSON(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("<html>")) }))
 	defer srv.Close()
 	c, _ := newArgoAPIClient(srv.URL, "t")
-	if _, err := c.managedResources(context.Background(), "ns", "app"); err == nil || !strings.Contains(err.Error(), "неожиданный ответ") {
+	if _, err := c.managedResources(context.Background(), "ns", "app"); err == nil || !strings.Contains(err.Error(), "unexpected response") {
 		t.Errorf("err = %v", err)
 	}
 }
@@ -98,10 +98,10 @@ func TestArgoAPIDoesNotFollowRedirects(t *testing.T) {
 	c, _ := newArgoAPIClient(srv.URL, testAPIToken)
 	_, err := c.managedResources(context.Background(), "ns", "app")
 	if err == nil || !strings.Contains(err.Error(), "HTTP 302") {
-		t.Fatalf("ожидалась ошибка HTTP 302, получили %v", err)
+		t.Fatalf("expected an HTTP 302 error, got %v", err)
 	}
 	if hits.Load() != 0 {
-		t.Error("клиент пошёл по редиректу: токен мог уйти на чужой адрес")
+		t.Error("the client followed a redirect: the token could have been sent to a foreign address")
 	}
 }
 
@@ -115,14 +115,14 @@ func TestArgoAPISelfSignedTLSOnLoopback(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := c.managedResources(context.Background(), "ns", "app"); err != nil {
-		t.Fatalf("loopback-туннель с самоподписанным сертификатом должен работать: %v", err)
+		t.Fatalf("a loopback tunnel with a self-signed certificate must work: %v", err)
 	}
 }
 
 func TestNewArgoAPIClientValidation(t *testing.T) {
 	for _, bad := range []string{"", "localhost:8080", "ftp://localhost", "http://", "://x"} {
 		if _, err := newArgoAPIClient(bad, "t"); err == nil {
-			t.Errorf("%q должен быть отклонён", bad)
+			t.Errorf("%q must be rejected", bad)
 		}
 	}
 	for host, want := range map[string]bool{

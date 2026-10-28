@@ -5,7 +5,7 @@
     <div class="nav-group-header" @click="emit('toggle', group.id)">
       <span class="nav-arrow" :class="{ open: expanded[group.id] }">›</span>
       <span class="nav-group-icon"></span>
-      <span class="nav-group-title">{{ group.title }}</span>
+      <span class="nav-group-title">{{ tl(group.title) }}</span>
     </div>
     <div v-show="expanded[group.id]" class="nav-group-items">
       <div
@@ -14,7 +14,7 @@
         :class="['nav-item', { active: currentView === item.view }]"
         @click="emit('navigate', item.view)"
       >
-        <span class="nav-icon"></span> {{ item.label }}
+        <span class="nav-icon"></span> {{ tl(item.label) }}
       </div>
       <NavGroupNode
         v-for="child in visibleChildren"
@@ -32,6 +32,7 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
+import { tl } from '../../i18n'
 import type { NavGroupId } from '../../resources/types'
 import type { NavGroup } from '../../resources/navigation'
 

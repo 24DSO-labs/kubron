@@ -3,18 +3,18 @@
 <template>
   <div class="qu">
     <div class="rd-row" v-if="scopes.length">
-      <span class="rd-label">Scopes</span>
+      <span class="rd-label">{{ $t('sections.quotaUsage.scopes') }}</span>
       <span class="rd-value qu-chips">
         <span v-for="s in scopes" :key="s" class="qu-chip">{{ s }}</span>
       </span>
     </div>
 
-    <div class="qu-title">Quotas</div>
-    <div v-if="!quotas.length" class="rd-muted">No limits defined</div>
+    <div class="qu-title">{{ $t('sections.quotaUsage.quotas') }}</div>
+    <div v-if="!quotas.length" class="rd-muted">{{ $t('sections.shared.noLimits') }}</div>
     <div v-else class="rd-table-wrap">
       <table class="rd-table">
         <thead>
-          <tr><th>Resource</th><th>Used</th><th>Limit</th><th class="qu-bar-col">Usage</th></tr>
+          <tr><th>{{ $t('sections.shared.resource') }}</th><th>{{ $t('sections.quotaUsage.used') }}</th><th>{{ $t('sections.quotaUsage.limit') }}</th><th class="qu-bar-col">{{ $t('sections.quotaUsage.usage') }}</th></tr>
         </thead>
         <tbody>
           <tr v-for="q in quotas" :key="q.name">

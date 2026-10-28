@@ -11,15 +11,16 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
+import { t } from '../../../i18n'
 import { podStatusSummary } from '../../../resources/utils'
 
 const props = defineProps<{ resource: any }>()
 
 const rows = computed(() => [
-  { label: 'Completions', value: props.resource?.completions },
-  { label: 'Parallelism', value: props.resource?.parallelism },
-  { label: 'Backoff Limit', value: props.resource?.backoffLimit },
-  { label: 'Pod Status', value: podStatusSummary(props.resource) },
+  { label: t('defs.columns.completions'), value: props.resource?.completions },
+  { label: t('sections.jobStats.parallelism'), value: props.resource?.parallelism },
+  { label: t('sections.jobStats.backoffLimit'), value: props.resource?.backoffLimit },
+  { label: t('defs.props.podStatus'), value: podStatusSummary(props.resource) },
 ])
 </script>
 

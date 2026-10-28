@@ -4,7 +4,7 @@
   <div v-if="apps.length" class="rd-table-wrap">
     <table class="rd-table">
       <thead>
-        <tr><th>Application</th><th>Sync</th><th>Health</th><th>Message</th></tr>
+        <tr><th>{{ $t('defs.columns.application') }}</th><th>{{ $t('argo.columns.sync') }}</th><th>{{ $t('argo.columns.health') }}</th><th>{{ $t('defs.columns.message') }}</th></tr>
       </thead>
       <tbody>
         <tr v-for="a in apps" :key="a.name">
@@ -16,7 +16,7 @@
       </tbody>
     </table>
   </div>
-  <div v-else class="rd-empty">No applications generated</div>
+  <div v-else class="rd-empty">{{ $t('argo.setApps.empty') }}</div>
 </template>
 
 <script lang="ts" setup>

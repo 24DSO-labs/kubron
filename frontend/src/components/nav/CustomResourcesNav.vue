@@ -5,14 +5,14 @@
     <div class="nav-group-header" @click="open = !open">
       <span class="nav-arrow" :class="{ open }">›</span>
       <span class="nav-group-icon"></span>
-      <span class="nav-group-title">Custom Resources</span>
+      <span class="nav-group-title">{{ $t('nav.customResources') }}</span>
     </div>
     <div v-show="open" class="nav-group-items">
       <div :class="['nav-item', { active: currentView === 'crds' }]" @click="emit('navigate', 'crds')">
-        <span class="nav-icon"></span> Definitions
+        <span class="nav-icon"></span> {{ $t('nav.definitions') }}
       </div>
 
-      <input v-if="crds.length > 8" v-model="filter" class="cr-filter" type="search" placeholder="Filter kinds…" />
+      <input v-if="crds.length > 8" v-model="filter" class="cr-filter" type="search" :placeholder="$t('nav.filterKinds')" />
 
       <div v-for="g in groups" :key="g.name" class="nav-group">
         <div class="nav-group-header" @click="toggle(g.name)">

@@ -6,8 +6,8 @@
       ref="btn"
       class="cm-btn"
       type="button"
-      title="Колонки"
-      aria-label="Настройка колонок"
+      :title="$t('resource.columns.title')"
+      :aria-label="$t('resource.columns.settings')"
       aria-haspopup="true"
       :aria-expanded="open"
       :class="{ active: open }"
@@ -18,7 +18,7 @@
         <path d="M6 2.75v10.5M10.25 2.75v10.5" />
       </svg>
     </button>
-    <div v-if="open" class="cm-pop" :style="popStyle" role="dialog" aria-label="Настройка колонок" @click.stop>
+    <div v-if="open" class="cm-pop" :style="popStyle" role="dialog" :aria-label="$t('resource.columns.settings')" @click.stop>
       <ul class="cm-list">
         <li
           v-for="(c, i) in ordered"
@@ -39,15 +39,15 @@
               :disabled="c.key === required"
               @change="emit('toggle', c.key)"
             />
-            <span>{{ c.label }}</span>
+            <span>{{ tl(c.label) }}</span>
           </label>
           <span class="cm-move">
-            <button type="button" :disabled="i === 0" aria-label="Выше" @click="emit('move', i, i - 1)">↑</button>
-            <button type="button" :disabled="i === ordered.length - 1" aria-label="Ниже" @click="emit('move', i, i + 1)">↓</button>
+            <button type="button" :disabled="i === 0" :aria-label="$t('resource.columns.moveUp')" @click="emit('move', i, i - 1)">↑</button>
+            <button type="button" :disabled="i === ordered.length - 1" :aria-label="$t('resource.columns.moveDown')" @click="emit('move', i, i + 1)">↓</button>
           </span>
         </li>
       </ul>
-      <button class="cm-reset" type="button" @click="emit('reset')">Сбросить колонки</button>
+      <button class="cm-reset" type="button" @click="emit('reset')">{{ $t('resource.columns.reset') }}</button>
     </div>
   </div>
 </template>
@@ -55,6 +55,7 @@
 <script lang="ts" setup>
 /** Выпадающее меню: видимость колонок (чекбокс) и порядок (перетаскивание или кнопки ↑/↓). Состояния не хранит. */
 import { onMounted, onUnmounted, ref } from 'vue'
+import { tl } from '../../i18n'
 
 defineProps<{
   ordered: { key: string; label: string }[]

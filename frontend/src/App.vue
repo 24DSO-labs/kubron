@@ -12,7 +12,7 @@
     <!-- Header -->
     <header class="header" :class="{ 'env-prod': activeClusterMeta?.environment === 'prod' }">
       <div class="header-brand">
-        <img src="./assets/images/logo.svg" alt="Kubron Logo" class="logo" />
+        <img src="./assets/images/logo.svg" alt="Kubron" class="logo" />
       </div>
       <div v-if="activeClusterId && activeClusterMeta" class="connection-info">
         <ClusterAvatar :name="activeClusterMeta.displayName" :icon="activeClusterMeta.icon"
@@ -20,9 +20,9 @@
         <span class="active-cluster-name">{{ activeClusterMeta.displayName }}</span>
         <span v-if="activeEnvironment" class="env-badge"
           :style="{ color: activeEnvironment.color, borderColor: activeEnvironment.color }">
-          {{ activeEnvironment.label }}
+          {{ tl(activeEnvironment.label) }}
         </span>
-        <button class="btn-disconnect" title="Отключиться от кластера" aria-label="Отключиться от кластера"
+        <button class="btn-disconnect" :title="$t('app.header.disconnect')" :aria-label="$t('app.header.disconnect')"
           @click="clusterConn.disconnect()">✕</button>
       </div>
       <UserMenu />
@@ -36,18 +36,18 @@
 
       <!-- Нет кластеров -->
       <div v-if="clusters.length === 0 && !clusterConn.showAddCluster.value" class="welcome-screen">
-        <h2>Добро пожаловать в Kubron!</h2>
+        <h2>{{ $t('app.welcome.title') }}</h2>
         <template v-if="can(Perm.ClusterManage)">
-          <p>Добавьте кластер для начала работы</p>
-          <button class="btn" @click="clusterConn.showAddCluster.value = true">Добавить кластер</button>
+          <p>{{ $t('app.welcome.addPrompt') }}</p>
+          <button class="btn" @click="clusterConn.showAddCluster.value = true">{{ $t('app.welcome.addButton') }}</button>
         </template>
-        <p v-else>Кластеры ещё не добавлены. Обратитесь к администратору.</p>
+        <p v-else>{{ $t('app.welcome.noClusters') }}</p>
       </div>
 
       <!-- Не подключен, но кластеры есть -->
       <div v-else-if="!activeClusterId && clusters.length > 0 && !clusterConn.connecting.value" class="welcome-screen">
-        <h2>Выберите кластер</h2>
-        <p>Кликните на иконку кластера слева для подключения</p>
+        <h2>{{ $t('app.select.title') }}</h2>
+        <p>{{ $t('app.select.hint') }}</p>
       </div>
 
       <!-- Основной интерфейс -->
@@ -62,7 +62,7 @@
 
           <!-- Остальные view (старый механизм) -->
           <template v-else>
-            <div v-if="loading" class="loading">⏳ Загрузка...</div>
+            <div v-if="loading" class="loading">⏳ {{ $t('common.loading') }}</div>
             <component v-else-if="activeViewComponent" :is="activeViewComponent" v-bind="activeViewProps"
               v-on="activeViewEvents" />
           </template>
@@ -88,7 +88,7 @@
 
     <!-- Connecting overlay -->
     <div v-if="clusterConn.connecting.value" class="overlay">
-      <div class="spinner">⏳ Подключение...</div>
+      <div class="spinner">⏳ {{ $t('app.connecting') }}</div>
     </div>
     </template>
   </div>
@@ -96,6 +96,9 @@
 
 <script lang="ts" setup>
 import { computed, onMounted, watch, provide } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { errorText } from './composables/errorText'
+import { tl } from './i18n'
 import { useK8s } from './composables/useK8s'
 import { useClusters } from './composables/useClusters'
 import { useClusterConnection } from './composables/useClusterConnection'
@@ -132,13 +135,14 @@ import { clearHelmContentCache } from './resources/helmContent'
 // Composables
 // ═══════════════════════════════════════════════
 
+const { t } = useI18n()
 const auth = useAuth()
 const k8s = useK8s()
 const clustersApi = useClusters()
 const notifications = useNotifications()
 
 const {
-  namespaces, selectedNamespace, currentView, error, loading,
+  namespaces, selectedNamespace, currentView, loading,
   switchView, onNamespaceChange, refreshData,
   loadNamespaces,
 } = k8s
@@ -152,7 +156,6 @@ const {
 const clusterConn = useClusterConnection({
   clusters,
   activeClusterId,
-  error,
   selectedNamespace,
   namespaces,
   currentView,
@@ -224,7 +227,7 @@ function onOpenResource(data: { kind: string; name: string; namespace?: string }
   const def = getResourceById(kind)
   if (def) return resourceActions.open(def.id, namespace, name)
 
-  notifications.notifyError(`Unknown resource type: ${kind}`)
+  notifications.notifyError(t('app.errors.unknownResource', { kind }))
 }
 
 // ═══════════════════════════════════════════════
@@ -269,7 +272,7 @@ const activeViewEvents = computed(() => ({
 
 async function applyYAMLTabbed(tabId: string) {
   if (!can(Perm.Write)) {
-    notifications.notifyError('Недостаточно прав для изменения ресурсов')
+    notifications.notifyError(t('app.errors.noWritePermission'))
     return
   }
   const tab = globalTabbedPanel.tabs.value.find(t => t.id === tabId)
@@ -280,32 +283,21 @@ async function applyYAMLTabbed(tabId: string) {
     // Кнопка «+»: вкладка с новым манифестом создаёт объект, а не заменяет существующий
     if (tab.mode === 'create') {
       const name = await k8s.createResourceYAML(applied, tab.resourceType, DEFAULT_NAMESPACE)
-      notifications.notifySuccess(`${tab.kindLabel ?? tab.resourceType} "${name}" создан`)
+      notifications.notifySuccess(t('app.yaml.created', { kind: tab.kindLabel ?? tab.resourceType, name }))
       globalTabbedPanel.closeTab(tab.id)
       await refreshAll()
       return
     }
     await k8s.applyYAML(applied, tab.resourceType, tab.namespace, tab.resourceName)
     tab.originalContent = applied
-    notifications.notifySuccess(`${tab.resourceType} ${tab.resourceName} updated`)
+    notifications.notifySuccess(t('app.yaml.updated', { type: tab.resourceType, name: tab.resourceName }))
     await refreshAll()
   } catch (e: any) {
-    notifications.notifyError(`${tab.mode === 'create' ? 'Ошибка создания' : 'Apply error'}: ${e?.message || e}`)
+    notifications.notifyError(t(tab.mode === 'create' ? 'app.yaml.createError' : 'app.yaml.applyError', { message: errorText(e) }))
   } finally {
     tab.saving = false
   }
 }
-
-// ═══════════════════════════════════════════════
-// Ошибки из composables, которые пишут в ref `error`
-// ═══════════════════════════════════════════════
-
-watch(error, (val) => {
-  if (!val) return
-  if (val.startsWith('Ошибка') || /error/i.test(val)) notifications.notifyError(val)
-  else notifications.notifySuccess(val)
-  error.value = ''
-})
 
 // ═══════════════════════════════════════════════
 // Init

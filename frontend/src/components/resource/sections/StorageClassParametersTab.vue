@@ -7,7 +7,7 @@
       <span class="rd-value">{{ v === '' ? '—' : v }}</span>
     </div>
   </div>
-  <div v-else class="rd-empty">No parameters</div>
+  <div v-else class="rd-empty">{{ $t('sections.storageClassParameters.empty') }}</div>
 </template>
 
 <script lang="ts" setup>

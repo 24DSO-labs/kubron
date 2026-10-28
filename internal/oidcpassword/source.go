@@ -123,10 +123,10 @@ func (s *Source) discover(ctx context.Context) (string, error) {
 		TokenEndpoint string `json:"token_endpoint"`
 	}
 	if err := json.Unmarshal(body, &doc); err != nil || doc.TokenEndpoint == "" {
-		return "", errors.New("oidc discovery: в ответе нет token_endpoint")
+		return "", errors.New("oidc discovery: response has no token_endpoint")
 	}
 	if doc.Issuer != "" && strings.TrimRight(doc.Issuer, "/") != strings.TrimRight(s.cfg.IssuerURL, "/") {
-		return "", fmt.Errorf("oidc discovery: issuer %q не совпадает с настроенным %q", doc.Issuer, s.cfg.IssuerURL)
+		return "", fmt.Errorf("oidc discovery: issuer %q does not match the configured %q", doc.Issuer, s.cfg.IssuerURL)
 	}
 	return doc.TokenEndpoint, nil
 }
@@ -163,12 +163,12 @@ func (s *Source) request(ctx context.Context, form url.Values, grant string) err
 		return fmt.Errorf("oidc %s: HTTP %d %s %s", grant, resp.StatusCode, tr.Error, tr.ErrorDesc)
 	}
 	if tr.IDToken == "" {
-		return fmt.Errorf("oidc %s: в ответе нет id_token (нужен scope openid)", grant)
+		return fmt.Errorf("oidc %s: response has no id_token (scope openid is required)", grant)
 	}
 	exp, err := jwtExpiry(tr.IDToken)
 	if err != nil {
 		if tr.ExpiresIn <= 0 {
-			return fmt.Errorf("oidc %s: не удалось определить срок id_token: %w", grant, err)
+			return fmt.Errorf("oidc %s: failed to determine id_token expiry: %w", grant, err)
 		}
 		exp = s.now().Add(time.Duration(tr.ExpiresIn) * time.Second)
 	}
@@ -183,7 +183,7 @@ func (s *Source) request(ctx context.Context, form url.Values, grant string) err
 func jwtExpiry(token string) (time.Time, error) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
-		return time.Time{}, errors.New("не JWT")
+		return time.Time{}, errors.New("not a JWT")
 	}
 	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
@@ -193,7 +193,7 @@ func jwtExpiry(token string) (time.Time, error) {
 		Exp int64 `json:"exp"`
 	}
 	if err := json.Unmarshal(payload, &c); err != nil || c.Exp == 0 {
-		return time.Time{}, errors.New("в токене нет exp")
+		return time.Time{}, errors.New("token has no exp")
 	}
 	return time.Unix(c.Exp, 0), nil
 }

@@ -3,7 +3,7 @@
 <template>
   <section class="ov-card problems">
     <header class="head">
-      <h2 class="ov-card-title">Needs attention</h2>
+      <h2 class="ov-card-title">{{ $t('overview.problems.title') }}</h2>
       <span v-if="total" class="count">{{ total }}</span>
     </header>
 
@@ -14,16 +14,16 @@
           <span class="tag" :class="tone(p.reason)">{{ p.reason }}</span>
           <span class="sub">
             {{ p.namespace }}<template v-if="p.node"> · {{ p.node }}</template>
-            <template v-if="p.restarts"> · {{ p.restarts }} restarts</template>
+            <template v-if="p.restarts"> · {{ $t('overview.problems.restarts', p.restarts) }}</template>
             · {{ timeAgo(p.since, now) }}
           </span>
         </button>
       </li>
     </ul>
-    <p v-else class="none">All pods are healthy</p>
+    <p v-else class="none">{{ $t('overview.problems.empty') }}</p>
 
     <button v-if="total > pods.length" type="button" class="more" @click="emit('viewAll')">
-      View all pods ({{ total }}) →
+      {{ $t('overview.problems.viewAll', { total }) }}
     </button>
   </section>
 </template>

@@ -51,7 +51,7 @@ func TestAnalyzePods(t *testing.T) {
 	got := analyzePods([]corev1.Pod{crash, oldRestart, freshPending, stuckPending, notReady, done, evictedOld, terminating}, t0)
 
 	if got.Restarts != 1 || got.OOMKilled != 1 {
-		t.Errorf("restarts=%d oom=%d, want 1/1 (перезапуск 30ч назад не в окне)", got.Restarts, got.OOMKilled)
+		t.Errorf("restarts=%d oom=%d, want 1/1 (restart 30h ago is outside the window)", got.Restarts, got.OOMKilled)
 	}
 	var names []string
 	for _, p := range got.Problems {
@@ -67,7 +67,7 @@ func TestAnalyzePods(t *testing.T) {
 		}
 	}
 	if got.Problems[0].Restarts != 9 {
-		t.Errorf("restarts пода = %d, want 9", got.Problems[0].Restarts)
+		t.Errorf("pod restarts = %d, want 9", got.Problems[0].Restarts)
 	}
 }
 
@@ -82,7 +82,7 @@ func TestAnalyzePodsLimitsList(t *testing.T) {
 		t.Errorf("shown=%d total=%d", len(got.Problems), got.ProblemsTotal)
 	}
 	if empty := analyzePods(nil, t0); empty.Problems == nil {
-		t.Error("пустой список должен быть [], а не null")
+		t.Error("an empty list must be [], not null")
 	}
 }
 

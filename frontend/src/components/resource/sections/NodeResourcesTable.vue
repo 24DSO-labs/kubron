@@ -13,7 +13,7 @@
         </tbody>
       </table>
     </div>
-    <div v-else class="rd-empty">No data</div>
+    <div v-else class="rd-empty">{{ $t('common.noData') }}</div>
   </div>
 </template>
 

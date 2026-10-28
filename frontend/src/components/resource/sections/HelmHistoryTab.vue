@@ -4,11 +4,11 @@
   <div v-if="history.length" class="rd-table-wrap">
     <table class="rd-table">
       <thead>
-        <tr><th>Revision</th><th>Status</th><th>Chart</th><th>App version</th><th>Updated</th><th>Description</th></tr>
+        <tr><th>{{ $t('defs.columns.revision') }}</th><th>{{ $t('common.status') }}</th><th>{{ $t('defs.props.chart') }}</th><th>{{ $t('defs.columns.appVersion') }}</th><th>{{ $t('defs.columns.updated') }}</th><th>{{ $t('defs.props.description') }}</th></tr>
       </thead>
       <tbody>
         <tr v-for="h in history" :key="h.revision">
-          <td class="rd-mono">#{{ h.revision }}<span v-if="h.revision === current" class="rd-muted"> (current)</span></td>
+          <td class="rd-mono">#{{ h.revision }}<span v-if="h.revision === current" class="rd-muted"> ({{ $t('helm.history.current') }})</span></td>
           <td><span class="rd-badge" :class="badgeClass(h.status)">{{ h.status }}</span></td>
           <td class="rd-mono">{{ h.chart }}-{{ h.chartVersion }}</td>
           <td class="rd-mono">{{ h.appVersion || '—' }}</td>
@@ -18,7 +18,7 @@
       </tbody>
     </table>
   </div>
-  <div v-else class="rd-empty">No history</div>
+  <div v-else class="rd-empty">{{ $t('helm.history.empty') }}</div>
 </template>
 
 <script lang="ts" setup>

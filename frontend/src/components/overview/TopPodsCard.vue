@@ -3,10 +3,10 @@
 <template>
   <section class="ov-card tp">
     <header class="head">
-      <h2 class="ov-card-title">Closest to limit</h2>
+      <h2 class="ov-card-title">{{ $t('overview.topPods.title') }}</h2>
       <div class="tabs" role="tablist">
-        <button v-for="t in TABS" :key="t.id" type="button" role="tab" :aria-selected="tab === t.id"
-          :class="{ on: tab === t.id }" @click="tab = t.id">{{ t.label }}</button>
+        <button v-for="tb in TABS" :key="tb.id" type="button" role="tab" :aria-selected="tab === tb.id"
+          :class="{ on: tab === tb.id }" @click="tab = tb.id">{{ tb.label() }}</button>
       </div>
     </header>
 
@@ -16,29 +16,35 @@
           <span class="name" :title="p.name">{{ p.name }}</span>
           <span class="val" :class="tone(p.percent)">{{ Math.round(p.percent) }}%</span>
           <span class="bar" aria-hidden="true"><span class="fill" :class="tone(p.percent)" :style="{ width: Math.min(p.percent, 100) + '%' }"></span></span>
-          <span class="sub">{{ p.namespace }} · {{ used(p) }} of limit</span>
+          <span class="sub">{{ p.namespace }} · {{ $t('overview.topPods.usedOfLimit', { used: used(p) }) }}</span>
         </button>
       </li>
     </ul>
-    <p v-else-if="state === 'ready'" class="none">No pods with {{ tab === 'memory' ? 'memory' : 'CPU' }} limits</p>
-    <p v-else-if="state === 'loading'" class="none">Loading…</p>
-    <p v-else class="none">Install the metrics stack in cluster settings to see this</p>
+    <p v-else-if="state === 'ready'" class="none">{{ tab === 'memory' ? $t('overview.topPods.emptyMemory') : $t('overview.topPods.emptyCpu') }}</p>
+    <p v-else-if="state === 'loading'" class="none">{{ $t('common.loading') }}</p>
+    <p v-else class="none">{{ $t('overview.topPods.needMetrics') }}</p>
   </section>
 </template>
 
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
-import { formatBytes, formatCores } from './format'
+import { useI18n } from 'vue-i18n'
+import { formatBytes, formatCoresLabel } from './format'
 import type { HotPod, MetricsState, OverviewHotspots } from '../../types/hotspots'
 
 const props = defineProps<{ data: OverviewHotspots | null; state: MetricsState }>()
 const emit = defineEmits<{ (e: 'open', p: HotPod): void }>()
 
-const TABS = [{ id: 'memory', label: 'Memory' }, { id: 'cpu', label: 'CPU' }] as const
+const { t } = useI18n()
+// label — функция: текст считается при рендере, чтобы переключение языка его обновляло
+const TABS = [
+  { id: 'memory', label: () => t('overview.topPods.memory') },
+  { id: 'cpu', label: () => 'CPU' },
+] as const
 const tab = ref<'memory' | 'cpu'>('memory')
 
 const rows = computed(() => (tab.value === 'memory' ? props.data?.topMemory : props.data?.topCpu) ?? [])
-const used = (p: HotPod) => (tab.value === 'memory' ? formatBytes(p.used) : `${formatCores(p.used)} cores`)
+const used = (p: HotPod) => (tab.value === 'memory' ? formatBytes(p.used) : formatCoresLabel(p.used))
 // Память у limit — риск OOMKilled; CPU у limit — троттлинг, он менее опасен, поэтому пороги мягче
 const tone = (pct: number) => {
   const [warn, danger] = tab.value === 'memory' ? [75, 90] : [90, 100]

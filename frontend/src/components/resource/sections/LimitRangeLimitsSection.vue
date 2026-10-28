@@ -2,14 +2,14 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="lr">
-    <div class="lr-title">Limits</div>
-    <div v-if="!limits.length" class="rd-muted">No limits defined</div>
+    <div class="lr-title">{{ $t('defs.columns.limits') }}</div>
+    <div v-if="!limits.length" class="rd-muted">{{ $t('sections.shared.noLimits') }}</div>
     <div v-else class="rd-table-wrap">
       <table class="rd-table">
         <thead>
           <tr>
-            <th>Type</th><th>Resource</th><th>Min</th><th>Max</th>
-            <th>Default</th><th>Default request</th><th>Max limit/request ratio</th>
+            <th>{{ $t('defs.columns.type') }}</th><th>{{ $t('sections.shared.resource') }}</th><th>{{ $t('sections.shared.min') }}</th><th>{{ $t('sections.shared.max') }}</th>
+            <th>{{ $t('defs.columns.default') }}</th><th>{{ $t('sections.limitRange.defaultRequest') }}</th><th>{{ $t('sections.limitRange.maxRatio') }}</th>
           </tr>
         </thead>
         <tbody>

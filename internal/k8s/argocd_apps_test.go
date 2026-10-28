@@ -33,19 +33,19 @@ func TestParseArgoApplication(t *testing.T) {
 		check func(t *testing.T, got ArgoApplicationInfo)
 	}{
 		{
-			name:  "пустой объект: безопасные значения по умолчанию",
+			name:  "empty object: safe defaults",
 			extra: nil,
 			check: func(t *testing.T, got ArgoApplicationInfo) {
 				if got.Project != "default" || got.SyncStatus != "Unknown" || got.HealthStatus != "Unknown" {
 					t.Errorf("defaults: %+v", got)
 				}
 				if got.AutoSync || got.OperationOn || len(got.Sources) != 0 {
-					t.Errorf("неожиданные флаги/источники: %+v", got)
+					t.Errorf("unexpected flags/sources: %+v", got)
 				}
 			},
 		},
 		{
-			name: "одиночный spec.source",
+			name: "single spec.source",
 			extra: map[string]interface{}{"spec": map[string]interface{}{
 				"project": "team-a",
 				"source":  map[string]interface{}{"repoURL": "https://github.com/acme/app", "path": "deploy", "targetRevision": "main"},
@@ -63,7 +63,7 @@ func TestParseArgoApplication(t *testing.T) {
 			},
 		},
 		{
-			name: "multi-source имеет приоритет, userinfo вырезается из repoURL",
+			name: "multi-source takes precedence, userinfo is stripped from repoURL",
 			extra: map[string]interface{}{"spec": map[string]interface{}{
 				"source": map[string]interface{}{"repoURL": "https://old/ignored"},
 				"sources": []interface{}{
@@ -76,7 +76,7 @@ func TestParseArgoApplication(t *testing.T) {
 					t.Fatalf("sources: %+v", got.Sources)
 				}
 				if got.RepoURL != "https://git.example.com/org/chart.git" || got.Chart != "web" {
-					t.Errorf("первый источник: %+v", got)
+					t.Errorf("first source: %+v", got)
 				}
 				if got.Sources[1].Ref != "values" {
 					t.Errorf("ref: %+v", got.Sources[1])
@@ -84,7 +84,7 @@ func TestParseArgoApplication(t *testing.T) {
 			},
 		},
 		{
-			name: "automated syncPolicy и операция",
+			name: "automated syncPolicy and operation",
 			extra: map[string]interface{}{
 				"spec": map[string]interface{}{"syncPolicy": map[string]interface{}{
 					"automated": map[string]interface{}{"prune": true, "selfHeal": false},
@@ -103,18 +103,18 @@ func TestParseArgoApplication(t *testing.T) {
 			},
 		},
 		{
-			name: "пустой automated {} = автосинк",
+			name: "empty automated {} = auto-sync",
 			extra: map[string]interface{}{"spec": map[string]interface{}{
 				"syncPolicy": map[string]interface{}{"automated": map[string]interface{}{}},
 			}},
 			check: func(t *testing.T, got ArgoApplicationInfo) {
 				if !got.AutoSync {
-					t.Errorf("ожидался autoSync: %+v", got)
+					t.Errorf("expected autoSync: %+v", got)
 				}
 			},
 		},
 		{
-			name: "status: sync, health, ресурсы, conditions, история",
+			name: "status: sync, health, resources, conditions, history",
 			extra: map[string]interface{}{"status": map[string]interface{}{
 				"sync":   map[string]interface{}{"status": "OutOfSync", "revisions": []interface{}{"abc123"}},
 				"health": map[string]interface{}{"status": "Degraded", "message": "pod crashloop"},
@@ -123,7 +123,7 @@ func TestParseArgoApplication(t *testing.T) {
 				},
 				"conditions": []interface{}{
 					map[string]interface{}{"type": "SyncError", "message": "boom", "lastTransitionTime": "2026-01-02T03:04:05Z"},
-					"мусор",
+					"garbage",
 				},
 				"resources": []interface{}{
 					map[string]interface{}{
@@ -169,9 +169,9 @@ func TestParseArgoApplication(t *testing.T) {
 			},
 		},
 		{
-			name: "неожиданные типы полей не приводят к панике",
+			name: "unexpected field types do not cause a panic",
 			extra: map[string]interface{}{
-				"spec":   map[string]interface{}{"source": "строка", "sources": 5, "project": 7},
+				"spec":   map[string]interface{}{"source": "string", "sources": 5, "project": 7},
 				"status": map[string]interface{}{"resources": "x", "history": map[string]interface{}{}, "sync": []interface{}{}},
 			},
 			check: func(t *testing.T, got ArgoApplicationInfo) {
@@ -206,7 +206,7 @@ func TestListArgoApplications(t *testing.T) {
 		keys = append(keys, a.Namespace+"/"+a.Name)
 	}
 	if want := []string{"argocd/alpha", "argocd/zeta", "team-b/alpha"}; !reflect.DeepEqual(keys, want) {
-		t.Errorf("все namespace, отсортировано: %v", keys)
+		t.Errorf("all namespaces, sorted: %v", keys)
 	}
 
 	one, err := listArgoApplications(context.Background(), dyn, "team-b")
@@ -214,7 +214,7 @@ func TestListArgoApplications(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(one) != 1 || one[0].Name != "alpha" {
-		t.Errorf("фильтр по namespace: %+v", one)
+		t.Errorf("namespace filter: %+v", one)
 	}
 }
 
