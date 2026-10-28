@@ -81,6 +81,9 @@ func SetResourceLimits(root *App, l k8s.Limits) { root.k8sMgr.SetLimits(l) }
 // SetClusterIdleTTL задаёт задержку остановки informers кластера после ухода последнего пользователя.
 func SetClusterIdleTTL(root *App, d time.Duration) { root.k8sMgr.SetIdleTTL(d) }
 
+// ViewActive — у вида есть действующая сессия пользователя. Сервер закрывает веб-сессии, чьи виды её потеряли.
+func ViewActive(v *App) bool { return v != nil && v.auth != nil && v.auth.Active() }
+
 // ReleaseView освобождает вид, созданный NewSessionView: останавливает ресурсы сессии,
 // снимает отметку активного кластера в общем пуле и закрывает сессию пользователя.
 func ReleaseView(v *App) {

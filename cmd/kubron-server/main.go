@@ -65,13 +65,27 @@ func main() {
 	sessions := server.NewSessions(cfg.SessionTTL, false)
 	terminals := platform.Terminals()
 	guard := &server.Guard{Sessions: sessions, TrustProxy: cfg.TrustProxy, Hub: hub, Terminals: terminals}
-	app.SetResourceLimits(core, k8s.DefaultLimits())
+	app.SetResourceLimits(core, k8s.Limits{Terminals: cfg.MaxTerminals, LogStreams: cfg.MaxLogStreams, PortForwards: cfg.MaxPortForwards})
 	app.SetClusterIdleTTL(core, 2*time.Minute)
 	guard.NewView = func(src string) any { return app.NewSessionView(core, src) }
 	guard.Bind = func(v any, id string) { app.BindView(v.(*app.App), id) }
 	sessions.Release = func(v any) { app.ReleaseView(v.(*app.App)) }
 	sessions.OnEnd = guard.CloseSession // закрытая сессия закрывает и свои WebSocket
 	go terminals.Run(ctx.Done(), 5*time.Second)
+	// Фоновая уборка веб-сессий: закрывает те, у которых ядро уже завершило пользовательскую сессию
+	// (простой, отключение пользователя) или истёк срок, и освобождает их ресурсы и ссылки пула.
+	go func() {
+		t := time.NewTicker(10 * time.Second)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				sessions.Reap(func(v any) bool { return app.ViewActive(v.(*app.App)) })
+			}
+		}
+	}()
 	defer terminals.CloseAll()
 
 	if err := server.Run(ctx, cfg, server.NewHandler(dispatcher, dist, guard)); err != nil {
