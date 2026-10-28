@@ -2,7 +2,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div v-if="conditions.length" class="rd-row">
-    <span class="rd-label">Conditions</span>
+    <span class="rd-label">{{ $t('defs.columns.conditions') }}</span>
     <div class="rd-badges">
       <span
         v-for="c in conditions"

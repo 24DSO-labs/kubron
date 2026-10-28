@@ -94,7 +94,7 @@ func TestGenerateArgoTokenDefaultExpiry(t *testing.T) {
 		t.Fatal(err)
 	}
 	if f.tokenReq["expiresIn"] != float64(argoTokenDefaultDays*24*3600) {
-		t.Errorf("срок по умолчанию: %v", f.tokenReq["expiresIn"])
+		t.Errorf("default expiry: %v", f.tokenReq["expiresIn"])
 	}
 }
 
@@ -103,23 +103,23 @@ func TestGenerateArgoTokenValidation(t *testing.T) {
 		name, account, user, pass string
 		days                      int
 	}{
-		{"пустой аккаунт", "", "u", "p", 30},
-		{"аккаунт с путём", "../admin", "u", "p", 30},
-		{"аккаунт с пробелом", "a b", "u", "p", 30},
-		{"нет логина", "kubron", "", "p", 30},
-		{"нет пароля", "kubron", "u", "", 30},
-		{"срок отрицательный", "kubron", "u", "p", -1},
-		{"срок слишком большой", "kubron", "u", "p", argoTokenMaxDays + 1},
-		{"слишком длинный пароль", "kubron", "u", strings.Repeat("x", argoCredMaxLen+1), 30},
+		{"empty account", "", "u", "p", 30},
+		{"account with a path", "../admin", "u", "p", 30},
+		{"account with a space", "a b", "u", "p", 30},
+		{"no username", "kubron", "", "p", 30},
+		{"no password", "kubron", "u", "", 30},
+		{"negative expiry", "kubron", "u", "p", -1},
+		{"expiry too large", "kubron", "u", "p", argoTokenMaxDays + 1},
+		{"password too long", "kubron", "u", strings.Repeat("x", argoCredMaxLen+1), 30},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFake()
 			if _, err := runGenerate(t, f, tc.account, tc.user, tc.pass, tc.days); err == nil {
-				t.Error("ожидалась ошибка валидации")
+				t.Error("expected a validation error")
 			}
 			if f.sessionReq != nil {
-				t.Error("запрос в сеть не должен уходить при неверном вводе")
+				t.Error("no network request must be made on invalid input")
 			}
 		})
 	}
@@ -132,23 +132,23 @@ func TestGenerateArgoTokenErrorsDoNotLeakSecrets(t *testing.T) {
 		want  string
 		wantN int // сколько запросов дошло до сервера (0 — только сессия)
 	}{
-		{"неверный пароль", func(f *argoFake) {
+		{"wrong password", func(f *argoFake) {
 			f.sessionStatus, f.sessionBody = 401, `{"message":"bad `+testPassword+`"}`
-		}, "отклонил логин", 0},
-		{"сессия 500 с паролем в тексте", func(f *argoFake) {
+		}, "rejected the username", 0},
+		{"session 500 with the password in the text", func(f *argoFake) {
 			f.sessionStatus, f.sessionBody = 500, `{"message":"oops `+testPassword+`"}`
 		}, "HTTP 500", 0},
-		{"нет apiKey", func(f *argoFake) {
+		{"no apiKey", func(f *argoFake) {
 			f.tokenStatus, f.tokenBody = 400, `{"message":"account 'kubron' does not have apiKey capability"}`
 		}, "accounts.kubron: apiKey", 1},
-		{"нет прав RBAC", func(f *argoFake) {
+		{"no RBAC permission", func(f *argoFake) {
 			f.tokenStatus, f.tokenBody = 403, `{"message":"permission denied `+testSession+`"}`
-		}, "нет права создавать токены", 1},
-		{"токен 500 с секретами в тексте", func(f *argoFake) {
+		}, "not allowed to create tokens", 1},
+		{"token 500 with secrets in the text", func(f *argoFake) {
 			f.tokenStatus, f.tokenBody = 500, `{"message":"x `+testSession+` `+testPassword+`"}`
 		}, "HTTP 500", 1},
-		{"сессия без токена", func(f *argoFake) { f.sessionBody = `{}` }, "не вернул токен сессии", 0},
-		{"аккаунт-токен пустой", func(f *argoFake) { f.tokenBody = `{"token":""}` }, "пустой или некорректный", 1},
+		{"session without a token", func(f *argoFake) { f.sessionBody = `{}` }, "returned no session token", 0},
+		{"account: token is empty", func(f *argoFake) { f.tokenBody = `{"token":""}` }, "empty or invalid", 1},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -156,15 +156,15 @@ func TestGenerateArgoTokenErrorsDoNotLeakSecrets(t *testing.T) {
 			tc.mod(f)
 			_, err := runGenerate(t, f, "kubron", "admin", testPassword, 30)
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
-				t.Fatalf("ожидалась ошибка с %q, получили %v", tc.want, err)
+				t.Fatalf("expected an error containing %q, got %v", tc.want, err)
 			}
 			for _, secret := range []string{testPassword, testSession, testAcctTok} {
 				if strings.Contains(err.Error(), secret) {
-					t.Errorf("секрет %q попал в текст ошибки: %v", secret, err)
+					t.Errorf("secret %q leaked into the error text: %v", secret, err)
 				}
 			}
 			if (f.tokenReq != nil) != (tc.wantN == 1) {
-				t.Errorf("запрос токена: ожидалось=%v, было=%v", tc.wantN == 1, f.tokenReq != nil)
+				t.Errorf("token request: expected=%v, was=%v", tc.wantN == 1, f.tokenReq != nil)
 			}
 		})
 	}
@@ -175,7 +175,7 @@ func TestScrubHandlesJSONEscapedSecrets(t *testing.T) {
 	body, _ := json.Marshal(map[string]string{"message": "bad " + pass})
 	got := string(scrub(body, pass))
 	if strings.Contains(got, `pa\"ss`) || strings.Contains(got, "word") {
-		t.Errorf("пароль не вычищен: %s", got)
+		t.Errorf("password was not scrubbed: %s", got)
 	}
 }
 
@@ -208,7 +208,7 @@ func assertNoSecretOnDisk(t *testing.T, dir string, secrets ...string) {
 		}
 		for _, s := range secrets {
 			if strings.Contains(string(data), s) {
-				t.Errorf("секрет %q найден в файле %s", s, path)
+				t.Errorf("secret %q found in file %s", s, path)
 			}
 		}
 		return nil

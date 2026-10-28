@@ -10,6 +10,7 @@ import type {
   TimeSeriesDataPoint,
 } from '../types/metrics'
 import { callApp } from '../resources/wails'
+import { errorText } from './errorText'
 
 // Metrics Status
 export function useMetricsStatus(clusterName: string) {
@@ -20,8 +21,8 @@ export function useMetricsStatus(clusterName: string) {
   async function fetchStatus() {
     try {
       status.value = (await callApp('GetMetricsStatus')) as unknown as MetricsStatus
-    } catch (e: any) {
-      error.value = e.message || String(e)
+    } catch (e) {
+      error.value = errorText(e)
     }
   }
 
@@ -31,8 +32,8 @@ export function useMetricsStatus(clusterName: string) {
       error.value = ''
       await callApp('InstallMetricsStack')
       await fetchStatus()
-    } catch (e: any) {
-      error.value = e.message || String(e)
+    } catch (e) {
+      error.value = errorText(e)
     } finally {
       loading.value = false
     }
@@ -44,8 +45,8 @@ export function useMetricsStatus(clusterName: string) {
       error.value = ''
       await callApp('UninstallMetricsStack')
       await fetchStatus()
-    } catch (e: any) {
-      error.value = e.message || String(e)
+    } catch (e) {
+      error.value = errorText(e)
     } finally {
       loading.value = false
     }
@@ -73,7 +74,7 @@ export function useClusterMetrics(clusterName: string) {
       if (data) {
         snapshot.value = data as unknown as ClusterMetricsSnapshot
       }
-    } catch (e: any) {
+    } catch (e) {
       console.error('Failed to fetch cluster metrics:', e)
     } finally {
       loading.value = false
@@ -104,7 +105,7 @@ export function useNodeMetrics(clusterName: string) {
           diskCapacity: item.diskTotalBytes || 0,
         }))
       }
-    } catch (e: any) {
+    } catch (e) {
       console.error('Failed to fetch node metrics:', e)
       metrics.value = []
     }
@@ -137,7 +138,7 @@ export function usePodMetrics(clusterName: string, namespace: string) {
       } else {
         metrics.value = []
       }
-    } catch (e: any) {
+    } catch (e) {
       console.error('Failed to fetch pod metrics:', e)
       metrics.value = []
     }
@@ -178,7 +179,7 @@ export function usePrometheusRange(clusterName: string) {
         parseInt(point[0], 10),
         parseFloat(point[1]),
       ])
-    } catch (e: any) {
+    } catch (e) {
       console.error('Failed to query Prometheus:', e)
       return []
     }

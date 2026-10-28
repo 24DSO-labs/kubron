@@ -45,10 +45,10 @@ func TestAuthzWritesAuditTrail(t *testing.T) {
 
 	// Без входа: отказ по аутентификации — это не событие привилегий, журнал не засоряется.
 	if err := a.probeWrite("prod", "api"); !errors.Is(err, auth.ErrNotAuthenticated) {
-		t.Fatalf("без входа: %v", err)
+		t.Fatalf("without login: %v", err)
 	}
 	if n := len(events(t, a)); n != 0 {
-		t.Fatalf("до входа в журнале %d записей, ожидалось 0", n)
+		t.Fatalf("journal has %d records before login, expected 0", n)
 	}
 
 	if _, err := a.auth.Setup("admin", testPass); err != nil {
@@ -63,12 +63,12 @@ func TestAuthzWritesAuditTrail(t *testing.T) {
 
 	ev := events(t, a)
 	if len(ev) != 2 || ev[1].Action != "Setup" { // Setup + probeWrite; чтение не журналируется
-		t.Fatalf("ожидались Setup и probeWrite, получено %+v", ev)
+		t.Fatalf("expected Setup and probeWrite, got %+v", ev)
 	}
 	got := ev[0]
 	if got.Action != "probeWrite" || got.Result != audit.ResultOK || got.User != "admin" || got.Role != "admin" ||
 		got.Detail != "namespace=prod name=api" {
-		t.Errorf("неверная запись о действии: %+v", got)
+		t.Errorf("wrong action record: %+v", got)
 	}
 
 	// Обычный пользователь: запись отклоняется и журналируется, чтение — нет.
@@ -91,12 +91,12 @@ func TestAuthzWritesAuditTrail(t *testing.T) {
 	}
 	ev = events(t, a)
 	if len(ev) != before+1 {
-		t.Fatalf("ожидалась ровно одна новая запись (отказ), получено %d", len(ev)-before)
+		t.Fatalf("expected exactly one new record (a denial), got %d", len(ev)-before)
 	}
 	got = ev[0]
 	if got.Result != audit.ResultDenied || got.User != "bob" || got.Role != "user" ||
 		got.Detail != "namespace=prod name=api need=write" {
-		t.Errorf("неверная запись об отказе: %+v", got)
+		t.Errorf("wrong denial record: %+v", got)
 	}
 }
 
@@ -110,7 +110,7 @@ func TestUserManagementIsAuditedOnceWithOutcome(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := a.CreateUser("bob", testPass, "user"); err == nil {
-		t.Fatal("дубликат логина должен отклоняться")
+		t.Fatal("a duplicate username must be rejected")
 	}
 	var ok, failed int
 	for _, e := range events(t, a) {
@@ -125,7 +125,7 @@ func TestUserManagementIsAuditedOnceWithOutcome(t *testing.T) {
 		}
 	}
 	if ok != 1 || failed != 1 {
-		t.Errorf("CreateUser: ok=%d failed=%d, ожидалось по одной записи", ok, failed)
+		t.Errorf("CreateUser: ok=%d failed=%d, expected one record each", ok, failed)
 	}
 }
 
@@ -149,7 +149,7 @@ func TestAuditLogRequiresPermission(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := a.GetAuditLog(audit.Filter{}); !errors.Is(err, auth.ErrForbidden) {
-		t.Errorf("user не должен читать журнал: %v", err)
+		t.Errorf("user must not read the journal: %v", err)
 	}
 }
 
@@ -161,10 +161,10 @@ func TestFailedLoginIsAudited(t *testing.T) {
 	}
 	a.auth.Logout()
 	if _, err := a.auth.Login("admin", "wrong-password"); err == nil {
-		t.Fatal("неверный пароль должен отклоняться")
+		t.Fatal("a wrong password must be rejected")
 	}
 	e := events(t, a)[0]
 	if e.Action != "Login" || e.Result != audit.ResultFailed || e.User != "admin" {
-		t.Errorf("неудачный вход не записан: %+v", e)
+		t.Errorf("failed login was not recorded: %+v", e)
 	}
 }

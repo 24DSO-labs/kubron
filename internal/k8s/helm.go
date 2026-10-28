@@ -75,7 +75,7 @@ type helmPayload struct {
 func readHelmSecret(sec *corev1.Secret, out any) error {
 	raw, ok := sec.Data["release"]
 	if !ok {
-		return fmt.Errorf("secret %s/%s: нет поля release", sec.Namespace, sec.Name)
+		return fmt.Errorf("secret %s/%s: no release field", sec.Namespace, sec.Name)
 	}
 	decoded, err := base64.StdEncoding.DecodeString(string(raw))
 	if err != nil {

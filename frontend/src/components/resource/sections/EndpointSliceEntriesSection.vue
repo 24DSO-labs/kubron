@@ -2,10 +2,10 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="rd-wide">
-    <div class="es-title">Endpoints</div>
+    <div class="es-title">{{ $t('defs.columns.endpoints') }}</div>
     <div v-if="entries.length" class="rd-table-wrap">
       <table class="rd-table">
-        <thead><tr><th>Address</th><th>Node</th><th>Zone</th><th>Target</th><th>Ready</th><th>Serving</th><th>Terminating</th></tr></thead>
+        <thead><tr><th>{{ $t('sections.shared.address') }}</th><th>{{ $t('defs.columns.node') }}</th><th>{{ $t('sections.shared.zone') }}</th><th>{{ $t('defs.columns.target') }}</th><th>{{ $t('defs.columns.ready') }}</th><th>{{ $t('sections.endpointSliceEntries.serving') }}</th><th>{{ $t('sections.endpointSliceEntries.terminating') }}</th></tr></thead>
         <tbody>
           <tr v-for="(e, i) in entries" :key="i">
             <td class="rd-mono">{{ e.address }}</td>
@@ -28,7 +28,7 @@
         </tbody>
       </table>
     </div>
-    <div v-else class="rd-muted">No endpoints</div>
+    <div v-else class="rd-muted">{{ $t('sections.endpointSliceEntries.empty') }}</div>
   </div>
 </template>
 

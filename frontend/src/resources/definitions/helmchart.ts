@@ -21,21 +21,21 @@ export const helmChart = defineResource<k8s.HelmChartInfo>({
 
   columns: [
     flatNameCol,
-    { key: 'version', label: 'Version' },
-    { key: 'appVersion', label: 'App Version' },
-    { key: 'releases', label: 'Releases' },
-    { key: 'namespaces', label: 'Namespaces' },
-    { key: 'updated', label: 'Updated' },
+    { key: 'version', label: 'defs.columns.version' },
+    { key: 'appVersion', label: 'defs.columns.appVersion' },
+    { key: 'releases', label: 'defs.columns.releases' },
+    { key: 'namespaces', label: 'defs.columns.namespaces' },
+    { key: 'updated', label: 'defs.columns.updated' },
   ],
 
   properties: [
-    { label: 'Chart', value: c => c.name },
-    { label: 'Version', value: c => c.version },
-    { label: 'App Version', value: c => c.appVersion },
-    { label: 'Releases', value: c => c.releases },
-    { label: 'Namespaces', value: c => c.namespaces },
-    { label: 'Updated', value: c => c.updated },
-    { label: 'Description', value: c => c.description },
+    { label: 'defs.props.chart', value: c => c.name },
+    { label: 'defs.columns.version', value: c => c.version },
+    { label: 'defs.columns.appVersion', value: c => c.appVersion },
+    { label: 'defs.columns.releases', value: c => c.releases },
+    { label: 'defs.columns.namespaces', value: c => c.namespaces },
+    { label: 'defs.columns.updated', value: c => c.updated },
+    { label: 'defs.props.description', value: c => c.description },
   ],
 
   api: {

@@ -1,0 +1,23 @@
+{
+  "detail": {
+    "resize": "Resize details panel",
+    "expand": "Expand panel",
+    "restoreWidth": "Restore panel width",
+    "deleteResource": "Delete resource",
+    "copyName": "Copy name",
+    "name": "Name:",
+    "namespace": "Namespace:",
+    "age": "Age:",
+    "properties": "Properties",
+    "events": "Events"
+  },
+  "scale": {
+    "title": "Scale {kind}",
+    "current": "Current replica scale:",
+    "desired": "Desired number of replicas:",
+    "decrease": "Decrease",
+    "increase": "Increase",
+    "scaling": "⏳ Scaling...",
+    "submit": "▶ Scale"
+  }
+}

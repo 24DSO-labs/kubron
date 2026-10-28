@@ -4,25 +4,25 @@
   <div class="dd-overlay" @click.self="close">
     <div class="dd" role="dialog" aria-modal="true">
       <div class="dd-head">
-        <h3>Delete <span class="dd-name">{{ app.namespace }}/{{ app.name }}</span></h3>
+        <h3>{{ $t('common.delete') }} <span class="dd-name">{{ app.namespace }}/{{ app.name }}</span></h3>
       </div>
       <div class="dd-body">
         <label class="dd-check">
           <input v-model="cascade" type="checkbox" />
-          Cascade — also delete the resources managed by the application
+          {{ $t('argo.delete.cascade') }}
         </label>
         <div class="dd-risk" :class="{ danger: cascade }">
           <template v-if="cascade">
-            All {{ app.resources?.length ?? 0 }} managed resource(s) will be deleted from the cluster.
+            {{ $t('argo.delete.cascadeRisk', app.resources?.length ?? 0) }}
           </template>
           <template v-else>
-            Only the Application object is removed; its resources stay in the cluster unmanaged.
+            {{ $t('argo.delete.keepRisk') }}
           </template>
         </div>
       </div>
       <div class="dd-foot">
-        <button class="dd-btn" :disabled="busy" @click="close">Cancel</button>
-        <button class="dd-btn danger" :disabled="busy" @click="submit">{{ busy ? 'Deleting…' : 'Delete' }}</button>
+        <button class="dd-btn" :disabled="busy" @click="close">{{ $t('common.cancel') }}</button>
+        <button class="dd-btn danger" :disabled="busy" @click="submit">{{ busy ? $t('argo.delete.deleting') : $t('common.delete') }}</button>
       </div>
     </div>
   </div>

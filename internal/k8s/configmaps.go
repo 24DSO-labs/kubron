@@ -92,14 +92,14 @@ func (m *Manager) UpdateConfigMap(namespace, name string, data map[string]string
 
 	cm, err := conn.Client.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("не удалось получить ConfigMap: %w", err)
+		return fmt.Errorf("failed to get ConfigMap: %w", err)
 	}
 
 	cm.Data = data
 
 	_, err = conn.Client.CoreV1().ConfigMaps(namespace).Update(ctx, cm, metav1.UpdateOptions{})
 	if err != nil {
-		return fmt.Errorf("не удалось обновить ConfigMap: %w", err)
+		return fmt.Errorf("failed to update ConfigMap: %w", err)
 	}
 
 	return nil

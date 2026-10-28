@@ -74,7 +74,7 @@ func (f *idleFixture) hookFired(t *testing.T) bool {
 func TestIdleDefaultIsFifteenMinutes(t *testing.T) {
 	f := newIdleFixture(t)
 	if got := f.s.Status().IdleTimeoutMinutes; got != DefaultIdleTimeoutMinutes {
-		t.Fatalf("по умолчанию %d мин, ожидалось %d", got, DefaultIdleTimeoutMinutes)
+		t.Fatalf("default is %d min, expected %d", got, DefaultIdleTimeoutMinutes)
 	}
 }
 
@@ -84,21 +84,21 @@ func TestSessionExpiresAfterIdleTimeoutPlusGrace(t *testing.T) {
 	// В пределах настроенного времени и запаса — сессия жива.
 	f.at(15*time.Minute + idleGrace)
 	if err := f.s.Authorize(PermRead); err != nil {
-		t.Fatalf("в пределах запаса: %v", err)
+		t.Fatalf("within the margin: %v", err)
 	}
 	// Дольше — сессия завершена, очистка запущена, событие записано.
 	f.at(15*time.Minute + idleGrace + time.Second)
 	if err := f.s.Authorize(PermRead); !errors.Is(err, ErrNotAuthenticated) {
-		t.Fatalf("после бездействия: %v", err)
+		t.Fatalf("after inactivity: %v", err)
 	}
 	if !f.hookFired(t) {
-		t.Error("при автовыходе должна запускаться очистка (терминалы, port-forward)")
+		t.Error("cleanup (terminals, port-forward) must run on auto-logout")
 	}
 	if _, err := f.s.Current(); !errors.Is(err, ErrNotAuthenticated) {
-		t.Errorf("Current после автовыхода: %v", err)
+		t.Errorf("Current after auto-logout: %v", err)
 	}
 	if n := f.rec.count("SessionTimeout"); n != 1 {
-		t.Errorf("событий SessionTimeout: %d, ожидалось 1", n)
+		t.Errorf("SessionTimeout events: %d, expected 1", n)
 	}
 }
 
@@ -108,12 +108,12 @@ func TestAPICallsDoNotExtendSession(t *testing.T) {
 	for _, m := range []time.Duration{5, 10, 14} {
 		f.at(m * time.Minute)
 		if err := f.s.Authorize(PermRead); err != nil {
-			t.Fatalf("на %d-й минуте: %v", m, err)
+			t.Fatalf("at minute %d: %v", m, err)
 		}
 	}
 	f.at(15*time.Minute + idleGrace + time.Second)
 	if err := f.s.Authorize(PermRead); !errors.Is(err, ErrNotAuthenticated) {
-		t.Fatalf("опрос API не должен продлевать сессию: %v", err)
+		t.Fatalf("API polling must not extend the session: %v", err)
 	}
 }
 
@@ -125,11 +125,11 @@ func TestReportActivityExtendsSession(t *testing.T) {
 	}
 	f.at(20 * time.Minute) // 10 минут после активности
 	if err := f.s.Authorize(PermRead); err != nil {
-		t.Fatalf("после активности сессия должна жить: %v", err)
+		t.Fatalf("the session must stay alive after activity: %v", err)
 	}
 	f.at(10*time.Minute + 15*time.Minute + idleGrace + time.Second)
 	if err := f.s.Authorize(PermRead); !errors.Is(err, ErrNotAuthenticated) {
-		t.Fatalf("после новой паузы сессия должна истечь: %v", err)
+		t.Fatalf("the session must expire after a new pause: %v", err)
 	}
 }
 
@@ -137,32 +137,32 @@ func TestReportActivityAfterExpiryFails(t *testing.T) {
 	f := newIdleFixture(t)
 	f.at(time.Hour)
 	if err := f.s.ReportActivity(); !errors.Is(err, ErrNotAuthenticated) {
-		t.Fatalf("истёкшую сессию активностью не вернуть: %v", err)
+		t.Fatalf("an expired session cannot be revived by activity: %v", err)
 	}
 	// И без входа тоже нельзя.
 	s2, _ := newTestService(t)
 	if err := s2.ReportActivity(); !errors.Is(err, ErrNotAuthenticated) {
-		t.Fatalf("без сессии: %v", err)
+		t.Fatalf("without a session: %v", err)
 	}
 }
 
 func TestExpireIdleWatcher(t *testing.T) {
 	f := newIdleFixture(t)
 	if f.s.ExpireIdle() {
-		t.Error("свежая сессия не должна истекать")
+		t.Error("a fresh session must not expire")
 	}
 	f.at(time.Hour)
 	if !f.s.ExpireIdle() {
-		t.Fatal("простаивающая сессия должна завершаться фоновой проверкой")
+		t.Fatal("an idle session must be ended by the background check")
 	}
 	if !f.hookFired(t) {
-		t.Error("очистка не запущена")
+		t.Error("cleanup was not run")
 	}
 	if f.s.ExpireIdle() {
-		t.Error("повторная проверка без сессии ничего не делает")
+		t.Error("a repeated check without a session does nothing")
 	}
 	if f.rec.count("SessionTimeout") != 1 {
-		t.Error("событие должно быть записано ровно один раз")
+		t.Error("the event must be recorded exactly once")
 	}
 }
 
@@ -174,10 +174,10 @@ func TestIdleTimeoutCanBeDisabled(t *testing.T) {
 	}
 	f.at(72 * time.Hour)
 	if err := f.s.Authorize(PermRead); err != nil {
-		t.Fatalf("при выключенном автовыходе сессия не истекает: %v", err)
+		t.Fatalf("with auto-logout disabled the session does not expire: %v", err)
 	}
 	if f.s.Status().IdleTimeoutMinutes != 0 {
-		t.Error("Status должен показывать 0")
+		t.Error("Status must show 0")
 	}
 }
 
@@ -192,7 +192,7 @@ func TestSetIdleTimeoutValidationPermissionAndPersistence(t *testing.T) {
 		t.Fatalf("SetIdleTimeout(5): %d, %v", got, err)
 	}
 	if f.rec.count("SetIdleTimeout") != 1 {
-		t.Error("изменение настройки должно попадать в журнал")
+		t.Error("a setting change must be written to the journal")
 	}
 
 	// Значение переживает перезапуск, явный 0 тоже (не превращается в значение по умолчанию).
@@ -204,13 +204,13 @@ func TestSetIdleTimeoutValidationPermissionAndPersistence(t *testing.T) {
 		return s2.Status().IdleTimeoutMinutes
 	}
 	if got := reload(); got != 5 {
-		t.Errorf("после перезапуска %d, ожидалось 5", got)
+		t.Errorf("after restart %d, expected 5", got)
 	}
 	if _, err := f.s.SetIdleTimeout(0); err != nil {
 		t.Fatal(err)
 	}
 	if got := reload(); got != 0 {
-		t.Errorf("явный 0 после перезапуска стал %d", got)
+		t.Errorf("explicit 0 became %d after restart", got)
 	}
 
 	// Обычный пользователь настройку менять не может.
@@ -225,7 +225,7 @@ func TestSetIdleTimeoutValidationPermissionAndPersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := f.s.SetIdleTimeout(1); !errors.Is(err, ErrForbidden) {
-		t.Errorf("user не должен менять автовыход: %v", err)
+		t.Errorf("user must not change auto-logout: %v", err)
 	}
 }
 
@@ -238,6 +238,6 @@ func TestLoginStartsFreshIdleWindow(t *testing.T) {
 	}
 	f.at(5*time.Hour + 10*time.Minute)
 	if err := f.s.Authorize(PermRead); err != nil {
-		t.Fatalf("новая сессия считается от момента входа: %v", err)
+		t.Fatalf("a new session counts from the login time: %v", err)
 	}
 }

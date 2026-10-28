@@ -2,74 +2,70 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="ad">
-    <div v-if="configured === null && !statusError" class="rd-empty">Loading…</div>
+    <div v-if="configured === null && !statusError" class="rd-empty">{{ $t('common.loading') }}</div>
     <div v-else-if="statusError" class="rd-empty">{{ statusError }}</div>
 
     <!-- Токен не задан: объяснение и форма -->
     <div v-else-if="!configured" class="ad-setup">
-      <p>
-        Diff между git и кластером считает сам Argo CD, поэтому нужен токен его API (аккаунту достаточно права
-        <code>get</code> на приложения). Kubron может получить токен у Argo CD сам или принять готовый.
-      </p>
+      <i18n-t keypath="argo.diff.intro" tag="p">
+        <template #code><code>get</code></template>
+      </i18n-t>
       <p class="rd-muted">
-        Токен хранится только на этом компьютере в файле с правами 0600, не показывается в интерфейсе
-        и не попадает в журнал аудита. Значения Secret в diff скрываются.
+        {{ $t('argo.diff.storage') }}
       </p>
 
       <template v-if="canManage">
-        <h4 class="ad-title">Получить токен у Argo CD</h4>
+        <h4 class="ad-title">{{ $t('argo.diff.getToken') }}</h4>
         <form class="ad-grid" autocomplete="off" @submit.prevent="generateToken">
           <label class="ad-field">
-            <span>Argo CD user</span>
-            <input v-model="genUser" class="ad-input" autocomplete="off" spellcheck="false" aria-label="Argo CD user" />
+            <span>{{ $t('argo.diff.user') }}</span>
+            <input v-model="genUser" class="ad-input" autocomplete="off" spellcheck="false" :aria-label="$t('argo.diff.user')" />
           </label>
           <label class="ad-field">
-            <span>Password</span>
+            <span>{{ $t('argo.diff.password') }}</span>
             <input
               v-model="genPassword"
               class="ad-input"
               type="password"
               autocomplete="new-password"
               spellcheck="false"
-              aria-label="Argo CD password"
+              :aria-label="$t('argo.diff.passwordAria')"
             />
           </label>
           <label class="ad-field">
-            <span>Token for account</span>
-            <input v-model="genAccount" class="ad-input" autocomplete="off" spellcheck="false" aria-label="Account for the token" />
+            <span>{{ $t('argo.diff.account') }}</span>
+            <input v-model="genAccount" class="ad-input" autocomplete="off" spellcheck="false" :aria-label="$t('argo.diff.accountAria')" />
           </label>
           <label class="ad-field">
-            <span>Valid for</span>
-            <select v-model.number="genDays" class="ad-input" aria-label="Token lifetime">
-              <option v-for="d in DAY_OPTIONS" :key="d" :value="d">{{ d }} days</option>
+            <span>{{ $t('argo.diff.validFor') }}</span>
+            <select v-model.number="genDays" class="ad-input" :aria-label="$t('argo.diff.lifetimeAria')">
+              <option v-for="d in DAY_OPTIONS" :key="d" :value="d">{{ $t('argo.diff.days', d) }}</option>
             </select>
           </label>
           <div class="ad-actions">
             <button class="rd-btn" type="submit" :disabled="generating || !canGenerate">
-              {{ generating ? 'Generating…' : 'Generate token' }}
+              {{ generating ? $t('argo.diff.generating') : $t('argo.diff.generate') }}
             </button>
           </div>
         </form>
         <p class="rd-muted ad-fine">
-          Пароль уходит только в Argo CD через локальный туннель и нигде не сохраняется; сохраняется лишь выданный токен.
-          Откроется проброс порта к argocd-server.
+          {{ $t('argo.diff.passwordNote') }}
         </p>
 
         <details class="ad-help">
-          <summary>Что настроить в Argo CD заранее</summary>
-          <p>
-            Аккаунту нужна возможность <code>apiKey</code>, а лучше отдельный аккаунт только для чтения вместо
-            <code>admin</code>:
-          </p>
+          <summary>{{ $t('argo.diff.helpSummary') }}</summary>
+          <i18n-t keypath="argo.diff.helpAccount" tag="p">
+            <template #apiKey><code>apiKey</code></template>
+            <template #admin><code>admin</code></template>
+          </i18n-t>
           <pre class="ad-code">{{ HELP_YAML }}</pre>
-          <p>
-            Если токен создаёт пользователь, отличный от аккаунта токена, у него должно быть право
-            <code>accounts, update</code>. Тот же токен можно создать вручную:
-            <code>argocd account generate-token --account kubron</code>.
-          </p>
+          <i18n-t keypath="argo.diff.helpRbac" tag="p">
+            <template #perm><code>accounts, update</code></template>
+            <template #cmd><code>argocd account generate-token --account kubron</code></template>
+          </i18n-t>
         </details>
 
-        <h4 class="ad-title">Или вставить готовый токен</h4>
+        <h4 class="ad-title">{{ $t('argo.diff.pasteTitle') }}</h4>
         <form class="ad-form" @submit.prevent="saveToken">
           <input
             v-model="tokenInput"
@@ -77,43 +73,43 @@
             type="password"
             autocomplete="off"
             spellcheck="false"
-            placeholder="Argo CD API token"
-            aria-label="Argo CD API token"
+            :placeholder="$t('argo.diff.tokenPlaceholder')"
+            :aria-label="$t('argo.diff.tokenPlaceholder')"
           />
-          <button class="rd-btn" type="submit" :disabled="saving || !tokenInput.trim()">Save token</button>
+          <button class="rd-btn" type="submit" :disabled="saving || !tokenInput.trim()">{{ $t('argo.diff.saveToken') }}</button>
         </form>
       </template>
-      <p v-else class="rd-muted">Сохранить токен может пользователь с правом «Управление кластерами».</p>
+      <p v-else class="rd-muted">{{ $t('argo.diff.noManage') }}</p>
       <p v-if="error" class="ad-error">{{ error }}</p>
     </div>
 
     <!-- Токен задан -->
     <template v-else>
       <div class="ad-toolbar">
-        <button class="rd-btn" :disabled="loading" @click="load">{{ diff ? 'Reload diff' : 'Load diff' }}</button>
-        <label v-if="diff" class="ad-check"><input v-model="onlyChanged" type="checkbox" /> Only differences</label>
-        <span v-if="diff" class="rd-muted">{{ diff.changed }} of {{ diff.total }} resources differ</span>
-        <button v-if="canManage" class="rd-btn ad-remove" :disabled="loading" @click="removeToken">Remove token</button>
+        <button class="rd-btn" :disabled="loading" @click="load">{{ diff ? $t('argo.diff.reload') : $t('argo.diff.load') }}</button>
+        <label v-if="diff" class="ad-check"><input v-model="onlyChanged" type="checkbox" /> {{ $t('argo.diff.onlyChanged') }}</label>
+        <span v-if="diff" class="rd-muted">{{ $t('argo.diff.summary', { changed: diff.changed, total: diff.total }) }}</span>
+        <button v-if="canManage" class="rd-btn ad-remove" :disabled="loading" @click="removeToken">{{ $t('argo.diff.removeToken') }}</button>
       </div>
       <p v-if="!diff && !loading && !error" class="rd-muted">
-        Загрузка откроет туннель к argocd-server (проброс порта) и запросит состояние ресурсов у Argo CD.
+        {{ $t('argo.diff.loadHint') }}
       </p>
-      <p v-if="loading" class="rd-muted">Loading diff…</p>
+      <p v-if="loading" class="rd-muted">{{ $t('argo.diff.loading') }}</p>
       <p v-if="error" class="ad-error">{{ error }}</p>
 
       <template v-if="diff && !loading">
-        <div v-if="diff.truncated" class="ad-note">Показаны не все ресурсы: список обрезан</div>
-        <div v-if="!visible.length" class="rd-empty">{{ diff.changed ? 'No resources match' : 'Cluster matches git' }}</div>
+        <div v-if="diff.truncated" class="ad-note">{{ $t('argo.diff.listTruncated') }}</div>
+        <div v-if="!visible.length" class="rd-empty">{{ diff.changed ? $t('argo.diff.noMatch') : $t('argo.diff.inSyncAll') }}</div>
         <div v-for="r in visible" :key="keyOf(r)" class="ad-item">
           <button class="ad-head" type="button" :disabled="!r.diff" @click="toggle(keyOf(r))">
             <span class="ad-caret">{{ r.diff ? (open.has(keyOf(r)) ? '▾' : '▸') : '' }}</span>
             <span class="rd-badge" :class="tone(r.state)">{{ label(r.state) }}</span>
-            <span class="ad-kind">{{ r.kind }}<span v-if="r.hook" class="rd-muted"> (hook)</span></span>
+            <span class="ad-kind">{{ r.kind }}<span v-if="r.hook" class="rd-muted"> ({{ $t('argo.hook') }})</span></span>
             <span class="ad-name">{{ r.name }}</span>
             <span class="rd-muted ad-ns">{{ r.namespace }}</span>
           </button>
           <pre v-if="open.has(keyOf(r)) && r.diff" class="ad-diff"><span v-for="(l, i) in lines(r.diff)" :key="i" :class="lineClass(l)">{{ l }}</span></pre>
-          <div v-if="open.has(keyOf(r)) && r.truncated" class="ad-note">Diff обрезан из-за размера</div>
+          <div v-if="open.has(keyOf(r)) && r.truncated" class="ad-note">{{ $t('argo.diff.diffTruncated') }}</div>
         </div>
       </template>
     </template>
@@ -122,12 +118,16 @@
 
 <script lang="ts" setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { callApp } from '../../../resources/wails'
 import { can } from '../../../composables/useAuth'
+import { errorText } from '../../../composables/errorText'
+import { isArgoTokenMissing } from '../../../i18n/backendErrors'
 import { Perm } from '../../../types/auth'
 import type { ArgoApplicationInfo, ArgoAPIStatus, ArgoDiff, ArgoDiffState, ArgoResourceDiff } from '../../../types/argocd'
 
 const props = defineProps<{ resource: Partial<ArgoApplicationInfo> }>()
+const { t } = useI18n()
 
 const canManage = computed(() => can(Perm.ClusterManage))
 
@@ -159,9 +159,8 @@ const diff = ref<ArgoDiff | null>(null)
 const onlyChanged = ref(true)
 const open = ref<Set<string>>(new Set())
 
-const errText = (e: any) => e?.message || String(e)
 // Бэкенд возвращает ErrArgoTokenNotSet текстом: так вкладка возвращается к форме, если токен удалили снаружи
-const isTokenMissing = (msg: string) => msg.includes('токен Argo CD API не задан')
+const rawMessage = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 async function loadStatus() {
   try {
@@ -169,7 +168,7 @@ async function loadStatus() {
     configured.value = !!st?.configured
     statusError.value = ''
   } catch (e: any) {
-    statusError.value = errText(e)
+    statusError.value = errorText(e)
   }
 }
 onMounted(loadStatus)
@@ -182,7 +181,7 @@ async function saveToken() {
     await callApp('SetArgoAPIToken', token)
     configured.value = true
   } catch (e: any) {
-    error.value = errText(e)
+    error.value = errorText(e)
   } finally {
     tokenInput.value = '' // токен не остаётся в состоянии компонента ни при успехе, ни при ошибке
     saving.value = false
@@ -197,7 +196,7 @@ async function generateToken() {
     await callApp('GenerateArgoAPIToken', genAccount.value.trim(), genUser.value.trim(), password, genDays.value)
     configured.value = true
   } catch (e: any) {
-    error.value = errText(e)
+    error.value = errorText(e)
   } finally {
     genPassword.value = '' // пароль не остаётся в состоянии компонента ни при успехе, ни при ошибке
     generating.value = false
@@ -205,14 +204,14 @@ async function generateToken() {
 }
 
 async function removeToken() {
-  if (!window.confirm('Удалить сохранённый токен Argo CD API для этого кластера?')) return
+  if (!window.confirm(t('argo.diff.removeConfirm'))) return
   error.value = ''
   try {
     await callApp('DeleteArgoAPIToken')
     configured.value = false
     diff.value = null
   } catch (e: any) {
-    error.value = errText(e)
+    error.value = errorText(e)
   }
 }
 
@@ -231,9 +230,8 @@ async function load() {
     open.value = new Set()
   } catch (e: any) {
     if (my !== seq) return
-    const msg = errText(e)
-    if (isTokenMissing(msg)) configured.value = false
-    else error.value = msg
+    if (isArgoTokenMissing(rawMessage(e))) configured.value = false
+    else error.value = errorText(e)
   } finally {
     if (my === seq) loading.value = false
   }
@@ -259,8 +257,13 @@ function toggle(k: string) {
   open.value = next
 }
 
-const label = (s: ArgoDiffState) =>
-  ({ InSync: 'In sync', Modified: 'Modified', Missing: 'Missing in cluster', Extra: 'Not in git' })[s] ?? s
+const STATE_KEYS: Record<string, string> = {
+  InSync: 'argo.diff.state.inSync',
+  Modified: 'argo.diff.state.modified',
+  Missing: 'argo.diff.state.missing',
+  Extra: 'argo.diff.state.extra',
+}
+const label = (s: ArgoDiffState) => (STATE_KEYS[s] ? t(STATE_KEYS[s]) : s)
 const tone = (s: ArgoDiffState) =>
   ({ InSync: 'rd-ok', Modified: 'rd-warn', Missing: 'rd-warn', Extra: 'rd-err' })[s] ?? 'rd-unk'
 

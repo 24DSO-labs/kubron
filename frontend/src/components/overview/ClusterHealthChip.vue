@@ -3,19 +3,23 @@
 <template>
   <span class="chip" :class="tone" :title="detail" role="status">
     <span class="dot"></span>
-    <template v-if="bad.length">{{ bad.map(c => c.name).join(', ') }}: unhealthy</template>
-    <template v-else>Control plane healthy</template>
+    <template v-if="bad.length">{{ $t('overview.health.chipBad', { names: bad.map(c => c.name).join(', ') }) }}</template>
+    <template v-else>{{ $t('overview.health.chipOk') }}</template>
   </span>
 </template>
 
 <script lang="ts" setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { ClusterHealth } from '../../types/overview'
 
 const props = defineProps<{ health: ClusterHealth }>()
+const { t, te } = useI18n()
 const bad = computed(() => props.health.components.filter(c => c.status === 'unhealthy'))
 const tone = computed(() => (bad.value.length ? 'bad' : 'ok'))
-const detail = computed(() => props.health.components.map(c => `${c.name}: ${c.status}`).join('\n'))
+const detail = computed(() => props.health.components
+    .map(c => `${c.name}: ${te(`overview.health.component.${c.status}`) ? t(`overview.health.component.${c.status}`) : c.status}`)
+    .join('\n'))
 </script>
 
 <style scoped>

@@ -202,7 +202,7 @@ func crdColumns(version map[string]interface{}) []CRDColumn {
 func customKindFor(ctx context.Context, dyn dynamic.Interface, group, version, plural string) (kindInfo, *unstructured.Unstructured, error) {
 	for _, s := range []string{group, version, plural} {
 		if !dnsSegment.MatchString(s) {
-			return kindInfo{}, nil, fmt.Errorf("некорректная ссылка на custom resource: %q", group+"/"+version+"/"+plural)
+			return kindInfo{}, nil, fmt.Errorf("invalid custom resource reference: %q", group+"/"+version+"/"+plural)
 		}
 	}
 	crd, err := dyn.Resource(kindTable["customresourcedefinition"].gvr).Get(ctx, plural+"."+group, metav1.GetOptions{})
@@ -217,7 +217,7 @@ func customKindFor(ctx context.Context, dyn dynamic.Interface, group, version, p
 		}
 	}
 	if !served {
-		return kindInfo{}, nil, fmt.Errorf("версия %s не обслуживается CRD %s", version, crd.GetName())
+		return kindInfo{}, nil, fmt.Errorf("version %s is not served by CRD %s", version, crd.GetName())
 	}
 	return kindInfo{gvr: gvr(group, version, plural), namespaced: info.Scope == "Namespaced"}, crd, nil
 }
@@ -226,7 +226,7 @@ func customKindFor(ctx context.Context, dyn dynamic.Interface, group, version, p
 func customKindInfo(conn *ClusterConnection, kind string) (kindInfo, error) {
 	parts := strings.Split(strings.TrimPrefix(kind, customKindPrefix), "/")
 	if len(parts) != 3 {
-		return kindInfo{}, fmt.Errorf("тип ресурса %q не поддерживается", kind)
+		return kindInfo{}, fmt.Errorf("resource type %q is not supported", kind)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

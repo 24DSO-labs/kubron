@@ -87,7 +87,7 @@ func (p *connPool) acquire(id string) error {
 	defer p.mu.Unlock()
 	e, ok := p.entries[id]
 	if !ok {
-		return fmt.Errorf("кластер %s не подключён", id)
+		return fmt.Errorf("cluster %s is not connected", id)
 	}
 	e.refs++
 	return nil

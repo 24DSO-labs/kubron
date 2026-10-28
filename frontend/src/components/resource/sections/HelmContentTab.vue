@@ -4,33 +4,36 @@
   <div class="hc">
     <div class="hc-bar">
       <label v-if="revisions.length > 1" class="hc-field">
-        Revision
-        <select v-model.number="revision" class="hc-select" aria-label="Revision">
+        {{ $t('defs.columns.revision') }}
+        <select v-model.number="revision" class="hc-select" :aria-label="$t('defs.columns.revision')">
           <option v-for="r in revisions" :key="r.revision" :value="r.revision">#{{ r.revision }} · {{ r.status }}</option>
         </select>
       </label>
-      <div v-if="kind === 'values'" class="hc-seg" role="group" aria-label="Values mode">
-        <button :class="{ on: mode === 'user' }" @click="mode = 'user'">User-supplied</button>
-        <button :class="{ on: mode === 'all' }" @click="mode = 'all'">All (with defaults)</button>
+      <div v-if="kind === 'values'" class="hc-seg" role="group" :aria-label="$t('helm.content.modeAria')">
+        <button :class="{ on: mode === 'user' }" @click="mode = 'user'">{{ $t('helm.content.userSupplied') }}</button>
+        <button :class="{ on: mode === 'all' }" @click="mode = 'all'">{{ $t('helm.content.allValues') }}</button>
       </div>
-      <button class="rd-btn hc-copy" :disabled="!text" @click="copy">{{ copied ? 'Copied' : 'Copy' }}</button>
+      <button class="rd-btn hc-copy" :disabled="!text" @click="copy">{{ copied ? $t('helm.content.copied') : $t('common.copy') }}</button>
     </div>
 
     <div v-if="error" class="rd-empty">{{ error }}</div>
-    <div v-else-if="loading && !content" class="rd-empty">Loading…</div>
-    <div v-else-if="kind === 'notes' && !text" class="rd-empty">This release has no notes</div>
+    <div v-else-if="loading && !content" class="rd-empty">{{ $t('common.loading') }}</div>
+    <div v-else-if="kind === 'notes' && !text" class="rd-empty">{{ $t('helm.content.noNotes') }}</div>
     <MonacoReadonly v-else :value="text" :language="language" />
   </div>
 </template>
 
 <script lang="ts" setup>
 import { computed, ref, shallowRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import MonacoReadonly from '../MonacoReadonly.vue'
 import { loadHelmContent } from '../../../resources/helmContent'
+import { errorText } from '../../../composables/errorText'
 import { itemName, itemNs } from '../../../resources/utils'
 import type { k8s } from '../../../../wailsjs/go/models'
 
 const props = defineProps<{ resource: any; kind: 'values' | 'notes' | 'manifest' }>()
+const { t } = useI18n()
 
 const ns = computed(() => itemNs(props.resource))
 const name = computed(() => itemName(props.resource))
@@ -58,7 +61,7 @@ async function load() {
   } catch (e: any) {
     if (my !== seq) return
     content.value = null
-    error.value = e?.message || String(e)
+    error.value = errorText(e)
   } finally {
     if (my === seq) loading.value = false
   }
@@ -70,7 +73,7 @@ const text = computed(() => {
   if (!c) return ''
   switch (props.kind) {
     case 'values':
-      return mode.value === 'all' ? c.computedValues : c.values || '# No user-supplied values: chart defaults are used\n'
+      return mode.value === 'all' ? c.computedValues : c.values || `${t('helm.content.noUserValues')}\n`
     case 'notes':
       return c.notes
     default:

@@ -49,17 +49,17 @@ func TestViewsHaveIndependentActiveCluster(t *testing.T) {
 	mustActivate(t, v2, "b")
 
 	if got := activeName(t, v1); got != "a" {
-		t.Errorf("v1 активен %q, ждали a", got)
+		t.Errorf("v1 active is %q, expected a", got)
 	}
 	if got := activeName(t, v2); got != "b" {
-		t.Errorf("v2 активен %q, ждали b", got)
+		t.Errorf("v2 active is %q, expected b", got)
 	}
 	if v1.terminalSessions == v2.terminalSessions || v1.terminalSessions == root.terminalSessions {
-		t.Error("терминалы должны быть у каждого вида свои")
+		t.Error("each view must have its own terminals")
 	}
 	for id, n := range closes {
 		if n.Load() != 0 {
-			t.Errorf("кластер %s закрыт без причины", id)
+			t.Errorf("cluster %s was closed for no reason", id)
 		}
 	}
 }
@@ -73,14 +73,14 @@ func TestSharedClusterStaysOpenUntilLastViewLeaves(t *testing.T) {
 
 	mustActivate(t, v1, "b") // v2 ещё на a: informers a не трогаем
 	if n := closes["a"].Load(); n != 0 {
-		t.Fatalf("a закрыт при уходе одного из двух видов (closes=%d)", n)
+		t.Fatalf("a was closed when one of two views left (closes=%d)", n)
 	}
 	mustActivate(t, v2, "b") // последний вид ушёл с a
 	if n := closes["a"].Load(); n != 1 {
-		t.Fatalf("a должен закрыться ровно один раз, closes=%d", n)
+		t.Fatalf("a must be closed exactly once, closes=%d", n)
 	}
 	if !root.pool.has("a") {
-		t.Error("подключение a должно остаться в пуле для повторного использования")
+		t.Error("connection a must stay in the pool for reuse")
 	}
 }
 
@@ -92,14 +92,14 @@ func TestDetachReleasesOnlyOwnReference(t *testing.T) {
 
 	v1.Detach()
 	if closes["a"].Load() != 0 {
-		t.Fatal("Detach одного вида закрыл кластер, который держит другой")
+		t.Fatal("Detach of one view closed a cluster held by another")
 	}
 	if activeName(t, v2) != "a" {
-		t.Fatal("v2 потерял активный кластер")
+		t.Fatal("v2 lost its active cluster")
 	}
 	v2.Detach()
 	if closes["a"].Load() != 1 {
-		t.Fatal("после выхода всех видов кластер должен закрыться")
+		t.Fatal("the cluster must be closed after all views leave")
 	}
 }
 
@@ -110,10 +110,10 @@ func TestRemoveConnectionAffectsEveryView(t *testing.T) {
 	mustActivate(t, v2, "a")
 
 	if !v1.RemoveConnection("a") {
-		t.Error("для вида-инициатора wasActive должно быть true")
+		t.Error("wasActive must be true for the initiating view")
 	}
 	if _, err := v2.GetActiveConnection(); err == nil {
-		t.Error("у второго вида подключение должно пропасть (ошибка «нет активного подключения»)")
+		t.Error("the second view must lose its connection (\"no active connection\" error)")
 	}
 }
 
@@ -126,10 +126,10 @@ func TestActivateUnknownClusterKeepsPreviousActive(t *testing.T) {
 	err := v.activateLocked("missing")
 	v.viewMu.Unlock()
 	if err == nil {
-		t.Fatal("ожидали ошибку для неподключённого кластера")
+		t.Fatal("expected an error for a cluster that is not connected")
 	}
 	if activeName(t, v) != "a" {
-		t.Error("неудачная активация не должна сбрасывать прежний кластер")
+		t.Error("a failed activation must not reset the previous cluster")
 	}
 }
 
@@ -151,7 +151,7 @@ func TestGetOrCreateBuildsOnce(t *testing.T) {
 	}
 	wg.Wait()
 	if builds.Load() != 1 {
-		t.Fatalf("подключение создано %d раз, ждали 1", builds.Load())
+		t.Fatalf("connection created %d times, expected 1", builds.Load())
 	}
 }
 
@@ -174,7 +174,7 @@ func TestManyViewsConcurrentSwitching(t *testing.T) {
 				_ = v.activateLocked(id)
 				v.viewMu.Unlock()
 				if _, err := v.GetActiveConnection(); err != nil {
-					t.Errorf("вид %d: %v", i, err)
+					t.Errorf("view %d: %v", i, err)
 					return
 				}
 			}
@@ -187,7 +187,7 @@ func TestManyViewsConcurrentSwitching(t *testing.T) {
 	defer root.pool.mu.Unlock()
 	for id, e := range root.pool.entries {
 		if e.refs != 0 {
-			t.Errorf("%s: refs=%d после выхода всех видов", id, e.refs)
+			t.Errorf("%s: refs=%d after all views left", id, e.refs)
 		}
 	}
 }

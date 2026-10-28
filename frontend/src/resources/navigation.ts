@@ -4,7 +4,7 @@
 import { resources } from './registry'
 import type { NavGroupId } from './types'
 
-/** Заголовки групп и начальное состояние (свёрнута/развёрнута) */
+/** Заголовки групп и начальное состояние (свёрнута/развёрнута); title — ключ nav.groups.*, текст рисует tl() */
 export interface NavGroupMeta {
   title: string
   expanded: boolean
@@ -17,19 +17,19 @@ export interface NavGroupMeta {
 }
 
 export const NAV_GROUPS: Record<NavGroupId, NavGroupMeta> = {
-  workloads: { title: 'Workloads', expanded: true },
-  config: { title: 'Config', expanded: false },
-  network: { title: 'Network', expanded: true },
-  storage: { title: 'Storage', expanded: false },
-  helm: { title: 'Helm', expanded: false },
-  access: { title: 'Access Control', expanded: false },
+  workloads: { title: 'nav.groups.workloads', expanded: true },
+  config: { title: 'nav.groups.config', expanded: false },
+  network: { title: 'nav.groups.network', expanded: true },
+  storage: { title: 'nav.groups.storage', expanded: false },
+  helm: { title: 'nav.groups.helm', expanded: false },
+  access: { title: 'nav.groups.access', expanded: false },
   argocd: {
-    title: 'Argo CD',
+    title: 'nav.groups.argocd',
     expanded: true,
     requires: 'argocd',
-    views: [{ view: 'argo-dashboard', label: 'Dashboard' }],
+    views: [{ view: 'argo-dashboard', label: 'nav.views.argoDashboard' }],
   },
-  'argocd-settings': { title: 'Settings', expanded: false, parent: 'argocd' },
+  'argocd-settings': { title: 'nav.groups.argocdSettings', expanded: false, parent: 'argocd' },
 }
 
 /**

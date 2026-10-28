@@ -23,11 +23,11 @@ export const namespaceResource = defineResource<k8s.NamespaceInfo>({
   autoRefresh: true,
   columns: [
     flatNameCol,
-    { key: 'status', label: 'Status', colorFn: n => statusColor(n.status) },
+    { key: 'status', label: 'common.status', colorFn: n => statusColor(n.status) },
     ageCol,
   ],
   headSections: [NamespaceMetricsSection],
-  properties: [{ label: 'Status', value: n => n.status, badge: n => badgeClass(n.status) }, controlledByProp, managedByProp],
+  properties: [{ label: 'common.status', value: n => n.status, badge: n => badgeClass(n.status) }, controlledByProp, managedByProp],
 
   api: {
     list: () => callApp('GetNamespaces'),

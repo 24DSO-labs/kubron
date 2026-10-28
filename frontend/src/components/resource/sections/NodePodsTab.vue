@@ -5,7 +5,7 @@
     <table class="rd-table np-table">
       <thead>
         <tr>
-          <th>Name</th><th>Node</th><th>Namespace</th><th>Ready</th><th>CPU</th><th>Memory</th><th>Status</th>
+          <th>{{ $t('common.name') }}</th><th>{{ $t('defs.columns.node') }}</th><th>{{ $t('common.namespace') }}</th><th>{{ $t('defs.columns.ready') }}</th><th>{{ $t('defs.columns.cpu') }}</th><th>{{ $t('defs.columns.memory') }}</th><th>{{ $t('common.status') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -29,12 +29,12 @@
               <div class="np-fill np-mem" :style="{ width: memPct(p) + '%' }"></div>
             </div>
           </td>
-          <td :style="{ color: statusColor(p.status) }">{{ p.status || 'Unknown' }}</td>
+          <td :style="{ color: statusColor(p.status) }">{{ p.status || $t('common.unknown') }}</td>
         </tr>
       </tbody>
     </table>
   </div>
-  <div v-else class="rd-empty">{{ loading ? 'Загрузка...' : 'No pods on this node' }}</div>
+  <div v-else class="rd-empty">{{ loading ? $t('common.loading') : $t('sections.nodePods.empty') }}</div>
 </template>
 
 <script lang="ts" setup>
@@ -42,6 +42,8 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { callApp } from '../../../resources/wails'
 import { statusColor } from '../../../resources/status'
 import { useK8s } from '../../../composables/useK8s'
+import { t } from '../../../i18n'
+import { formatNumber } from '../../../i18n/format'
 
 const props = defineProps<{ resource: any }>()
 const emit = defineEmits<{
@@ -104,14 +106,16 @@ function memPct(p: any): number {
   return u === null || !nodeMemory.value ? 0 : clamp((u / nodeMemory.value) * 100)
 }
 
+const pct2 = (v: number) => formatNumber(v, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
 // Тулчейн: значение и доля от ёмкости узла
 function cpuTip(p: any): string {
   const u = cpuUsed(p)
-  return u === null ? 'CPU: no metrics' : `CPU: ${k8s.formatCpu(String(u))} (${cpuPct(p).toFixed(2)}% of node)`
+  return u === null ? t('sections.nodePods.cpuNoMetrics') : t('sections.nodePods.cpuTip', { value: k8s.formatCpu(String(u)), pct: pct2(cpuPct(p)) })
 }
 function memTip(p: any): string {
   const u = memUsed(p)
-  return u === null ? 'Memory: no metrics' : `Memory: ${k8s.formatMemory(String(u))} (${memPct(p).toFixed(2)}% of node)`
+  return u === null ? t('sections.nodePods.memNoMetrics') : t('sections.nodePods.memTip', { value: k8s.formatMemory(String(u)), pct: pct2(memPct(p)) })
 }
 
 const readyText = (r?: string) => (r ?? '').replace('/', ' / ')

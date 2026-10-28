@@ -24,10 +24,10 @@ func TestPickArgoPort(t *testing.T) {
 		t.Errorf("fallback: %+v", p)
 	}
 	if _, ok := pickArgoPort(nil, false); ok {
-		t.Error("без портов ok должен быть false")
+		t.Error("ok must be false without ports")
 	}
 	if argoScheme(false) != "https" || argoScheme(true) != "http" {
-		t.Error("схема")
+		t.Error("scheme")
 	}
 }
 
@@ -43,9 +43,9 @@ func TestFindArgoServerService(t *testing.T) {
 
 	got, err := findArgoServerService(ctx, fake.NewSimpleClientset(svc("zzz", "argocd-server", true), svc("argocd", "argocd-server", true), svc("x", "other", false)))
 	if err != nil || got.Namespace != "argocd" {
-		t.Fatalf("ожидался namespace argocd: %+v, %v", got, err)
+		t.Fatalf("expected namespace argocd: %+v, %v", got, err)
 	}
 	if _, err := findArgoServerService(ctx, fake.NewSimpleClientset(svc("x", "other", false))); err == nil {
-		t.Error("без сервиса ожидалась ошибка")
+		t.Error("expected an error without a service")
 	}
 }
