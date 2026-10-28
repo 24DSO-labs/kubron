@@ -101,6 +101,31 @@ jobs:
         run: go vet ./... && go test ./...
         working-directory: examples/ext-authenticator
 
+  # SQL-схема сервиса: применяется и откатывается на настоящем PostgreSQL (задача 3.1a).
+  migrations:
+    name: SQL migrations (PostgreSQL 16)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v5
+      - run: scripts/check-migrations.sh
+
   lint:
     name: Go (golangci-lint)
     runs-on: ubuntu-latest

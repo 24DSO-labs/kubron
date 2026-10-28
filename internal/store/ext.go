@@ -19,3 +19,6 @@ type extStore struct{ s ext.Store }
 func (e extStore) Users() auth.Backend        { return auth.FromExt(e.s.Users()) }
 func (e extStore) Audit() audit.Backend       { return e.s.Audit() }
 func (e extStore) ArgoTokens() k8s.TokenStore { return e.s.ArgoTokens() }
+
+// Clusters: публичный интерфейс pkg/ext кластеры пока не описывает, поэтому используются файлы ядра.
+func (e extStore) Clusters() k8s.ClusterStore { return k8s.NewFileClusterStore() }
