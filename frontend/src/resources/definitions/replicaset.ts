@@ -12,6 +12,7 @@ import { workloadMetrics } from '../workloadMetrics'
 
 import ImagesSection from '../../components/resource/sections/ImagesSection.vue'
 import PodsTab from '../../components/resource/sections/PodsTab.vue'
+import { t } from '../../i18n'
 
 /** Маппинг kind -> resource id для ссылок (владелец ReplicaSet — обычно Deployment) */
 const kindToId: Record<string, string> = {
@@ -56,17 +57,17 @@ export const replicaSet = defineResource<k8s.ReplicaSetInfo>({
   columns: [
     flatNameCol,
     { ...flatNsCol, link: (r: any) => r.namespace ? { id: 'namespace', ns: '', name: r.namespace } : null },
-    { key: 'desired', label: 'Desired' },
-    { key: 'current', label: 'Current' },
-    { key: 'ready', label: 'Ready' },
+    { key: 'desired', label: 'defs.columns.desired' },
+    { key: 'current', label: 'defs.columns.current' },
+    { key: 'ready', label: 'defs.columns.ready' },
     ageCol,
   ],
 
   headSections: [workloadMetrics.replicaset],
   properties: [
-    { label: 'Replicas', value: r => `${r.current ?? 0} current / ${r.desired ?? 0} desired` },
+    { label: 'defs.columns.replicas', value: r => t('defs.replicaSet.replicasSummary', { current: r.current ?? 0, desired: r.desired ?? 0 }) },
     {
-      label: 'Controlled By',
+      label: 'defs.props.controlledBy',
       value: r => {
         const cb = r.controlledBy
         if (!cb) return null
@@ -82,16 +83,16 @@ export const replicaSet = defineResource<k8s.ReplicaSetInfo>({
       },
       link: controlledByLink,
     },
-    { label: 'Selector', value: r => r.selector },
-    { label: 'Pod Status', value: podStatusSummary },
-    { label: 'Status', value: replicaSetStatus, badge: r => badgeClass(replicaSetStatus(r)) },
+    { label: 'defs.columns.selector', value: r => r.selector },
+    { label: 'defs.props.podStatus', value: podStatusSummary },
+    { label: 'common.status', value: replicaSetStatus, badge: r => badgeClass(replicaSetStatus(r)) },
     managedByProp,
   ],
   sections: [ImagesSection],
-  tabs: [{ id: 'pods', label: 'Pods', component: PodsTab }],
+  tabs: [{ id: 'pods', label: 'defs.tabs.pods', component: PodsTab }],
 
   actions: [
-    { id: 'scale', permission: Perm.Operate, label: 'Scale', icon: 'scale', run: (r, ctx) => ctx.requestScale(r, 'ReplicaSet') },
+    { id: 'scale', permission: Perm.Operate, label: 'defs.menu.scale', icon: 'scale', run: (r, ctx) => ctx.requestScale(r, 'ReplicaSet') },
   ],
 
   api: {

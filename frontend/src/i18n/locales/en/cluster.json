@@ -41,7 +41,8 @@
     "noFile": "No file selected",
     "kubeconfigText": "Kubeconfig text",
     "textHint": "The contents will be stored in the Kubron directory, readable only by you.",
-    "submit": "Add cluster"
+    "submit": "Add cluster",
+    "uploadFromFile": "Upload from file…"
   },
   "edit": {
     "kubeconfig": "Kubeconfig",

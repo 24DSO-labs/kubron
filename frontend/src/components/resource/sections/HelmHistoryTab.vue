@@ -5,11 +5,11 @@
     <div class="rd-table-wrap">
       <table class="rd-table">
         <thead>
-          <tr><th>Revision</th><th>Status</th><th>Chart</th><th>App version</th><th>Updated</th><th>Description</th><th></th></tr>
+          <tr><th>{{ $t('defs.columns.revision') }}</th><th>{{ $t('common.status') }}</th><th>{{ $t('defs.props.chart') }}</th><th>{{ $t('defs.columns.appVersion') }}</th><th>{{ $t('defs.columns.updated') }}</th><th>{{ $t('defs.props.description') }}</th><th></th></tr>
         </thead>
         <tbody>
           <tr v-for="h in history" :key="h.revision">
-            <td class="rd-mono">#{{ h.revision }}<span v-if="h.revision === current" class="rd-muted"> (current)</span></td>
+            <td class="rd-mono">#{{ h.revision }}<span v-if="h.revision === current" class="rd-muted"> ({{ $t('helm.history.current') }})</span></td>
             <td><span class="rd-badge" :class="badgeClass(h.status)">{{ h.status }}</span></td>
             <td class="rd-mono">{{ h.chart }}-{{ h.chartVersion }}</td>
             <td class="rd-mono">{{ h.appVersion || '—' }}</td>
@@ -17,8 +17,8 @@
             <td class="rd-muted">{{ h.description || '—' }}</td>
             <td class="hh-actions">
               <template v-if="h.revision !== current">
-                <button v-if="can(Perm.SecretsRead)" class="rd-btn" @click="showDiff(h.revision)">Diff</button>
-                <button v-if="can(Perm.Operate)" class="rd-btn" :disabled="busy" @click="rollback(h.revision)">Rollback</button>
+                <button v-if="can(Perm.SecretsRead)" class="rd-btn" @click="showDiff(h.revision)">{{ $t('helm.history.diff') }}</button>
+                <button v-if="can(Perm.Operate)" class="rd-btn" :disabled="busy" @click="rollback(h.revision)">{{ $t('helm.history.rollback') }}</button>
               </template>
             </td>
           </tr>
@@ -29,23 +29,24 @@
     <div v-if="diffRev !== null" class="hh-diff">
       <div class="hh-bar">
         <span class="rd-mono">#{{ diffRev }} → #{{ current }}</span>
-        <div class="hh-seg" role="group" aria-label="Diff target">
-          <button :class="{ on: part === 'manifest' }" @click="part = 'manifest'">Manifest</button>
-          <button :class="{ on: part === 'values' }" @click="part = 'values'">Values</button>
+        <div class="hh-seg" role="group" :aria-label="$t('helm.history.diffTarget')">
+          <button :class="{ on: part === 'manifest' }" @click="part = 'manifest'">{{ $t('helm.history.manifest') }}</button>
+          <button :class="{ on: part === 'values' }" @click="part = 'values'">{{ $t('helm.history.values') }}</button>
         </div>
-        <button class="rd-btn hh-close" @click="closeDiff">Close</button>
+        <button class="rd-btn hh-close" @click="closeDiff">{{ $t('helm.history.close') }}</button>
       </div>
       <p v-if="diffError" class="hh-error">{{ diffError }}</p>
-      <p v-else-if="diffLoading" class="rd-muted">Loading diff…</p>
-      <p v-else-if="!text" class="rd-muted">No differences</p>
+      <p v-else-if="diffLoading" class="rd-muted">{{ $t('helm.history.loadingDiff') }}</p>
+      <p v-else-if="!text" class="rd-muted">{{ $t('helm.history.noDifferences') }}</p>
       <pre v-else class="hh-pre"><span v-for="(l, i) in lines" :key="i" :class="lineClass(l)">{{ l }}</span></pre>
     </div>
   </div>
-  <div v-else class="rd-empty">No history</div>
+  <div v-else class="rd-empty">{{ $t('helm.history.empty') }}</div>
 </template>
 
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { badgeClass } from '../../../resources/status'
 import { callApp } from '../../../resources/wails'
 import { runHelmOp } from '../../../composables/useHelmOps'
@@ -58,6 +59,7 @@ import { Perm } from '../../../types/auth'
 import type { k8s } from '../../../../wailsjs/go/models'
 
 const props = defineProps<{ resource: any }>()
+const { t } = useI18n()
 const notifications = useNotifications()
 
 const history = computed<any[]>(() => props.resource?.history ?? [])
@@ -68,15 +70,15 @@ const name = computed(() => itemName(props.resource))
 const busy = ref(false)
 
 async function rollback(revision: number) {
-  if (!(await askConfirm(`Roll back ${name.value} to revision #${revision}? A new revision with its contents will be created.`))) return
+  if (!(await askConfirm(t('helm.history.confirmRollback', { name: name.value, revision })))) return
   busy.value = true
   try {
     await runHelmOp({ op: 'rollback', namespace: ns.value, release: name.value }, id =>
       callApp('RollbackHelmRelease', ns.value, name.value, revision, id))
-    notifications.notifySuccess(`${name.value}: rolled back to #${revision}`)
+    notifications.notifySuccess(t('helm.history.rolledBack', { name: name.value, revision }))
     await reloadActive()
   } catch (e: any) {
-    notifications.notifyError(`Rollback: ${e?.message || e}`)
+    notifications.notifyError(t('helm.history.rollbackError', { message: e?.message || e }))
   } finally {
     busy.value = false
   }

@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { defineResource } from '../../types'
+import { t } from '../../../i18n'
 import { callApp } from '../../wails'
 import { flatNameCol, flatNsCol, ageCol } from '../common'
 import type { ArgoRepositoryInfo } from '../../../types/argocd'
 import { shortRepo } from '../../argocd'
 
-const yesNo = (v: boolean) => (v ? 'Yes' : 'No')
+const yesNo = (v: boolean) => (v ? t('common.yes') : t('common.no'))
 
 /**
  * Репозитории Argo CD (Secret с лейблом secret-type=repository).
@@ -27,25 +28,25 @@ export const argoRepository = defineResource<ArgoRepositoryInfo>({
   columns: [
     { ...flatNameCol, formatter: r => r.repoName || r.name },
     flatNsCol,
-    { key: 'url', label: 'URL', formatter: r => shortRepo(r.url) || '—' },
-    { key: 'type', label: 'Type' },
-    { key: 'project', label: 'Project', formatter: r => r.project || '—' },
-    { key: 'authType', label: 'Auth' },
-    { key: 'insecure', label: 'Insecure', formatter: r => yesNo(r.insecure) },
+    { key: 'url', label: 'argo.columns.url', formatter: r => shortRepo(r.url) || '—' },
+    { key: 'type', label: 'defs.columns.type' },
+    { key: 'project', label: 'argo.columns.project', formatter: r => r.project || '—' },
+    { key: 'authType', label: 'argo.columns.auth' },
+    { key: 'insecure', label: 'argo.columns.insecure', formatter: r => yesNo(r.insecure) },
     ageCol,
   ],
 
   properties: [
-    { label: 'Secret', value: r => r.name },
-    { label: 'URL', value: r => r.url },
-    { label: 'Type', value: r => r.type },
-    { label: 'Project', value: r => r.project, hideEmpty: true },
-    { label: 'Authentication', value: r => r.authType },
-    { label: 'Insecure', value: r => yesNo(r.insecure) },
-    { label: 'Git LFS', value: r => (r.enableLfs ? 'Enabled' : null), hideEmpty: true },
-    { label: 'OCI', value: r => (r.enableOCI ? 'Enabled' : null), hideEmpty: true },
-    { label: 'Force HTTP Basic Auth', value: r => (r.forceHttpBasicAuth ? 'Yes' : null), hideEmpty: true },
-    { label: 'Proxy', value: r => (r.proxy ? 'Configured' : null), hideEmpty: true },
+    { label: 'argo.props.secret', value: r => r.name },
+    { label: 'argo.columns.url', value: r => r.url },
+    { label: 'defs.columns.type', value: r => r.type },
+    { label: 'argo.columns.project', value: r => r.project, hideEmpty: true },
+    { label: 'argo.props.authentication', value: r => r.authType },
+    { label: 'argo.columns.insecure', value: r => yesNo(r.insecure) },
+    { label: 'Git LFS', value: r => (r.enableLfs ? t('common.enabled') : null), hideEmpty: true },
+    { label: 'OCI', value: r => (r.enableOCI ? t('common.enabled') : null), hideEmpty: true },
+    { label: 'argo.props.forceBasicAuth', value: r => (r.forceHttpBasicAuth ? t('common.yes') : null), hideEmpty: true },
+    { label: 'argo.props.proxy', value: r => (r.proxy ? t('argo.props.configured') : null), hideEmpty: true },
   ],
 
   api: {

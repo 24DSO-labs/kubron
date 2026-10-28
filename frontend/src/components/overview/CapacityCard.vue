@@ -2,13 +2,13 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <section class="ov-card cap">
-    <h2 class="ov-card-title">Scheduling headroom</h2>
+    <h2 class="ov-card-title">{{ $t('overview.capacity.title') }}</h2>
 
     <template v-if="nodes && nodes.length">
       <div class="best">
-        <span class="best-label">Largest free slot</span>
-        <span class="best-val">{{ formatCores(best.cpuFree) }} cores · {{ formatBytes(best.memoryFree) }}</span>
-        <span class="best-node" :title="best.name">on {{ best.name }}</span>
+        <span class="best-label">{{ $t('overview.capacity.largestSlot') }}</span>
+        <span class="best-val">{{ formatCoresLabel(best.cpuFree) }} · {{ formatBytes(best.memoryFree) }}</span>
+        <span class="best-node" :title="best.name">{{ $t('overview.capacity.on', { node: best.name }) }}</span>
       </div>
 
       <ul class="list">
@@ -18,19 +18,19 @@
             <span class="bar"><span class="fill" :class="tone(n.cpuFree, n.cpuAllocatable)" :style="{ width: usedPct(n.cpuFree, n.cpuAllocatable) + '%' }"></span></span>
             <span class="bar"><span class="fill" :class="tone(n.memoryFree, n.memoryAllocatable)" :style="{ width: usedPct(n.memoryFree, n.memoryAllocatable) + '%' }"></span></span>
           </span>
-          <span class="sub">free {{ formatCores(n.cpuFree) }} cores · {{ formatBytes(n.memoryFree) }}</span>
+          <span class="sub">{{ $t('overview.capacity.free', { value: `${formatCoresLabel(n.cpuFree)} · ${formatBytes(n.memoryFree)}` }) }}</span>
         </li>
       </ul>
-      <p class="hint">Requests-based; cordoned and NotReady nodes are skipped. Bars: CPU, memory.</p>
+      <p class="hint">{{ $t('overview.capacity.hint') }}</p>
     </template>
-    <p v-else-if="nodes" class="none">No schedulable nodes</p>
-    <p v-else class="none">Loading…</p>
+    <p v-else-if="nodes" class="none">{{ $t('overview.capacity.empty') }}</p>
+    <p v-else class="none">{{ $t('common.loading') }}</p>
   </section>
 </template>
 
 <script lang="ts" setup>
 import { computed } from 'vue'
-import { formatBytes, formatCores } from './format'
+import { formatBytes, formatCoresLabel } from './format'
 import type { NodeHeadroom } from '../../types/insights'
 
 const props = defineProps<{ nodes: NodeHeadroom[] | null }>()

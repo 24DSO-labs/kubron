@@ -6,10 +6,10 @@
       <thead>
         <tr>
           <th class="sc-sort" @click="asc = !asc">
-            Name <span class="sc-arrow">{{ asc ? '▲' : '▼' }}</span>
+            {{ $t('common.name') }} <span class="sc-arrow">{{ asc ? '▲' : '▼' }}</span>
           </th>
-          <th>Capacity</th>
-          <th>Status</th>
+          <th>{{ $t('defs.columns.capacity') }}</th>
+          <th>{{ $t('common.status') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -26,7 +26,7 @@
       </tbody>
     </table>
   </div>
-  <div v-else class="rd-empty">No persistent volumes</div>
+  <div v-else class="rd-empty">{{ $t('sections.storageClassVolumes.empty') }}</div>
 </template>
 
 <script lang="ts" setup>

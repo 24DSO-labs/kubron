@@ -5,7 +5,7 @@
     <table class="rd-table">
       <thead>
         <tr>
-          <th>Name</th><th>Node</th><th>Namespace</th><th>Controller</th><th>Ready</th><th>Status</th>
+          <th>{{ $t('common.name') }}</th><th>{{ $t('defs.columns.node') }}</th><th>{{ $t('common.namespace') }}</th><th>{{ $t('defs.columns.controller') }}</th><th>{{ $t('defs.columns.ready') }}</th><th>{{ $t('common.status') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -20,12 +20,12 @@
           <td class="rd-muted">{{ p.namespace }}</td>
           <td class="rd-muted">{{ p.controlledBy || '—' }}</td>
           <td class="rd-mono">{{ p.ready }}</td>
-          <td><span class="rd-badge" :class="badgeClass(p.status)">{{ p.status || 'Unknown' }}</span></td>
+          <td><span class="rd-badge" :class="badgeClass(p.status)">{{ p.status || $t('common.unknown') }}</span></td>
         </tr>
       </tbody>
     </table>
   </div>
-  <div v-else class="rd-empty">{{ loading ? 'Загрузка...' : 'No pods use this class' }}</div>
+  <div v-else class="rd-empty">{{ loading ? $t('common.loading') : $t('sections.podsByClass.empty') }}</div>
 </template>
 
 <script lang="ts" setup>

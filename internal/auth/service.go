@@ -9,30 +9,31 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/VadimIl224/kubron/internal/audit"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/VadimIl224/kubron/internal/audit"
 )
 
 // Ошибки отдаются во фронтенд как текст (Wails), поэтому сообщения — на языке интерфейса.
 var (
-	ErrNotAuthenticated       = errors.New("требуется вход в систему")
-	ErrForbidden              = errors.New("недостаточно прав для этого действия")
-	ErrInvalidCredentials     = errors.New("неверный логин или пароль")
-	ErrAccountDisabled        = errors.New("учётная запись отключена")
-	ErrSetupDone              = errors.New("первичная настройка уже выполнена")
-	ErrSetupRequired          = errors.New("требуется первичная настройка: создайте администратора")
-	ErrPasswordChangeRequired = errors.New("требуется сменить пароль")
-	ErrUserExists             = errors.New("пользователь с таким логином уже существует")
-	ErrUserNotFound           = errors.New("пользователь не найден")
-	ErrUnknownRole            = errors.New("неизвестная роль")
-	ErrLastAdmin              = errors.New("нельзя лишить доступа последнего администратора")
-	ErrSelfAction             = errors.New("это действие нельзя выполнить над собственной учётной записью")
-	ErrWrongPassword          = errors.New("текущий пароль указан неверно")
-	ErrSamePassword           = errors.New("новый пароль должен отличаться от текущего")
-	ErrWeakPassword           = errors.New("пароль не должен совпадать с логином")
-	ErrInvalidIdleTimeout     = errors.New("время автовыхода: 0 (выключено) или от 1 до 1440 минут")
+	ErrNotAuthenticated       = errors.New("authentication required")
+	ErrForbidden              = errors.New("insufficient permissions for this action")
+	ErrInvalidCredentials     = errors.New("invalid username or password")
+	ErrAccountDisabled        = errors.New("account is disabled")
+	ErrSetupDone              = errors.New("initial setup is already complete")
+	ErrSetupRequired          = errors.New("initial setup required: create an administrator")
+	ErrPasswordChangeRequired = errors.New("password change required")
+	ErrUserExists             = errors.New("a user with this username already exists")
+	ErrUserNotFound           = errors.New("user not found")
+	ErrUnknownRole            = errors.New("unknown role")
+	ErrLastAdmin              = errors.New("cannot remove access from the last administrator")
+	ErrSelfAction             = errors.New("this action cannot be performed on your own account")
+	ErrWrongPassword          = errors.New("current password is incorrect")
+	ErrSamePassword           = errors.New("new password must differ from the current one")
+	ErrWeakPassword           = errors.New("password must not match the username")
+	ErrInvalidIdleTimeout     = errors.New("idle timeout must be 0 (disabled) or between 1 and 1440 minutes")
 )
 
 // LockedError — вход временно заблокирован после серии неудачных попыток.
@@ -40,7 +41,7 @@ type LockedError struct{ RetryAfter time.Duration }
 
 func (e *LockedError) Error() string {
 	secs := int((e.RetryAfter + time.Second - 1) / time.Second)
-	return fmt.Sprintf("слишком много неудачных попыток входа, повторите через %d с", secs)
+	return fmt.Sprintf("too many failed login attempts, try again in %d s", secs)
 }
 
 const (
@@ -230,7 +231,7 @@ func normalizeUsername(u string) string { return strings.ToLower(strings.TrimSpa
 func newID() string {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
-		panic("auth: crypto/rand недоступен: " + err.Error())
+		panic("auth: crypto/rand is unavailable: " + err.Error())
 	}
 	return hex.EncodeToString(b)
 }
@@ -300,7 +301,7 @@ func (s *Service) idleExpiredLocked() bool {
 // expireLocked завершает сессию из-за бездействия и запускает очистку (терминалы, port-forward).
 // Очистка идёт в отдельной горутине: она не должна выполняться под блокировкой Service.
 func (s *Service) expireLocked(u *UserRecord) {
-	s.record(u, "SessionTimeout", audit.ResultOK, fmt.Sprintf("бездействие более %d мин", s.idleMinutesLocked()))
+	s.record(u, "SessionTimeout", audit.ResultOK, fmt.Sprintf("inactive for more than %d min", s.idleMinutesLocked()))
 	s.sessionID = ""
 	if hook := s.onLogout; hook != nil {
 		go hook()
@@ -383,7 +384,7 @@ func (s *Service) SetIdleTimeout(minutes int) (int, error) {
 	if err := s.st.save(); err != nil {
 		s.st.settings = prev
 		s.record(actor, "SetIdleTimeout", audit.ResultFailed, err.Error())
-		return 0, fmt.Errorf("не удалось сохранить настройку: %w", err)
+		return 0, fmt.Errorf("failed to save setting: %w", err)
 	}
 	s.record(actor, "SetIdleTimeout", audit.ResultOK, fmt.Sprintf("minutes=%d→%d", was, minutes))
 	return minutes, nil
@@ -474,11 +475,11 @@ func (s *Service) Setup(username, password string) (*UserInfo, error) {
 	s.st.users = append(s.st.users, rec)
 	if err := s.st.save(); err != nil {
 		s.st.users = nil
-		return nil, fmt.Errorf("не удалось сохранить пользователя: %w", err)
+		return nil, fmt.Errorf("failed to save user: %w", err)
 	}
 	s.sessionID = rec.ID
 	s.touchLocked()
-	s.record(&rec, "Setup", audit.ResultOK, "создан первый администратор")
+	s.record(&rec, "Setup", audit.ResultOK, "first administrator created")
 	return toInfo(&rec), nil
 }
 
@@ -496,9 +497,11 @@ func (s *Service) Login(username, password string) (*UserInfo, error) {
 		s.mu.Unlock()
 		return nil, ErrSetupRequired
 	}
+
 	ipKey := s.ipKey()
 	if remaining := max(s.lockRemainingLocked(key), s.lockRemainingLocked(ipKey)); remaining > 0 {
-		s.record(&UserRecord{Username: username}, "Login", audit.ResultDenied, "вход временно заблокирован после неудачных попыток")
+		s.record(&UserRecord{Username: username}, "Login", audit.ResultDenied, "login temporarily blocked after failed attempts")
+
 		s.mu.Unlock()
 		return nil, &LockedError{RetryAfter: remaining}
 	}
@@ -684,7 +687,7 @@ func (s *Service) ChangePassword(oldPassword, newPassword string) error {
 	rec.UpdatedAt = s.now()
 	if err := s.st.save(); err != nil {
 		*rec = prev
-		return fmt.Errorf("не удалось сохранить пароль: %w", err)
+		return fmt.Errorf("failed to save password: %w", err)
 	}
 	s.touchLocked()
 	s.record(rec, "ChangePassword", audit.ResultOK, "")
@@ -746,7 +749,7 @@ func (s *Service) CreateUser(username, password string, role Role) (*UserInfo, e
 	if err := s.st.save(); err != nil {
 		s.st.users = s.st.users[:len(s.st.users)-1]
 		s.record(actor, "CreateUser", audit.ResultFailed, detail+": "+err.Error())
-		return nil, fmt.Errorf("не удалось сохранить пользователя: %w", err)
+		return nil, fmt.Errorf("failed to save user: %w", err)
 	}
 	s.record(actor, "CreateUser", audit.ResultOK, detail)
 	return toInfo(&rec), nil
@@ -781,7 +784,7 @@ func (s *Service) mutate(id, action string, fn func(actor, target *UserRecord) (
 	if err := s.st.save(); err != nil {
 		*target = prev
 		s.record(actor, action, audit.ResultFailed, who+": "+err.Error())
-		return nil, fmt.Errorf("не удалось сохранить изменения: %w", err)
+		return nil, fmt.Errorf("failed to save changes: %w", err)
 	}
 	if change != "" {
 		who += " " + change
@@ -885,7 +888,7 @@ func (s *Service) DeleteUser(id string) error {
 	if err := s.st.save(); err != nil {
 		s.st.users = prev
 		s.record(actor, "DeleteUser", audit.ResultFailed, who+": "+err.Error())
-		return fmt.Errorf("не удалось сохранить изменения: %w", err)
+		return fmt.Errorf("failed to save changes: %w", err)
 	}
 	s.record(actor, "DeleteUser", audit.ResultOK, who)
 	hooks = s.endUserSessionsLocked(id, nil, "DeleteUser")

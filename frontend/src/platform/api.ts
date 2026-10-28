@@ -10,6 +10,8 @@
  * или неверное число/тип аргументов ловится в `vue-tsc`, а не в рантайме.
  * Динамический импорт и проверка наличия функции оставлены на случай устаревших биндингов.
  */
+import { NOT_AUTHENTICATED_MESSAGE } from '../i18n/backendErrors'
+
 type AppApi = typeof import('../../wailsjs/go/main/App')
 
 /** Имена методов Go-приложения, доступные из фронтенда */
@@ -17,8 +19,8 @@ export type AppMethod = {
   [K in keyof AppApi]: AppApi[K] extends (...args: any[]) => Promise<any> ? K : never
 }[keyof AppApi]
 
-/** Текст ошибки бэкенда «нет сессии» (auth.ErrNotAuthenticated) */
-export const NOT_AUTHENTICATED = 'требуется вход в систему'
+/** Текст ошибки бэкенда «нет сессии» (auth.ErrNotAuthenticated), см. i18n/backendErrors.ts */
+export const NOT_AUTHENTICATED = NOT_AUTHENTICATED_MESSAGE
 
 /** Методы, для которых «нет сессии» — штатный ответ (до входа), а не признак истёкшей сессии */
 const PRE_LOGIN_METHODS = new Set<string>(['AuthStatus', 'SetupAdmin', 'Login', 'Logout', 'CurrentUser'])
@@ -51,7 +53,7 @@ async function invoke(fn: string, args: unknown[]): Promise<unknown> {
   }
   const app: any = await import('../../wailsjs/go/main/App')
   if (typeof app[fn] !== 'function') {
-    throw new Error(`${fn} недоступен в Go-биндингах`)
+    throw new Error(`${fn} is not available in the Go bindings`)
   }
   return app[fn](...args)
 }

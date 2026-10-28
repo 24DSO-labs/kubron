@@ -3,7 +3,7 @@
 <template>
   <div v-if="clusterName" class="rd-block">
     <div class="rd-block-head" @click="open = !open">
-      <span>Metrics</span>
+      <span>{{ $t('defs.columns.metrics') }}</span>
       <span class="rd-arrow" :class="{ open }">›</span>
     </div>
     <div v-if="open" class="rd-block-body">

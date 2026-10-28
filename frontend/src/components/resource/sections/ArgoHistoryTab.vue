@@ -2,11 +2,11 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div v-if="history.length">
-    <div v-if="resource.autoSync" class="rd-muted ah-hint">Rollback is unavailable while auto-sync is enabled.</div>
+    <div v-if="resource.autoSync" class="rd-muted ah-hint">{{ $t('argo.history.rollbackUnavailable') }}</div>
     <div class="rd-table-wrap">
       <table class="rd-table">
         <thead>
-          <tr><th>ID</th><th>Revision</th><th>Deployed</th><th>Source</th><th></th></tr>
+          <tr><th>{{ $t('argo.history.id') }}</th><th>{{ $t('defs.columns.revision') }}</th><th>{{ $t('argo.history.deployed') }}</th><th>{{ $t('defs.props.source') }}</th><th></th></tr>
         </thead>
         <tbody>
           <tr v-for="(h, i) in history" :key="h.id">
@@ -16,14 +16,14 @@
             <td class="rd-mono">{{ shortRepoSource(h.source) }}</td>
             <td>
               <!-- самая новая запись — текущая ревизия, откатываться на неё бессмысленно -->
-              <button v-if="canRollback && i > 0" class="rd-btn" @click="onRollback(h)">Rollback</button>
+              <button v-if="canRollback && i > 0" class="rd-btn" @click="onRollback(h)">{{ $t('argo.history.rollback') }}</button>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
   </div>
-  <div v-else class="rd-empty">No deployment history</div>
+  <div v-else class="rd-empty">{{ $t('argo.history.empty') }}</div>
 </template>
 
 <script lang="ts" setup>

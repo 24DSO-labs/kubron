@@ -1,9 +1,17 @@
 // Copyright 2026 The Kubron Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import { ref } from 'vue'
+import { ref, getCurrentInstance } from 'vue'
 import { onEvent } from '../platform/events'
 import { useNotifications } from './useNotifications'
+
+function t(key: string, params?: Record<string, unknown>): string {
+  const instance = getCurrentInstance()
+  if (instance?.appContext?.config?.globalProperties?.$t) {
+    return (instance.appContext.config.globalProperties.$t as any)(key, params)
+  }
+  return key
+}
 
 /** Событие бэкенда list:partial: часть namespace набора прочитать не удалось. */
 export interface PartialListPayload {
@@ -39,8 +47,8 @@ export function handlePartialList(payload: PartialListPayload | undefined | null
   if (notified.has(key)) return false
   notified.add(key)
 
-  const shown = names.slice(0, 3).join(', ') + (names.length > 3 ? ` и ещё ${names.length - 3}` : '')
-  notify(`Нет доступа к namespace: ${shown}. Показаны остальные.`)
+  const shown = names.slice(0, 3).join(', ') + (names.length > 3 ? ` ${t('helm.helm_card.more', { count: names.length - 3 })}` : '')
+  notify(t('helm.list_failures.noAccess', { shown }))
   return true
 }
 
