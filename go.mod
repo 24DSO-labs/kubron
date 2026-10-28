@@ -1,10 +1,10 @@
-module analog
+module github.com/VadimIl224/kubron
 
 go 1.27.3
 
 require (
-	analog/pkg/ext v0.0.0
 	github.com/Masterminds/semver/v3 v3.5.0
+	github.com/VadimIl224/kubron/pkg/ext v0.0.0
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/wailsapp/wails/v2 v2.17.0
@@ -159,4 +159,4 @@ require (
 // replace github.com/wailsapp/wails/v2 v2.11.0 => C:\Users\Вадим\go\pkg\mod
 
 // Публичные точки расширения — отдельный модуль только на stdlib (ADR-0013).
-replace analog/pkg/ext => ./pkg/ext
+replace github.com/VadimIl224/kubron/pkg/ext => ./pkg/ext

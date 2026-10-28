@@ -242,7 +242,7 @@ func addClusterFromData(data []byte, settings ClusterSettings) (*ClusterMeta, er
 	}
 
 	if err := SaveClusterMeta(meta); err != nil {
-		os.Remove(kcPath)
+		_ = os.Remove(kcPath)
 		return nil, err
 	}
 

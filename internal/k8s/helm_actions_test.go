@@ -27,13 +27,13 @@ func TestTextDiff(t *testing.T) {
 
 func TestRollbackUninstallValidateBeforeNetwork(t *testing.T) {
 	m := NewManager() // без подключения: проверка входа должна сработать раньше
-	if err := m.RollbackHelmRelease("prod", "web", 0); err == nil || !strings.Contains(err.Error(), "ревизия") {
+	if err := m.RollbackHelmRelease("prod", "web", 0, ""); err == nil || !strings.Contains(err.Error(), "ревизия") {
 		t.Errorf("rollback revision=0: %v", err)
 	}
-	if err := m.RollbackHelmRelease("Prod", "web", 1); err == nil {
+	if err := m.RollbackHelmRelease("Prod", "web", 1, ""); err == nil {
 		t.Error("некорректный namespace должен отклоняться")
 	}
-	if err := m.UninstallHelmRelease("prod", "", false); err == nil {
+	if err := m.UninstallHelmRelease("prod", "", false, ""); err == nil {
 		t.Error("пустое имя должно отклоняться")
 	}
 }

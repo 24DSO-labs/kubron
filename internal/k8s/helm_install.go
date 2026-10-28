@@ -29,7 +29,9 @@ type HelmInstallRequest struct {
 	Namespace       string `json:"namespace"`
 	Values          string `json:"values"` // YAML с переопределениями (не полные values чарта)
 	CreateNamespace bool   `json:"createNamespace"`
-	Wait            bool   `json:"wait"` // ждать готовности ресурсов (до 5 минут)
+	Wait            bool   `json:"wait"`    // ждать готовности ресурсов (до 5 минут)
+	Storage         string `json:"storage"` // secret (по умолчанию) | configmap — где Helm хранит ревизии релиза
+	OpID            string `json:"opId"`    // идентификатор операции для helm:progress и отмены (необязателен)
 }
 
 // HelmInstallResult — итог установки или dry-run.
@@ -56,13 +58,16 @@ func validateHelmInstallRequest(r *HelmInstallRequest) error {
 	if r.Namespace == "" || len(validation.IsDNS1123Label(r.Namespace)) > 0 {
 		return fmt.Errorf("некорректный namespace %q", r.Namespace)
 	}
+	if _, err := helmDriverName(r.Storage); err != nil {
+		return err
+	}
 	return nil
 }
 
 // helmInstall скачивает чарт из репозитория и ставит его (или в dry-run только рендерит).
 // dry-run использует DryRunClient: кластер не опрашивается и ничего не создаётся, поэтому
 // lookup-функции шаблонов вернут пустоту, а проверки существующих ресурсов не выполняются.
-func (m *Manager) helmInstall(ctx context.Context, req HelmInstallRequest, dryRun bool) (*HelmInstallResult, error) {
+func (m *Manager) helmInstall(ctx context.Context, req HelmInstallRequest, dryRun bool) (res *HelmInstallResult, err error) {
 	if err := validateHelmInstallRequest(&req); err != nil {
 		return nil, err
 	}
@@ -70,11 +75,19 @@ func (m *Manager) helmInstall(ctx context.Context, req HelmInstallRequest, dryRu
 	if err != nil {
 		return nil, err
 	}
-	e, cv, err := lookupHelmChartVersion(req.Repo, req.Chart, req.Version)
-	if err != nil {
-		return nil, err
+
+	var tr *helmTracker
+	if !dryRun { // dry-run короткий и в прогрессе не нуждается
+		ctx, tr, err = m.beginHelmOp(ctx, req.OpID, "install", req.Namespace, req.ReleaseName, true)
+		if err != nil {
+			return nil, err
+		}
+		defer func() { tr.finish(err) }()
 	}
-	chrt, err := downloadHelmChart(ctx, e, cv)
+
+	tr.note(fmt.Sprintf("%s/%s %s", req.Repo, req.Chart, req.Version))
+	tr.setPhase("Загрузка чарта…")
+	chrt, err := loadHelmChart(ctx, req.Repo, req.Chart, req.Version)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +105,16 @@ func (m *Manager) helmInstall(ctx context.Context, req HelmInstallRequest, dryRu
 		}
 	}
 
-	cfg, err := m.helmConfig(req.Namespace)
+	if !dryRun {
+		// Helm проверяет занятость имени только в выбранном хранилище: без этой проверки релиз с тем же
+		// именем мог бы появиться одновременно в Secret и в ConfigMap.
+		if st, err := m.helmStorageOf(ctx, req.Namespace, req.ReleaseName); err != nil {
+			return nil, fmt.Errorf("не удалось проверить имя релиза: %w", err)
+		} else if st != "" {
+			return nil, fmt.Errorf("релиз %s/%s уже существует (хранилище: %s)", req.Namespace, req.ReleaseName, st)
+		}
+	}
+	cfg, err := m.helmConfigDriver(req.Namespace, tr.handler(), req.Storage)
 	if err != nil {
 		return nil, err
 	}
@@ -114,17 +136,19 @@ func (m *Manager) helmInstall(ctx context.Context, req HelmInstallRequest, dryRu
 	ctx, cancel := context.WithTimeout(ctx, helmInstallTimeout+30*time.Second)
 	defer cancel()
 
-	res, err := in.RunWithContext(ctx, chrt, vals)
+	tr.setPhase("Установка и ожидание готовности…")
+	rel, err := in.RunWithContext(ctx, chrt, vals)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return nil, fmt.Errorf("установка %s/%s не завершилась за %s", req.Namespace, req.ReleaseName, helmInstallTimeout)
 		}
 		return nil, fmt.Errorf("установка %s/%s: %w", req.Namespace, req.ReleaseName, err)
 	}
-	acc, err := helmrelease.NewAccessor(res)
+	acc, err := helmrelease.NewAccessor(rel)
 	if err != nil {
 		return nil, err
 	}
+	tr.setRevision(acc.Version())
 	return &HelmInstallResult{
 		ReleaseName: acc.Name(),
 		Namespace:   acc.Namespace(),
