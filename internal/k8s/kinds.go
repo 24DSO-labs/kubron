@@ -78,7 +78,7 @@ func resourceClient(conn *ClusterConnection, kind, namespace string) (dynamic.Re
 	info, ok := kindTable[kind]
 	if !ok {
 		if !strings.HasPrefix(kind, customKindPrefix) {
-			return nil, kindInfo{}, fmt.Errorf("тип ресурса %q не поддерживается", kind)
+			return nil, kindInfo{}, fmt.Errorf("resource type %q is not supported", kind)
 		}
 		var err error
 		if info, err = customKindInfo(conn, kind); err != nil {
@@ -89,7 +89,7 @@ func resourceClient(conn *ClusterConnection, kind, namespace string) (dynamic.Re
 		return conn.DynamicClient.Resource(info.gvr), info, nil
 	}
 	if namespace == "" {
-		return nil, info, fmt.Errorf("для %s нужен namespace", kind)
+		return nil, info, fmt.Errorf("%s requires a namespace", kind)
 	}
 	return conn.DynamicClient.Resource(info.gvr).Namespace(namespace), info, nil
 }

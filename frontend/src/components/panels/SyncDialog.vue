@@ -4,51 +4,51 @@
   <div class="sd-overlay" @click.self="close">
     <div class="sd" role="dialog" aria-modal="true">
       <div class="sd-head">
-        <h3 v-if="!bulk">Sync <span class="sd-name">{{ apps[0].namespace }}/{{ apps[0].name }}</span></h3>
-        <h3 v-else>Sync applications <span class="sd-muted">({{ selected.size }} selected)</span></h3>
+        <h3 v-if="!bulk">{{ $t('argo.sync.title') }} <span class="sd-name">{{ apps[0].namespace }}/{{ apps[0].name }}</span></h3>
+        <h3 v-else>{{ $t('argo.sync.titleBulk') }} <span class="sd-muted">({{ $t('argo.sync.selected', { n: selected.size }) }})</span></h3>
       </div>
 
       <div class="sd-body">
         <!-- Массовый режим: выбор приложений, OutOfSync предвыбраны -->
         <template v-if="bulk">
-          <input v-model="filter" class="sd-input" type="search" placeholder="Filter applications" />
+          <input v-model="filter" class="sd-input" type="search" :placeholder="$t('argo.sync.filterPlaceholder')" />
           <div class="sd-list">
             <label v-for="a in visibleApps" :key="keyOf(a)" class="sd-app" :class="{ off: a.operationOn }">
               <input type="checkbox" :checked="selected.has(keyOf(a))" :disabled="a.operationOn" @change="toggle(a)" />
               <span class="sd-app-name">{{ a.name }}</span>
               <span class="sd-muted">{{ a.namespace }}</span>
-              <span class="sd-tag" :class="a.syncStatus === 'OutOfSync' ? 'warn' : 'ok'">{{ a.operationOn ? 'Syncing' : a.syncStatus }}</span>
+              <span class="sd-tag" :class="a.syncStatus === 'OutOfSync' ? 'warn' : 'ok'">{{ a.operationOn ? $t('argo.sync.syncing') : a.syncStatus }}</span>
             </label>
           </div>
         </template>
 
         <label v-else class="sd-field">
-          <span>Revision</span>
-          <input v-model="revision" class="sd-input" placeholder="Empty: target revision from the Application spec" />
+          <span>{{ $t('defs.columns.revision') }}</span>
+          <input v-model="revision" class="sd-input" :placeholder="$t('argo.sync.revisionPlaceholder')" />
         </label>
 
-        <label class="sd-check"><input v-model="prune" type="checkbox" /> Prune — delete resources removed from Git</label>
-        <label class="sd-check"><input v-model="force" type="checkbox" /> Force — replace resources (may cause downtime)</label>
-        <label class="sd-check"><input v-model="dryRun" type="checkbox" /> Dry run — only show what would change</label>
+        <label class="sd-check"><input v-model="prune" type="checkbox" /> {{ $t('argo.sync.prune') }}</label>
+        <label class="sd-check"><input v-model="force" type="checkbox" /> {{ $t('argo.sync.force') }}</label>
+        <label class="sd-check"><input v-model="dryRun" type="checkbox" /> {{ $t('argo.sync.dryRunOption') }}</label>
 
         <div v-if="prune && !dryRun" class="sd-risk" :class="{ danger: pruneTargets.length }">
           <template v-if="pruneTargets.length">
-            <strong>{{ pruneTargets.length }} resource(s) will be deleted:</strong>
+            <strong>{{ $t('argo.sync.willDelete', pruneTargets.length) }}</strong>
             <ul>
-              <li v-for="t in pruneTargets.slice(0, 8)" :key="t">{{ t }}</li>
+              <li v-for="target in pruneTargets.slice(0, 8)" :key="target">{{ target }}</li>
             </ul>
-            <span v-if="pruneTargets.length > 8">…and {{ pruneTargets.length - 8 }} more</span>
+            <span v-if="pruneTargets.length > 8">{{ $t('argo.sync.andMore', { n: pruneTargets.length - 8 }) }}</span>
           </template>
-          <template v-else>No resources are currently marked for pruning.</template>
+          <template v-else>{{ $t('argo.sync.nothingToPrune') }}</template>
         </div>
-        <div v-if="force && !dryRun" class="sd-risk danger">Force uses replace/delete-recreate semantics for changed resources.</div>
+        <div v-if="force && !dryRun" class="sd-risk danger">{{ $t('argo.sync.forceRisk') }}</div>
       </div>
 
       <div class="sd-foot">
-        <button class="sd-btn" :disabled="busy" @click="close">Cancel</button>
-        <button v-if="bulk" class="sd-btn" :disabled="busy || !selected.size" @click="refreshSelected">Refresh</button>
+        <button class="sd-btn" :disabled="busy" @click="close">{{ $t('common.cancel') }}</button>
+        <button v-if="bulk" class="sd-btn" :disabled="busy || !selected.size" @click="refreshSelected">{{ $t('common.refresh') }}</button>
         <button class="sd-btn primary" :disabled="busy || !selected.size" @click="submit">
-          {{ busy ? 'Starting…' : dryRun ? 'Dry run' : `Sync${bulk ? ` (${selected.size})` : ''}` }}
+          {{ busy ? $t('argo.sync.starting') : dryRun ? $t('argo.sync.dryRun') : bulk ? $t('argo.sync.submitBulk', { n: selected.size }) : $t('argo.sync.submit') }}
         </button>
       </div>
     </div>

@@ -5,13 +5,13 @@
     <button class="user-chip" type="button" :aria-expanded="open" @click="open = !open">
       <span class="user-avatar">{{ initial }}</span>
       <span class="user-name">{{ auth.user.value.username }}</span>
-      <span class="user-role">{{ auth.user.value.roleLabel }}</span>
+      <span class="user-role">{{ roleName }}</span>
       <span class="user-caret" :class="{ open }">›</span>
     </button>
 
     <div v-if="open" class="user-dropdown" role="menu">
-      <button class="user-item" role="menuitem" type="button" @click="openChange">Сменить пароль</button>
-      <button class="user-item user-item-danger" role="menuitem" type="button" @click="auth.logout()">Выйти</button>
+      <button class="user-item" role="menuitem" type="button" @click="openChange">{{ $t('auth.menu.changePassword') }}</button>
+      <button class="user-item user-item-danger" role="menuitem" type="button" @click="auth.logout()">{{ $t('auth.menu.logout') }}</button>
     </div>
 
     <ChangePasswordDialog v-if="showChange" @close="showChange = false" />
@@ -20,14 +20,23 @@
 
 <script lang="ts" setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAuth } from '../../composables/useAuth'
 import ChangePasswordDialog from './ChangePasswordDialog.vue'
 
+const { t, te } = useI18n()
 const auth = useAuth()
 const open = ref(false)
 const showChange = ref(false)
 
 const initial = computed(() => (auth.user.value?.username ?? '?').charAt(0).toUpperCase())
+
+/** Подпись роли: перевод по идентификатору, для неизвестной роли — подпись с бэкенда */
+const roleName = computed(() => {
+  const u = auth.user.value
+  if (!u) return ''
+  return te(`roles.${u.role}`) ? t(`roles.${u.role}`) : u.roleLabel
+})
 
 function openChange() {
   open.value = false

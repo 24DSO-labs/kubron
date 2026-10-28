@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { defineResource } from '../../types'
+import { t } from '../../../i18n'
 import { callApp } from '../../wails'
 import { flatNameCol, flatNsCol, ageCol } from '../common'
 import type { ArgoClusterInfo } from '../../../types/argocd'
 
-const yesNo = (v: boolean) => (v ? 'Yes' : 'No')
+const yesNo = (v: boolean) => (v ? t('common.yes') : t('common.no'))
+const allNamespaces = (c: ArgoClusterInfo) => c.namespaces || t('argo.allNamespaces')
 const clusterLabel = (c: ArgoClusterInfo) => (c.inCluster ? 'in-cluster' : c.clusterName || c.name)
 
 /**
@@ -27,22 +29,22 @@ export const argoCluster = defineResource<ArgoClusterInfo>({
   columns: [
     { ...flatNameCol, formatter: clusterLabel },
     flatNsCol,
-    { key: 'server', label: 'Server' },
-    { key: 'project', label: 'Project', formatter: c => c.project || '—' },
-    { key: 'authType', label: 'Auth' },
-    { key: 'namespaces', label: 'Namespaces', formatter: c => c.namespaces || 'all' },
+    { key: 'server', label: 'argo.columns.server' },
+    { key: 'project', label: 'argo.columns.project', formatter: c => c.project || '—' },
+    { key: 'authType', label: 'argo.columns.auth' },
+    { key: 'namespaces', label: 'defs.columns.namespaces', formatter: allNamespaces },
     ageCol,
   ],
 
   properties: [
-    { label: 'Secret', value: c => c.name },
-    { label: 'Name', value: c => c.clusterName, hideEmpty: true },
-    { label: 'Server', value: c => c.server },
-    { label: 'Project', value: c => c.project, hideEmpty: true },
-    { label: 'Authentication', value: c => c.authType },
-    { label: 'Insecure TLS', value: c => yesNo(c.insecure) },
-    { label: 'Namespaces', value: c => c.namespaces || 'all' },
-    { label: 'Cluster Resources', value: c => yesNo(c.clusterResources) },
+    { label: 'argo.props.secret', value: c => c.name },
+    { label: 'common.name', value: c => c.clusterName, hideEmpty: true },
+    { label: 'argo.columns.server', value: c => c.server },
+    { label: 'argo.columns.project', value: c => c.project, hideEmpty: true },
+    { label: 'argo.props.authentication', value: c => c.authType },
+    { label: 'argo.props.insecureTls', value: c => yesNo(c.insecure) },
+    { label: 'defs.columns.namespaces', value: allNamespaces },
+    { label: 'argo.props.clusterResources', value: c => yesNo(c.clusterResources) },
   ],
 
   api: {

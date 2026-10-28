@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { podOwner, type PodOwnerKind } from './utils'
+import { t } from '../i18n'
 
 /** Workload приложения, как его отдаёт Go (k8s.ApplicationWorkload) */
 export interface AppWorkload { kind: string; name: string; replicas?: number; ready?: number }
@@ -55,5 +56,5 @@ export function applicationReplicas(app: any): { ready: number; desired: number 
 
 /** Список URL для свойства панели: по строке на адрес, "None" если адресов нет (как в Lens) */
 export function urlsText(urls?: string[] | null): string {
-  return urls && urls.length ? urls.join('\n') : 'None'
+  return urls && urls.length ? urls.join('\n') : t('common.none')
 }

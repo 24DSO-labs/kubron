@@ -4,6 +4,8 @@
 import { computed, readonly, ref } from 'vue'
 import { callApp, onSessionLost } from '../resources/wails'
 import type { Permission, UserInfo } from '../types/auth'
+import { errorText } from './errorText'
+import { t } from '../i18n'
 import { loadCapabilities } from './useCapabilities'
 
 /**
@@ -28,9 +30,10 @@ const notice = ref('')
 /** Почему сессия завершилась: запоминается на время перезагрузки интерфейса */
 export type LogoutReason = 'idle' | 'expired'
 const LOGOUT_REASON_KEY = 'kubron.logoutReason'
-const LOGOUT_NOTICES: Record<LogoutReason, string> = {
-  idle: 'Сеанс завершён из-за бездействия. Войдите снова.',
-  expired: 'Сеанс истёк. Войдите снова.',
+/** Ключи сообщений: текст берётся в момент показа (язык может смениться) */
+const LOGOUT_NOTICE_KEYS: Record<LogoutReason, string> = {
+  idle: 'auth.notice.idle',
+  expired: 'auth.notice.expired',
 }
 
 function rememberLogoutReason(reason: LogoutReason) {
@@ -45,7 +48,7 @@ function takeLogoutNotice(): string {
   try {
     const reason = sessionStorage.getItem(LOGOUT_REASON_KEY) as LogoutReason | null
     sessionStorage.removeItem(LOGOUT_REASON_KEY)
-    return (reason && LOGOUT_NOTICES[reason]) || ''
+    return reason && LOGOUT_NOTICE_KEYS[reason] ? t(LOGOUT_NOTICE_KEYS[reason]) : ''
   } catch {
     return ''
   }
@@ -62,12 +65,8 @@ const screen = computed<AuthScreen>(() => {
   return 'app'
 })
 
-/** Текст ошибки из Wails (строка или Error) */
-export function errorText(e: unknown): string {
-  if (typeof e === 'string') return e
-  const msg = (e as { message?: string } | null)?.message
-  return msg || String(e)
-}
+/** Текст ошибки из Wails (строка или Error) на языке интерфейса; единая реализация — composables/errorText.ts */
+export { errorText }
 
 /** Права вошедшего пользователя; пока никто не вошёл — ничего не разрешено */
 export function can(permission: Permission): boolean {

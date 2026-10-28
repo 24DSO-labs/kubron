@@ -1,0 +1,78 @@
+{
+  "connectionError": "Connection error: {message}",
+  "errorPrefix": "Error: {message}",
+  "pickKubeconfigTitle": "Select kubeconfig file",
+  "deleteConfirm": "Delete cluster \"{name}\"? Its kubeconfig will be removed from Kubron.",
+  "bar": {
+    "label": "Clusters",
+    "add": "Add cluster",
+    "edit": "Edit…",
+    "delete": "Delete…"
+  },
+  "glyph": {
+    "server": "Server",
+    "cloud": "Cloud",
+    "database": "Data",
+    "shield": "Shield",
+    "flask": "Lab",
+    "cube": "Cube"
+  },
+  "env": {
+    "none": "Not set",
+    "dev": "Dev",
+    "test": "Test",
+    "stage": "Stage",
+    "prod": "Prod"
+  },
+  "dialog": {
+    "newTitle": "New cluster",
+    "untitled": "Untitled",
+    "addSubtitle": "Adding a cluster to Kubron",
+    "sectionMain": "General",
+    "sectionConnection": "Connection",
+    "sectionAppearance": "Appearance",
+    "name": "Name",
+    "namePlaceholder": "E.g. Production EU",
+    "kubeconfigSource": "Kubeconfig source",
+    "methodFile": "File",
+    "methodText": "Paste text",
+    "chooseFile": "Choose kubeconfig…",
+    "chooseOther": "Choose another…",
+    "noFile": "No file selected",
+    "kubeconfigText": "Kubeconfig text",
+    "textHint": "The contents will be stored in the Kubron directory, readable only by you.",
+    "submit": "Add cluster"
+  },
+  "edit": {
+    "kubeconfig": "Kubeconfig",
+    "replaceWithFile": "Replace with file…",
+    "editText": "Edit text",
+    "revert": "Revert",
+    "textWarning": "The text contains the cluster credentials. Do not show your screen to others.",
+    "stateFile": "Will be replaced with the selected file",
+    "stateDirty": "Edited manually. Saved when you click “Save”",
+    "stateText": "Editing text: no changes yet",
+    "stateKeep": "Stored in Kubron",
+    "deleteCluster": "Delete cluster"
+  },
+  "appearance": {
+    "environment": "Environment",
+    "prodHint": "Production cluster: while it is open, a red line is shown in the app header so it cannot be mistaken for another one.",
+    "glyph": "Icon",
+    "monogram": "Monogram from the name",
+    "color": "Color",
+    "customColor": "Custom color"
+  },
+  "connection": {
+    "context": "Context",
+    "defaultSuffix": " (default)",
+    "namespace": "Default namespace",
+    "allNamespaces": "all namespaces",
+    "namespaceInvalid": "Lowercase Latin letters, digits and hyphens only; at most 63 characters.",
+    "namespaceAuto": "Selected automatically when connecting to the cluster.",
+    "testing": "Checking…",
+    "test": "Test connection",
+    "reachable": "Reachable · {version} · {latency} ms",
+    "failed": "Could not connect"
+  }
+}

@@ -68,30 +68,30 @@ func TestNormalizeSettings(t *testing.T) {
 	ok := ClusterSettings{DisplayName: "  Prod EU  ", Color: "#A6E3A1", Environment: "PROD", Icon: "server", DefaultNamespace: "apps"}
 	got, err := ok.normalize("")
 	if err != nil {
-		t.Fatalf("корректные настройки отвергнуты: %v", err)
+		t.Fatalf("valid settings were rejected: %v", err)
 	}
 	if got.DisplayName != "Prod EU" || got.Color != "#a6e3a1" || got.Environment != "prod" {
-		t.Errorf("настройки не приведены к каноничному виду: %+v", got)
+		t.Errorf("settings were not normalized: %+v", got)
 	}
 
 	if got, err := (ClusterSettings{DisplayName: "x"}).normalize(""); err != nil || got.Color != defaultColor {
-		t.Errorf("пустой цвет должен заменяться цветом по умолчанию: %+v %v", got, err)
+		t.Errorf("an empty color must be replaced with the default: %+v %v", got, err)
 	}
 	if _, err := (ClusterSettings{DisplayName: "x", Icon: "🔵"}).normalize("🔵"); err != nil {
-		t.Errorf("прежний значок-эмодзи должен сохраняться: %v", err)
+		t.Errorf("a previous emoji icon must be preserved: %v", err)
 	}
 
 	bad := map[string]ClusterSettings{
-		"пустое название":       {DisplayName: "   "},
-		"длинное название":      {DisplayName: strings.Repeat("я", maxClusterNameLen+1)},
-		"неизвестное окружение": {DisplayName: "x", Environment: "qa"},
-		"цвет":      {DisplayName: "x", Color: "red"},
-		"значок":    {DisplayName: "x", Icon: "🔵"},
-		"namespace": {DisplayName: "x", DefaultNamespace: "Bad_NS"},
+		"empty name":          {DisplayName: "   "},
+		"long name":           {DisplayName: strings.Repeat("я", maxClusterNameLen+1)},
+		"unknown environment": {DisplayName: "x", Environment: "qa"},
+		"color":               {DisplayName: "x", Color: "red"},
+		"icon":                {DisplayName: "x", Icon: "🔵"},
+		"namespace":           {DisplayName: "x", DefaultNamespace: "Bad_NS"},
 	}
 	for name, s := range bad {
 		if _, err := s.normalize(""); err == nil {
-			t.Errorf("%s: ожидалась ошибка", name)
+			t.Errorf("%s: expected an error", name)
 		}
 	}
 }
@@ -102,18 +102,18 @@ func TestPickContext(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got, _ := pickContext(cfg, "prod"); got != "prod" {
-		t.Errorf("явный выбор: %q", got)
+		t.Errorf("explicit choice: %q", got)
 	}
 	if got, _ := pickContext(cfg, ""); got != "dev" {
 		t.Errorf("current-context: %q", got)
 	}
 	if _, err := pickContext(cfg, "nope"); err == nil {
-		t.Error("несуществующий контекст должен давать ошибку")
+		t.Error("a nonexistent context must give an error")
 	}
 
 	cfg.CurrentContext = ""
 	if got, _ := pickContext(cfg, ""); got != "dev" {
-		t.Errorf("без current-context берётся первый по алфавиту, получено %q", got)
+		t.Errorf("without current-context the first one alphabetically is used, got %q", got)
 	}
 }
 
@@ -123,21 +123,21 @@ func TestInspectKubeconfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	if info.CurrentContext != "dev" || len(info.Contexts) != 2 {
-		t.Fatalf("неожиданный результат: %+v", info)
+		t.Fatalf("unexpected result: %+v", info)
 	}
 	prod := info.Contexts[1]
 	if prod.Name != "prod" || prod.Server != "https://10.0.0.2:6443" || prod.Namespace != "apps" {
-		t.Errorf("контекст prod описан неверно: %+v", prod)
+		t.Errorf("context prod is described incorrectly: %+v", prod)
 	}
 
 	if _, err := InspectKubeconfig(KubeconfigSource{}); err == nil {
-		t.Error("пустой источник должен давать ошибку")
+		t.Error("an empty source must give an error")
 	}
 	if _, err := InspectKubeconfig(KubeconfigSource{Text: sampleKubeconfig, Path: "/tmp/x"}); err == nil {
-		t.Error("два источника сразу должны давать ошибку")
+		t.Error("two sources at once must give an error")
 	}
-	if _, err := InspectKubeconfig(KubeconfigSource{Text: "это не kubeconfig"}); err == nil {
-		t.Error("мусор вместо kubeconfig должен давать ошибку")
+	if _, err := InspectKubeconfig(KubeconfigSource{Text: "this is not a kubeconfig"}); err == nil {
+		t.Error("garbage instead of kubeconfig must give an error")
 	}
 }
 
@@ -151,7 +151,7 @@ func TestAddAndUpdateCluster(t *testing.T) {
 		t.Fatal(err)
 	}
 	if meta.ContextName != "prod" || meta.Environment != "dev" || meta.Icon != "server" {
-		t.Fatalf("метаданные добавленного кластера: %+v", meta)
+		t.Fatalf("metadata of the added cluster: %+v", meta)
 	}
 
 	// Только оформление: подключение не меняется.
@@ -160,10 +160,10 @@ func TestAddAndUpdateCluster(t *testing.T) {
 		t.Fatal(err)
 	}
 	if res.ConnectionChanged {
-		t.Error("смена названия и цвета не должна сбрасывать подключение")
+		t.Error("changing the name and color must not reset the connection")
 	}
 	if res.Cluster.DisplayName != "nemo stage" || res.Cluster.Environment != "stage" || res.Cluster.ContextName != "prod" {
-		t.Errorf("после правки оформления: %+v", res.Cluster)
+		t.Errorf("after editing the appearance: %+v", res.Cluster)
 	}
 
 	// Смена контекста — подключение устарело.
@@ -172,15 +172,15 @@ func TestAddAndUpdateCluster(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !res.ConnectionChanged || res.Cluster.ContextName != "dev" {
-		t.Errorf("смена контекста: %+v", res)
+		t.Errorf("context change: %+v", res)
 	}
 
 	// Неизвестный контекст отклоняется, сохранённое остаётся прежним.
 	if _, err := UpdateClusterSettings(meta.ID, ClusterSettings{DisplayName: "nemo stage", ContextName: "nope"}, KubeconfigSource{}); err == nil {
-		t.Error("неизвестный контекст должен давать ошибку")
+		t.Error("an unknown context must give an error")
 	}
 	if got, _ := LoadClusterMeta(meta.ID); got.ContextName != "dev" {
-		t.Errorf("после отказа контекст изменился: %q", got.ContextName)
+		t.Errorf("context changed after rejection: %q", got.ContextName)
 	}
 
 	kcPath := GetClusterKubeconfigPath(meta.ID)
@@ -190,11 +190,11 @@ func TestAddAndUpdateCluster(t *testing.T) {
 	}
 
 	// Битый kubeconfig отклоняется до записи.
-	if _, err := UpdateClusterSettings(meta.ID, ClusterSettings{DisplayName: "nemo stage"}, KubeconfigSource{Text: "мусор: ["}); err == nil {
-		t.Error("битый kubeconfig должен отклоняться")
+	if _, err := UpdateClusterSettings(meta.ID, ClusterSettings{DisplayName: "nemo stage"}, KubeconfigSource{Text: "garbage: ["}); err == nil {
+		t.Error("a broken kubeconfig must be rejected")
 	}
 	if after, _ := os.ReadFile(kcPath); string(after) != string(before) {
-		t.Error("kubeconfig изменился, хотя замена была отклонена")
+		t.Error("kubeconfig changed although the replacement was rejected")
 	}
 
 	// Замена файлом: прежнего контекста в новом файле нет — берётся контекст по умолчанию.
@@ -207,15 +207,15 @@ func TestAddAndUpdateCluster(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !res.ConnectionChanged || res.Cluster.ContextName != "only" {
-		t.Errorf("замена kubeconfig: %+v", res)
+		t.Errorf("kubeconfig replacement: %+v", res)
 	}
 	if after, _ := os.ReadFile(kcPath); string(after) != singleKubeconfig {
-		t.Error("kubeconfig не заменён")
+		t.Error("kubeconfig was not replaced")
 	}
 
 	// Пустое название не принимается.
 	if _, err := UpdateClusterSettings(meta.ID, ClusterSettings{DisplayName: " "}, KubeconfigSource{}); err == nil {
-		t.Error("пустое название должно отклоняться")
+		t.Error("an empty name must be rejected")
 	}
 
 	// Временные файлы атомарной записи не остаются в каталоге.
@@ -225,7 +225,7 @@ func TestAddAndUpdateCluster(t *testing.T) {
 	}
 	for _, e := range entries {
 		if strings.HasPrefix(e.Name(), ".tmp-") {
-			t.Errorf("остался временный файл %s", e.Name())
+			t.Errorf("a temporary file %s was left behind", e.Name())
 		}
 	}
 }
@@ -233,12 +233,12 @@ func TestAddAndUpdateCluster(t *testing.T) {
 func TestAddClusterRejectsBrokenKubeconfig(t *testing.T) {
 	setupClustersHome(t)
 
-	if _, err := AddClusterFromText("не kubeconfig", ClusterSettings{DisplayName: "bad"}); err == nil {
-		t.Fatal("битый kubeconfig должен отклоняться при добавлении")
+	if _, err := AddClusterFromText("not a kubeconfig", ClusterSettings{DisplayName: "bad"}); err == nil {
+		t.Fatal("a broken kubeconfig must be rejected on add")
 	}
 	list, _ := ListClusters()
 	if len(list) != 0 {
-		t.Errorf("после отказа в списке остались кластеры: %+v", list)
+		t.Errorf("clusters remained in the list after rejection: %+v", list)
 	}
 }
 
@@ -247,10 +247,10 @@ func TestClusterIDCannotEscapeDirectory(t *testing.T) {
 
 	for _, id := range []string{"../x", "a/b", `a\b`, "", ".."} {
 		if _, err := LoadClusterMeta(id); err == nil {
-			t.Errorf("LoadClusterMeta(%q) должен отклонять идентификатор", id)
+			t.Errorf("LoadClusterMeta(%q) must reject the ID", id)
 		}
 		if err := DeleteCluster(id); err == nil {
-			t.Errorf("DeleteCluster(%q) должен отклонять идентификатор", id)
+			t.Errorf("DeleteCluster(%q) must reject the ID", id)
 		}
 	}
 }

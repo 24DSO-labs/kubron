@@ -7,6 +7,8 @@ import { useNotifications } from '../composables/useNotifications'
 import { useAppSettings } from '../composables/useAppSettings'
 import type { ResourceDefinition } from './types'
 import { matchesSearch } from './utils'
+import { tl } from '../i18n'
+import { errorText } from '../composables/errorText'
 
 // useK8s держит состояние на уровне модуля: namespace и search общие для всего приложения
 const k8s = useK8s()
@@ -48,7 +50,7 @@ export async function loadResource(def: ResourceDefinition): Promise<void> {
     if (!(def.view in itemsByView.value)) {
       itemsByView.value = { ...itemsByView.value, [def.view]: [] }
     }
-    notifications.notifyError(`${def.title}: ${e?.message || e}`)
+    notifications.notifyError(`${tl(def.title)}: ${errorText(e)}`)
   }
 }
 /** Перезагрузить список, который сейчас на экране (после apply YAML, delete и т.п.) */

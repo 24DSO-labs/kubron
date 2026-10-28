@@ -12,10 +12,10 @@
       </div>
       
       <div class="dialog-actions">
-        <button class="btn btn-cancel" @click="handleCancel">Отмена</button>
+        <button class="btn btn-cancel" @click="handleCancel">{{ $t('common.cancel') }}</button>
         <button class="btn btn-danger" @click="handleConfirm" :disabled="isDeleting">
           <span v-if="isDeleting" class="spinner"></span>
-          Подтвердить
+          {{ $t('common.confirm') }}
         </button>
       </div>
     </div>
@@ -24,6 +24,9 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   modelValue: boolean
@@ -44,7 +47,7 @@ const emit = defineEmits<{
 
 const title = computed(() => {
   if (props.title) return props.title
-  return `Delete ${props.resourceType} "${props.resourceName}"?`
+  return t('utils.confirm.deleteTitle', { type: props.resourceType, name: props.resourceName })
 })
 
 function handleCancel() {

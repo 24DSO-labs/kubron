@@ -13,6 +13,8 @@ import { manifestTemplate } from './templates'
 import type { ActionContext } from './types'
 import { can } from '../composables/useAuth'
 import { Perm, type Permission } from '../types/auth'
+import { t } from '../i18n'
+import { errorText } from '../composables/errorText'
 
 const notifications = useNotifications()
 
@@ -41,12 +43,10 @@ const MAX_FAILURES_SHOWN = 3
 /** Deployment, для которого открыт диалог масштабирования */
 export const scaleTarget = shallowRef<any | null>(null)
 
-const errMsg = (e: any) => e?.message || String(e)
-
 /** Запасная проверка в самих действиях (кнопки без права и так скрыты); бэкенд проверяет независимо */
 function allowed(permission: Permission): boolean {
   if (can(permission)) return true
-  notifications.notifyError('Недостаточно прав для этого действия')
+  notifications.notifyError(t('actions.noPermission'))
   return false
 }
 
@@ -76,7 +76,7 @@ export const resourceActions: ActionContext & {
       const yaml = await callApp('GetResourceYAML', ns, id, name, true)
       globalTabbedPanel.openYamlTab(id, name, ns, yaml)
     } catch (e) {
-      notifications.notifyError(`Не удалось загрузить YAML: ${errMsg(e)}`)
+      notifications.notifyError(t('actions.loadYamlFailed', { error: errorText(e) }))
     }
   },
 
@@ -84,7 +84,7 @@ export const resourceActions: ActionContext & {
     if (!allowed(Perm.Write)) return
     const def = getResourceById(id)
     if (!def?.api.remove) {
-      notifications.notifyError(`Удаление для ${def?.kind ?? id} не поддерживается`)
+      notifications.notifyError(t('actions.deleteUnsupported', { kind: def?.kind ?? id }))
       return
     }
     pendingDelete.value = { id: def.id, kind: def.kind, ns, name }
@@ -98,12 +98,12 @@ export const resourceActions: ActionContext & {
     if (!def?.api.remove) return
     try {
       await def.api.remove(p.ns, p.name)
-      notifications.notifySuccess(`${p.kind} "${p.name}" удалён`)
+      notifications.notifySuccess(t('actions.deleted', { kind: p.kind, name: p.name }))
       const o = opened.value
       if (o && o.id === p.id && o.ns === p.ns && o.name === p.name) opened.value = null
       await reloadActive()
     } catch (e) {
-      notifications.notifyError(`Ошибка удаления: ${errMsg(e)}`)
+      notifications.notifyError(t('actions.deleteFailed', { error: errorText(e) }))
     }
   },
 
@@ -115,7 +115,7 @@ export const resourceActions: ActionContext & {
     if (!items.length || !allowed(Perm.Write)) return
     const def = getResourceById(id)
     if (!def?.api.remove) {
-      notifications.notifyError(`Удаление для ${def?.kind ?? id} не поддерживается`)
+      notifications.notifyError(t('actions.deleteUnsupported', { kind: def?.kind ?? id }))
       return
     }
     pendingBulkDelete.value = { id: def.id, kind: def.kind, items }
@@ -139,15 +139,15 @@ export const resourceActions: ActionContext & {
     if (res.done.length) {
       notifications.notifySuccess(
         res.done.length === 1 && !res.failed.length
-          ? `${p.kind} "${res.done[0].name}" удалён`
-          : `${p.kind}: удалено ${res.done.length} из ${p.items.length}`,
+          ? t('actions.deleted', { kind: p.kind, name: res.done[0].name })
+          : t('actions.bulkDeleted', { kind: p.kind, done: res.done.length, total: p.items.length }),
       )
     }
     if (res.failed.length) {
       const shown = res.failed.slice(0, MAX_FAILURES_SHOWN).map(f => `${f.item.name}: ${f.error}`)
       const rest = res.failed.length - shown.length
       notifications.notifyError(
-        `Не удалось удалить ${res.failed.length} из ${p.items.length}: ${shown.join('; ')}${rest > 0 ? ` и ещё ${rest}` : ''}`,
+        t('actions.bulkFailed', { failed: res.failed.length, total: p.items.length, list: shown.join('; ') + (rest > 0 ? ' ' + t('actions.andMore', { n: rest }) : '') }),
       )
     }
     await reloadActive()
@@ -162,7 +162,7 @@ export const resourceActions: ActionContext & {
     const def = getResourceById(id)
     const yaml = def ? manifestTemplate(def) : null
     if (!def || yaml === null) {
-      notifications.notifyError(`Создание для ${def?.kind ?? id} не поддерживается`)
+      notifications.notifyError(t('actions.createUnsupported', { kind: def?.kind ?? id }))
       return
     }
     globalTabbedPanel.openCreateYamlTab(def.id, def.kind, yaml)
@@ -194,14 +194,14 @@ export const resourceActions: ActionContext & {
   },
 
   async confirmScale(replicas) {
-    const t = scaleTarget.value
+    const target = scaleTarget.value
     scaleTarget.value = null
-    if (!t) return
-    const kind = t._kind || t.kind || 'Deployment'
+    if (!target) return
+    const kind = target._kind || target.kind || 'Deployment'
     const method = kind === 'StatefulSet' ? 'ScaleStatefulSet' : kind === 'ReplicaSet' ? 'ScaleReplicaSet' : 'ScaleDeployment'
     await resourceActions.perform(
-      () => callApp(method, t.namespace, t.name, replicas),
-      `${kind} ${t.name} scaled to ${replicas} replicas`,
+      () => callApp(method, target.namespace, target.name, replicas),
+      t('actions.scaled', { kind, name: target.name, n: replicas }),
     )
   },
 
@@ -218,7 +218,7 @@ export const resourceActions: ActionContext & {
       if (successMessage) notifications.notifySuccess(successMessage)
       await reloadActive()
     } catch (e) {
-      notifications.notifyError(errMsg(e))
+      notifications.notifyError(errorText(e))
     }
   },
 

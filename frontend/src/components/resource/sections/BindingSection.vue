@@ -3,12 +3,12 @@
 <template>
   <div v-if="roleRef || subjects.length" class="binding">
     <div v-if="roleRef" class="meta-row">
-      <span class="meta-label">Role:</span>
+      <span class="meta-label">{{ $t('sections.binding.role') }}</span>
       <a class="link" href="#" @click.prevent="openRole">{{ roleRef.kind }}/{{ roleRef.name }}</a>
     </div>
 
     <div v-if="subjects.length" class="meta-row">
-      <span class="meta-label">Subjects:</span>
+      <span class="meta-label">{{ $t('sections.binding.subjects') }}</span>
       <ul class="subjects">
         <li v-for="(s, i) in subjects" :key="i">
           <a v-if="s.kind === 'ServiceAccount'" class="link" href="#" @click.prevent="openSubject(s)">

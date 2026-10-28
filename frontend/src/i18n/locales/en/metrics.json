@@ -1,0 +1,66 @@
+{
+  "status": {
+    "active": "Active",
+    "notInstalled": "Not installed",
+    "degraded": "Degraded",
+    "installing": "Installing…",
+    "unknown": "Unknown"
+  },
+  "chart": {
+    "current": "Current",
+    "noData": "No data available"
+  },
+  "ranges": {
+    "h1": "1h",
+    "h6": "6h",
+    "h24": "24h",
+    "d7": "7d"
+  },
+  "units": {
+    "cores": "cores"
+  },
+  "tabs": {
+    "cpu": "CPU",
+    "memory": "Memory",
+    "network": "Network",
+    "disk": "Disk",
+    "diskIo": "Disk I/O",
+    "duration": "Duration"
+  },
+  "cpu": "CPU",
+  "memory": "Memory",
+  "disk": "Disk",
+  "cpuUsage": "CPU Usage",
+  "cpuRequests": "CPU Requests",
+  "cpuLimits": "CPU Limits",
+  "cpuAllocatable": "CPU Allocatable Capacity",
+  "cpuCapacity": "CPU Capacity",
+  "memoryUsage": "Memory Usage",
+  "workloadMemoryUsage": "Workload Memory Usage",
+  "memoryRequests": "Memory Requests",
+  "memoryLimits": "Memory Limits",
+  "memoryAllocatable": "Memory Allocatable Capacity",
+  "memoryCapacity": "Memory Capacity",
+  "networkTraffic": "Network Traffic",
+  "packetErrors": "Packet Errors & Drops (per second)",
+  "receive": "Receive",
+  "transmit": "Transmit",
+  "receiveErrors": "Receive Errors",
+  "transmitErrors": "Transmit Errors",
+  "receiveDrops": "Receive Drops",
+  "transmitDrops": "Transmit Drops",
+  "diskUsage": "Disk Usage",
+  "diskSize": "Disk Size",
+  "diskCapacity": "Disk Capacity",
+  "diskAvailable": "Disk Available",
+  "diskIo": "Disk I/O",
+  "fsUsage": "File System Usage",
+  "fsWrites": "File System Writes",
+  "fsReads": "File System Reads",
+  "volumeUsage": "Volume usage",
+  "bytesSent2xx": "Bytes sent, status 2xx",
+  "bytesSent5xx": "Bytes sent, status 5xx",
+  "request": "Request",
+  "response": "Response",
+  "ingressHint": "Ingress-nginx metrics: the controller must be scraped by the Kubron Prometheus."
+}

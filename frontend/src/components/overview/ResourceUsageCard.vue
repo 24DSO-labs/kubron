@@ -2,7 +2,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <section class="ov-card usage">
-    <h2 class="ov-card-title">Resource usage</h2>
+    <h2 class="ov-card-title">{{ $t('overview.usage.title') }}</h2>
 
     <div v-if="state === 'ready'" class="metrics">
       <div v-for="m in metrics" :key="m.label" class="metric">
@@ -22,21 +22,21 @@
 
     <div v-else class="empty">
       <template v-if="state === 'loading'">
-        <p class="empty-text">Loading…</p>
+        <p class="empty-text">{{ $t('common.loading') }}</p>
       </template>
       <template v-else-if="state === 'installing'">
-        <p class="empty-title">Metrics stack is installing</p>
-        <p class="empty-text">Данные появятся, когда компоненты запустятся.</p>
+        <p class="empty-title">{{ $t('overview.usage.installingTitle') }}</p>
+        <p class="empty-text">{{ $t('overview.usage.installingText') }}</p>
       </template>
       <template v-else-if="state === 'degraded'">
-        <p class="empty-title">Metrics stack is not working</p>
-        <p class="empty-text">Проверьте компоненты в настройках кластера.</p>
-        <button type="button" class="ov-btn" @click="emit('openSettings')">Open settings</button>
+        <p class="empty-title">{{ $t('overview.usage.degradedTitle') }}</p>
+        <p class="empty-text">{{ $t('overview.usage.degradedText') }}</p>
+        <button type="button" class="ov-btn" @click="emit('openSettings')">{{ $t('overview.usage.openSettings') }}</button>
       </template>
       <template v-else>
-        <p class="empty-title">Metrics are not available</p>
-        <p class="empty-text">Установите стек метрик в настройках кластера, чтобы видеть загрузку CPU и памяти.</p>
-        <button type="button" class="ov-btn ov-btn-primary" @click="emit('openSettings')">Install metrics</button>
+        <p class="empty-title">{{ $t('overview.usage.unavailableTitle') }}</p>
+        <p class="empty-text">{{ $t('overview.usage.unavailableText') }}</p>
+        <button type="button" class="ov-btn ov-btn-primary" @click="emit('openSettings')">{{ $t('overview.usage.install') }}</button>
       </template>
     </div>
   </section>
@@ -44,12 +44,14 @@
 
 <script lang="ts" setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Sparkline from './Sparkline.vue'
 import { formatBytes, formatCores } from './format'
 import { useClusterMetrics, useMetricsStatus, usePrometheusRange } from '../../composables/useMetrics'
 import type { ResourceRequests } from '../../types/overview'
 
 const props = defineProps<{ clusterName: string; requests?: ResourceRequests }>()
+const { t } = useI18n()
 
 
 const emit = defineEmits<{ (e: 'openSettings'): void }>()
@@ -76,7 +78,7 @@ const state = computed<State>(() => {
   return status.value?.status === 'installed' ? 'ready' : (status.value?.status ?? 'not_installed')
 })
 
-const percent = (v?: number) => (v === undefined || !isFinite(v) ? '—' : `${Math.round(v)}%`)
+const percent = (v?: number) => (v === undefined || !isFinite(v) ? t('common.dash') : `${Math.round(v)}%`)
 
 const rq = props.requests
 const metrics = computed(() => {
@@ -85,16 +87,16 @@ const metrics = computed(() => {
     {
       label: 'CPU',
       percent: percent(s?.cpuPercent),
-      detail: s ? `${formatCores(s.cpuUsage)} / ${formatCores(s.cpuCapacity)} cores` : '',
+      detail: s ? t('overview.usage.cpuDetail', { used: formatCores(s.cpuUsage), total: formatCores(s.cpuCapacity) }) : '',
       series: cpuSeries.value,
       color: '#8b5cf6',
 
       // CPU:
       requested: rq && rq.cpuAllocatable > 0
-        ? `Requested ${formatCores(rq.cpuRequested)} / ${formatCores(rq.cpuAllocatable)} cores (${Math.round(rq.cpuRequested / rq.cpuAllocatable * 100)}%)` : '',
+        ? t('overview.usage.requestedCpu', { used: formatCores(rq.cpuRequested), total: formatCores(rq.cpuAllocatable), percent: Math.round(rq.cpuRequested / rq.cpuAllocatable * 100) }) : '',
     },
     {
-      label: 'Memory',
+      label: t('overview.usage.memory'),
       percent: percent(s?.memoryPercent),
       detail: s ? `${formatBytes(s.memoryUsage)} / ${formatBytes(s.memoryCapacity)}` : '',
       series: memSeries.value,
@@ -102,7 +104,7 @@ const metrics = computed(() => {
 
       // Memory:
       requested: rq && rq.memoryAllocatable > 0
-        ? `Requested ${formatBytes(rq.memoryRequested)} / ${formatBytes(rq.memoryAllocatable)} (${Math.round(rq.memoryRequested / rq.memoryAllocatable * 100)}%)` : '',
+        ? t('overview.usage.requestedMemory', { used: formatBytes(rq.memoryRequested), total: formatBytes(rq.memoryAllocatable), percent: Math.round(rq.memoryRequested / rq.memoryAllocatable * 100) }) : '',
     },
   ]
 })

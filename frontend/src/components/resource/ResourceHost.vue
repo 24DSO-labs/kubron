@@ -64,6 +64,8 @@
  * и диалоги подтверждения (удаление и ctx.confirm) на всё приложение.
  */
 import { computed, ref, shallowRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { errorText } from '../../composables/errorText'
 import ResourceDetailPanel from './ResourceDetailPanel.vue'
 import ConfirmationDialog from '../utils/ConfirmationDialog.vue'
 import ScaleDialog from '../panels/ScaleDialog.vue'
@@ -77,6 +79,8 @@ import { pendingArgoSync, closeArgoSync } from '../../resources/argoActions'
 import DeleteAppDialog from '../panels/DeleteAppDialog.vue'
 import { pendingArgoDelete, closeArgoDelete } from '../../resources/argoActions'
 
+const { t } = useI18n()
+
 const def = computed(() => (opened.value ? getResourceById(opened.value.id) : undefined))
 const detail = shallowRef<any>(null)
 
@@ -87,7 +91,7 @@ watch(
     if (!o) return
     const d = getResourceById(o.id)
     if (!d) {
-      resourceActions.notifyError(`Неизвестный тип ресурса: ${o.id}`)
+      resourceActions.notifyError(t('resource.host.unknownType', { id: o.id }))
       resourceActions.closeDetail()
       return
     }
@@ -125,8 +129,8 @@ watch(
     if (!detail.value) {
       resourceActions.notifyError(
         failure
-          ? `${d.kind}: ${failure?.message || failure}`
-          : `${d.kind} "${o.name}" не найден`,
+          ? `${d.kind}: ${errorText(failure)}`
+          : t('resource.host.notFound', { kind: d.kind, name: o.name }),
       )
       resourceActions.closeDetail()
     }
@@ -136,7 +140,7 @@ watch(
 
 const bulkTitle = computed(() => {
   const p = pendingBulkDelete.value
-  return p ? `Delete ${p.items.length} selected ${p.kind} objects?` : ''
+  return p ? t('confirm.bulkDelete', { n: p.items.length, kind: p.kind }, p.items.length) : ''
 })
 const bulkItems = computed(() =>
   (pendingBulkDelete.value?.items ?? []).map(i => (i.ns ? `${i.ns}/${i.name}` : i.name)),

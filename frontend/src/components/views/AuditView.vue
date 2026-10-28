@@ -4,47 +4,51 @@
   <div class="audit-view">
     <header class="audit-head">
       <div>
-        <h2>Журнал аудита</h2>
-        <p class="audit-sub">Кто и когда входил в систему, менял ресурсы, открывал терминал и управлял пользователями</p>
+        <h2>{{ $t('audit.title') }}</h2>
+        <p class="audit-sub">{{ $t('audit.subtitle') }}</p>
       </div>
-      <button class="btn" type="button" :disabled="loading" @click="load">🔄 Обновить</button>
+      <button class="btn" type="button" :disabled="loading" @click="load">{{ $t('audit.refresh') }}</button>
     </header>
 
     <p v-if="page?.writeError" class="audit-warn">
-      Журнал сейчас не записывается: {{ page.writeError }}. Действия выполняются, но не фиксируются.
+      {{ $t('audit.writeError', { error: page.writeError }) }}
     </p>
 
     <form class="audit-filters" @submit.prevent="load">
-      <input v-model="filter.user" class="form-input" type="search" placeholder="Пользователь" aria-label="Пользователь" />
-      <input v-model="filter.action" class="form-input" type="search" placeholder="Действие (DeleteResource, Login…)"
-        aria-label="Действие" />
-      <input v-model="filter.text" class="form-input" type="search" placeholder="Объект (namespace, имя…)"
-        aria-label="Объект" />
-      <select v-model="filter.result" class="form-input" aria-label="Результат">
-        <option value="">Любой результат</option>
-        <option v-for="(label, id) in RESULT_LABELS" :key="id" :value="id">{{ label }}</option>
+      <input v-model="filter.user" class="form-input" type="search" 
+        :placeholder="$t('audit.filters.user')" :aria-label="$t('audit.filters.user')" />
+      <input v-model="filter.action" class="form-input" type="search" :placeholder="$t('audit.filters.actionPlaceholder')"
+        :aria-label="$t('audit.filters.action')" />
+      <input v-model="filter.text" class="form-input" type="search" :placeholder="$t('audit.filters.objectPlaceholder')"
+        :aria-label="$t('audit.filters.object')" />
+      <select v-model="filter.result" class="form-input" 
+        :aria-label="$t('audit.filters.result')">
+        <option value="">{{ $t('audit.filters.anyResult') }}</option>
+        <option v-for="id in RESULT_IDS" :key="id" :value="id">{{ resultLabel(id) }}</option>
       </select>
-      <select v-model="period" class="form-input" aria-label="Период">
-        <option v-for="p in PERIODS" :key="p.id" :value="p.id">{{ p.label }}</option>
+      <select v-model="period" class="form-input" 
+        :aria-label="$t('audit.filters.period')">
+        <option v-for="p in PERIODS" :key="p.id" :value="p.id">{{ $t(`audit.periods.${p.id}`) }}</option>
       </select>
-      <select v-model.number="filter.limit" class="form-input" aria-label="Количество записей">
-        <option v-for="n in LIMITS" :key="n" :value="n">Показать {{ n }}</option>
+      <select v-model.number="filter.limit" class="form-input" 
+        :aria-label="$t('audit.filters.limit')">
+        <option v-for="n in LIMITS" :key="n" :value="n">{{ $t('audit.filters.show', { n }) }}</option>
       </select>
     </form>
 
     <p v-if="loadError" class="form-error">{{ loadError }}</p>
 
-    <p v-if="loading && !page" class="audit-empty">Загрузка…</p>
-    <p v-else-if="page && !page.events.length && !loadError" class="audit-empty">Записей по этим условиям нет.</p>
+    <p v-if="loading && !page" class="audit-empty">{{ $t('audit.loading') }}</p>
+    <p v-else-if="page && !page.events.length && !loadError" class="audit-empty">{{ $t('audit.empty') }}</p>
 
     <table v-if="page?.events.length" class="audit-table">
       <thead>
         <tr>
-          <th>Время</th>
-          <th>Пользователь</th>
-          <th>Действие</th>
-          <th>Результат</th>
-          <th>Подробности</th>
+          <th>{{ $t('audit.columns.time') }}</th>
+          <th>{{ $t('audit.columns.user') }}</th>
+          <th>{{ $t('audit.columns.action') }}</th>
+          <th>{{ $t('audit.columns.result') }}</th>
+          <th>{{ $t('audit.columns.detail') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -53,13 +57,13 @@
           <td class="nowrap">
             <template v-if="e.user">
               <strong>{{ e.user }}</strong>
-              <span v-if="e.role" class="role-tag">{{ e.role }}</span>
+              <span v-if="e.role" class="role-tag">{{ roleLabel(e.role) }}</span>
             </template>
-            <span v-else class="muted">—</span>
+            <span v-else class="muted">{{ $t('common.dash') }}</span>
           </td>
           <td :title="e.action">{{ actionLabel(e.action) }}</td>
           <td>
-            <span :class="['badge', `badge-${e.result}`]">{{ RESULT_LABELS[e.result] ?? e.result }}</span>
+            <span :class="['badge', `badge-${e.result}`]">{{ resultLabel(e.result) }}</span>
           </td>
           <td class="detail">{{ e.detail }}</td>
         </tr>
@@ -67,7 +71,7 @@
     </table>
 
     <p v-if="page?.truncated" class="audit-more">
-      Показаны последние {{ page.events.length }} записей. Уточните фильтр или период, чтобы увидеть остальные.
+      {{ $t('audit.truncated', { n: page.events.length }) }}
     </p>
   </div>
 </template>
@@ -75,16 +79,18 @@
 <script lang="ts" setup>
 import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { callApp } from '../../resources/wails'
-import { errorText } from '../../composables/useAuth'
-import { RESULT_LABELS, actionLabel, type AuditFilter, type AuditPage } from '../../types/audit'
+import { errorText } from '../../composables/errorText'
+import { formatDateTime } from '../../i18n/format'
+import { te, t } from '../../i18n'
+import { RESULT_IDS, resultLabel, actionLabel, type AuditFilter, type AuditPage } from '../../types/audit'
 
 const HOUR = 3600_000
 const PERIODS = [
-  { id: 'all', label: 'За всё время', ms: 0 },
-  { id: '1h', label: 'Последний час', ms: HOUR },
-  { id: '24h', label: 'Последние 24 часа', ms: 24 * HOUR },
-  { id: '7d', label: 'Последние 7 дней', ms: 7 * 24 * HOUR },
-  { id: '30d', label: 'Последние 30 дней', ms: 30 * 24 * HOUR },
+  { id: 'all', ms: 0 },
+  { id: '1h', ms: HOUR },
+  { id: '24h', ms: 24 * HOUR },
+  { id: '7d', ms: 7 * 24 * HOUR },
+  { id: '30d', ms: 30 * 24 * HOUR },
 ]
 const LIMITS = [200, 500, 1000]
 
@@ -94,9 +100,13 @@ const page = ref<AuditPage | null>(null)
 const loading = ref(false)
 const loadError = ref('')
 
+/** Роль: подпись из roles.*, иначе значение бэкенда как есть */
+function roleLabel(role: string): string {
+  return te(`roles.${role}`) ? t(`roles.${role}`) : role
+}
+
 function formatTime(iso: string): string {
-  const d = new Date(iso)
-  return isNaN(d.getTime()) ? '—' : d.toLocaleString('ru-RU')
+  return formatDateTime(iso) || t('common.dash')
 }
 
 // Ответы могут прийти не в порядке отправки (быстрый ввод в фильтр): применяем только последний.

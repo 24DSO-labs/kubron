@@ -1,0 +1,37 @@
+{
+  "columns": {
+    "title": "Columns",
+    "settings": "Column settings",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "reset": "Reset columns"
+  },
+  "table": {
+    "selectAll": "Select all",
+    "resetWidth": "Double-click to reset width",
+    "deleteSelected": "Delete selected ({n})",
+    "selectToDelete": "Select rows with the checkboxes to delete them"
+  },
+  "list": {
+    "empty": "No {title}",
+    "create": "Create {kind}"
+  },
+  "menu": {
+    "showDetails": "Show details",
+    "viewYaml": "View YAML"
+  },
+  "detail": {
+    "labels": "Labels",
+    "annotations": "Annotations"
+  },
+  "events": {
+    "empty": "No events"
+  },
+  "host": {
+    "unknownType": "Unknown resource type: {id}",
+    "notFound": "{kind} \"{name}\" not found"
+  },
+  "props": {
+    "apiVersion": "API version"
+  }
+}

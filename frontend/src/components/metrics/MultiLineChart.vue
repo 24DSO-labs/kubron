@@ -14,7 +14,7 @@
             selectedRange === range.value ? 'active' : 'inactive'
           ]"
         >
-          {{ range.label }}
+          {{ $t(`metrics.ranges.${range.key}`) }}
         </button>
       </div>
     </div>
@@ -28,7 +28,7 @@
     </div>
 
     <div v-else-if="!hasData" class="chart-no-data">
-      <p class="chart-no-data-text">No data available</p>
+      <p class="chart-no-data-text">{{ $t('metrics.chart.noData') }}</p>
     </div>
 
     <div v-else class="chart-canvas-wrapper">
@@ -58,6 +58,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { Line } from 'vue-chartjs'
+import { errorText } from '../../composables/errorText'
+import { formatClock, formatMonthDay } from '../../i18n/format'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -95,10 +97,10 @@ const palette = [
 ]
 
 const timeRanges = [
-  { label: '1h', value: 3600 },
-  { label: '6h', value: 21600 },
-  { label: '24h', value: 86400 },
-  { label: '7d', value: 604800 },
+  { key: 'h1', value: 3600 },
+  { key: 'h6', value: 21600 },
+  { key: 'h24', value: 86400 },
+  { key: 'd7', value: 604800 },
 ]
 
 const selectedRange = ref(3600)
@@ -125,10 +127,7 @@ const chartData = computed(() => {
 
   const labels = timestamps.map(ts => {
     const d = new Date(ts * 1000)
-    if (selectedRange.value <= 86400) {
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }
-    return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
+    return selectedRange.value <= 86400 ? formatClock(d) : formatMonthDay(d)
   })
 
   const datasets = series.value.map((s, i) => {
@@ -207,8 +206,8 @@ async function loadData() {
     const startUnix = endUnix - selectedRange.value
     const step = Math.max(Math.floor(selectedRange.value / 200), 15)
     series.value = await props.fetchData(startUnix, endUnix, step)
-  } catch (e: any) {
-    error.value = e.message || String(e)
+  } catch (e) {
+    error.value = errorText(e)
   } finally {
     loading.value = false
   }

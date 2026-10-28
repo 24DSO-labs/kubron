@@ -16,13 +16,13 @@ func TestGetCapabilitiesComesFromPlatform(t *testing.T) {
 	got := a.GetCapabilities()
 	want := Capabilities{FileDialog: true, NodeShell: true}
 	if got != want {
-		t.Fatalf("GetCapabilities = %+v, ждали %+v", got, want)
+		t.Fatalf("GetCapabilities = %+v, expected %+v", got, want)
 	}
 }
 
 func TestGetCapabilitiesWithoutPlatformIsEmpty(t *testing.T) {
 	if got := NewApp(nil).GetCapabilities(); got != (Capabilities{}) {
-		t.Fatalf("без платформы ждали пустые возможности, получили %+v", got)
+		t.Fatalf("expected empty capabilities without a platform, got %+v", got)
 	}
 }
 
@@ -31,6 +31,6 @@ func TestGetCapabilitiesNeedsNoSession(t *testing.T) {
 	a := NewApp(capsPlatform{})
 	a.initAuth(t.TempDir()) // хранилище есть, но никто не вошёл
 	if got := a.GetCapabilities(); !got.FileDialog {
-		t.Fatalf("до входа возможности должны отдаваться: %+v", got)
+		t.Fatalf("capabilities must be served before login: %+v", got)
 	}
 }

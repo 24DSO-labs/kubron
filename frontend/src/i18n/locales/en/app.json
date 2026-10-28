@@ -1,0 +1,34 @@
+{
+  "header": {
+    "disconnect": "Disconnect from cluster"
+  },
+  "welcome": {
+    "title": "Welcome to Kubron!",
+    "addPrompt": "Add a cluster to get started",
+    "addButton": "Add cluster",
+    "noClusters": "No clusters have been added yet. Contact your administrator."
+  },
+  "select": {
+    "title": "Select a cluster",
+    "hint": "Click a cluster icon on the left to connect"
+  },
+  "connecting": "Connecting…",
+  "errors": {
+    "unknownResource": "Unknown resource type: {kind}",
+    "noWritePermission": "Insufficient permissions to modify resources",
+    "loadNamespaces": "Error loading namespaces",
+    "generic": "Error"
+  },
+  "yaml": {
+    "created": "{kind} \"{name}\" created",
+    "updated": "{type} {name} updated",
+    "createError": "Create error: {message}",
+    "applyError": "Apply error: {message}"
+  },
+  "content": {
+    "count": "{n} item | {n} items",
+    "searchPlaceholder": "Search…",
+    "updated": "Updated {time}",
+    "refreshing": "Refreshing…"
+  }
+}

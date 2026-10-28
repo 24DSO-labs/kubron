@@ -54,7 +54,7 @@ func InitKubronDir() error {
 	dirs := []string{GetKubronDir(), getClustersDir()}
 	for _, dir := range dirs {
 		if err := os.MkdirAll(dir, 0700); err != nil {
-			return fmt.Errorf("не удалось создать %s: %w", dir, err)
+			return fmt.Errorf("failed to create %s: %w", dir, err)
 		}
 	}
 	return nil
@@ -82,7 +82,7 @@ func SaveKubronConfig(config *KubronConfig) error {
 
 func SaveClusterMeta(meta *ClusterMeta) error {
 	if !validClusterID(meta.ID) {
-		return fmt.Errorf("недопустимый идентификатор кластера %q", meta.ID)
+		return fmt.Errorf("invalid cluster ID %q", meta.ID)
 	}
 	path := filepath.Join(getClustersDir(), meta.ID+".json")
 	data, err := json.MarshalIndent(meta, "", "  ")
@@ -99,7 +99,7 @@ func validClusterID(id string) bool {
 
 func LoadClusterMeta(id string) (*ClusterMeta, error) {
 	if !validClusterID(id) {
-		return nil, fmt.Errorf("недопустимый идентификатор кластера %q", id)
+		return nil, fmt.Errorf("invalid cluster ID %q", id)
 	}
 	path := filepath.Join(getClustersDir(), id+".json")
 	data, err := os.ReadFile(path)
@@ -206,7 +206,7 @@ func addClusterFromData(data []byte, settings ClusterSettings) (*ClusterMeta, er
 	kcFile := id + ".kubeconfig"
 	kcPath := filepath.Join(getClustersDir(), kcFile)
 	if err := writeFileAtomic(kcPath, data, 0600); err != nil {
-		return nil, fmt.Errorf("не удалось сохранить kubeconfig: %w", err)
+		return nil, fmt.Errorf("failed to save kubeconfig: %w", err)
 	}
 
 	meta := &ClusterMeta{
@@ -231,12 +231,12 @@ func addClusterFromData(data []byte, settings ClusterSettings) (*ClusterMeta, er
 
 func DeleteCluster(id string) error {
 	if !validClusterID(id) {
-		return fmt.Errorf("недопустимый идентификатор кластера %q", id)
+		return fmt.Errorf("invalid cluster ID %q", id)
 	}
 	dir := getClustersDir()
 	for _, name := range []string{id + ".json", id + ".kubeconfig"} {
 		if err := os.Remove(filepath.Join(dir, name)); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("не удалось удалить %s: %w", name, err)
+			return fmt.Errorf("failed to delete %s: %w", name, err)
 		}
 	}
 	// Токен Argo CD API принадлежит кластеру: после удаления кластера он не должен оставаться на диске.
