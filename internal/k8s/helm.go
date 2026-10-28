@@ -4,25 +4,19 @@
 package k8s
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"io"
 	"sort"
 	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 /*
- * Helm v3 хранит релизы в secret-ах типа helm.sh/release.v1 (label owner=helm):
- * data["release"] = base64(gzip(JSON релиза)). Читаем их напрямую через k8s API,
- * без helm CLI и без внешних зависимостей.
+ * Helm хранит релизы в Secret типа helm.sh/release.v1 (по умолчанию) или в ConfigMap
+ * (HELM_DRIVER=configmap), label owner=helm: data["release"] = base64(gzip(JSON релиза)).
+ * Читаем оба хранилища напрямую через k8s API (см. helm_store.go), без helm CLI.
  */
 
 const helmSecretType = "helm.sh/release.v1"
@@ -38,6 +32,8 @@ type HelmReleaseInfo struct {
 	Status           string `json:"status"`
 	Updated          string `json:"updated"`
 	Description      string `json:"description"`
+
+	Storage          string `json:"storage"`       // secret | configmap: где Helm хранит ревизии релиза
 	LatestVersion    string `json:"latestVersion"`
 	LatestRepo       string `json:"latestRepo"`
 	LatestDeprecated bool   `json:"latestDeprecated"`
@@ -56,6 +52,7 @@ type HelmChartInfo struct {
 
 // helmPayload — используемые поля JSON из секрета релиза
 type helmPayload struct {
+	Storage   string `json:"-"` // helmStorageSecret | helmStorageConfigMap (не из JSON релиза)
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
 	Version   int    `json:"version"`
@@ -80,22 +77,7 @@ func readHelmSecret(sec *corev1.Secret, out any) error {
 	if !ok {
 		return fmt.Errorf("secret %s/%s: нет поля release", sec.Namespace, sec.Name)
 	}
-	decoded, err := base64.StdEncoding.DecodeString(string(raw))
-	if err != nil {
-		return fmt.Errorf("secret %s/%s: %w", sec.Namespace, sec.Name, err)
-	}
-	gz, err := gzip.NewReader(bytes.NewReader(decoded))
-	if err != nil {
-		return fmt.Errorf("secret %s/%s: %w", sec.Namespace, sec.Name, err)
-	}
-	defer gz.Close()
-
-	// Защита от «gzip-бомбы» в подменённом секрете
-	jsonBytes, err := io.ReadAll(io.LimitReader(gz, 64<<20))
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(jsonBytes, out)
+	return decodeHelmRaw(raw, "secret "+sec.Namespace+"/"+sec.Name, out)
 }
 
 func decodeHelmSecret(sec *corev1.Secret) (helmPayload, error) {
@@ -111,7 +93,7 @@ func helmUpdated(t time.Time) string {
 	return formatAge(t)
 }
 
-// listHelmPayloads: последняя ревизия каждого релиза; superseded (старые ревизии) не входят
+// listHelmPayloads: последняя ревизия каждого релиза из Secret и ConfigMap; superseded (старые ревизии) не входят
 func (m *Manager) listHelmPayloads() ([]helmPayload, error) {
 	conn, err := m.GetActiveConnection()
 	if err != nil {
@@ -121,38 +103,14 @@ func (m *Manager) listHelmPayloads() ([]helmPayload, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	list, err := conn.Client.CoreV1().Secrets("").List(ctx, metav1.ListOptions{
-		LabelSelector: "owner=helm",
-	})
+	items, err := listHelmStored(ctx, conn.Client, "", helmReleaseSelector(""))
 	if err != nil {
 		return nil, err
 	}
-
-	latest := make(map[string]helmPayload)
-	for i := range list.Items {
-		sec := &list.Items[i]
-		if string(sec.Type) != helmSecretType {
-			continue
-		}
-		p, err := decodeHelmSecret(sec)
-		if err != nil {
-			continue // битый секрет не должен ломать весь список
-		}
-		key := p.Namespace + "/" + p.Name
-		if prev, ok := latest[key]; !ok || p.Version > prev.Version {
-			latest[key] = p
-		}
-	}
-
-	payloads := make([]helmPayload, 0, len(latest))
-	for _, p := range latest {
-		if strings.EqualFold(p.Info.Status, "superseded") {
-			continue
-		}
-		payloads = append(payloads, p)
-	}
-	return payloads, nil
+	return latestHelmPayloads(items), nil
 }
+
+func isSuperseded(status string) bool { return strings.EqualFold(status, "superseded") }
 
 func (m *Manager) GetHelmReleases() ([]HelmReleaseInfo, error) {
 	m.startHelmLive()
@@ -174,7 +132,9 @@ func (m *Manager) GetHelmReleases() ([]HelmReleaseInfo, error) {
 			Revision:     p.Version,
 			Status:       p.Info.Status,
 			Updated:      helmUpdated(p.Info.LastDeployed),
-			Description:  p.Info.Description}
+			Description:  p.Info.Description,
+			Storage:      p.Storage,
+			}
 		if u := findUpdate(info.Chart, info.ChartVersion); u != nil {
 			info.LatestVersion,
 				info.LatestRepo,

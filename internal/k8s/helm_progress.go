@@ -64,11 +64,16 @@ type helmTracker struct {
 	started time.Time
 	cancel  context.CancelFunc // nil — операцию нельзя отменить
 
-	mu      sync.Mutex
-	phase   string
-	pending []string
-	done    bool
-	stop    chan struct{}
+	cluster string // имя кластера: журнал общий для всех подключений
+
+	mu       sync.Mutex
+	phase    string
+	pending  []string
+	log      []string // последние helmJournalLogLines строк: уходят в журнал операций
+	detail   string
+	revision int
+	done     bool
+	stop     chan struct{}
 }
 
 // beginHelmOp регистрирует операцию. Пустой opID — операция не отслеживается (возвращается nil-трекер).
@@ -81,6 +86,9 @@ func (m *Manager) beginHelmOp(ctx context.Context, opID, op, ns, rel string, can
 		return ctx, nil, errors.New("некорректный идентификатор операции")
 	}
 	t := &helmTracker{m: m, opID: opID, op: op, ns: ns, rel: rel, started: time.Now(), stop: make(chan struct{})}
+	if conn, err := m.GetActiveConnection(); err == nil {
+		t.cluster = conn.Name
+	}
 	if cancelable {
 		ctx, t.cancel = context.WithCancel(ctx)
 	}
@@ -189,13 +197,9 @@ func (t *helmTracker) finish(err error) {
 		t.cancel()
 	}
 
-	msg := ""
-	if err != nil {
-		msg = err.Error()
-		if errors.Is(err, context.Canceled) {
-			msg = "операция отменена"
-		}
-	}
+	rec := t.record(err)
+	journalAdd(rec) // раньше итогового события: страница журнала по нему перечитывает список
+	msg := rec.Error
 	for {
 		p := t.snapshot(false, "")
 		if len(p.Lines) == 0 {
@@ -219,7 +223,51 @@ func (t *helmTracker) addLine(s string) {
 	if len(t.pending) < 1000 {
 		t.pending = append(t.pending, s)
 	}
+	t.log = append(t.log, s)
+	if len(t.log) > helmJournalLogLines {
+		t.log = t.log[len(t.log)-helmJournalLogLines:]
+	}
 	t.mu.Unlock()
+}
+
+// note задаёт краткое описание операции для журнала («к ревизии 3», «podinfo 6.5.0»).
+func (t *helmTracker) note(detail string) {
+	if t == nil {
+		return
+	}
+	t.mu.Lock()
+	t.detail = detail
+	t.mu.Unlock()
+}
+
+// setRevision запоминает ревизию, с которой связана операция (созданная или целевая).
+func (t *helmTracker) setRevision(n int) {
+	if t == nil {
+		return
+	}
+	t.mu.Lock()
+	t.revision = n
+	t.mu.Unlock()
+}
+
+// record собирает запись журнала по итогу операции.
+func (t *helmTracker) record(err error) HelmOperationRecord {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	status, msg := "success", ""
+	if err != nil {
+		status, msg = "failed", err.Error()
+		if errors.Is(err, context.Canceled) {
+			status, msg = "canceled", "операция отменена"
+		}
+	}
+	now := time.Now()
+	return HelmOperationRecord{
+		ID: t.opID, Op: t.op, Cluster: t.cluster, Namespace: t.ns, Release: t.rel, Detail: t.detail, Revision: t.revision,
+		Status: status, Error: msg,
+		StartedAt: t.started.UTC().Format(time.RFC3339), FinishedAt: now.UTC().Format(time.RFC3339),
+		DurationMs: now.Sub(t.started).Milliseconds(), Log: append([]string(nil), t.log...),
+	}
 }
 
 // handler возвращает slog.Handler для action.Configuration: журнал Helm превращается в строки прогресса.

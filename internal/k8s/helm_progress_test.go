@@ -24,6 +24,7 @@ func TestBeginHelmOpValidation(t *testing.T) {
 }
 
 func TestHelmOpLifecycleAndCancel(t *testing.T) {
+	setupHelmHome(t) // finish() пишет журнал операций: изолируем от настоящего ~/.kubron
 	m := NewManager()
 	ctx, tr, err := m.beginHelmOp(context.Background(), "op-12345678", "install", "prod", "web", true)
 	if err != nil || tr == nil {
@@ -46,6 +47,7 @@ func TestHelmOpLifecycleAndCancel(t *testing.T) {
 }
 
 func TestHelmOpNotCancelable(t *testing.T) {
+	setupHelmHome(t) // finish() пишет журнал операций: изолируем от настоящего ~/.kubron
 	m := NewManager()
 	_, tr, err := m.beginHelmOp(context.Background(), "op-87654321", "rollback", "prod", "web", false)
 	if err != nil {
@@ -67,6 +69,7 @@ func TestNilTrackerIsSafe(t *testing.T) {
 }
 
 func TestProgressHandlerCollectsLines(t *testing.T) {
+	setupHelmHome(t) // finish() пишет журнал операций: изолируем от настоящего ~/.kubron
 	m := NewManager()
 	_, tr, err := m.beginHelmOp(context.Background(), "op-abcdef12", "upgrade", "prod", "web", true)
 	if err != nil {
@@ -94,6 +97,7 @@ func TestProgressHandlerCollectsLines(t *testing.T) {
 }
 
 func TestProgressBatchLimit(t *testing.T) {
+	setupHelmHome(t) // finish() пишет журнал операций: изолируем от настоящего ~/.kubron
 	m := NewManager()
 	_, tr, _ := m.beginHelmOp(context.Background(), "op-batch123", "install", "prod", "web", false)
 	defer tr.finish(nil)
