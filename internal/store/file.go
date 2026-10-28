@@ -21,3 +21,6 @@ func NewFile(dir string) Store { return fileStore{dir: dir} }
 func (s fileStore) Users() auth.Backend        { return auth.NewFileBackend(s.dir) }
 func (s fileStore) Audit() audit.Backend       { return audit.NewFileBackend(s.dir) }
 func (s fileStore) ArgoTokens() k8s.TokenStore { return k8s.NewFileTokenStore() }
+
+// Clusters — каталог clusters в каталоге данных (k8s.GetKubronDir): путь к kubeconfig нужен client-go и Helm.
+func (s fileStore) Clusters() k8s.ClusterStore { return k8s.NewFileClusterStore() }
