@@ -64,7 +64,7 @@ func parseScope(in []string) (nsScope, error) {
 			continue
 		}
 		if len(n) > 63 || !nsNameRe.MatchString(n) {
-			return nsScope{}, fmt.Errorf("некорректное имя namespace: %q", clipName(n))
+			return nsScope{}, fmt.Errorf("invalid namespace name %q", clipName(n))
 		}
 		if !seen[n] {
 			seen[n] = true
@@ -75,7 +75,7 @@ func parseScope(in []string) (nsScope, error) {
 		return nsScope{}, nil
 	}
 	if len(names) > maxScopeNamespaces {
-		return nsScope{}, fmt.Errorf("выбрано слишком много namespace: %d (максимум %d)", len(names), maxScopeNamespaces)
+		return nsScope{}, fmt.Errorf("too many namespaces selected: %d (maximum %d)", len(names), maxScopeNamespaces)
 	}
 	sort.Strings(names)
 	return nsScope{names: names}, nil

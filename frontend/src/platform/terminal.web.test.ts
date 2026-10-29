@@ -90,7 +90,7 @@ describe('openWebTerminal', () => {
     await vi.waitFor(() => expect(FakeWS.last).toBeDefined())
     await Promise.resolve()
     FakeWS.last.serverClose(1006, '')
-    await expect(p).rejects.toThrow('не удалось подключиться')
+    await expect(p).rejects.toThrow('Could not connect')
   })
 
   it('ошибка OpenTerminal пробрасывается', async () => {

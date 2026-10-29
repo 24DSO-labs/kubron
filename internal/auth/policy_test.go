@@ -43,6 +43,9 @@ var exactPermission = map[string]Permission{
 	"GetHelmChartPackage":     PermRead,
 	"PreviewHelmInstall":      PermWrite,
 	"InstallHelmChart":        PermWrite,
+	"PreviewHelmChartUpgrade": PermSecretsRead,
+	"GetHelmUpgradeSources":   PermRead,
+	"UpgradeHelmChart":        PermWrite,
 	"PreviewHelmUpgrade":      PermSecretsRead,
 	"UpgradeHelmRelease":      PermWrite,
 	"RollbackHelmRelease":     PermOperate,
@@ -104,6 +107,13 @@ var exactPermission = map[string]Permission{
 	"StartLogStream":          PermRead,
 	"StopLogStream":           PermRead,
 	"GetHelmReleaseContent":   PermSecretsRead,
+	"CancelHelmOperation":     PermWrite,
+	"ListHelmOperations":      PermRead,
+	"GetHelmOperation":        PermRead,
+	"ClearHelmOperations":     PermClusterManage,
+	"AddHelmOCIRepo":          PermClusterManage,
+	"AddHelmOCIChart":         PermClusterManage,
+	"RemoveHelmOCIChart":      PermClusterManage,
 }
 
 // Глаголы, по которым метод считается изменяющим: слабое право чтения для них недопустимо.
@@ -119,7 +129,7 @@ var mutatingPrefixes = []string{
 
 // Изменяющие по имени методы, которым чтения достаточно (с обоснованием).
 var mutatingButReadOK = map[string]string{
-	"SaveAppSettings": "тема и интервал обновления — личные настройки интерфейса, не ресурсы кластера",
+	"SaveAppSettings": "theme and refresh interval are personal UI settings, not cluster resources",
 }
 
 var permByIdent = map[string]Permission{
@@ -144,7 +154,7 @@ func parseAppMethods(t *testing.T) []methodGuard {
 	t.Helper()
 	files, err := filepath.Glob(filepath.Join("..", "app", "*.go"))
 	if err != nil || len(files) == 0 {
-		t.Fatalf("не найдены файлы internal/app/*.go: %v", err)
+		t.Fatalf("internal/app/*.go files not found: %v", err)
 	}
 	fset := token.NewFileSet()
 	var out []methodGuard
@@ -154,7 +164,7 @@ func parseAppMethods(t *testing.T) []methodGuard {
 		}
 		file, err := parser.ParseFile(fset, f, nil, 0)
 		if err != nil {
-			t.Fatalf("разбор %s: %v", f, err)
+			t.Fatalf("parsing %s: %v", f, err)
 		}
 		for _, d := range file.Decls {
 			fn, ok := d.(*ast.FuncDecl)
@@ -203,12 +213,12 @@ func firstStmtPermission(stmt ast.Stmt, t *testing.T, method string) (Permission
 			}
 			arg, ok := call.Args[0].(*ast.SelectorExpr)
 			if !ok {
-				t.Errorf("%s: аргумент authz должен быть константой auth.Perm*", method)
+				t.Errorf("%s: the authz argument must be an auth.Perm* constant", method)
 				return true
 			}
 			p, known := permByIdent[arg.Sel.Name]
 			if !known {
-				t.Errorf("%s: неизвестное право %s (добавьте его в permByIdent теста)", method, arg.Sel.Name)
+				t.Errorf("%s: unknown permission %s (add it to the test's permByIdent)", method, arg.Sel.Name)
 				return true
 			}
 			found, has = p, true
@@ -225,17 +235,17 @@ func firstStmtPermission(stmt ast.Stmt, t *testing.T, method string) (Permission
 func TestEveryAppMethodIsGuarded(t *testing.T) {
 	methods := parseAppMethods(t)
 	if len(methods) < 100 {
-		t.Fatalf("подозрительно мало методов App: %d (разбор сломался?)", len(methods))
+		t.Fatalf("suspiciously few App methods: %d (is the parser broken?)", len(methods))
 	}
 	for _, m := range methods {
 		if publicMethods[m.name] {
 			if m.has {
-				t.Errorf("%s: публичный метод не должен вызывать authz", m.name)
+				t.Errorf("%s: a public method must not call authz", m.name)
 			}
 			continue
 		}
 		if !m.has {
-			t.Errorf("%s: нет проверки права первым оператором (if err := a.authz(auth.PermX); err != nil {...})", m.name)
+			t.Errorf("%s: no permission check as the first statement (if err := a.authz(auth.PermX); err != nil {...})", m.name)
 		}
 	}
 }
@@ -247,7 +257,7 @@ func TestMethodPermissionsMatchPolicy(t *testing.T) {
 		}
 		if want, ok := exactPermission[m.name]; ok {
 			if m.perm != want {
-				t.Errorf("%s: требует %q, ожидалось %q", m.name, m.perm, want)
+				t.Errorf("%s: requires %q, expected %q", m.name, m.perm, want)
 			}
 			continue
 		}
@@ -260,8 +270,8 @@ func TestMethodPermissionsMatchPolicy(t *testing.T) {
 		}
 		for _, p := range mutatingPrefixes {
 			if strings.HasPrefix(m.name, p) {
-				t.Errorf("%s: имя похоже на изменяющую операцию, но защищено правом %q; "+
-					"используйте PermWrite (или добавьте метод в exactPermission / mutatingButReadOK)", m.name, m.perm)
+				t.Errorf("%s: the name looks like a mutating operation but is protected by %q; "+
+					"use PermWrite (or add the method to exactPermission / mutatingButReadOK)", m.name, m.perm)
 				break
 			}
 		}
@@ -281,7 +291,7 @@ func TestDestructiveMethodsRequireWrite(t *testing.T) {
 			continue // у этих особые права из exactPermission
 		}
 		if m.perm != PermWrite {
-			t.Errorf("%s: разрушительный метод требует %q, ожидалось %q", m.name, m.perm, PermWrite)
+			t.Errorf("%s: a destructive method requires %q, expected %q", m.name, m.perm, PermWrite)
 		}
 	}
 }
@@ -304,7 +314,7 @@ func TestExactPermissionTableHasNoStaleEntries(t *testing.T) {
 	}
 	sort.Strings(stale)
 	if len(stale) > 0 {
-		t.Errorf("в таблицах теста есть методы, которых нет в App: %v", stale)
+		t.Errorf("the test tables contain methods that do not exist in App: %v", stale)
 	}
 }
 
@@ -315,7 +325,7 @@ func TestPermIdentTableCoversAllPermissions(t *testing.T) {
 	}
 	for _, p := range allPermissions {
 		if !covered[p] {
-			t.Errorf("право %q отсутствует в permByIdent теста", p)
+			t.Errorf("permission %q is missing from the test's permByIdent", p)
 		}
 	}
 }

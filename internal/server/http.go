@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"analog/internal/auth"
+	"github.com/VadimIl224/kubron/internal/auth"
 )
 
 // maxRPCBody — предел тела запроса (манифесты YAML крупные, но не мегабайты).
@@ -69,11 +69,11 @@ var publicMethods = map[string]bool{
 func RPCHandler(d *Dispatcher, g *Guard) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !sameOrigin(r) {
-			writeError(w, http.StatusForbidden, "forbidden_origin", "запрос с чужого источника отклонён")
+			writeError(w, http.StatusForbidden, "forbidden_origin", "cross-origin request rejected")
 			return
 		}
 		if mt, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mt != "application/json" {
-			writeError(w, http.StatusUnsupportedMediaType, "bad_request", "ожидается Content-Type: application/json")
+			writeError(w, http.StatusUnsupportedMediaType, "bad_request", "expected Content-Type: application/json")
 			return
 		}
 		method := r.PathValue("method")
@@ -90,7 +90,7 @@ func RPCHandler(d *Dispatcher, g *Guard) http.Handler {
 					return
 				}
 				if !csrfEqual(r.Header.Get(csrfHeader), sess.CSRF) {
-					writeError(w, http.StatusForbidden, "csrf", "неверный или отсутствующий CSRF-токен")
+					writeError(w, http.StatusForbidden, "csrf", "invalid or missing CSRF token")
 					return
 				}
 			}
@@ -98,13 +98,13 @@ func RPCHandler(d *Dispatcher, g *Guard) http.Handler {
 
 		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxRPCBody))
 		if err != nil {
-			writeError(w, http.StatusRequestEntityTooLarge, "bad_request", "тело запроса слишком большое или не прочитано")
+			writeError(w, http.StatusRequestEntityTooLarge, "bad_request", "request body is too large or could not be read")
 			return
 		}
 		var args []json.RawMessage
 		if len(strings.TrimSpace(string(body))) > 0 {
 			if err := json.Unmarshal(body, &args); err != nil {
-				writeError(w, http.StatusBadRequest, "bad_request", "тело запроса должно быть JSON-массивом аргументов")
+				writeError(w, http.StatusBadRequest, "bad_request", "request body must be a JSON array of arguments")
 				return
 			}
 		}
@@ -151,6 +151,9 @@ func (g *Guard) afterCall(w http.ResponseWriter, r *http.Request, method string,
 				g.Sessions.Delete(token)
 			}
 			tok, sess := g.Sessions.Create(u.ID, fresh)
+			if fresh != nil && g.Bind != nil {
+				g.Bind(fresh, sess.ID)
+			}
 			g.setCookie(w, r, tok, time.Until(sess.Expires))
 			w.Header().Set(csrfHeader, sess.CSRF)
 		} else {
@@ -176,7 +179,7 @@ func (g *Guard) afterCall(w http.ResponseWriter, r *http.Request, method string,
 func SessionHandler(g *Guard) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !sameOrigin(r) {
-			writeError(w, http.StatusForbidden, "forbidden_origin", "запрос с чужого источника отклонён")
+			writeError(w, http.StatusForbidden, "forbidden_origin", "cross-origin request rejected")
 			return
 		}
 		out := map[string]any{"authenticated": false}
@@ -215,7 +218,7 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(v); err != nil {
-		log.Printf("rpc: запись ответа: %v", err)
+		log.Printf("rpc: failed to write response: %v", err)
 	}
 }
 

@@ -12,6 +12,8 @@ import type {
 import { callApp } from '../platform/api'
 import { resetListFailures } from './useListFailures'
 import { normalizeSelection, restoreSelection, sameSelection, saveSelection } from './namespaceSelection'
+import { errorText } from './errorText'
+import { t } from '../i18n'
 
 /*
  * useK8s: состояние и загрузка данных для СТАРЫХ view.
@@ -23,14 +25,13 @@ import { normalizeSelection, restoreSelection, sameSelection, saveSelection } fr
  * Правила обработки ошибок:
  *  - функции, у которых есть вызывающий с собственным catch, только бросают исключение;
  *  - функции без такого вызывающего показывают тост сами (fail()).
- *  Ref `error` остаётся для useClusterConnection, который пишет в него сам.
+ *  Ошибки подключения к кластеру useClusterConnection показывает тостом сам.
  */
 
 // ─── Уведомления ───
 
 const notifications = useNotifications()
-const errText = (e: any): string => e?.message || String(e)
-const fail = (prefix: string, e: any) => notifications.notifyError(`${prefix}: ${errText(e)}`)
+const fail = (prefix: string, e: unknown) => notifications.notifyError(`${prefix}: ${errorText(e)}`)
 
 // ─── State: списки ───
 
@@ -54,7 +55,6 @@ const selectedNamespaces = ref<string[]>([])
 let namespaceScopeId = ''
 const currentView = ref('overview')
 const search = ref('')
-const error = ref('')
 const loading = ref(false)
 
 // ─── Фильтрация по поиску ───
@@ -69,7 +69,7 @@ function disconnect() {
 
 async function loadNamespaces() {
   try { namespaces.value = await callApp('GetNamespaces') }
-  catch (e) { fail('Ошибка загрузки namespaces', e) }
+  catch (e) { fail(t('app.errors.loadNamespaces'), e) }
 }
 
 // ─── Загрузка данных текущего view ───
@@ -109,7 +109,7 @@ async function refreshData() {
     await loader(selectedNamespaces.value, isCurrent)
     if (isCurrent()) loadedViews.add(view)
   } catch (e) {
-    if (isCurrent()) fail('Ошибка', e)
+    if (isCurrent()) fail(t('app.errors.generic'), e)
   } finally {
     if (isCurrent()) loading.value = false
   }
@@ -199,7 +199,7 @@ export function useK8s() {
     namespaces,
     podMetrics, portForwards,
     selectedNamespaces, selectNamespaces, restoreNamespaces, currentView, search,
-    error, loading,
+    loading,
 
     // Helpers
     formatCpu, formatMemory, mergePodMetrics,

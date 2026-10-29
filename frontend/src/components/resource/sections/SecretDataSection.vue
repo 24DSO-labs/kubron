@@ -8,12 +8,12 @@
         <div class="sec-actions">
           <button
             class="sec-btn"
-            :title="revealed[k] ? 'Hide (show encoded)' : 'Reveal (show decoded)'"
+            :title="revealed[k] ? $t('sections.secretData.hide') : $t('sections.secretData.reveal')"
             @click="toggleReveal(k)"
           >
             <K8sIcon :name="revealed[k] ? 'view-off' : 'view'" size="sm" />
           </button>
-          <button class="sec-btn" title="Copy" @click="copy(k)">
+          <button class="sec-btn" :title="$t('common.copy')" @click="copy(k)">
             <K8sIcon name="copy" size="sm" />
           </button>
         </div>
@@ -27,18 +27,18 @@
         />
       </div>
       <div class="sec-footer">
-        <span class="sec-mode">{{ revealed[k] ? 'Decoded' : 'Base64 encoded' }}</span>
+        <span class="sec-mode">{{ revealed[k] ? $t('sections.secretData.decoded') : $t('sections.secretData.encoded') }}</span>
         <button
           class="sec-save"
           :disabled="saving[k] || !dirty[k]"
           @click="saveKey(k)"
         >
-          {{ saving[k] ? 'Saving…' : 'Save' }}
+          {{ saving[k] ? $t('common.saving') : $t('common.save') }}
         </button>
       </div>
     </div>
   </div>
-  <div v-else class="sec-empty">No data</div>
+  <div v-else class="sec-empty">{{ $t('common.noData') }}</div>
 </template>
 
 <script lang="ts" setup>
@@ -46,6 +46,8 @@ import { ref, computed, reactive, onMounted } from 'vue'
 import K8sIcon from '../../icons/K8sIcon.vue'
 import { callApp } from '../../../resources/wails'
 import { useNotifications } from '../../../composables/useNotifications'
+import { t } from '../../../i18n'
+import { errorText } from '../../../composables/errorText'
 
 const props = defineProps<{ resource: any }>()
 const { notifySuccess, notifyError } = useNotifications()
@@ -150,10 +152,9 @@ async function saveKey(key: string) {
     }
 
     dirty[key] = false
-    notifySuccess(`Key "${key}" saved`)
+    notifySuccess(t('sections.shared.keySaved', { key }))
   } catch (e: any) {
-    const msg = typeof e === 'string' ? e : e?.message ?? 'Save error'
-    notifyError(msg)
+    notifyError(errorText(e) || t('sections.shared.saveFailed'))
   } finally {
     saving[key] = false
   }

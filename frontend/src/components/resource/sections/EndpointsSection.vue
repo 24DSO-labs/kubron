@@ -2,15 +2,15 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="rd-row rd-click" @click="open = !open">
-    <span class="rd-label">Endpoints<span class="rd-arrow" :class="{ open }">›</span></span>
-    <span v-if="!open" class="rd-muted">{{ endpoints.length }} endpoints</span>
+    <span class="rd-label">{{ $t('defs.columns.endpoints') }}<span class="rd-arrow" :class="{ open }">›</span></span>
+    <span v-if="!open" class="rd-muted">{{ $t('sections.endpoints.count', endpoints.length) }}</span>
     <div v-else-if="endpoints.length" class="rd-wide" @click.stop>
       <div v-for="ep in endpoints" :key="ep.name" class="ep-item">
         <span class="ep-name">{{ ep.name }}</span>
         <span class="ep-addrs">{{ ep.addresses?.join(', ') || '—' }}</span>
       </div>
     </div>
-    <span v-else class="rd-muted">None</span>
+    <span v-else class="rd-muted">{{ $t('common.none') }}</span>
   </div>
 </template>
 

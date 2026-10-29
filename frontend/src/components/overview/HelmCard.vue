@@ -6,16 +6,16 @@
 
     <div class="hc-stats">
       <button type="button" class="hc-stat" @click="emit('navigate', 'helm-releases')">
-        <span class="hc-n">{{ releases.length }}</span><span class="hc-l">releases</span>
+        <span class="hc-n">{{ releases.length }}</span><span class="hc-l">{{ $t('helm.helm_card.releases') }}</span>
       </button>
       <button type="button" class="hc-stat" :class="{ d: failed > 0 }" @click="emit('navigate', 'helm-releases')">
-        <span class="hc-n">{{ failed }}</span><span class="hc-l">failed</span>
+        <span class="hc-n">{{ failed }}</span><span class="hc-l">{{ $t('helm.helm_card.failed') }}</span>
       </button>
       <button type="button" class="hc-stat" :class="{ w: pending > 0 }" @click="emit('navigate', 'helm-releases')">
-        <span class="hc-n">{{ pending }}</span><span class="hc-l">pending</span>
+        <span class="hc-n">{{ pending }}</span><span class="hc-l">{{ $t('helm.helm_card.pending') }}</span>
       </button>
       <button type="button" class="hc-stat" :class="{ w: updates.length > 0 }" @click="emit('navigate', 'helm-releases')">
-        <span class="hc-n">{{ updates.length }}</span><span class="hc-l">updates</span>
+        <span class="hc-n">{{ updates.length }}</span><span class="hc-l">{{ $t('helm.helm_card.updates') }}</span>
       </button>
     </div>
 
@@ -24,9 +24,9 @@
         <span class="hc-name" :title="`${r.namespace}/${r.name}`">{{ r.namespace }}/{{ r.name }}</span>
         <span class="hc-ver">{{ r.chartVersion }} → <strong>{{ r.latestVersion }}</strong></span>
       </li>
-      <li v-if="updates.length > 5" class="hc-more">и ещё {{ updates.length - 5 }}</li>
+      <li v-if="updates.length > 5" class="hc-more">{{ $t('helm.helm_card.more', { count: updates.length - 5 }) }}</li>
     </ul>
-    <p v-else class="hc-none">Все релизы на актуальных версиях чартов из ваших репозиториев</p>
+    <p v-else class="hc-none">{{ $t('helm.helm_card.allCurrent') }}</p>
   </section>
 </template>
 

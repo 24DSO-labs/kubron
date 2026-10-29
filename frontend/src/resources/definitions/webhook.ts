@@ -28,13 +28,13 @@ const webhookConfig = (opts: {
 
     columns: [
       flatNameCol,
-      { key: 'webhookCount', label: 'Webhooks' },
+      { key: 'webhookCount', label: 'defs.columns.webhooks' },
       ageCol,
     ],
 
     properties: [
-      { label: 'Webhooks', value: (c: any) => c.webhookCount },
-      { label: 'Finalizers', value: (c: any) => (c.finalizers ?? []).join(', ') },
+      { label: 'defs.columns.webhooks', value: (c: any) => c.webhookCount },
+      { label: 'defs.props.finalizers', value: (c: any) => (c.finalizers ?? []).join(', ') },
       controlledByProp,
       managedByProp,
     ],

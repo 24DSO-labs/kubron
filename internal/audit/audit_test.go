@@ -28,7 +28,7 @@ func TestRecordAndQueryNewestFirst(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(p.Events) != 3 || p.Events[0].Action != "ScaleDeployment" || p.Events[2].Action != "Login" {
-		t.Fatalf("ожидался порядок от новых к старым: %+v", p.Events)
+		t.Fatalf("expected newest-first order: %+v", p.Events)
 	}
 }
 
@@ -44,14 +44,14 @@ func TestFilters(t *testing.T) {
 		f    Filter
 		want int
 	}{
-		{"без фильтра", Filter{}, 3},
-		{"пользователь без учёта регистра", Filter{User: "ADMIN"}, 1},
-		{"действие", Filter{Action: "delete"}, 2},
-		{"результат", Filter{Result: ResultDenied}, 1},
-		{"текст в detail", Filter{Text: "api-2"}, 1},
-		{"с даты", Filter{Since: base.Add(time.Hour).Format(time.RFC3339)}, 2},
-		{"до даты (не включая)", Filter{Until: base.Add(time.Hour).Format(time.RFC3339)}, 1},
-		{"сочетание", Filter{User: "bob", Action: "delete"}, 1},
+		{"no filter", Filter{}, 3},
+		{"user, case-insensitive", Filter{User: "ADMIN"}, 1},
+		{"action", Filter{Action: "delete"}, 2},
+		{"result", Filter{Result: ResultDenied}, 1},
+		{"text in detail", Filter{Text: "api-2"}, 1},
+		{"since date", Filter{Since: base.Add(time.Hour).Format(time.RFC3339)}, 2},
+		{"until date (exclusive)", Filter{Until: base.Add(time.Hour).Format(time.RFC3339)}, 1},
+		{"combination", Filter{User: "bob", Action: "delete"}, 1},
 	}
 	for _, c := range cases {
 		p, err := l.Query(c.f)
@@ -59,11 +59,11 @@ func TestFilters(t *testing.T) {
 			t.Fatalf("%s: %v", c.name, err)
 		}
 		if len(p.Events) != c.want {
-			t.Errorf("%s: получено %d, ожидалось %d", c.name, len(p.Events), c.want)
+			t.Errorf("%s: got %d, expected %d", c.name, len(p.Events), c.want)
 		}
 	}
-	if _, err := l.Query(Filter{Since: "вчера"}); err == nil {
-		t.Error("некорректная дата должна давать ошибку")
+	if _, err := l.Query(Filter{Since: "yesterday"}); err == nil {
+		t.Error("an invalid date must give an error")
 	}
 }
 
@@ -74,15 +74,15 @@ func TestLimitAndTruncated(t *testing.T) {
 	}
 	p, _ := l.Query(Filter{Limit: 3})
 	if len(p.Events) != 3 || !p.Truncated {
-		t.Errorf("limit=3: %d записей, truncated=%v", len(p.Events), p.Truncated)
+		t.Errorf("limit=3: %d records, truncated=%v", len(p.Events), p.Truncated)
 	}
 	p, _ = l.Query(Filter{Limit: 5})
 	if len(p.Events) != 5 || p.Truncated {
-		t.Errorf("limit=5: %d записей, truncated=%v", len(p.Events), p.Truncated)
+		t.Errorf("limit=5: %d records, truncated=%v", len(p.Events), p.Truncated)
 	}
 	p, _ = l.Query(Filter{Limit: 1 << 20})
 	if len(p.Events) != 5 {
-		t.Errorf("огромный limit должен ограничиваться MaxLimit, получено %d", len(p.Events))
+		t.Errorf("a huge limit must be capped by MaxLimit, got %d", len(p.Events))
 	}
 }
 
@@ -96,14 +96,14 @@ func TestFieldsAreSanitized(t *testing.T) {
 		t.Fatal(err)
 	}
 	if n := strings.Count(string(data), "\n"); n != 1 {
-		t.Fatalf("запись должна занимать одну строку, переводов строки: %d", n)
+		t.Fatalf("a record must occupy one line, newlines: %d", n)
 	}
 	p, _ := l.Query(Filter{})
 	if len(p.Events) != 1 || p.Events[0].Action != "Login" {
-		t.Fatalf("подделать запись через ввод не должно получаться: %+v", p.Events)
+		t.Fatalf("forging a record through input must not be possible: %+v", p.Events)
 	}
 	if got := []rune(p.Events[0].User); len(got) > maxField+1 {
-		t.Errorf("поле не обрезано: %d символов", len(got))
+		t.Errorf("field was not truncated: %d characters", len(got))
 	}
 }
 
@@ -115,17 +115,17 @@ func TestRotation(t *testing.T) {
 	}
 	files, _ := filepath.Glob(filepath.Join(fb(l).dir, fileName+"*"))
 	if len(files) < 2 || len(files) > keepFiles {
-		t.Fatalf("ожидалась ротация до %d файлов, найдено %d", keepFiles, len(files))
+		t.Fatalf("expected rotation to %d files, found %d", keepFiles, len(files))
 	}
 	for _, f := range files {
 		if st, _ := os.Stat(f); st.Size() > 400 {
-			t.Errorf("%s вырос до %d байт", f, st.Size())
+			t.Errorf("%s grew to %d bytes", f, st.Size())
 		}
 	}
 	// старые записи уходят, но свежие читаются сквозь все файлы
 	p, err := l.Query(Filter{Limit: MaxLimit})
 	if err != nil || len(p.Events) == 0 {
-		t.Fatalf("чтение после ротации: %v, %d записей", err, len(p.Events))
+		t.Fatalf("reading after rotation: %v, %d records", err, len(p.Events))
 	}
 }
 
@@ -133,19 +133,19 @@ func TestCorruptLineDoesNotHideOthers(t *testing.T) {
 	l := newLogger(t)
 	l.Record(Event{User: "a", Action: "First", Result: ResultOK})
 	f, _ := os.OpenFile(filepath.Join(fb(l).dir, fileName), os.O_APPEND|os.O_WRONLY, 0o600)
-	f.WriteString("{обрыв записи\n")
+	f.WriteString("{truncated record\n")
 	f.Close()
 	l.Record(Event{User: "a", Action: "Second", Result: ResultOK})
 
 	p, err := l.Query(Filter{})
 	if err != nil || len(p.Events) != 2 {
-		t.Fatalf("err=%v, записей=%d, ожидалось 2", err, len(p.Events))
+		t.Fatalf("err=%v, records=%d, expected 2", err, len(p.Events))
 	}
 }
 
 func TestFilePermissions(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("Windows не поддерживает POSIX-права доступа: os.Stat всегда возвращает 0666")
+		t.Skip("Windows does not support POSIX permissions: os.Stat always returns 0666")
 	}
 	l := newLogger(t)
 	l.Record(Event{User: "a", Action: "X", Result: ResultOK})
@@ -154,7 +154,7 @@ func TestFilePermissions(t *testing.T) {
 		t.Fatal(err)
 	}
 	if perm := st.Mode().Perm(); perm&0o077 != 0 {
-		t.Errorf("журнал доступен другим пользователям ОС: %v", perm)
+		t.Errorf("the journal is accessible to other OS users: %v", perm)
 	}
 }
 
@@ -170,7 +170,7 @@ func TestWriteErrorIsReportedNotFatal(t *testing.T) {
 		t.Fatal(err)
 	}
 	if p.WriteError == "" {
-		t.Error("ошибка записи должна быть видна в Page.WriteError")
+		t.Error("a write error must be visible in Page.WriteError")
 	}
 }
 

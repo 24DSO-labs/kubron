@@ -39,7 +39,7 @@ var (
 
 	environments = map[string]bool{"": true, "dev": true, "test": true, "stage": true, "prod": true}
 
-	errKubeconfigTooLarge = fmt.Errorf("kubeconfig больше %d МБ", maxKubeconfigBytes>>20)
+	errKubeconfigTooLarge = fmt.Errorf("kubeconfig is larger than %d MB", maxKubeconfigBytes>>20)
 )
 
 // ClusterSettings — свойства кластера, которые пользователь задаёт при добавлении и правит позже.
@@ -61,31 +61,31 @@ type ClusterSettings struct {
 func (s ClusterSettings) normalize(legacyIcon string) (ClusterSettings, error) {
 	s.DisplayName = strings.TrimSpace(s.DisplayName)
 	if s.DisplayName == "" {
-		return s, errors.New("название кластера не может быть пустым")
+		return s, errors.New("cluster name cannot be empty")
 	}
 	if utf8.RuneCountInString(s.DisplayName) > maxClusterNameLen {
-		return s, fmt.Errorf("название длиннее %d символов", maxClusterNameLen)
+		return s, fmt.Errorf("name is longer than %d characters", maxClusterNameLen)
 	}
 
 	s.Environment = strings.ToLower(strings.TrimSpace(s.Environment))
 	if !environments[s.Environment] {
-		return s, fmt.Errorf("неизвестное окружение %q", s.Environment)
+		return s, fmt.Errorf("unknown environment %q", s.Environment)
 	}
 
 	s.Color = strings.ToLower(strings.TrimSpace(s.Color))
 	if s.Color == "" {
 		s.Color = defaultColor
 	} else if !colorRe.MatchString(s.Color) {
-		return s, fmt.Errorf("недопустимый цвет %q: ожидается #rrggbb", s.Color)
+		return s, fmt.Errorf("invalid color %q: expected #rrggbb", s.Color)
 	}
 
 	if s.Icon != "" && s.Icon != legacyIcon && !iconKeyRe.MatchString(s.Icon) {
-		return s, fmt.Errorf("недопустимый значок %q", s.Icon)
+		return s, fmt.Errorf("invalid icon %q", s.Icon)
 	}
 
 	s.DefaultNamespace = strings.TrimSpace(s.DefaultNamespace)
 	if s.DefaultNamespace != "" && (len(s.DefaultNamespace) > 63 || !namespaceRe.MatchString(s.DefaultNamespace)) {
-		return s, fmt.Errorf("недопустимое имя namespace %q", s.DefaultNamespace)
+		return s, fmt.Errorf("invalid namespace name %q", s.DefaultNamespace)
 	}
 
 	s.ContextName = strings.TrimSpace(s.ContextName)
@@ -113,9 +113,9 @@ func (s KubeconfigSource) read() ([]byte, error) {
 	}
 	switch {
 	case set == 0:
-		return nil, errors.New("не указан источник kubeconfig")
+		return nil, errors.New("no kubeconfig source specified")
 	case set > 1:
-		return nil, errors.New("укажите ровно один источник kubeconfig")
+		return nil, errors.New("specify exactly one kubeconfig source")
 	case s.Path != "":
 		return readKubeconfigFile(s.Path)
 	case s.ClusterID != "":
@@ -134,31 +134,23 @@ func (s KubeconfigSource) read() ([]byte, error) {
 func readKubeconfigFile(path string) ([]byte, error) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return nil, fmt.Errorf("не удалось прочитать файл: %w", err)
+		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 	if info.IsDir() {
-		return nil, errors.New("указан каталог, а не файл kubeconfig")
+		return nil, errors.New("a directory was given instead of a kubeconfig file")
 	}
 	if info.Size() > maxKubeconfigBytes {
 		return nil, errKubeconfigTooLarge
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("не удалось прочитать файл: %w", err)
+		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 	return data, nil
 }
 
 func readStoredKubeconfig(id string) ([]byte, error) {
-	path := GetClusterKubeconfigPath(id)
-	if path == "" {
-		return nil, fmt.Errorf("kubeconfig не найден для кластера %s", id)
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("не удалось прочитать kubeconfig: %w", err)
-	}
-	return data, nil
+	return clusterStore.Kubeconfig(id)
 }
 
 // ReadClusterKubeconfig возвращает текст сохранённого kubeconfig кластера (для правки в приложении).
@@ -173,10 +165,10 @@ func ReadClusterKubeconfig(id string) (string, error) {
 func parseKubeconfig(data []byte) (*clientcmdapi.Config, error) {
 	cfg, err := clientcmd.Load(data)
 	if err != nil {
-		return nil, fmt.Errorf("kubeconfig не разобран: %w", err)
+		return nil, fmt.Errorf("failed to parse kubeconfig: %w", err)
 	}
 	if len(cfg.Contexts) == 0 {
-		return nil, errors.New("в kubeconfig нет ни одного контекста")
+		return nil, errors.New("kubeconfig has no contexts")
 	}
 	return cfg, nil
 }
@@ -195,7 +187,7 @@ func sortedContextNames(cfg *clientcmdapi.Config) []string {
 func pickContext(cfg *clientcmdapi.Config, requested string) (string, error) {
 	if requested != "" {
 		if _, ok := cfg.Contexts[requested]; !ok {
-			return "", fmt.Errorf("контекст %q не найден в kubeconfig", requested)
+			return "", fmt.Errorf("context %q not found in kubeconfig", requested)
 		}
 		return requested, nil
 	}
@@ -309,7 +301,7 @@ func CheckKubeconfig(src KubeconfigSource, contextName string) (*ConnectionCheck
 	defer cancel()
 	if _, err := clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{Limit: 1}); err != nil {
 		if apierrors.IsForbidden(err) {
-			res.Warning = "нет права на чтение namespaces: часть данных может быть недоступна"
+			res.Warning = "no permission to read namespaces: some data may be unavailable"
 		} else {
 			res.OK = false
 			res.Error = err.Error()
@@ -331,20 +323,19 @@ type ClusterUpdateResult struct {
 func UpdateClusterSettings(id string, settings ClusterSettings, replace KubeconfigSource) (*ClusterUpdateResult, error) {
 	meta, err := LoadClusterMeta(id)
 	if err != nil {
-		return nil, fmt.Errorf("кластер не найден: %w", err)
+		return nil, fmt.Errorf("cluster not found: %w", err)
 	}
 	settings, err = settings.normalize(meta.Icon)
 	if err != nil {
 		return nil, err
 	}
 
-	kcPath := filepath.Join(getClustersDir(), meta.KubeconfigFile)
-	oldData, readErr := os.ReadFile(kcPath)
+	oldData, readErr := clusterStore.Kubeconfig(id)
 
 	var newData []byte
 	if !replace.isEmpty() {
 		if replace.ClusterID != "" {
-			return nil, errors.New("заменять kubeconfig можно только файлом или текстом")
+			return nil, errors.New("kubeconfig can only be replaced with a file or text")
 		}
 		if newData, err = replace.read(); err != nil {
 			return nil, err
@@ -372,12 +363,6 @@ func UpdateClusterSettings(id string, settings ClusterSettings, replace Kubeconf
 		}
 	}
 
-	if newData != nil {
-		if err := writeFileAtomic(kcPath, newData, 0600); err != nil {
-			return nil, fmt.Errorf("не удалось сохранить kubeconfig: %w", err)
-		}
-	}
-
 	changed := newData != nil || contextName != meta.ContextName
 	meta.DisplayName = settings.DisplayName
 	meta.Icon = settings.Icon
@@ -386,10 +371,8 @@ func UpdateClusterSettings(id string, settings ClusterSettings, replace Kubeconf
 	meta.DefaultNamespace = settings.DefaultNamespace
 	meta.ContextName = contextName
 
-	if err := SaveClusterMeta(meta); err != nil {
-		if newData != nil && readErr == nil {
-			_ = writeFileAtomic(kcPath, oldData, 0600) // возвращаем прежний kubeconfig
-		}
+	// Хранилище заменяет kubeconfig и метаданные вместе и при сбое возвращает прежний kubeconfig.
+	if err := clusterStore.Save(meta, newData); err != nil {
 		return nil, err
 	}
 	return &ClusterUpdateResult{Cluster: *meta, ConnectionChanged: changed}, nil

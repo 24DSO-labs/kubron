@@ -7,10 +7,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
 	"helm.sh/helm/v4/pkg/action"
+	chartv2 "helm.sh/helm/v4/pkg/chart/v2"
 	"helm.sh/helm/v4/pkg/kube"
 	helmrelease "helm.sh/helm/v4/pkg/release"
 	"sigs.k8s.io/yaml"
@@ -22,7 +24,8 @@ const (
 	helmUpgradeTimeout = 5 * time.Minute
 )
 
-// HelmUpgradePreview — результат dry-run апгрейда values (чарт остаётся прежним).
+// HelmUpgradePreview — результат dry-run апгрейда values (чарт остаётся прежним;
+// смена версии чарта — HelmChartUpgradePreview).
 type HelmUpgradePreview struct {
 	CurrentValues   string `json:"currentValues"`   // user-supplied values текущей ревизии
 	NewValues       string `json:"newValues"`       // нормализованные новые values
@@ -33,14 +36,14 @@ type HelmUpgradePreview struct {
 // parseHelmValues разбирает YAML values из UI. Пустой ввод = пустой map.
 func parseHelmValues(src string) (map[string]interface{}, error) {
 	if len(src) > helmValuesMaxBytes {
-		return nil, fmt.Errorf("values больше %d КиБ", helmValuesMaxBytes>>10)
+		return nil, fmt.Errorf("values are larger than %d KiB", helmValuesMaxBytes>>10)
 	}
 	if strings.TrimSpace(src) == "" {
 		return map[string]interface{}{}, nil
 	}
 	var out map[string]interface{}
 	if err := yaml.Unmarshal([]byte(src), &out); err != nil {
-		return nil, fmt.Errorf("некорректный YAML: %w", err)
+		return nil, fmt.Errorf("invalid YAML: %w", err)
 	}
 	if out == nil {
 		out = map[string]interface{}{}
@@ -59,18 +62,19 @@ func marshalHelmValues(v map[string]interface{}) (string, error) {
 	return string(b), nil
 }
 
-// helmUpgradeValues применяет (или в dry-run только считает) апгрейд релиза с новыми
-// user-values. Чарт берётся ИЗ САМОГО РЕЛИЗА: смена версии чарта — этап H4/H5.
+// helmUpgrade применяет (или в dry-run только считает) апгрейд релиза с новыми user-values.
+// target == nil — чарт берётся ИЗ САМОГО РЕЛИЗА (апгрейд только values); иначе релиз переводится
+// на переданный чарт (смена версии, см. helm_chart_upgrade.go).
 // ResetValues=true: новые values заменяют прежние целиком, поэтому ключ, удалённый
-// в редакторе, возвращается к дефолту чарта.
-func (m *Manager) helmUpgradeValues(ctx context.Context, namespace, name string, vals map[string]interface{}, dryRun bool) (cur, next helmrelease.Accessor, curVals map[string]interface{}, err error) {
-	cfg, err := m.helmConfig(namespace)
+// в редакторе, возвращается к дефолту чарта (при смене версии — к дефолту НОВОГО чарта).
+func (m *Manager) helmUpgrade(ctx context.Context, namespace, name string, target *chartv2.Chart, vals map[string]interface{}, dryRun bool, logHandler slog.Handler) (cur, next helmrelease.Accessor, curVals map[string]interface{}, err error) {
+	cfg, err := m.helmConfigForRelease(ctx, namespace, name, logHandler)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	curRel, err := action.NewGet(cfg).Run(name)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("релиз %s/%s не найден: %w", namespace, name, err)
+		return nil, nil, nil, fmt.Errorf("release %s/%s not found: %w", namespace, name, err)
 	}
 	if cur, err = helmrelease.NewAccessor(curRel); err != nil {
 		return nil, nil, nil, err
@@ -89,7 +93,11 @@ func (m *Manager) helmUpgradeValues(ctx context.Context, namespace, name string,
 		up.WaitStrategy = kube.StatusWatcherStrategy
 	}
 
-	res, err := up.RunWithContext(ctx, name, cur.Chart(), vals)
+	var chrt = cur.Chart()
+	if target != nil {
+		chrt = target
+	}
+	res, err := up.RunWithContext(ctx, name, chrt, vals)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -111,9 +119,9 @@ func (m *Manager) PreviewHelmUpgrade(namespace, name, valuesYAML string) (*HelmU
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	cur, next, curVals, err := m.helmUpgradeValues(ctx, namespace, name, vals, true)
+	cur, next, curVals, err := m.helmUpgrade(ctx, namespace, name, nil, vals, true, nil)
 	if err != nil {
-		return nil, fmt.Errorf("предпросмотр %s/%s: %w", namespace, name, err)
+		return nil, fmt.Errorf("preview %s/%s: %w", namespace, name, err)
 	}
 	curY, err := marshalHelmValues(curVals)
 	if err != nil {
@@ -132,7 +140,8 @@ func (m *Manager) PreviewHelmUpgrade(namespace, name, valuesYAML string) (*HelmU
 }
 
 // UpgradeHelmRelease применяет новые values и возвращает номер созданной ревизии.
-func (m *Manager) UpgradeHelmRelease(namespace, name, valuesYAML string) (int, error) {
+// opID — идентификатор операции для событий helm:progress и отмены (пустой — без отслеживания).
+func (m *Manager) UpgradeHelmRelease(namespace, name, valuesYAML, opID string) (rev int, err error) {
 	if err := validateHelmRef(namespace, name); err != nil {
 		return 0, err
 	}
@@ -140,15 +149,23 @@ func (m *Manager) UpgradeHelmRelease(namespace, name, valuesYAML string) (int, e
 	if err != nil {
 		return 0, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), helmUpgradeTimeout+30*time.Second)
+	ctx, tr, err := m.beginHelmOp(context.Background(), opID, "upgrade", namespace, name, true)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { tr.finish(err) }()
+	ctx, cancel := context.WithTimeout(ctx, helmUpgradeTimeout+30*time.Second)
 	defer cancel()
 
-	_, next, _, err := m.helmUpgradeValues(ctx, namespace, name, vals, false)
+	tr.note("values change")
+	tr.setPhase("Applying changes and waiting for readiness…")
+	_, next, _, err := m.helmUpgrade(ctx, namespace, name, nil, vals, false, tr.handler())
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return 0, fmt.Errorf("апгрейд %s/%s не завершился за %s", namespace, name, helmUpgradeTimeout)
+			return 0, fmt.Errorf("upgrade of %s/%s did not finish within %s", namespace, name, helmUpgradeTimeout)
 		}
-		return 0, fmt.Errorf("апгрейд %s/%s: %w", namespace, name, err)
+		return 0, fmt.Errorf("upgrade %s/%s: %w", namespace, name, err)
 	}
+	tr.setRevision(next.Version())
 	return next.Version(), nil
 }

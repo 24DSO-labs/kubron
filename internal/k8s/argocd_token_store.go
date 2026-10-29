@@ -4,9 +4,9 @@
 package k8s
 
 import (
-	"analog/pkg/ext"
 	"errors"
 	"fmt"
+	"github.com/VadimIl224/kubron/pkg/ext"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,30 +37,30 @@ func (fileTokenStore) Put(clusterID, t string) error {
 	}
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("не удалось создать каталог токенов: %w", err)
+		return fmt.Errorf("failed to create token directory: %w", err)
 	}
 	// Атомарная запись: во временный файл (CreateTemp создаёт его с правами 0600) и переименование.
 	tmp, err := os.CreateTemp(dir, ".tmp-*")
 	if err != nil {
-		return fmt.Errorf("не удалось сохранить токен: %w", err)
+		return fmt.Errorf("failed to save token: %w", err)
 	}
 	tmpName := tmp.Name()
 	if _, err := tmp.WriteString(t); err != nil {
 		_ = tmp.Close()
 		_ = os.Remove(tmpName)
-		return fmt.Errorf("не удалось сохранить токен: %w", err)
+		return fmt.Errorf("failed to save token: %w", err)
 	}
 	if err := tmp.Close(); err != nil {
 		_ = os.Remove(tmpName)
-		return fmt.Errorf("не удалось сохранить токен: %w", err)
+		return fmt.Errorf("failed to save token: %w", err)
 	}
 	if err := os.Chmod(tmpName, 0o600); err != nil {
 		_ = os.Remove(tmpName)
-		return fmt.Errorf("не удалось сохранить токен: %w", err)
+		return fmt.Errorf("failed to save token: %w", err)
 	}
 	if err := os.Rename(tmpName, path); err != nil {
 		_ = os.Remove(tmpName)
-		return fmt.Errorf("не удалось сохранить токен: %w", err)
+		return fmt.Errorf("failed to save token: %w", err)
 	}
 	return nil
 }
@@ -75,7 +75,7 @@ func (fileTokenStore) Get(clusterID string) (string, error) {
 		if errors.Is(err, os.ErrNotExist) {
 			return "", ErrArgoTokenNotSet
 		}
-		return "", fmt.Errorf("не удалось прочитать токен: %w", err)
+		return "", fmt.Errorf("failed to read token: %w", err)
 	}
 	t := strings.TrimSpace(string(data))
 	if t == "" {
@@ -90,7 +90,7 @@ func (fileTokenStore) Delete(clusterID string) error {
 		return err
 	}
 	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("не удалось удалить токен: %w", err)
+		return fmt.Errorf("failed to delete token: %w", err)
 	}
 	return nil
 }

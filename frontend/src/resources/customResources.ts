@@ -63,14 +63,14 @@ export function buildCustomResourceDef(crd: CRDInfo): ResourceDefinition<CustomR
     autoRefresh: true,
     columns,
     properties: [
-      { label: 'API Version', value: r => r.apiVersion },
+      { label: 'resource.props.apiVersion', value: r => r.apiVersion },
       ...crd.columns.map(c => ({
         label: c.name,
         value: (r: CustomResourceInfo) => cell(c.name)(r) || null,
         hideEmpty: true,
         badge: STATUS_LIKE.test(c.name) ? (r: CustomResourceInfo) => badgeClass(cell(c.name)(r)) : undefined,
       })),
-      { label: 'Finalizers', value: r => (r.finalizers ?? []).join(', ') || null, hideEmpty: true },
+      { label: 'defs.props.finalizers', value: r => (r.finalizers ?? []).join(', ') || null, hideEmpty: true },
       controlledByProp,
       managedByProp,
     ],

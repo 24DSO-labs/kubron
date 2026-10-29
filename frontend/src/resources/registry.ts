@@ -113,7 +113,7 @@ const byView = new Map(resources.map(r => [r.view, r]))
 const byId = new Map<string, ResourceDefinition>()
 for (const r of resources) {
   if (import.meta.env.DEV && byId.has(r.id)) {
-    console.warn(`duplicate resource id '${r.id}': '${byId.get(r.id)!.view}' будет перекрыт '${r.view}'`)
+    console.warn(`duplicate resource id '${r.id}': '${byId.get(r.id)!.view}' will be overridden by '${r.view}'`)
   }
   byId.set(r.id, r)
 }

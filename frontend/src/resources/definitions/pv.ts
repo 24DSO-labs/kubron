@@ -27,32 +27,32 @@ export const persistentVolume = defineResource<k8s.PVInfo>({
   // Как в Lens: Name, Storage Class, Capacity, Claim, Age, Status
   columns: [
     flatNameCol,
-    { key: 'storageClass', label: 'Storage class', link: scLink },
-    { key: 'capacity', label: 'Capacity' },
-    { key: 'claim', label: 'Claim', link: claimLink },
+    { key: 'storageClass', label: 'defs.columns.storageClass', link: scLink },
+    { key: 'capacity', label: 'defs.columns.capacity' },
+    { key: 'claim', label: 'defs.columns.claim', link: claimLink },
     ageCol,
-    { key: 'status', label: 'Status', colorFn: p => statusColor(p.status) },
+    { key: 'status', label: 'common.status', colorFn: p => statusColor(p.status) },
   ],
 
   headSections: [PVMetricsSection],
 
   // Name / Age / Created выводит шапка панели; Labels и Annotations — общие секции
   properties: [
-    { label: 'Finalizers', value: (p: any) => (p.finalizers ?? []).join(', ') },
-    { label: 'Capacity', value: p => p.capacity },
-    { label: 'Access Modes', value: (p: any) => expandAccessModes(p.accessModes) },
-    { label: 'Reclaim Policy', value: p => p.reclaimPolicy },
-    { label: 'Storage Class Name', value: p => p.storageClass, link: scLink },
-    { label: 'Volume Mode', value: (p: any) => p.volumeMode },
+    { label: 'defs.props.finalizers', value: (p: any) => (p.finalizers ?? []).join(', ') },
+    { label: 'defs.columns.capacity', value: p => p.capacity },
+    { label: 'defs.props.accessModes', value: (p: any) => expandAccessModes(p.accessModes) },
+    { label: 'defs.columns.reclaimPolicy', value: p => p.reclaimPolicy },
+    { label: 'defs.props.storageClassName', value: p => p.storageClass, link: scLink },
+    { label: 'defs.props.volumeMode', value: (p: any) => p.volumeMode },
     
-    { label: 'Claim', value: p => p.claim, link: claimLink },
-    { label: 'Status', value: p => p.status, badge: p => badgeClass(p.status) },
+    { label: 'defs.columns.claim', value: p => p.claim, link: claimLink },
+    { label: 'common.status', value: p => p.status, badge: p => badgeClass(p.status) },
     controlledByProp,
     managedByProp,
   ],
   tabs: [
-    { id: 'provider', label: 'Provider', component: PVProviderTab },
-    { id: 'claim', label: 'Claim', component: PVClaimTab },
+    { id: 'provider', label: 'defs.tabs.provider', component: PVProviderTab },
+    { id: 'claim', label: 'defs.tabs.claim', component: PVClaimTab },
   ],
 
   api: {

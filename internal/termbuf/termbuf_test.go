@@ -52,7 +52,7 @@ func TestOutputBeforeAttachIsReplayed(t *testing.T) {
 	}
 	b.Data([]byte("ls\r\n"))
 	if s.text() != "user@pod:~$ ls\r\n" {
-		t.Errorf("получено %q", s.text())
+		t.Errorf("got %q", s.text())
 	}
 }
 
@@ -62,7 +62,7 @@ func TestBufferKeepsOnlyLastBytes(t *testing.T) {
 	b.Data(chunk)
 	b.Data([]byte("TAIL"))
 	if len(b.pending) != MaxBuffered || !bytes.HasSuffix(b.pending, []byte("TAIL")) {
-		t.Errorf("буфер: %d байт, хвост %q", len(b.pending), b.pending[len(b.pending)-4:])
+		t.Errorf("buffer: %d bytes, tail %q", len(b.pending), b.pending[len(b.pending)-4:])
 	}
 }
 
@@ -72,7 +72,7 @@ func TestBufferCopiesCallerSlice(t *testing.T) {
 	b.Data(p)
 	copy(p, "xyz") // читатель вывода переиспользует свой буфер
 	if string(b.pending) != "abc" {
-		t.Errorf("буфер повреждён: %q", b.pending)
+		t.Errorf("buffer is corrupted: %q", b.pending)
 	}
 }
 
@@ -84,11 +84,11 @@ func TestExitBeforeAndAfterAttach(t *testing.T) {
 	s := &fakeSink{}
 	a, err := r.Attach("t", s)
 	if err != nil || s.text() != "bye" || !s.isExited() {
-		t.Fatalf("после выхода: err=%v text=%q exited=%v", err, s.text(), s.isExited())
+		t.Fatalf("after exit: err=%v text=%q exited=%v", err, s.text(), s.isExited())
 	}
 	a.Detach()
 	if r.Exists("t") {
-		t.Error("завершённая сессия должна удаляться при отключении")
+		t.Error("a finished session must be removed on detach")
 	}
 
 	b2, _ := r.Register("t2", Hooks{})
@@ -96,7 +96,7 @@ func TestExitBeforeAndAfterAttach(t *testing.T) {
 	_, _ = r.Attach("t2", s2)
 	b2.Exit()
 	if !s2.isExited() {
-		t.Error("Exit не дошёл до подключённого клиента")
+		t.Error("Exit did not reach the attached client")
 	}
 }
 
@@ -108,14 +108,14 @@ func TestSecondAttachRejectedUntilDetach(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := r.Attach("t", &fakeSink{}); !errors.Is(err, ErrAttached) {
-		t.Errorf("ждали ErrAttached: %v", err)
+		t.Errorf("expected ErrAttached: %v", err)
 	}
 	a.Detach()
 	if _, err := r.Attach("t", &fakeSink{}); err != nil {
-		t.Errorf("повторное подключение после отключения: %v", err)
+		t.Errorf("reattach after detach: %v", err)
 	}
-	if _, err := r.Attach("нет", &fakeSink{}); !errors.Is(err, ErrNotFound) {
-		t.Errorf("ждали ErrNotFound: %v", err)
+	if _, err := r.Attach("missing", &fakeSink{}); !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected ErrNotFound: %v", err)
 	}
 }
 
@@ -124,7 +124,7 @@ func TestBrokenSinkFallsBackToBuffering(t *testing.T) {
 	b, _ := r.Register("t", Hooks{})
 	bad := &fakeSink{}
 	_, _ = r.Attach("t", bad)
-	bad.err = errors.New("сокет закрыт")
+	bad.err = errors.New("socket closed")
 	b.Data([]byte("lost?"))
 	good := &fakeSink{}
 	// Первое подключение ещё числится занятым (клиент не вызвал Detach): освобождаем как это делает обработчик
@@ -167,17 +167,17 @@ func TestSweepClosesNeverAttachedAndLongDetached(t *testing.T) {
 
 	now = now.Add(20 * time.Second)
 	if n := r.Sweep(); n != 0 {
-		t.Fatalf("рано: закрыто %d", n)
+		t.Fatalf("too early: %d closed", n)
 	}
 	now = now.Add(20 * time.Second) // 40 с: дедлайны 30 с прошли
 	if n := r.Sweep(); n != 2 {
-		t.Fatalf("закрыто %d, ждали 2", n)
+		t.Fatalf("%d closed, expected 2", n)
 	}
 	if closed["never"] != 1 || closed["detached"] != 1 || closed["live"] != 0 {
-		t.Errorf("закрытия: %v", closed)
+		t.Errorf("closes: %v", closed)
 	}
 	if r.Len() != 1 || !r.Exists("live") {
-		t.Errorf("должна остаться только подключённая сессия: %d", r.Len())
+		t.Errorf("only the attached session must remain: %d", r.Len())
 	}
 }
 
@@ -190,7 +190,7 @@ func TestSweepDropsOldExitedWithoutClosing(t *testing.T) {
 	b.Exit()
 	now = now.Add(time.Minute)
 	if r.Sweep() != 0 || r.Exists("t") || called {
-		t.Errorf("завершённая сессия должна просто исчезнуть: exists=%v closeCalled=%v", r.Exists("t"), called)
+		t.Errorf("a finished session must simply disappear: exists=%v closeCalled=%v", r.Exists("t"), called)
 	}
 }
 
@@ -202,7 +202,7 @@ func TestRegisterLimit(t *testing.T) {
 		}
 	}
 	if _, err := r.Register(NewID(), Hooks{}); !errors.Is(err, ErrTooMany) {
-		t.Errorf("ждали ErrTooMany: %v", err)
+		t.Errorf("expected ErrTooMany: %v", err)
 	}
 }
 
@@ -214,7 +214,7 @@ func TestCloseAll(t *testing.T) {
 	}
 	r.CloseAll()
 	if n != 3 || r.Len() != 0 {
-		t.Errorf("закрыто %d, осталось %d", n, r.Len())
+		t.Errorf("%d closed, %d left", n, r.Len())
 	}
 }
 
@@ -239,4 +239,12 @@ func TestConcurrentDataAndAttach(t *testing.T) {
 		}
 	}()
 	wg.Wait()
+}
+
+func TestOwnedBy(t *testing.T) {
+	r := NewRegistry()
+	_, _ = r.Register("t", Hooks{Owner: "s1"})
+	if !r.OwnedBy("t", "s1") || r.OwnedBy("t", "s2") || r.OwnedBy("nope", "s1") {
+		t.Error("a terminal must be accessible only to its owner")
+	}
 }

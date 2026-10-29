@@ -1,0 +1,13 @@
+{
+  "noPermission": "Недостаточно прав для этого действия",
+  "loadYamlFailed": "Не удалось загрузить YAML: {error}",
+  "deleteUnsupported": "Удаление для {kind} не поддерживается",
+  "createUnsupported": "Создание для {kind} не поддерживается",
+  "deleted": "{kind} \"{name}\" удалён",
+  "deleteFailed": "Ошибка удаления: {error}",
+  "bulkDeleted": "{kind}: удалено {done} из {total}",
+  "bulkFailed": "Не удалось удалить {failed} из {total}: {list}",
+  "andMore": "и ещё {n}",
+  "unavailable": "\"{label}\" недоступно для {name}",
+  "scaled": "{kind} {name}: масштаб изменён, реплик: {n}"
+}

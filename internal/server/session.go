@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"analog/internal/termbuf"
+	"github.com/VadimIl224/kubron/internal/termbuf"
 )
 
 // Session — веб-сессия браузера: привязывает cookie к пользователю и CSRF-токену.
@@ -31,8 +31,8 @@ type Session struct {
 // а в памяти хранится только его SHA-256: дамп памяти или лога не даёт действующий токен.
 //
 // Каждая веб-сессия владеет видом ядра (Session.View): у него своя сессия пользователя, права и
-// ресурсы. Пока общие менеджеры кластеров не разделены по сессиям (этап 2, задача 2.3), включён
-// режим Exclusive: не более одной веб-сессии, новый вход вытесняет прежнюю.
+// ресурсы. Режим Exclusive (не более одной веб-сессии, новый вход вытесняет прежнюю) нужен только
+// там, где ядро общее на всех (тесты, одиночный режим).
 type Sessions struct {
 	// Exclusive — не более одной активной веб-сессии.
 	Exclusive bool
@@ -59,7 +59,7 @@ func sessionID(k [sha256.Size]byte) string { return hex.EncodeToString(k[:8]) }
 func randomToken() string {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
-		panic("server: нет источника случайности: " + err.Error())
+		panic("server: crypto/rand is unavailable: " + err.Error())
 	}
 	return base64.RawURLEncoding.EncodeToString(b)
 }
@@ -131,6 +131,26 @@ func (s *Sessions) Delete(token string) {
 	}
 }
 
+// Reap завершает сессии, у которых истёк срок или чей вид ядра больше не жив (alive == false:
+// ядро закрыло пользовательскую сессию из-за простоя, отключения пользователя и т. п.). Без фоновой
+// уборки такие сессии держали бы ссылки пула подключений, пока кто-нибудь не обратится к серверу.
+// Возвращает число завершённых сессий.
+func (s *Sessions) Reap(alive func(view any) bool) int {
+	s.mu.Lock()
+	ended := s.sweepLocked()
+	if alive != nil {
+		for k, it := range s.items {
+			if it.View != nil && !alive(it.View) {
+				delete(s.items, k)
+				ended = append(ended, *it)
+			}
+		}
+	}
+	s.mu.Unlock()
+	s.notify(ended)
+	return len(ended)
+}
+
 // Len — число живых сессий (для тестов и метрик).
 func (s *Sessions) Len() int {
 	s.mu.Lock()
@@ -175,6 +195,8 @@ type Guard struct {
 	// NewView создаёт вид ядра для нового входа (source — адрес клиента); nil — все сессии работают
 	// с общим экземпляром диспетчера (тесты). Освобождение — Sessions.Release.
 	NewView func(source string) any
+	// Bind сообщает виду идентификатор созданной для него веб-сессии (адресат событий); nil — не нужно.
+	Bind func(view any, sessionID string)
 
 	termConns termConns
 }

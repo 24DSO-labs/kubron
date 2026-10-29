@@ -1,0 +1,50 @@
+{
+  "tab": {
+    "terminalTitle": "Terminal: {target}",
+    "attachTitle": "Attach: {target}",
+    "newTitle": "New {kind}",
+    "noTabs": "No tabs open"
+  },
+  "confirm": {
+    "deleteTitle": "Delete {type} \"{name}\"?"
+  },
+  "logs": {
+    "pods": "Pods",
+    "allPods": "All Pods",
+    "containers": "Containers",
+    "allContainers": "All Containers",
+    "lines": "Lines",
+    "searchPlaceholder": "Search in logs",
+    "live": "live",
+    "toEnd": "to end",
+    "waiting": "Waiting for logs…",
+    "noLogs": "No logs",
+    "noPods": "No pods found",
+    "streamClosed": "[{pod}stream closed{reason}]",
+    "error": "Error: {message}"
+  },
+  "terminal": {
+    "shell": "Terminal",
+    "attach": "Attach",
+    "sessionEnded": "[Session ended]"
+  },
+  "yaml": {
+    "newKind": "New {kind}",
+    "inNamespace": "in {namespace}",
+    "unsaved": "There are unsaved changes",
+    "reviewChanges": "Review changes",
+    "createHint": "Edit the manifest and create the object",
+    "createTitle": "Create the object in the cluster (Ctrl+S)",
+    "creating": "Creating…",
+    "backToEditing": "Back to editing",
+    "applying": "Applying…",
+    "reloadTitle": "Reload the manifest from the cluster",
+    "reload": "Reload",
+    "readOnly": "Read only",
+    "readOnlyTitle": "Administrator rights are required to modify resources",
+    "reviewSaveTitle": "Review the changes and apply (Ctrl+S)",
+    "reviewSave": "Review & Save",
+    "discardConfirm": "Discard unsaved changes and reload YAML from the cluster?",
+    "reloadError": "Failed to reload YAML: {message}"
+  }
+}

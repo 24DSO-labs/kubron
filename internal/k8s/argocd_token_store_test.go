@@ -16,7 +16,7 @@ func TestFileTokenStoreRoundTrip(t *testing.T) {
 	s := NewFileTokenStore()
 
 	if _, err := s.Get("c1"); !errors.Is(err, ErrArgoTokenNotSet) {
-		t.Fatalf("без токена ждали ErrArgoTokenNotSet, получили %v", err)
+		t.Fatalf("expected ErrArgoTokenNotSet without a token, got %v", err)
 	}
 	if err := s.Put("c1", "tok"); err != nil {
 		t.Fatal(err)
@@ -26,19 +26,19 @@ func TestFileTokenStoreRoundTrip(t *testing.T) {
 	}
 	files, _ := filepath.Glob(filepath.Join(dir, "*.token"))
 	if len(files) != 1 {
-		t.Fatalf("ждали один файл токена, есть %v", files)
+		t.Fatalf("expected one token file, got %v", files)
 	}
 	// В Windows Unix-прав нет (Perm() всегда 0666): проверяем только там, где они есть.
 	if runtime.GOOS != "windows" {
 		if st, _ := os.Stat(files[0]); st.Mode().Perm() != 0o600 {
-			t.Errorf("права файла %v, ждали 0600", st.Mode().Perm())
+			t.Errorf("file permissions %v, expected 0600", st.Mode().Perm())
 		}
 	}
 	if err := s.Delete("c1"); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Delete("c1"); err != nil {
-		t.Fatalf("повторное удаление не должно быть ошибкой: %v", err)
+		t.Fatalf("repeated delete must not be an error: %v", err)
 	}
 }
 
@@ -64,12 +64,12 @@ func TestTokenStoreIsPluggable(t *testing.T) {
 		t.Fatal(err)
 	}
 	if mem["c"] != "abc" {
-		t.Fatalf("в хранилище %q, ждали нормализованный abc", mem["c"])
+		t.Fatalf("store holds %q, expected normalized abc", mem["c"])
 	}
 	if err := saveArgoToken("c", "bad token"); err == nil {
-		t.Fatal("токен с пробелом должен отклоняться до хранилища")
+		t.Fatal("a token with whitespace must be rejected before reaching the store")
 	}
 	if err := deleteArgoToken("c"); err != nil || len(mem) != 0 {
-		t.Fatalf("удаление: %v, осталось %v", err, mem)
+		t.Fatalf("delete: %v, remaining %v", err, mem)
 	}
 }

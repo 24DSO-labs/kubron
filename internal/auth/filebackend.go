@@ -39,14 +39,14 @@ func (b *fileBackend) Load() (*Data, error) {
 		return &Data{}, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("не удалось прочитать %s: %w", b.path, err)
+		return nil, fmt.Errorf("failed to read %s: %w", b.path, err)
 	}
 	var fd fileData
 	if err := json.Unmarshal(data, &fd); err != nil {
-		return nil, fmt.Errorf("файл пользователей %s повреждён: %w", b.path, err)
+		return nil, fmt.Errorf("users file %s is corrupted: %w", b.path, err)
 	}
 	if fd.Version > storageVersion {
-		return nil, fmt.Errorf("файл пользователей %s создан более новой версией Kubron", b.path)
+		return nil, fmt.Errorf("users file %s was created by a newer version of Kubron", b.path)
 	}
 	return &Data{Users: fd.Users, Settings: fd.Settings}, nil
 }
