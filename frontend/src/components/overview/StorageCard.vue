@@ -2,7 +2,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <section class="ov-card st">
-    <h2 class="ov-card-title">Storage</h2>
+    <h2 class="ov-card-title">{{ $t('overview.storage.title') }}</h2>
 
     <ul v-if="state === 'ready' && vols.length" class="list">
       <li v-for="v in vols" :key="`${v.namespace}/${v.claim}`" class="row" :title="`${v.namespace}/${v.claim}`">
@@ -12,13 +12,13 @@
         <span class="sub">{{ v.namespace }} · {{ formatBytes(v.used) }} / {{ formatBytes(v.capacity) }}</span>
       </li>
     </ul>
-    <p v-else-if="state === 'ready'" class="none">No volume metrics yet (kubelet reports mounted volumes only)</p>
-    <p v-else-if="state === 'loading'" class="none">Loading…</p>
-    <p v-else class="none">Install the metrics stack in cluster settings to see volume usage</p>
+    <p v-else-if="state === 'ready'" class="none">{{ $t('overview.storage.empty') }}</p>
+    <p v-else-if="state === 'loading'" class="none">{{ $t('common.loading') }}</p>
+    <p v-else class="none">{{ $t('overview.storage.needMetrics') }}</p>
 
     <p v-if="data && (data.pvcPending || data.pvcLost)" class="alert">
-      <span v-if="data.pvcPending">{{ data.pvcPending }} PVC Pending</span>
-      <span v-if="data.pvcLost">{{ data.pvcLost }} PVC Lost</span>
+      <span v-if="data.pvcPending">{{ $t('overview.storage.pvcPending', { n: data.pvcPending }) }}</span>
+      <span v-if="data.pvcLost">{{ $t('overview.storage.pvcLost', { n: data.pvcLost }) }}</span>
     </p>
   </section>
 </template>

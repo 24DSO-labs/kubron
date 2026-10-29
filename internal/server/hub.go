@@ -21,8 +21,8 @@ const (
 // Hub доставляет события ядра подписанным WebSocket-соединениям. Реализует приёмник
 // webplatform.Platform.SetEmitter.
 //
-// Сейчас событие получают все подписанные соединения: ядро одно на всех (этап 2 добавит
-// адресацию по сессии, поле Conn.session уже хранится).
+// Emit доставляет событие всем подписанным соединениям (общие события); EmitTo — только соединениям
+// одной сессии. События сессионных видов ядра адресуются владельцу через EmitTo.
 type Hub struct {
 	mu    sync.RWMutex
 	conns map[*Conn]struct{}
@@ -37,7 +37,12 @@ type eventFrame struct {
 }
 
 // Emit рассылает событие подписчикам. Кадр сериализуется один раз; отправка не блокируется.
-func (h *Hub) Emit(event string, data ...any) {
+func (h *Hub) Emit(event string, data ...any) { h.deliver("", false, event, data) }
+
+// EmitTo доставляет событие только соединениям сессии session (и только подписанным на него).
+func (h *Hub) EmitTo(session, event string, data ...any) { h.deliver(session, true, event, data) }
+
+func (h *Hub) deliver(session string, addressed bool, event string, data []any) {
 	h.mu.RLock()
 	if len(h.conns) == 0 {
 		h.mu.RUnlock()
@@ -45,6 +50,9 @@ func (h *Hub) Emit(event string, data ...any) {
 	}
 	var frame []byte
 	for c := range h.conns {
+		if addressed && c.session != session {
+			continue
+		}
 		if !c.subscribed(event) {
 			continue
 		}
@@ -55,7 +63,7 @@ func (h *Hub) Emit(event string, data ...any) {
 			}
 			if frame, err = json.Marshal(eventFrame{Event: event, Data: data}); err != nil {
 				h.mu.RUnlock()
-				log.Printf("hub: событие %s не сериализуется: %v", event, err)
+				log.Printf("hub: event %s cannot be serialized: %v", event, err)
 				return
 			}
 		}
@@ -194,12 +202,12 @@ type clientMsg struct {
 func (c *Conn) Handle(raw []byte) []byte {
 	var m clientMsg
 	if err := json.Unmarshal(raw, &m); err != nil {
-		return mustJSON(map[string]any{"op": "error", "message": "ожидается JSON"})
+		return mustJSON(map[string]any{"op": "error", "message": "expected JSON"})
 	}
 	switch m.Op {
 	case "sub":
 		if !c.Subscribe(m.Events) {
-			return mustJSON(map[string]any{"op": "error", "message": "слишком много подписок"})
+			return mustJSON(map[string]any{"op": "error", "message": "too many subscriptions"})
 		}
 		return mustJSON(map[string]any{"op": "sub_ok", "events": m.Events})
 	case "unsub":
@@ -208,7 +216,7 @@ func (c *Conn) Handle(raw []byte) []byte {
 	case "ping":
 		return mustJSON(map[string]any{"op": "pong"})
 	default:
-		return mustJSON(map[string]any{"op": "error", "message": "неизвестная операция"})
+		return mustJSON(map[string]any{"op": "error", "message": "unknown operation"})
 	}
 }
 

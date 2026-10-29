@@ -28,23 +28,23 @@ func TestFindHelmUpdate(t *testing.T) {
 	r := idxWith("bitnami", "2.0.0", "1.5.0", "1.4.0", "1.3.0-rc.1")
 
 	if u := findHelmUpdate([]helmRepoIndex{r}, "web", "1.4.0"); u == nil || u.Latest != "2.0.0" || u.Repo != "bitnami" {
-		t.Errorf("обновление до 2.0.0: %+v", u)
+		t.Errorf("update to 2.0.0: %+v", u)
 	}
 	if u := findHelmUpdate([]helmRepoIndex{r}, "web", "2.0.0"); u != nil {
-		t.Errorf("уже последняя версия: %+v", u)
+		t.Errorf("already the latest version: %+v", u)
 	}
 	if u := findHelmUpdate([]helmRepoIndex{r}, "web", "v1.5.0"); u == nil || u.Latest != "2.0.0" {
-		t.Errorf("версия с префиксом v: %+v", u)
+		t.Errorf("version with a v prefix: %+v", u)
 	}
 	// установленной версии нет в индексе: источник неизвестен, ничего не предлагаем
 	if u := findHelmUpdate([]helmRepoIndex{r}, "web", "0.9.0"); u != nil {
-		t.Errorf("неизвестный источник: %+v", u)
+		t.Errorf("unknown source: %+v", u)
 	}
 	if u := findHelmUpdate([]helmRepoIndex{r}, "other", "1.0.0"); u != nil {
-		t.Errorf("чарта нет в репозитории: %+v", u)
+		t.Errorf("chart is not in the repository: %+v", u)
 	}
 	if u := findHelmUpdate([]helmRepoIndex{r}, "web", "not-a-version"); u != nil {
-		t.Errorf("некорректная версия: %+v", u)
+		t.Errorf("invalid version: %+v", u)
 	}
 }
 
@@ -52,15 +52,15 @@ func TestFindHelmUpdatePrerelease(t *testing.T) {
 	r := idxWith("repo", "3.0.0-beta.1", "2.0.0", "1.0.0")
 	// стабильная версия не получает пререлиз
 	if u := findHelmUpdate([]helmRepoIndex{r}, "web", "1.0.0"); u == nil || u.Latest != "2.0.0" {
-		t.Errorf("стабильная версия: %+v", u)
+		t.Errorf("stable version: %+v", u)
 	}
 	// пререлиз видит более новые пререлизы
 	if u := findHelmUpdate([]helmRepoIndex{r}, "web", "2.0.0"); u != nil {
-		t.Errorf("на 2.0.0 пререлиз 3.0.0-beta.1 предлагать нельзя: %+v", u)
+		t.Errorf("a 3.0.0-beta.1 prerelease must not be offered on 2.0.0: %+v", u)
 	}
 	rp := idxWith("repo", "3.0.0-beta.2", "3.0.0-beta.1", "2.0.0")
 	if u := findHelmUpdate([]helmRepoIndex{rp}, "web", "3.0.0-beta.1"); u == nil || u.Latest != "3.0.0-beta.2" {
-		t.Errorf("пререлиз → пререлиз: %+v", u)
+		t.Errorf("prerelease to prerelease: %+v", u)
 	}
 }
 
@@ -82,12 +82,12 @@ func TestHelmCacheDebounce(t *testing.T) {
 	}
 	time.Sleep(120 * time.Millisecond)
 	if got := n.Load(); got != 1 {
-		t.Fatalf("серия изменений должна склеиваться в одно уведомление, получено %d", got)
+		t.Fatalf("a burst of changes must coalesce into one notification, got %d", got)
 	}
 	c.changed()
 	time.Sleep(120 * time.Millisecond)
 	if got := n.Load(); got != 2 {
-		t.Fatalf("новое изменение после паузы: %d", got)
+		t.Fatalf("new change after a pause: %d", got)
 	}
 }
 
@@ -99,6 +99,6 @@ func TestHelmCacheStopCancelsPending(t *testing.T) {
 	c.changed() // после stop не должно срабатывать
 	time.Sleep(120 * time.Millisecond)
 	if got := n.Load(); got != 0 {
-		t.Fatalf("после stop уведомлений быть не должно, получено %d", got)
+		t.Fatalf("there must be no notifications after stop, got %d", got)
 	}
 }

@@ -1,7 +1,7 @@
 <!-- Copyright 2026 The Kubron Authors -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
-  <nav class="cluster-bar" aria-label="Кластеры">
+  <nav class="cluster-bar" :aria-label="$t('cluster.bar.label')">
     <div class="cluster-icons">
       <div
         v-for="cluster in clusters"
@@ -27,7 +27,7 @@
 
     <div class="cluster-bar-bottom">
       <div v-if="can(Perm.ClusterManage)" class="cluster-icon-wrap add-cluster" role="button" tabindex="0"
-        title="Добавить кластер" aria-label="Добавить кластер" @click="$emit('add')"
+        :title="$t('cluster.bar.add')" :aria-label="$t('cluster.bar.add')" @click="$emit('add')"
         @keydown.enter.prevent="$emit('add')" @keydown.space.prevent="$emit('add')">
         <div class="cluster-icon cluster-add">+</div>
       </div>
@@ -37,9 +37,9 @@
     <div v-if="contextMenu" class="cluster-context-menu" role="menu"
       :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }" @click.stop @contextmenu.prevent>
       <div class="ctx-menu-header">{{ contextMenu.cluster.displayName }}</div>
-      <div class="ctx-menu-item" role="menuitem" @click="onEdit">Редактировать…</div>
+      <div class="ctx-menu-item" role="menuitem" @click="onEdit">{{ $t('cluster.bar.edit') }}</div>
       <div class="ctx-separator"></div>
-      <div class="ctx-menu-item ctx-menu-danger" role="menuitem" @click="onDelete">Удалить…</div>
+      <div class="ctx-menu-item ctx-menu-danger" role="menuitem" @click="onDelete">{{ $t('cluster.bar.delete') }}</div>
     </div>
   </nav>
 </template>
@@ -47,6 +47,7 @@
 <script lang="ts" setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import type { ClusterStatus } from '../types'
+import { tl } from '../i18n'
 import { can } from '../composables/useAuth'
 import { Perm } from '../types/auth'
 import { findEnvironment } from './cluster/clusterStyle'
@@ -68,7 +69,7 @@ const contextMenu = ref<{ x: number; y: number; cluster: ClusterStatus } | null>
 
 function tooltip(cluster: ClusterStatus): string {
   const env = findEnvironment(cluster.environment)
-  return env ? `${cluster.displayName} · ${env.label}` : cluster.displayName
+  return env ? `${cluster.displayName} · ${tl(env.label)}` : cluster.displayName
 }
 
 function onRightClick(e: MouseEvent, cluster: ClusterStatus) {

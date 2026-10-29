@@ -38,7 +38,7 @@ func (m *Manager) GetResourceYAML(namespace, kind, name string, clean bool) (str
 
 	obj, err := ri.Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return "", fmt.Errorf("не удалось получить %s/%s: %w", kind, name, err)
+		return "", fmt.Errorf("failed to get %s/%s: %w", kind, name, err)
 	}
 
 	data := obj.Object
@@ -49,7 +49,7 @@ func (m *Manager) GetResourceYAML(namespace, kind, name string, clean bool) (str
 
 	out, err := yaml.Marshal(data)
 	if err != nil {
-		return "", fmt.Errorf("ошибка сериализации: %w", err)
+		return "", fmt.Errorf("failed to serialize: %w", err)
 	}
 	return string(out), nil
 }

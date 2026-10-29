@@ -17,9 +17,9 @@ func TestArgoInstalled(t *testing.T) {
 		resources []metav1.APIResource
 		want      bool
 	}{
-		{"нет группы", nil, false},
-		{"только appprojects", []metav1.APIResource{{Name: "appprojects"}}, false},
-		{"есть applications", []metav1.APIResource{{Name: "applications"}, {Name: "appprojects"}}, true},
+		{"no group", nil, false},
+		{"appprojects only", []metav1.APIResource{{Name: "appprojects"}}, false},
+		{"has applications", []metav1.APIResource{{Name: "applications"}, {Name: "appprojects"}}, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -29,7 +29,7 @@ func TestArgoInstalled(t *testing.T) {
 			}
 			got, err := argoInstalled(fd)
 			if err != nil {
-				t.Fatalf("неожиданная ошибка: %v", err)
+				t.Fatalf("unexpected error: %v", err)
 			}
 			if got != tc.want {
 				t.Fatalf("got %v, want %v", got, tc.want)
@@ -42,7 +42,7 @@ func TestArgoKindsRegistered(t *testing.T) {
 	for _, k := range []string{"application", "applicationset", "appproject"} {
 		info, ok := kindTable[k]
 		if !ok || info.gvr.Group != argoGroup || !info.namespaced {
-			t.Errorf("%s не зарегистрирован корректно: %+v", k, info)
+			t.Errorf("%s is not registered correctly: %+v", k, info)
 		}
 	}
 }

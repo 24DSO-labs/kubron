@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { defineResource } from '../../types'
+import { t } from '../../../i18n'
 import { callApp } from '../../wails'
 import { badgeClass, statusColor } from '../../status'
 import { flatNameCol, flatNsCol, ageCol } from '../common'
@@ -19,8 +20,9 @@ import { openArgoUI, refreshArgoApps, requestArgoDelete, setArgoAutoSync, reques
 
 const syncPolicy = (a: ArgoApplicationInfo) =>
   a.autoSync
-    ? ['Automated', a.prune ? 'prune' : '', a.selfHeal ? 'self-heal' : ''].filter(Boolean).join(', ')
-    : 'Manual'
+    ? [t('argo.syncPolicy.automated'), a.prune ? t('argo.syncPolicy.prune') : '', a.selfHeal ? t('argo.syncPolicy.selfHeal') : '']
+      .filter(Boolean).join(', ')
+    : t('argo.syncPolicy.manual')
 
 /** Argo CD Application (read-only, MVP: только Kubernetes API, CRD argoproj.io/v1alpha1) */
 export const argoApplication = defineResource<ArgoApplicationInfo>({
@@ -38,90 +40,90 @@ export const argoApplication = defineResource<ArgoApplicationInfo>({
   columns: [
     flatNameCol,
     flatNsCol,
-    { key: 'project', label: 'Project' },
+    { key: 'project', label: 'argo.columns.project' },
     {
       key: 'syncStatus',
-      label: 'Sync',
-      formatter: a => a.syncStatus || 'Unknown',
+      label: 'argo.columns.sync',
+      formatter: a => a.syncStatus || t('common.unknown'),
       colorFn: a => statusColor(a.syncStatus),
     },
     {
       key: 'healthStatus',
-      label: 'Health',
-      formatter: a => a.healthStatus || 'Unknown',
+      label: 'argo.columns.health',
+      formatter: a => a.healthStatus || t('common.unknown'),
       colorFn: a => statusColor(a.healthStatus),
     },
-    { key: 'repoURL', label: 'Repo', formatter: a => shortRepo(a.repoURL) || '—' },
-    { key: 'path', label: 'Path / Chart', formatter: a => argoPathOrChart(a) || '—' },
-    { key: 'revision', label: 'Revision', formatter: a => shortRevision(a.revision) || '—' },
-    { key: 'destNamespace', label: 'Destination', formatter: a => argoDestination(a) || '—' },
-    { key: 'lastSyncAt', label: 'Last sync', formatter: a => a.lastSyncAt || '—' },
+    { key: 'repoURL', label: 'argo.columns.repo', formatter: a => shortRepo(a.repoURL) || '—' },
+    { key: 'path', label: 'argo.sources.pathOrChart', formatter: a => argoPathOrChart(a) || '—' },
+    { key: 'revision', label: 'defs.columns.revision', formatter: a => shortRevision(a.revision) || '—' },
+    { key: 'destNamespace', label: 'argo.columns.destination', formatter: a => argoDestination(a) || '—' },
+    { key: 'lastSyncAt', label: 'argo.columns.lastSync', formatter: a => a.lastSyncAt || '—' },
     ageCol,
   ],
 
   properties: [
-    { label: 'Project', value: a => a.project },
-    { label: 'Sync Status', value: a => a.syncStatus, badge: a => badgeClass(a.syncStatus) },
-    { label: 'Health Status', value: a => a.healthStatus, badge: a => badgeClass(a.healthStatus) },
-    { label: 'Message', value: a => a.message, hideEmpty: true },
-    { label: 'Revision', value: a => a.revision, hideEmpty: true },
-    { label: 'Repository', value: a => shortRepo(a.repoURL), hideEmpty: true },
-    { label: 'Path / Chart', value: a => argoPathOrChart(a), hideEmpty: true },
-    { label: 'Target Revision', value: a => a.targetRevision, hideEmpty: true },
-    { label: 'Destination', value: a => argoDestination(a) },
-    { label: 'Sync Policy', value: syncPolicy },
+    { label: 'argo.columns.project', value: a => a.project },
+    { label: 'argo.props.syncStatus', value: a => a.syncStatus, badge: a => badgeClass(a.syncStatus) },
+    { label: 'argo.props.healthStatus', value: a => a.healthStatus, badge: a => badgeClass(a.healthStatus) },
+    { label: 'defs.columns.message', value: a => a.message, hideEmpty: true },
+    { label: 'defs.columns.revision', value: a => a.revision, hideEmpty: true },
+    { label: 'argo.sources.repository', value: a => shortRepo(a.repoURL), hideEmpty: true },
+    { label: 'argo.sources.pathOrChart', value: a => argoPathOrChart(a), hideEmpty: true },
+    { label: 'argo.sources.targetRevision', value: a => a.targetRevision, hideEmpty: true },
+    { label: 'argo.columns.destination', value: a => argoDestination(a) },
+    { label: 'argo.props.syncPolicy', value: syncPolicy },
     {
-      label: 'Last Sync',
+      label: 'argo.props.lastSync',
       value: a => [a.lastSyncPhase, a.lastSyncAt].filter(Boolean).join(' · ') || null,
       hideEmpty: true,
     },
-    { label: 'Operation', value: a => (a.operationOn ? 'In progress' : null), hideEmpty: true },
+    { label: 'argo.props.operation', value: a => (a.operationOn ? t('argo.props.inProgress') : null), hideEmpty: true },
   ],
 
   sections: [ArgoConditionsSection],
 
   tabs: [
-    { id: 'argoResources', label: 'Resources', component: ArgoResourcesTab },
-    { id: 'argoHistory', label: 'History', component: ArgoHistoryTab },
-    { id: 'argoGraph', label: 'Graph', component: ArgoGraphTab },
-    { id: 'argoDiff', label: 'Diff', component: ArgoDiffTab },
-    { id: 'argoSources', label: 'Sources', component: ArgoSourcesTab },
+    { id: 'argoResources', label: 'defs.tabs.resources', component: ArgoResourcesTab },
+    { id: 'argoHistory', label: 'defs.tabs.history', component: ArgoHistoryTab },
+    { id: 'argoGraph', label: 'argo.tabs.graph', component: ArgoGraphTab },
+    { id: 'argoDiff', label: 'argo.tabs.diff', component: ArgoDiffTab },
+    { id: 'argoSources', label: 'argo.tabs.sources', component: ArgoSourcesTab },
   ],
   actions: [
     {
-      id: 'sync', label: 'Sync', icon: 'refresh', permission: Perm.Operate,
+      id: 'sync', label: 'argo.menu.sync', icon: 'refresh', permission: Perm.Operate,
       when: a => !a.operationOn,
       run: a => requestArgoSync([a as ArgoApplicationInfo]),
     },
     {
-      id: 'refresh', label: 'Refresh', icon: 'restart', permission: Perm.Operate,
+      id: 'refresh', label: 'common.refresh', icon: 'restart', permission: Perm.Operate,
       run: a => refreshArgoApps([a as ArgoApplicationInfo], false),
     },
     {
-      id: 'hardrefresh', label: 'Hard Refresh', icon: 'restart', permission: Perm.Operate,
+      id: 'hardrefresh', label: 'argo.menu.hardRefresh', icon: 'restart', permission: Perm.Operate,
       run: a => refreshArgoApps([a as ArgoApplicationInfo], true),
     },
     {
-      id: 'terminate', label: 'Terminate operation', icon: 'stop', danger: true, permission: Perm.Operate,
+      id: 'terminate', label: 'argo.menu.terminate', icon: 'stop', danger: true, permission: Perm.Operate,
       when: a => !!a.operationOn,
       run: a => terminateArgoOperation([a as ArgoApplicationInfo]),
     },
     {
-      id: 'argoui', label: 'Open Argo UI', icon: 'open-browser', permission: Perm.PortForward,
+      id: 'argoui', label: 'argo.menu.openUi', icon: 'open-browser', permission: Perm.PortForward,
       run: () => openArgoUI(),
     },
         {
-      id: 'disableAutoSync', label: 'Disable auto-sync', icon: 'pause', permission: Perm.Write,
+      id: 'disableAutoSync', label: 'argo.menu.disableAutoSync', icon: 'pause', permission: Perm.Write,
       when: a => !!a.autoSync,
       run: a => setArgoAutoSync([a as ArgoApplicationInfo], false),
     },
     {
-      id: 'enableAutoSync', label: 'Enable auto-sync', icon: 'play', permission: Perm.Write,
+      id: 'enableAutoSync', label: 'argo.menu.enableAutoSync', icon: 'play', permission: Perm.Write,
       when: a => !a.autoSync,
       run: a => setArgoAutoSync([a as ArgoApplicationInfo], true),
     },
     {
-      id: 'delete', label: 'Delete', icon: 'delete', danger: true, permission: Perm.Write,
+      id: 'delete', label: 'common.delete', icon: 'delete', danger: true, permission: Perm.Write,
       run: a => requestArgoDelete(a as ArgoApplicationInfo),
     },
   ],

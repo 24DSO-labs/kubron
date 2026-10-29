@@ -15,11 +15,11 @@ func recv(t *testing.T, c *Conn) map[string]any {
 	case b := <-c.Out():
 		var m map[string]any
 		if err := json.Unmarshal(b, &m); err != nil {
-			t.Fatalf("не JSON: %s", b)
+			t.Fatalf("not JSON: %s", b)
 		}
 		return m
 	case <-time.After(time.Second):
-		t.Fatal("кадр не пришёл")
+		t.Fatal("no frame arrived")
 		return nil
 	}
 }
@@ -28,7 +28,7 @@ func noFrame(t *testing.T, c *Conn) {
 	t.Helper()
 	select {
 	case b := <-c.Out():
-		t.Fatalf("лишний кадр: %s", b)
+		t.Fatalf("unexpected frame: %s", b)
 	case <-time.After(30 * time.Millisecond):
 	}
 }
@@ -42,7 +42,7 @@ func TestHubDeliversOnlyToSubscribers(t *testing.T) {
 	h.Emit("cluster:changed", "prod", 3)
 	m := recv(t, a)
 	if m["event"] != "cluster:changed" {
-		t.Fatalf("кадр: %v", m)
+		t.Fatalf("frame: %v", m)
 	}
 	if d := m["data"].([]any); len(d) != 2 || d[0] != "prod" || d[1] != float64(3) {
 		t.Errorf("data: %v", d)
@@ -60,7 +60,7 @@ func TestHubEmitWithoutDataSendsEmptyArray(t *testing.T) {
 	c.Subscribe([]string{"terminal:exit:1"})
 	h.Emit("terminal:exit:1")
 	if d, ok := recv(t, c)["data"].([]any); !ok || len(d) != 0 {
-		t.Errorf("data должен быть []: %v", d)
+		t.Errorf("data must be []: %v", d)
 	}
 }
 
@@ -74,10 +74,10 @@ func TestHubSlowConsumerIsDropped(t *testing.T) {
 	select {
 	case <-c.Done():
 	case <-time.After(time.Second):
-		t.Fatal("медленный потребитель не отключён")
+		t.Fatal("the slow consumer was not disconnected")
 	}
 	if h.Len() != 0 {
-		t.Errorf("соединение осталось в хабе: %d", h.Len())
+		t.Errorf("the connection stayed in the hub: %d", h.Len())
 	}
 	h.Emit("e", 1) // не должно паниковать
 }
@@ -90,17 +90,17 @@ func TestHubCloseSession(t *testing.T) {
 		select {
 		case <-c.Done():
 		default:
-			t.Error("соединение сессии a не закрыто")
+			t.Error("the connection of session a is not closed")
 		}
 	}
 	select {
 	case <-b.Done():
-		t.Error("чужое соединение закрыто")
+		t.Error("a foreign connection is closed")
 	default:
 	}
 	a1.Close() // идемпотентно
 	if h.Len() != 1 {
-		t.Errorf("в хабе %d, ждали 1", h.Len())
+		t.Errorf("%d in the hub, expected 1", h.Len())
 	}
 }
 
@@ -122,7 +122,7 @@ func TestConnProtocol(t *testing.T) {
 	if m["op"] != "pong" {
 		t.Errorf("ping: %v", m)
 	}
-	for _, bad := range []string{`не json`, `{"op":"drop"}`} {
+	for _, bad := range []string{`not json`, `{"op":"drop"}`} {
 		_ = json.Unmarshal(c.Handle([]byte(bad)), &m)
 		if m["op"] != "error" {
 			t.Errorf("%s: %v", bad, m)
@@ -140,7 +140,7 @@ func TestSubscriptionLimit(t *testing.T) {
 	raw, _ := json.Marshal(map[string]any{"op": "sub", "events": ev})
 	_ = json.Unmarshal(c.Handle(raw), &m)
 	if m["op"] != "error" {
-		t.Errorf("ждали ошибку предела: %v", m["op"])
+		t.Errorf("expected a limit error: %v", m["op"])
 	}
 }
 
@@ -151,10 +151,10 @@ func TestSessionsOnEndNotified(t *testing.T) {
 	t1, s1 := ss.Create("a", nil)
 	_, s2 := ss.Create("b", nil) // вытесняет первую
 	if len(ended) != 1 || ended[0] != s1.ID || s1.ID == s2.ID || s1.ID == "" {
-		t.Fatalf("вытеснение: %v (%q, %q)", ended, s1.ID, s2.ID)
+		t.Fatalf("eviction: %v (%q, %q)", ended, s1.ID, s2.ID)
 	}
 	if _, ok := ss.Get(t1); ok {
-		t.Error("вытесненная сессия жива")
+		t.Error("the evicted session is still alive")
 	}
 	t2, _ := ss.Create("c", nil)
 	ended = nil
@@ -163,4 +163,23 @@ func TestSessionsOnEndNotified(t *testing.T) {
 	if len(ended) != 1 {
 		t.Errorf("Delete: %v", ended)
 	}
+}
+
+func TestHubEmitToReachesOnlyOwnerSession(t *testing.T) {
+	h := NewHub()
+	a1, a2, b := h.Register("A"), h.Register("A"), h.Register("B")
+	for _, c := range []*Conn{a1, a2, b} {
+		c.Subscribe([]string{"logs:data:1"}) // подписка на чужой id событий не даёт
+	}
+	h.EmitTo("A", "logs:data:1", "line")
+	if m := recv(t, a1); m["event"] != "logs:data:1" {
+		t.Fatalf("frame: %v", m)
+	}
+	recv(t, a2) // все соединения владельца
+	noFrame(t, b)
+
+	// Адресная доставка не обходит подписку.
+	a1.Unsubscribe([]string{"logs:data:1"})
+	h.EmitTo("A", "logs:data:1", "more")
+	noFrame(t, a1)
 }

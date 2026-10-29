@@ -77,7 +77,7 @@ func TestBuildHelmDetail(t *testing.T) {
 		t.Errorf("resources: %+v", d.Resources)
 	}
 	if _, err := buildHelmDetail(nil, "prod", "web"); err == nil {
-		t.Error("без ревизий ожидалась ошибка")
+		t.Error("expected an error without revisions")
 	}
 }
 
@@ -90,17 +90,17 @@ func TestMergeHelmValues(t *testing.T) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 	if chart["a"].(map[string]any)["b"] != 1 || chart["x"] != 1 {
-		t.Error("исходные значения чарта не должны меняться")
+		t.Error("original chart values must not change")
 	}
 }
 
 func TestRedactHelmManifest(t *testing.T) {
 	out := redactHelmManifest(testHelmManifest)
 	if strings.Contains(out, "UzNDUkVU") || !strings.Contains(out, argoSecretRedacted) {
-		t.Errorf("значение секрета не скрыто:\n%s", out)
+		t.Errorf("secret value is not hidden:\n%s", out)
 	}
 	if !strings.Contains(out, "kind: Deployment") || !strings.Contains(out, "# Source: app/templates/sec.yaml") {
-		t.Errorf("остальное должно сохраниться:\n%s", out)
+		t.Errorf("the rest must be preserved:\n%s", out)
 	}
 }
 
@@ -129,7 +129,7 @@ func TestHelmContentFrom(t *testing.T) {
 func TestValidateHelmRef(t *testing.T) {
 	for _, bad := range [][2]string{{"", "web"}, {"prod", ""}, {"prod", "a,owner=x"}, {"Prod", "web"}} {
 		if validateHelmRef(bad[0], bad[1]) == nil {
-			t.Errorf("%v должен отклоняться", bad)
+			t.Errorf("%v must be rejected", bad)
 		}
 	}
 	if err := validateHelmRef("prod", "my-app.v2"); err != nil {

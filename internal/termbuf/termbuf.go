@@ -25,9 +25,9 @@ const (
 )
 
 var (
-	ErrAttached   = errors.New("терминал уже подключён к другому соединению")
-	ErrNotFound   = errors.New("терминал не найден")
-	ErrTooMany    = errors.New("слишком много открытых терминалов")
+	ErrAttached   = errors.New("terminal is already attached to another connection")
+	ErrNotFound   = errors.New("terminal not found")
+	ErrTooMany    = errors.New("too many open terminals")
 	errNoCapacity = ErrTooMany
 )
 
@@ -35,7 +35,7 @@ var (
 func NewID() string {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
-		panic("termbuf: нет источника случайности: " + err.Error())
+		panic("termbuf: crypto/rand is unavailable: " + err.Error())
 	}
 	return hex.EncodeToString(b)
 }
@@ -121,6 +121,8 @@ type Hooks struct {
 	Input  func(p []byte) error
 	Resize func(cols, rows uint16) error
 	Close  func() // завершить сессию (процесс и поток)
+	// Owner — идентификатор веб-сессии владельца; подключиться к терминалу может только она.
+	Owner string
 }
 
 type entry struct {
@@ -173,6 +175,14 @@ func (r *Registry) Remove(id string) {
 	r.mu.Lock()
 	delete(r.items, id)
 	r.mu.Unlock()
+}
+
+// OwnedBy — сессия зарегистрирована и принадлежит owner.
+func (r *Registry) OwnedBy(id, owner string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	e, ok := r.items[id]
+	return ok && e.hooks.Owner == owner
 }
 
 // Exists — сессия зарегистрирована.

@@ -93,24 +93,24 @@ func TestBuildArgoGraphOwnersServiceIngress(t *testing.T) {
 		{ing, graphID("", "Service", ns, "shared-auth"), ArgoEdgeRoutes},
 	} {
 		if !hasEdge(g, edge[0], edge[1], edge[2]) {
-			t.Errorf("нет ребра %s -[%s]-> %s", edge[0], edge[2], edge[1])
+			t.Errorf("missing edge %s -[%s]-> %s", edge[0], edge[2], edge[1])
 		}
 	}
 
 	if findNode(g, graphID("apps", "ReplicaSet", ns, "other-xyz")) != nil {
-		t.Error("чужой ReplicaSet не должен попасть в граф")
+		t.Error("a foreign ReplicaSet must not get into the graph")
 	}
 	if findNode(g, graphID("", "Pod", ns, "stranger")) != nil || hasEdge(g, svc, graphID("", "Pod", ns, "stranger"), ArgoEdgeSelects) {
-		t.Error("под вне приложения не должен попасть в граф, даже если селектор совпал")
+		t.Error("a pod outside the application must not get into the graph even if the selector matches")
 	}
 	if n := findNode(g, graphID("", "Service", ns, "shared-auth")); n == nil || n.Managed {
-		t.Errorf("внешний Service из Ingress должен быть добавлен с managed=false: %+v", n)
+		t.Errorf("an external Service from an Ingress must be added with managed=false: %+v", n)
 	}
 	if n := findNode(g, dep); n == nil || !n.Managed || n.Health != "Healthy" || n.Status != "Synced" {
-		t.Errorf("managed-узел потерял статусы: %+v", n)
+		t.Errorf("managed node lost its statuses: %+v", n)
 	}
 	if findNode(g, graphID("rbac.authorization.k8s.io", "ClusterRole", "", "reader")) == nil {
-		t.Error("cluster-scoped ресурс должен быть узлом")
+		t.Error("a cluster-scoped resource must be a node")
 	}
 	if g.Truncated || len(g.Warnings) != 0 {
 		t.Errorf("truncated=%v warnings=%v", g.Truncated, g.Warnings)
@@ -120,7 +120,7 @@ func TestBuildArgoGraphOwnersServiceIngress(t *testing.T) {
 func TestBuildArgoGraphEmpty(t *testing.T) {
 	g := buildArgoGraph(context.Background(), fake.NewSimpleClientset(), nil)
 	if g.Nodes == nil || g.Edges == nil || g.Warnings == nil || len(g.Nodes) != 0 {
-		t.Errorf("пустой граф должен сериализоваться как [] без nil: %+v", g)
+		t.Errorf("an empty graph must serialize as [] without nil: %+v", g)
 	}
 }
 
@@ -134,10 +134,10 @@ func TestBuildArgoGraphForbiddenPodsGivesWarningNotError(t *testing.T) {
 	g := buildArgoGraph(context.Background(), c, []ArgoResourceRef{{Group: "apps", Kind: "Deployment", Namespace: "prod", Name: "web"}})
 
 	if len(g.Warnings) != 1 || !strings.Contains(g.Warnings[0], "pods") {
-		t.Fatalf("ожидалось одно предупреждение про pods: %v", g.Warnings)
+		t.Fatalf("expected one warning about pods: %v", g.Warnings)
 	}
 	if !hasEdge(g, graphID("apps", "Deployment", "prod", "web"), graphID("apps", "ReplicaSet", "prod", "web-abc"), ArgoEdgeOwns) {
-		t.Error("частичный граф (до подов) должен сохраниться")
+		t.Error("the partial graph (before pods) must be preserved")
 	}
 }
 
@@ -152,7 +152,7 @@ func TestBuildArgoGraphNodeLimit(t *testing.T) {
 	g := buildArgoGraph(context.Background(), fake.NewSimpleClientset(objs...), []ArgoResourceRef{{Group: "apps", Kind: "Deployment", Namespace: ns, Name: "web"}})
 
 	if !g.Truncated || len(g.Nodes) != argoGraphMaxNodes {
-		t.Fatalf("truncated=%v nodes=%d, ожидался предел %d", g.Truncated, len(g.Nodes), argoGraphMaxNodes)
+		t.Fatalf("truncated=%v nodes=%d, expected limit %d", g.Truncated, len(g.Nodes), argoGraphMaxNodes)
 	}
 	ids := map[string]bool{}
 	for _, n := range g.Nodes {
@@ -160,7 +160,7 @@ func TestBuildArgoGraphNodeLimit(t *testing.T) {
 	}
 	for _, e := range g.Edges {
 		if !ids[e.From] || !ids[e.To] {
-			t.Fatalf("висячее ребро после усечения: %+v", e)
+			t.Fatalf("dangling edge after truncation: %+v", e)
 		}
 	}
 }

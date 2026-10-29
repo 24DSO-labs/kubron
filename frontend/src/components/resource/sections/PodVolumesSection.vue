@@ -2,15 +2,15 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="rd-row rd-click" @click="open = !open">
-    <span class="rd-label">Volumes<span class="rd-arrow" :class="{ open }">›</span></span>
-    <span v-if="!open" class="rd-muted">{{ groups.length }} groups</span>
+    <span class="rd-label">{{ $t('sections.podVolumes.title') }}<span class="rd-arrow" :class="{ open }">›</span></span>
+    <span v-if="!open" class="rd-muted">{{ $t('sections.podVolumes.groups', groups.length) }}</span>
     <div v-else-if="groups.length" class="rd-wide" @click.stop>
       <div v-for="g in groups" :key="g.type" class="vol-group">
         <div class="vol-type">{{ g.type }}</div>
         <table class="rd-table">
           <thead>
             <tr>
-              <th v-for="col in g.columns" :key="col">{{ col }}</th>
+              <th v-for="col in g.columns" :key="col">{{ col === 'Name' ? $t('common.name') : col }}</th>
             </tr>
           </thead>
           <tbody>

@@ -65,13 +65,13 @@ type roleDef struct {
 // (и её идентификатор в roleOrder, чтобы она появилась в интерфейсе).
 var roles = map[Role]roleDef{
 	// Администратор может всё. Для него Has всегда true, в том числе для будущих прав.
-	RoleAdmin: {label: "Администратор", permissions: allPermissions},
+	RoleAdmin: {label: "Administrator", permissions: allPermissions},
 	// Оператор: всё, что может пользователь, плюс scale / restart / rollback / повтор Job.
 	// Не может удалять ресурсы, менять YAML, открывать терминал, пробрасывать порты и управлять
 	// кластерами и пользователями.
-	RoleOperator: {label: "Оператор", permissions: []Permission{PermRead, PermSecretsRead, PermOperate}},
+	RoleOperator: {label: "Operator", permissions: []Permission{PermRead, PermSecretsRead, PermOperate}},
 	// Пользователь: только чтение всего (включая значения секретов, как и договорено).
-	RoleUser: {label: "Пользователь", permissions: []Permission{PermRead, PermSecretsRead}},
+	RoleUser: {label: "User", permissions: []Permission{PermRead, PermSecretsRead}},
 }
 
 var roleOrder = []Role{RoleAdmin, RoleOperator, RoleUser}

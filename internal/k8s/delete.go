@@ -32,7 +32,7 @@ func (m *Manager) DeleteResource(kind, namespace, name string) error {
 	policy := metav1.DeletePropagationBackground
 	opts := metav1.DeleteOptions{PropagationPolicy: &policy}
 	if err := ri.Delete(ctx, name, opts); err != nil {
-		return fmt.Errorf("не удалось удалить %s %s: %w", kind, name, err)
+		return fmt.Errorf("failed to delete %s %s: %w", kind, name, err)
 	}
 	return nil
 }

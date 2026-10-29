@@ -1,0 +1,6 @@
+{
+  "noConnection": "No connection to the Kubron server",
+  "httpStatus": "Server responded with HTTP {status}",
+  "terminalConnect": "Could not connect to the terminal",
+  "fileTooLarge": "File is larger than {kb} KB"
+}

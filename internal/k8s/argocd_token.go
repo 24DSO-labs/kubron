@@ -4,13 +4,14 @@
 package k8s
 
 import (
-	"analog/pkg/ext"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"path/filepath"
 	"strings"
 	"unicode"
+
+	"github.com/VadimIl224/kubron/pkg/ext"
 )
 
 // ErrArgoTokenNotSet — для активного кластера не задан токен Argo CD API.
@@ -20,7 +21,7 @@ var ErrArgoTokenNotSet error = notSetError{}
 // могли сообщать об отсутствии токена общей ошибкой.
 type notSetError struct{}
 
-func (notSetError) Error() string        { return "токен Argo CD API не задан" }
+func (notSetError) Error() string        { return "Argo CD API token is not set" }
 func (notSetError) Is(target error) bool { return target == ext.ErrNotFound }
 
 const argoTokenMaxLen = 8192
@@ -39,7 +40,7 @@ type ArgoAPIStatus struct {
 // возвращать во фронтенд, писать в логи, передавать в a.authz (попадёт в аудит) и включать в тексты ошибок.
 func argoTokenPath(clusterID string) (string, error) {
 	if clusterID == "" {
-		return "", errors.New("нет активного кластера")
+		return "", errors.New("no active cluster")
 	}
 	sum := sha256.Sum256([]byte(clusterID))
 	return filepath.Join(argoTokenDir(), hex.EncodeToString(sum[:])+".token"), nil
@@ -50,14 +51,14 @@ func argoTokenPath(clusterID string) (string, error) {
 func normalizeArgoToken(token string) (string, error) {
 	t := strings.TrimSpace(token)
 	if t == "" {
-		return "", errors.New("токен пустой")
+		return "", errors.New("token is empty")
 	}
 	if len(t) > argoTokenMaxLen {
-		return "", errors.New("токен слишком длинный")
+		return "", errors.New("token is too long")
 	}
 	for _, r := range t {
 		if unicode.IsSpace(r) || unicode.IsControl(r) {
-			return "", errors.New("токен содержит пробелы или управляющие символы")
+			return "", errors.New("token contains whitespace or control characters")
 		}
 	}
 	return t, nil
@@ -87,7 +88,7 @@ func deleteArgoToken(clusterID string) error {
 func (m *Manager) GetArgoAPIStatus() (*ArgoAPIStatus, error) {
 	id := m.GetActiveContext()
 	if id == "" {
-		return nil, errors.New("нет активного подключения")
+		return nil, errors.New("no active connection")
 	}
 	_, err := loadArgoToken(id)
 	switch {
@@ -104,7 +105,7 @@ func (m *Manager) GetArgoAPIStatus() (*ArgoAPIStatus, error) {
 func (m *Manager) SetArgoAPIToken(token string) error {
 	id := m.GetActiveContext()
 	if id == "" {
-		return errors.New("нет активного подключения")
+		return errors.New("no active connection")
 	}
 	return saveArgoToken(id, token)
 }
@@ -113,7 +114,7 @@ func (m *Manager) SetArgoAPIToken(token string) error {
 func (m *Manager) DeleteArgoAPIToken() error {
 	id := m.GetActiveContext()
 	if id == "" {
-		return errors.New("нет активного подключения")
+		return errors.New("no active connection")
 	}
 	return deleteArgoToken(id)
 }

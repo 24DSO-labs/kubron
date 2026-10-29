@@ -8,13 +8,13 @@
         :key="m.id"
         :class="['metric-btn', { active: selected === m.id }]"
         @click="selected = m.id"
-      >{{ m.label }}</button>
+      >{{ m.label() }}</button>
     </div>
     <div class="metrics-chart-container">
       <MultiLineChart
         :key="selected"
-        :title="cfg.title"
-        :unit="cfg.unit"
+        :title="cfg.title()"
+        :unit="cfg.unit()"
         :fetch-data="fetchData"
         :format-value="cfg.format"
         :refresh-interval-ms="30000"
@@ -25,6 +25,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import MultiLineChart from './MultiLineChart.vue'
 import { usePrometheusRange } from '../../composables/useMetrics'
 
@@ -46,6 +47,7 @@ const props = defineProps<{
   owners?: { kind: string; regex: string }[]
 }>()
 
+const { t } = useI18n()
 const { queryRange } = usePrometheusRange(props.clusterName)
 
 const ns = () => `namespace="${props.namespace}"`
@@ -63,12 +65,13 @@ const own = (expr: string) => {
 }
 
   
-interface Line { label: string; expr: () => string }
+// label/title/unit — функции: текст считается при рендере и следует за языком интерфейса
+interface Line { label: () => string; expr: () => string }
 interface Cfg {
   id: string
-  label: string
-  title: string
-  unit: string
+  label: () => string
+  title: () => string
+  unit: () => string
   format: (v: number) => string
   lines: Line[]
 }
@@ -94,65 +97,65 @@ const formatDisk = (v: number) => v.toFixed(2)
 
 const list: Cfg[] = [
   {
-    id: 'cpu', label: 'CPU', title: 'CPU Usage', unit: 'cores', format: formatCpu,
+    id: 'cpu', label: () => t('metrics.tabs.cpu'), title: () => t('metrics.cpuUsage'), unit: () => t('metrics.units.cores'), format: formatCpu,
     lines: [
       {
-        label: 'CPU Usage',
+        label: () => t('metrics.cpuUsage'),
         expr: () => `sum(${own(`rate(container_cpu_usage_seconds_total{${ns()},container!="",container!="POD"}[5m])`)})`,
       },
       {
-        label: 'CPU Requests',
+        label: () => t('metrics.cpuRequests'),
         expr: () => `sum(${own(`kube_pod_container_resource_requests{${ns()},container!="POD",resource="cpu"}`)})`,
       },
       {
-        label: 'CPU Limits',
+        label: () => t('metrics.cpuLimits'),
         expr: () => `sum(${own(`kube_pod_container_resource_limits{${ns()},container!="POD",resource="cpu"}`)})`,
       },
     ],
   },
   {
-    id: 'memory', label: 'Memory', title: 'Memory Usage', unit: 'MB', format: formatMemoryMB,
+    id: 'memory', label: () => t('metrics.tabs.memory'), title: () => t('metrics.memoryUsage'), unit: () => 'MB', format: formatMemoryMB,
     lines: [
       {
-        label: 'Memory Usage',
+        label: () => t('metrics.memoryUsage'),
         expr: () => `sum(${own(`container_memory_working_set_bytes{${ns()},container!="",container!="POD"}`)}) / 1024 / 1024`,
       },
       {
-        label: 'Memory Requests',
+        label: () => t('metrics.memoryRequests'),
         expr: () => `sum(${own(`kube_pod_container_resource_requests{${ns()},container!="POD",resource="memory"}`)}) / 1024 / 1024`,
       },
       {
-        label: 'Memory Limits',
+        label: () => t('metrics.memoryLimits'),
         expr: () => `sum(${own(`kube_pod_container_resource_limits{${ns()},container!="POD",resource="memory"}`)}) / 1024 / 1024`,
       },
     ],
   },
   {
-    id: 'network', label: 'Network', title: 'Network Traffic', unit: 'KB/s', format: formatNetwork,
+    id: 'network', label: () => t('metrics.tabs.network'), title: () => t('metrics.networkTraffic'), unit: () => 'KB/s', format: formatNetwork,
     lines: [
       {
-        label: 'Receive',
+        label: () => t('metrics.receive'),
         expr: () => `sum(${own(`rate(container_network_receive_bytes_total{${ns()}}[5m])`)}) / 1024`,
       },
       {
-        label: 'Transmit',
+        label: () => t('metrics.transmit'),
         expr: () => `sum(${own(`rate(container_network_transmit_bytes_total{${ns()}}[5m])`)}) / 1024`,
       },
     ],
   },
   {
-    id: 'disk', label: 'Disk I/O', title: 'Disk I/O', unit: 'MB/s', format: formatDisk,
+    id: 'disk', label: () => t('metrics.tabs.diskIo'), title: () => t('metrics.diskIo'), unit: () => 'MB/s', format: formatDisk,
     lines: [
       {
-        label: 'File System Usage',
+        label: () => t('metrics.fsUsage'),
         expr: () => `sum(${own(`container_fs_usage_bytes{${ns()}}`)}) / 1024 / 1024`,
       },
       {
-        label: 'File System Writes',
+        label: () => t('metrics.fsWrites'),
         expr: () => `sum(${own(`rate(container_fs_writes_bytes_total{${ns()}}[5m])`)}) / 1024 / 1024`,
       },
       {
-        label: 'File System Reads',
+        label: () => t('metrics.fsReads'),
         expr: () => `sum(${own(`rate(container_fs_reads_bytes_total{${ns()}}[5m])`)}) / 1024 / 1024`,
       },
     ],
@@ -166,7 +169,7 @@ const fetchData = computed(() => {
   const lines = cfg.value.lines
   return async (start: number, end: number, step: number) => {
     const data = await Promise.all(lines.map(l => queryRange(l.expr(), start, end, step)))
-    return lines.map((l, i) => ({ label: l.label, data: data[i] }))
+    return lines.map((l, i) => ({ label: l.label(), data: data[i] }))
   }
 })
 </script>

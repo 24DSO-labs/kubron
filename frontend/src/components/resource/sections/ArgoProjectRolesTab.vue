@@ -13,7 +13,7 @@
       </div>
     </div>
   </div>
-  <div v-else class="rd-empty">No roles</div>
+  <div v-else class="rd-empty">{{ $t('argo.project.noRoles') }}</div>
 </template>
 
 <script lang="ts" setup>

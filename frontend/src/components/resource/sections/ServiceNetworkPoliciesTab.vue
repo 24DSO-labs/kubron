@@ -3,7 +3,7 @@
 <template>
   <div v-if="policies.length" class="rd-table-wrap">
     <table class="rd-table">
-      <thead><tr><th>Name</th><th>Policy types</th></tr></thead>
+      <thead><tr><th>{{ $t('common.name') }}</th><th>{{ $t('defs.columns.policyTypes') }}</th></tr></thead>
       <tbody>
         <tr
           v-for="p in policies"
@@ -17,7 +17,7 @@
       </tbody>
     </table>
   </div>
-  <div v-else class="rd-empty">No network policies select the pods of this service</div>
+  <div v-else class="rd-empty">{{ $t('sections.serviceNetworkPolicies.empty') }}</div>
 </template>
 
 <script lang="ts" setup>

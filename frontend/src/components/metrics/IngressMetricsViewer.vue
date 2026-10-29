@@ -4,11 +4,11 @@
   <div class="im-viewer">
     <div class="im-tabs">
       <button
-        v-for="t in tabs"
-        :key="t.id"
-        :class="['im-btn', { active: selected === t.id }]"
-        @click="selected = t.id"
-      >{{ t.label }}</button>
+        v-for="tb in tabs"
+        :key="tb.id"
+        :class="['im-btn', { active: selected === tb.id }]"
+        @click="selected = tb.id"
+      >{{ tb.label }}</button>
     </div>
     <div class="im-chart">
       <MultiLineChart
@@ -20,12 +20,13 @@
         :refresh-interval-ms="30000"
       />
     </div>
-    <p class="im-hint">Метрики ingress-nginx: контроллер должен собираться Prometheus-ом Kubron.</p>
+    <p class="im-hint">{{ $t('metrics.ingressHint') }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import MultiLineChart from './MultiLineChart.vue'
 import { usePrometheusRange } from '../../composables/useMetrics'
 
@@ -36,6 +37,7 @@ import { usePrometheusRange } from '../../composables/useMetrics'
  *  - Duration: средняя длительность запроса / ответа (sum / count гистограммы).
  */
 const props = defineProps<{ clusterName: string; namespace: string; ingress: string }>()
+const { t } = useI18n()
 const { queryRange } = usePrometheusRange(props.clusterName)
 
 type Series = { label: string; data: [number, number][] }
@@ -79,18 +81,18 @@ function tab(id: string, label: string, title: string, format: (v: number) => st
 }
 
 const tabs = computed<TabDef[]>(() => [
-  tab('network', 'Network', 'Network', bytesPerSec, [
-    ['Bytes sent, status 2xx', bytesSent('2..')],
-    ['Bytes sent, status 5xx', bytesSent('5..')],
+  tab('network', t('metrics.tabs.network'), t('metrics.tabs.network'), bytesPerSec, [
+    [t('metrics.bytesSent2xx'), bytesSent('2..')],
+    [t('metrics.bytesSent5xx'), bytesSent('5..')],
   ]),
-  tab('duration', 'Duration', 'Duration', seconds, [
-    ['Request', avgDuration('request_duration_seconds')],
-    ['Response', avgDuration('response_duration_seconds')],
+  tab('duration', t('metrics.tabs.duration'), t('metrics.tabs.duration'), seconds, [
+    [t('metrics.request'), avgDuration('request_duration_seconds')],
+    [t('metrics.response'), avgDuration('response_duration_seconds')],
   ]),
 ])
 
 const selected = ref('network')
-const current = computed(() => tabs.value.find(t => t.id === selected.value) ?? tabs.value[0])
+const current = computed(() => tabs.value.find(tb => tb.id === selected.value) ?? tabs.value[0])
 </script>
 
 <style scoped>

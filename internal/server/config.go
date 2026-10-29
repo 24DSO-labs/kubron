@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -18,8 +19,7 @@ type Config struct {
 	// Listen — адрес прослушивания, по умолчанию 127.0.0.1:8080 (KUBRON_LISTEN).
 	Listen string
 	// AllowRemote разрешает слушать не на loopback (KUBRON_ALLOW_REMOTE=1).
-	// До этапа 2 ядро держит одну общую сессию (новый вход выкидывает прежнего пользователя),
-	// а без TLS cookie уходит открытым текстом: для сети нужен обратный прокси с TLS.
+	// Без TLS cookie уходит открытым текстом: для сети нужен обратный прокси с TLS.
 	AllowRemote bool
 	// DataDir — каталог данных (пользователи, кластеры, журнал); пусто — ~/.kubron
 	// (--data-dir или KUBRON_DATA_DIR). Читается только сервером: десктоп переменную игнорирует.
@@ -30,11 +30,24 @@ type Config struct {
 	// SessionTTL — абсолютный срок жизни веб-сессии (KUBRON_SESSION_TTL, по умолчанию 12h);
 	// простой отслеживает ядро (SetIdleTimeout).
 	SessionTTL time.Duration
+	// Лимиты ресурсов на одного пользователя (0 — без ограничения):
+	// KUBRON_MAX_TERMINALS, KUBRON_MAX_LOG_STREAMS, KUBRON_MAX_PORT_FORWARDS.
+	MaxTerminals    int
+	MaxLogStreams   int
+	MaxPortForwards int
 }
+
+// Лимиты ресурсов на пользователя по умолчанию (ADR-0005).
+const (
+	DefaultMaxTerminals    = 8
+	DefaultMaxLogStreams   = 20
+	DefaultMaxPortForwards = 10
+)
 
 // LoadConfig разбирает флаги args (без имени программы) и окружение через getenv.
 func LoadConfig(args []string, getenv func(string) string, out io.Writer) (Config, error) {
-	cfg := Config{Listen: "127.0.0.1:8080", SessionTTL: 12 * time.Hour}
+	cfg := Config{Listen: "127.0.0.1:8080", SessionTTL: 12 * time.Hour,
+		MaxTerminals: DefaultMaxTerminals, MaxLogStreams: DefaultMaxLogStreams, MaxPortForwards: DefaultMaxPortForwards}
 	if v := getenv("KUBRON_LISTEN"); v != "" {
 		cfg.Listen = v
 	}
@@ -49,15 +62,35 @@ func LoadConfig(args []string, getenv func(string) string, out io.Writer) (Confi
 		cfg.SessionTTL = d
 	}
 
+	for _, l := range []struct {
+		env string
+		dst *int
+	}{
+		{"KUBRON_MAX_TERMINALS", &cfg.MaxTerminals},
+		{"KUBRON_MAX_LOG_STREAMS", &cfg.MaxLogStreams},
+		{"KUBRON_MAX_PORT_FORWARDS", &cfg.MaxPortForwards},
+	} {
+		if v := getenv(l.env); v != "" {
+			n, err := strconv.Atoi(strings.TrimSpace(v))
+			if err != nil {
+				return Config{}, fmt.Errorf("%s %q: %w", l.env, v, err)
+			}
+			*l.dst = n
+		}
+	}
+
 	fs := flag.NewFlagSet("kubron-server", flag.ContinueOnError)
 	fs.SetOutput(out)
-	fs.StringVar(&cfg.Listen, "listen", cfg.Listen, "адрес прослушивания (env KUBRON_LISTEN)")
+	fs.StringVar(&cfg.Listen, "listen", cfg.Listen, "listen address (env KUBRON_LISTEN)")
 	fs.BoolVar(&cfg.AllowRemote, "allow-remote", cfg.AllowRemote,
-		"разрешить не-loopback адрес; небезопасно без TLS-прокси (env KUBRON_ALLOW_REMOTE)")
-	fs.StringVar(&cfg.DataDir, "data-dir", cfg.DataDir, "каталог данных, по умолчанию ~/.kubron (env KUBRON_DATA_DIR)")
+		"allow a non-loopback address; unsafe without a TLS proxy (env KUBRON_ALLOW_REMOTE)")
+	fs.StringVar(&cfg.DataDir, "data-dir", cfg.DataDir, "data directory, defaults to ~/.kubron (env KUBRON_DATA_DIR)")
 	fs.BoolVar(&cfg.TrustProxy, "trust-proxy", cfg.TrustProxy,
-		"доверять X-Forwarded-Proto от обратного прокси, cookie с Secure (env KUBRON_TRUST_PROXY)")
-	fs.DurationVar(&cfg.SessionTTL, "session-ttl", cfg.SessionTTL, "срок жизни веб-сессии (env KUBRON_SESSION_TTL)")
+		"trust X-Forwarded-Proto from a reverse proxy, set Secure on cookies (env KUBRON_TRUST_PROXY)")
+	fs.DurationVar(&cfg.SessionTTL, "session-ttl", cfg.SessionTTL, "web session lifetime (env KUBRON_SESSION_TTL)")
+	fs.IntVar(&cfg.MaxTerminals, "max-terminals", cfg.MaxTerminals, "terminals per user, 0 for unlimited (env KUBRON_MAX_TERMINALS)")
+	fs.IntVar(&cfg.MaxLogStreams, "max-log-streams", cfg.MaxLogStreams, "log streams per user, 0 for unlimited (env KUBRON_MAX_LOG_STREAMS)")
+	fs.IntVar(&cfg.MaxPortForwards, "max-port-forwards", cfg.MaxPortForwards, "port-forwards per user, 0 for unlimited (env KUBRON_MAX_PORT_FORWARDS)")
 	if err := fs.Parse(args); err != nil {
 		return Config{}, err
 	}
@@ -75,15 +108,18 @@ func truthy(s string) bool {
 // Validate проверяет конфигурацию. Не-loopback адрес без явного разрешения — ошибка.
 func (c Config) Validate() error {
 	if c.SessionTTL <= 0 {
-		return errors.New("срок жизни сессии должен быть положительным")
+		return errors.New("session lifetime must be positive")
+	}
+	if c.MaxTerminals < 0 || c.MaxLogStreams < 0 || c.MaxPortForwards < 0 {
+		return errors.New("resource limits cannot be negative (0 means unlimited)")
 	}
 	host, _, err := net.SplitHostPort(c.Listen)
 	if err != nil {
 		return fmt.Errorf("listen %q: %w", c.Listen, err)
 	}
 	if !c.AllowRemote && !isLoopbackHost(host) {
-		return errors.New("адрес " + c.Listen + " не loopback: ядро пока работает с одной общей сессией, а TLS сервер не терминирует; " +
-			"для доступа по сети поставьте TLS-прокси и укажите --allow-remote")
+		return errors.New("address " + c.Listen + " is not loopback: the server does not terminate TLS, so the session cookie would be sent in plain text; " +
+			"to allow network access, put a TLS proxy in front and pass --allow-remote")
 	}
 	return nil
 }

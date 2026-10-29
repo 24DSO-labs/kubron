@@ -69,13 +69,15 @@ type helmCachedIndex struct {
 // ─── типы для UI ───
 
 type HelmRepoInfo struct {
-	Name        string `json:"name"`
-	URL         string `json:"url"`
-	Username    string `json:"username"`
-	InsecureTLS bool   `json:"insecureTLS"`
-	Charts      int    `json:"charts"`
-	Updated     string `json:"updated"` // RFC3339; "" — индекс ещё не скачан
-	Error       string `json:"error"`   // почему индекс не читается
+	Name        string   `json:"name"`
+	URL         string   `json:"url"`
+	Username    string   `json:"username"`
+	InsecureTLS bool     `json:"insecureTLS"`
+	Charts      int      `json:"charts"`
+	Updated     string   `json:"updated"`    // RFC3339; "" — индекс ещё не скачан
+	Error       string   `json:"error"`      // почему индекс не читается
+	Kind        string   `json:"kind"`       // http | oci
+	ChartNames  []string `json:"chartNames"` // только для oci: добавленные чарты
 }
 
 type HelmRepoUpdateResult struct {
@@ -126,7 +128,7 @@ type HelmChartPackage struct {
 
 func validateHelmRepoName(name string) error {
 	if !helmRepoNameRe.MatchString(name) {
-		return fmt.Errorf("некорректное имя репозитория %q: нужны строчные латинские буквы, цифры, «-», «_», «.» (до 63 символов)", name)
+		return fmt.Errorf("invalid repository name %q: use lowercase Latin letters, digits, '-', '_' and '.' (up to 63 characters)", name)
 	}
 	return nil
 }
@@ -135,23 +137,23 @@ func validateHelmRepoName(name string) error {
 func normalizeHelmRepoURL(raw string) (string, error) {
 	raw = strings.TrimSpace(raw)
 	if strings.HasPrefix(strings.ToLower(raw), "oci://") {
-		return "", errors.New("OCI-реестры пока не поддерживаются (будут в следующем шаге)")
+		return "", errors.New("for oci:// use 'Add OCI registry'")
 	}
 	u, err := url.Parse(raw)
 	if err != nil {
-		return "", fmt.Errorf("некорректный URL: %w", err)
+		return "", fmt.Errorf("invalid URL: %w", err)
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
-		return "", errors.New("URL репозитория должен начинаться с http:// или https://")
+		return "", errors.New("repository URL must start with http:// or https://")
 	}
 	if u.Host == "" || u.Hostname() == "" {
-		return "", errors.New("в URL не указан хост")
+		return "", errors.New("URL has no host")
 	}
 	if u.User != nil {
-		return "", errors.New("логин и пароль задаются отдельными полями, а не в URL")
+		return "", errors.New("username and password are set in separate fields, not in the URL")
 	}
 	if u.RawQuery != "" || u.Fragment != "" {
-		return "", errors.New("URL не должен содержать query и fragment")
+		return "", errors.New("URL must not contain a query or fragment")
 	}
 	return strings.TrimRight(u.String(), "/"), nil
 }
@@ -173,11 +175,11 @@ func loadHelmRepoFile() (*repo.File, error) {
 		return repo.NewFile(), nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("не удалось прочитать список репозиториев: %w", err)
+		return nil, fmt.Errorf("failed to read the repository list: %w", err)
 	}
 	f := repo.NewFile()
 	if err := yaml.Unmarshal(b, f); err != nil {
-		return nil, fmt.Errorf("repositories.yaml повреждён: %w", err)
+		return nil, fmt.Errorf("repositories.yaml is corrupted: %w", err)
 	}
 	return f, nil
 }
@@ -226,11 +228,11 @@ func helmGet(ctx context.Context, e *repo.Entry, rawURL string, limit int64) ([]
 		Timeout:   helmRepoHTTPTimeout,
 		CheckRedirect: func(r *http.Request, via []*http.Request) error {
 			if len(via) >= 10 {
-				return errors.New("слишком много редиректов")
+				return errors.New("too many redirects")
 			}
 			// https -> http отправил бы пароль открытым текстом
 			if r.URL.Scheme == "http" && via[len(via)-1].URL.Scheme == "https" {
-				return errors.New("редирект с https на http запрещён")
+				return errors.New("redirect from https to http is not allowed")
 			}
 			return nil
 		},
@@ -238,7 +240,7 @@ func helmGet(ctx context.Context, e *repo.Entry, rawURL string, limit int64) ([]
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("запрос к %s: %w", redactURLUser(rawURL), err)
+		return nil, fmt.Errorf("request to %s: %w", redactURLUser(rawURL), err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
@@ -246,10 +248,10 @@ func helmGet(ctx context.Context, e *repo.Entry, rawURL string, limit int64) ([]
 	}
 	data, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 	if err != nil {
-		return nil, fmt.Errorf("чтение ответа %s: %w", redactURLUser(rawURL), err)
+		return nil, fmt.Errorf("reading response from %s: %w", redactURLUser(rawURL), err)
 	}
 	if int64(len(data)) > limit {
-		return nil, fmt.Errorf("ответ %s больше %d МиБ", redactURLUser(rawURL), limit>>20)
+		return nil, fmt.Errorf("response from %s is larger than %d MiB", redactURLUser(rawURL), limit>>20)
 	}
 	return data, nil
 }
@@ -257,7 +259,7 @@ func helmGet(ctx context.Context, e *repo.Entry, rawURL string, limit int64) ([]
 func redactURLUser(raw string) string {
 	u, err := url.Parse(raw)
 	if err != nil {
-		return "(некорректный URL)"
+		return "(invalid URL)"
 	}
 	u.User = nil
 	return u.String()
@@ -287,7 +289,7 @@ func downloadHelmIndex(ctx context.Context, e *repo.Entry) (tmpPath string, idx 
 	idx, err = repo.LoadIndexFile(tmpPath)
 	if err != nil {
 		_ = os.Remove(tmpPath)
-		return "", nil, fmt.Errorf("index.yaml не является индексом Helm-репозитория: %w", err)
+		return "", nil, fmt.Errorf("index.yaml is not a Helm repository index: %w", err)
 	}
 	return tmpPath, idx, nil
 }
@@ -351,18 +353,21 @@ func (m *Manager) ListHelmRepos() ([]HelmRepoInfo, error) {
 		if e == nil || validateHelmRepoName(e.Name) != nil {
 			continue
 		}
-		info := HelmRepoInfo{Name: e.Name, URL: e.URL, Username: e.Username, InsecureTLS: e.InsecureSkipTLSVerify}
+		info := HelmRepoInfo{Name: e.Name, URL: e.URL, Username: e.Username, InsecureTLS: e.InsecureSkipTLSVerify, Kind: "http"}
 		idx, mod, err := loadHelmIndex(e.Name)
 		switch {
 		case err == nil:
 			info.Charts = countHelmCharts(idx)
 			info.Updated = mod.UTC().Format(time.RFC3339)
 		case errors.Is(err, os.ErrNotExist):
-			info.Error = "индекс не скачан: выполните Update"
+			info.Error = "index is not downloaded: run Update"
 		default:
 			info.Error = err.Error()
 		}
 		out = append(out, info)
+	}
+	if oci, err := ociInfos(); err == nil {
+		out = append(out, oci...)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out, nil
@@ -378,7 +383,7 @@ func (m *Manager) AddHelmRepo(name, rawURL, username, password string, insecureT
 		return err
 	}
 	if password != "" && username == "" {
-		return errors.New("пароль без имени пользователя")
+		return errors.New("password without a username")
 	}
 	e := &repo.Entry{Name: name, URL: u, Username: username, Password: password, InsecureSkipTLSVerify: insecureTLS}
 
@@ -389,12 +394,15 @@ func (m *Manager) AddHelmRepo(name, rawURL, username, password string, insecureT
 		return err
 	}
 	if f.Has(name) {
-		return fmt.Errorf("репозиторий %q уже добавлен", name)
+		return fmt.Errorf("repository %q is already added", name)
+	}
+	if _, isOCI, _ := ociFind(name); isOCI {
+		return fmt.Errorf("repository %q is already added", name)
 	}
 
 	tmp, _, err := downloadHelmIndex(context.Background(), e)
 	if err != nil {
-		return fmt.Errorf("репозиторий %q недоступен: %w", name, err)
+		return fmt.Errorf("repository %q is unavailable: %w", name, err)
 	}
 
 	helmRepoMu.Lock()
@@ -406,7 +414,7 @@ func (m *Manager) AddHelmRepo(name, rawURL, username, password string, insecureT
 	}
 	if f.Has(name) {
 		_ = os.Remove(tmp)
-		return fmt.Errorf("репозиторий %q уже добавлен", name)
+		return fmt.Errorf("repository %q is already added", name)
 	}
 	if err := commitHelmIndex(name, tmp); err != nil {
 		return err
@@ -414,7 +422,7 @@ func (m *Manager) AddHelmRepo(name, rawURL, username, password string, insecureT
 	f.Add(e)
 	if err := saveHelmRepoFile(f); err != nil {
 		_ = os.Remove(helmIndexPath(name))
-		return fmt.Errorf("не удалось сохранить список репозиториев: %w", err)
+		return fmt.Errorf("failed to save the repository list: %w", err)
 	}
 	return nil
 }
@@ -423,6 +431,11 @@ func (m *Manager) RemoveHelmRepo(name string) error {
 	if err := validateHelmRepoName(name); err != nil {
 		return err
 	}
+	if _, isOCI, err := ociFind(name); err != nil {
+		return err
+	} else if isOCI {
+		return ociRemove(name)
+	}
 	helmRepoMu.Lock()
 	defer helmRepoMu.Unlock()
 	f, err := loadHelmRepoFile()
@@ -430,7 +443,7 @@ func (m *Manager) RemoveHelmRepo(name string) error {
 		return err
 	}
 	if !f.Remove(name) {
-		return fmt.Errorf("репозиторий %q не найден", name)
+		return fmt.Errorf("repository %q not found", name)
 	}
 	if err := saveHelmRepoFile(f); err != nil {
 		return err
@@ -445,6 +458,27 @@ func (m *Manager) RemoveHelmRepo(name string) error {
 // UpdateHelmRepos обновляет индексы: name == "" — все репозитории (до 4 параллельно).
 // Ошибка одного репозитория не мешает остальным и возвращается в его результате.
 func (m *Manager) UpdateHelmRepos(name string) ([]HelmRepoUpdateResult, error) {
+	if name != "" {
+		if _, isOCI, err := ociFind(name); err != nil {
+			return nil, err
+		} else if isOCI {
+			return ociUpdate(name)
+		}
+	}
+	res, err := m.updateHTTPRepos(name)
+	if err != nil {
+		return nil, err
+	}
+	if name == "" {
+		if more, err := ociUpdate(""); err == nil {
+			res = append(res, more...)
+			sort.Slice(res, func(i, j int) bool { return res[i].Name < res[j].Name })
+		}
+	}
+	return res, nil
+}
+
+func (m *Manager) updateHTTPRepos(name string) ([]HelmRepoUpdateResult, error) {
 	if name != "" {
 		if err := validateHelmRepoName(name); err != nil {
 			return nil, err
@@ -463,7 +497,7 @@ func (m *Manager) UpdateHelmRepos(name string) ([]HelmRepoUpdateResult, error) {
 		}
 	}
 	if name != "" && len(targets) == 0 {
-		return nil, fmt.Errorf("репозиторий %q не найден", name)
+		return nil, fmt.Errorf("repository %q not found", name)
 	}
 
 	results := make([]HelmRepoUpdateResult, len(targets))
@@ -496,7 +530,7 @@ func updateOneHelmRepo(e *repo.Entry) HelmRepoUpdateResult {
 	cur, err := loadHelmRepoFile()
 	if err != nil || cur.Get(e.Name) == nil || cur.Get(e.Name).URL != e.URL {
 		_ = os.Remove(tmp)
-		res.Error = "репозиторий изменён во время обновления"
+		res.Error = "repository was changed during the update"
 		return res
 	}
 	if err := commitHelmIndex(e.Name, tmp); err != nil {
@@ -545,6 +579,7 @@ func (m *Manager) SearchHelmCharts(query, repoName string) (*HelmCatalogResult, 
 			})
 		}
 	}
+	all = append(all, ociSearch(terms, repoName)...)
 	sort.Slice(all, func(i, j int) bool {
 		if all[i].Name != all[j].Name {
 			return all[i].Name < all[j].Name
@@ -586,22 +621,27 @@ func helmRepoEntry(name string) (*repo.Entry, error) {
 	}
 	e := f.Get(name)
 	if e == nil {
-		return nil, fmt.Errorf("репозиторий %q не найден", name)
+		return nil, fmt.Errorf("repository %q not found", name)
 	}
 	return e, nil
 }
 
 func (m *Manager) GetHelmChartVersions(repoName, chartName string) ([]HelmChartVersionInfo, error) {
+	if r, isOCI, err := ociFind(repoName); err != nil {
+		return nil, err
+	} else if isOCI {
+		return ociVersions(r, chartName)
+	}
 	if _, err := helmRepoEntry(repoName); err != nil {
 		return nil, err
 	}
 	idx, _, err := loadHelmIndex(repoName)
 	if err != nil {
-		return nil, fmt.Errorf("индекс репозитория %q недоступен: %w", repoName, err)
+		return nil, fmt.Errorf("index of repository %q is unavailable: %w", repoName, err)
 	}
 	versions := idx.Entries[chartName]
 	if len(versions) == 0 {
-		return nil, fmt.Errorf("чарт %q не найден в репозитории %q", chartName, repoName)
+		return nil, fmt.Errorf("chart %q not found in repository %q", chartName, repoName)
 	}
 	out := make([]HelmChartVersionInfo, 0, len(versions))
 	for _, v := range versions {
@@ -628,11 +668,11 @@ func resolveChartURL(repoURL, ref string) (string, error) {
 	}
 	r, err := url.Parse(ref)
 	if err != nil {
-		return "", fmt.Errorf("некорректная ссылка на чарт: %w", err)
+		return "", fmt.Errorf("invalid chart URL: %w", err)
 	}
 	abs := base.ResolveReference(r)
 	if abs.Scheme != "http" && abs.Scheme != "https" {
-		return "", fmt.Errorf("ссылка на чарт со схемой %q не поддерживается", abs.Scheme)
+		return "", fmt.Errorf("chart URL with scheme %q is not supported", abs.Scheme)
 	}
 	abs.User = nil
 	return abs.String(), nil
@@ -646,14 +686,14 @@ func lookupHelmChartVersion(repoName, chartName, version string) (*repo.Entry, *
 	}
 	idx, _, err := loadHelmIndex(repoName)
 	if err != nil {
-		return nil, nil, fmt.Errorf("индекс репозитория %q недоступен: %w", repoName, err)
+		return nil, nil, fmt.Errorf("index of repository %q is unavailable: %w", repoName, err)
 	}
 	cv, err := idx.Get(chartName, version)
 	if err != nil {
 		return nil, nil, err
 	}
 	if len(cv.URLs) == 0 {
-		return nil, nil, fmt.Errorf("у чарта %s %s нет ссылки на архив", chartName, cv.Version)
+		return nil, nil, fmt.Errorf("chart %s %s has no archive URL", chartName, cv.Version)
 	}
 	return e, cv, nil
 }
@@ -671,18 +711,23 @@ func downloadHelmChart(ctx context.Context, e *repo.Entry, cv *repo.ChartVersion
 	if cv.Digest != "" {
 		sum := sha256.Sum256(data)
 		if !strings.EqualFold(hex.EncodeToString(sum[:]), cv.Digest) {
-			return nil, errors.New("контрольная сумма архива не совпадает с index.yaml")
+			return nil, errors.New("archive checksum does not match index.yaml")
 		}
 	}
 	c, err := loader.LoadArchive(bytes.NewReader(data))
 	if err != nil {
-		return nil, fmt.Errorf("не удалось разобрать архив чарта: %w", err)
+		return nil, fmt.Errorf("failed to parse chart archive: %w", err)
 	}
 	return c, nil
 }
 
 // GetHelmChartPackage скачивает архив чарта из репозитория и отдаёт README и values.yaml.
 func (m *Manager) GetHelmChartPackage(repoName, chartName, version string) (*HelmChartPackage, error) {
+	if r, isOCI, err := ociFind(repoName); err != nil {
+		return nil, err
+	} else if isOCI {
+		return ociPackage(r, chartName, version)
+	}
 	e, cv, err := lookupHelmChartVersion(repoName, chartName, version)
 	if err != nil {
 		return nil, err
@@ -740,7 +785,7 @@ func (m *Manager) GetHelmChartPackage(repoName, chartName, version string) (*Hel
 
 func clipText(b []byte) string {
 	if len(b) > helmPackageTextMax {
-		return string(b[:helmPackageTextMax]) + "\n… (обрезано)"
+		return string(b[:helmPackageTextMax]) + "\n… (truncated)"
 	}
 	return string(b)
 }

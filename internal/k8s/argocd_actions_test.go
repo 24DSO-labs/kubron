@@ -20,20 +20,20 @@ func newArgoDyn(objs ...runtime.Object) *dynamicfake.FakeDynamicClient {
 }
 
 func TestApplySyncOperation(t *testing.T) {
-	t.Run("занято", func(t *testing.T) {
+	t.Run("busy", func(t *testing.T) {
 		obj := argoApp("argocd", "a", map[string]interface{}{"operation": map[string]interface{}{"sync": map[string]interface{}{}}})
 		if err := applySyncOperation(obj, ArgoSyncOptions{}); err == nil {
-			t.Fatal("ожидалась ошибка: операция уже идёт")
+			t.Fatal("expected an error: an operation is already running")
 		}
 	})
-	t.Run("идёт фаза Running", func(t *testing.T) {
+	t.Run("phase Running in progress", func(t *testing.T) {
 		obj := argoApp("argocd", "a", map[string]interface{}{"status": map[string]interface{}{
 			"operationState": map[string]interface{}{"phase": "Running"}}})
 		if err := applySyncOperation(obj, ArgoSyncOptions{}); err == nil {
-			t.Fatal("ожидалась ошибка")
+			t.Fatal("expected an error")
 		}
 	})
-	t.Run("параметры попадают в операцию", func(t *testing.T) {
+	t.Run("parameters end up in the operation", func(t *testing.T) {
 		obj := argoApp("argocd", "a", map[string]interface{}{"spec": map[string]interface{}{
 			"syncPolicy": map[string]interface{}{"syncOptions": []interface{}{"CreateNamespace=true"}}}})
 		if err := applySyncOperation(obj, ArgoSyncOptions{Revision: "main", Prune: true, Force: true, DryRun: true}); err != nil {
@@ -55,14 +55,14 @@ func TestApplySyncOperation(t *testing.T) {
 			t.Error("initiatedBy")
 		}
 	})
-	t.Run("revision у multi-source", func(t *testing.T) {
+	t.Run("revision for multi-source", func(t *testing.T) {
 		obj := argoApp("argocd", "a", map[string]interface{}{"spec": map[string]interface{}{
 			"sources": []interface{}{map[string]interface{}{"repoURL": "x"}}}})
 		if err := applySyncOperation(obj, ArgoSyncOptions{Revision: "v1"}); err == nil {
-			t.Fatal("ожидался отказ")
+			t.Fatal("expected a refusal")
 		}
 		if err := applySyncOperation(obj, ArgoSyncOptions{}); err != nil {
-			t.Fatalf("без revision должно работать: %v", err)
+			t.Fatalf("must work without revision: %v", err)
 		}
 	})
 }
@@ -82,13 +82,13 @@ func TestApplyTerminate(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, found, _ := unstructured.NestedFieldNoCopy(pending.Object, "operation"); found {
-		t.Error("operation должна быть удалена")
+		t.Error("operation must be removed")
 	}
 
 	idle := argoApp("argocd", "c", map[string]interface{}{"status": map[string]interface{}{
 		"operationState": map[string]interface{}{"phase": "Succeeded"}}})
 	if err := applyTerminate(idle); err == nil {
-		t.Error("нечего останавливать: ожидалась ошибка")
+		t.Error("nothing to stop: expected an error")
 	}
 }
 
@@ -110,7 +110,7 @@ func TestApplyRollback(t *testing.T) {
 	}
 
 	if err := applyRollback(argoApp("argocd", "b", map[string]interface{}{"status": status}), 99, false, false); err == nil {
-		t.Error("неизвестный id: ожидалась ошибка")
+		t.Error("unknown id: expected an error")
 	}
 
 	auto := argoApp("argocd", "c", map[string]interface{}{
@@ -118,7 +118,7 @@ func TestApplyRollback(t *testing.T) {
 		"spec":   map[string]interface{}{"syncPolicy": map[string]interface{}{"automated": map[string]interface{}{}}},
 	})
 	if err := applyRollback(auto, 3, false, false); err == nil {
-		t.Error("при auto-sync откат должен быть запрещён")
+		t.Error("rollback must be forbidden with auto-sync")
 	}
 }
 
@@ -128,7 +128,7 @@ func TestSyncAndRefreshArgoApps(t *testing.T) {
 	gvr := kindTable["application"].gvr
 
 	if _, err := syncArgoApps(ctx, dyn, []ArgoAppRef{{"argocd", "a"}, {"argocd", "b"}}, ArgoSyncOptions{Revision: "x"}); err == nil {
-		t.Error("revision для нескольких приложений должен отклоняться")
+		t.Error("revision for several applications must be rejected")
 	}
 
 	res, err := syncArgoApps(ctx, dyn, []ArgoAppRef{{"argocd", "a"}, {"argocd", "missing"}, {"argocd", "a"}}, ArgoSyncOptions{Prune: true})
@@ -136,18 +136,18 @@ func TestSyncAndRefreshArgoApps(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(res) != 2 || res[0].Error != "" || res[1].Error == "" {
-		t.Fatalf("результаты (дубликат схлопнут, отсутствующее — ошибка): %+v", res)
+		t.Fatalf("results (duplicate collapsed, missing one is an error): %+v", res)
 	}
 	got, err := dyn.Resource(gvr).Namespace("argocd").Get(ctx, "a", metav1.GetOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !boolAt(got.Object, "operation", "sync", "prune") {
-		t.Errorf("операция не записана: %v", got.Object)
+		t.Errorf("operation was not recorded: %v", got.Object)
 	}
 	// повторный sync, пока операция не снята, отклоняется
 	if res, _ := syncArgoApps(ctx, dyn, []ArgoAppRef{{"argocd", "a"}}, ArgoSyncOptions{}); res[0].Error == "" {
-		t.Error("ожидался отказ при уже запрошенной операции")
+		t.Error("expected a refusal when an operation is already requested")
 	}
 
 	if _, err := refreshArgoApps(ctx, dyn, []ArgoAppRef{{"argocd", "a"}}, true); err != nil {
@@ -155,16 +155,16 @@ func TestSyncAndRefreshArgoApps(t *testing.T) {
 	}
 	got, _ = dyn.Resource(gvr).Namespace("argocd").Get(ctx, "a", metav1.GetOptions{})
 	if got.GetAnnotations()[argoRefreshAnnotation] != "hard" {
-		t.Errorf("аннотации: %v", got.GetAnnotations())
+		t.Errorf("annotations: %v", got.GetAnnotations())
 	}
 }
 
 func TestNormalizeArgoRefs(t *testing.T) {
 	if _, err := normalizeArgoRefs(nil); err == nil {
-		t.Error("пустой список")
+		t.Error("empty list")
 	}
 	if _, err := normalizeArgoRefs([]ArgoAppRef{{"", "x"}}); err == nil {
-		t.Error("пустой namespace")
+		t.Error("empty namespace")
 	}
 	got, err := normalizeArgoRefs([]ArgoAppRef{{" a ", "x"}, {"a", "x"}, {"a", "y"}})
 	if err != nil || len(got) != 2 {
@@ -179,27 +179,27 @@ func TestSuspendResumeAutoSync(t *testing.T) {
 		t.Fatal(err)
 	}
 	if autoSyncEnabled(obj.Object) {
-		t.Fatal("automated должен быть удалён")
+		t.Fatal("automated must be removed")
 	}
 	if err := applySuspendAutoSync(obj); err == nil {
-		t.Error("повторное отключение должно давать ошибку")
+		t.Error("disabling again must give an error")
 	}
 	if err := applyResumeAutoSync(obj); err != nil {
 		t.Fatal(err)
 	}
 	if !boolAt(obj.Object, "spec", "syncPolicy", "automated", "prune") || !boolAt(obj.Object, "spec", "syncPolicy", "automated", "selfHeal") {
-		t.Errorf("параметры не восстановлены: %v", obj.Object["spec"])
+		t.Errorf("parameters were not restored: %v", obj.Object["spec"])
 	}
 	if _, ok := obj.GetAnnotations()[argoSuspendedAnnotation]; ok {
-		t.Error("аннотация должна быть удалена")
+		t.Error("the annotation must be removed")
 	}
 	if err := applyResumeAutoSync(obj); err == nil {
-		t.Error("повторное включение должно давать ошибку")
+		t.Error("enabling again must give an error")
 	}
 
 	plain := argoApp("argocd", "b", nil) // без сохранённых параметров: включится пустой automated
 	if err := applyResumeAutoSync(plain); err != nil || !autoSyncEnabled(plain.Object) {
-		t.Errorf("resume без аннотации: %v", err)
+		t.Errorf("resume without annotation: %v", err)
 	}
 }
 
@@ -209,14 +209,14 @@ func TestApplyDeletePolicy(t *testing.T) {
 
 	applyDeletePolicy(obj, true)
 	if got := obj.GetFinalizers(); len(got) != 2 || got[1] != argoResourcesFinalizer+"/background" {
-		t.Errorf("cascade не должен дублировать финализатор: %v", got)
+		t.Errorf("cascade must not duplicate the finalizer: %v", got)
 	}
 	applyDeletePolicy(obj, false)
 	if got := obj.GetFinalizers(); len(got) != 1 || got[0] != "other" {
-		t.Errorf("без cascade финализатор Argo снимается, чужие остаются: %v", got)
+		t.Errorf("without cascade the Argo finalizer is removed and foreign ones stay: %v", got)
 	}
 	applyDeletePolicy(obj, true)
 	if got := obj.GetFinalizers(); len(got) != 2 || got[1] != argoResourcesFinalizer {
-		t.Errorf("cascade добавляет финализатор: %v", got)
+		t.Errorf("cascade adds the finalizer: %v", got)
 	}
 }

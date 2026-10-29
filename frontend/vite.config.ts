@@ -51,6 +51,13 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(import.meta.dirname, './src'),
       },
     },
+    // Флаги сборки vue-i18n (esm-bundler): без них в dev-консоли предупреждение, а в продакшене
+    // в бандл попадает Options API, которым мы не пользуемся (только Composition API).
+    define: {
+      __VUE_I18N_FULL_INSTALL__: true,
+      __VUE_I18N_LEGACY_API__: false,
+      __INTLIFY_PROD_DEVTOOLS__: false,
+    },
     // Только чистая логика (без DOM/Wails): node-окружение быстрее и не прячет случайные зависимости от window.
     // Wails-runtime подменяется плагином wails-runtime-stub, поэтому `npm test` не требует `wails generate module`.
     test: {

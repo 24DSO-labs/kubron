@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { BrowserOpenURL } from '../../wailsjs/runtime/runtime'
+import { t } from '../i18n'
 
 /**
  * Открывает ссылку в браузере пользователя.
@@ -28,7 +29,7 @@ export function pickTextFile(accept = '', maxBytes = 1 << 20): Promise<string | 
     input.onchange = () => {
       const file = input.files?.[0]
       if (!file) return resolve(null)
-      if (file.size > maxBytes) return reject(new Error(`файл больше ${Math.round(maxBytes / 1024)} КБ`))
+      if (file.size > maxBytes) return reject(new Error(t('platform.fileTooLarge', { kb: Math.round(maxBytes / 1024) })))
       file.text().then(resolve, reject)
     }
     input.oncancel = () => resolve(null)

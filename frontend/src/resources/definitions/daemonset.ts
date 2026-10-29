@@ -13,6 +13,7 @@ import ImagesSection from '../../components/resource/sections/ImagesSection.vue'
 import TolerationsSection from '../../components/resource/sections/TolerationsSection.vue'
 import NodeAffinitySection from '../../components/resource/sections/NodeAffinitySection.vue'
 import PodsTab from '../../components/resource/sections/PodsTab.vue'
+import { t } from '../../i18n'
 
 /** Статус DaemonSet на основе подов */
 export function daemonsetStatus(ds: any): string {
@@ -37,42 +38,42 @@ export const daemonSet = defineResource<k8s.DaemonSetInfo>({
   columns: [
     flatNameCol,
     { ...flatNsCol, link: (d: any) => d.namespace ? { id: 'namespace', ns: '', name: d.namespace } : null },
-    { key: 'current', label: 'Current' },
-    { key: 'desired', label: 'Desired' },
-    { key: 'ready', label: 'Ready' },
-    { key: 'updated', label: 'Up-to-date' },
-    { key: 'available', label: 'Available' },
-    { key: 'nodeSelector', label: 'Node Selector', formatter: d => d.nodeSelector || '—' },
+    { key: 'current', label: 'defs.columns.current' },
+    { key: 'desired', label: 'defs.columns.desired' },
+    { key: 'ready', label: 'defs.columns.ready' },
+    { key: 'updated', label: 'defs.columns.upToDate' },
+    { key: 'available', label: 'defs.columns.available' },
+    { key: 'nodeSelector', label: 'defs.columns.nodeSelector', formatter: d => d.nodeSelector || '—' },
     ageCol,
   ],
 
   headSections: [workloadMetrics.daemonset],
   properties: [
-    { label: 'Selector', value: d => d.selector },
-    { label: 'Node Selector', value: d => d.nodeSelector },
-    { label: 'Strategy Type', value: d => d.strategy },
-    { label: 'Status', value: daemonsetStatus, badge: d => badgeClass(daemonsetStatus(d)) },
+    { label: 'defs.columns.selector', value: d => d.selector },
+    { label: 'defs.columns.nodeSelector', value: d => d.nodeSelector },
+    { label: 'defs.props.strategyType', value: d => d.strategy },
+    { label: 'common.status', value: daemonsetStatus, badge: d => badgeClass(daemonsetStatus(d)) },
     controlledByProp,
     managedByProp,
   ],
   sections: [ImagesSection, TolerationsSection, NodeAffinitySection],
-  tabs: [{ id: 'pods', label: 'Pods', component: PodsTab }],
+  tabs: [{ id: 'pods', label: 'defs.tabs.pods', component: PodsTab }],
 
   actions: [
     {
       id: 'restart',
       permission: Perm.Operate,
-      label: 'Restart',
+      label: 'defs.menu.restart',
       icon: 'restart',
       run: async (d, ctx) => {
-        if (!(await ctx.confirm(`Restart daemonset ${d.name}?`))) return
+        if (!(await ctx.confirm(t('defs.daemonSet.restartConfirm', { name: d.name })))) return
         return ctx.perform(
           () => callApp('RestartDaemonSet', d.namespace, d.name),
-          `DaemonSet ${d.name}: restart initiated`,
+          t('defs.daemonSet.restarted', { name: d.name }),
         )
       },
     },
-    { id: 'logs', label: 'View logs', icon: 'logs', permission: Perm.Read, run: (d, ctx) => ctx.openResourceLogs('daemonset', d.namespace, d.name) },
+    { id: 'logs', label: 'defs.menu.viewLogs', icon: 'logs', permission: Perm.Read, run: (d, ctx) => ctx.openResourceLogs('daemonset', d.namespace, d.name) },
   ],
 
   api: {

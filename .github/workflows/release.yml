@@ -1,0 +1,150 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  # Пробный прогон сборок без публикации: PR, меняющий этот файл
+  pull_request:
+    paths: [".github/workflows/release.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-amd64
+            os: windows-latest
+            platform: windows/amd64
+          - name: linux-amd64
+            os: ubuntu-24.04
+            platform: linux/amd64
+            build_args: -tags webkit2_41
+          - name: macos-universal
+            os: macos-latest
+            platform: darwin/universal
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check that the tag matches the app version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          base="${tag%%-*}"   # 0.1.0-rc.1 -> 0.1.0
+          wails_v="$(jq -r .info.productVersion wails.json)"
+          npm_v="$(jq -r .version frontend/package.json)"
+          if [ "$base" != "$wails_v" ] || [ "$base" != "$npm_v" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match wails.json ($wails_v) / package.json ($npm_v)"
+            exit 1
+          fi
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: System libraries (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Wails CLI
+        run: |
+          go install "github.com/wailsapp/wails/v2/cmd/wails@$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2)"
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build
+        run: wails build -clean -platform ${{ matrix.platform }} ${{ matrix.build_args }}
+
+      - name: Package
+        env:
+          ASSET: Kubron_${{ github.ref_type == 'tag' && github.ref_name || 'snapshot' }}_${{ matrix.name }}
+        run: |
+          mkdir -p dist
+          case "$RUNNER_OS" in
+            Windows) powershell -NoProfile -Command "Compress-Archive -Path build/bin/Kubron.exe -DestinationPath dist/$ASSET.zip" ;;
+            Linux)   tar -C build/bin -czf "dist/$ASSET.tar.gz" Kubron ;;
+            macOS)   ditto -c -k --keepParent build/bin/Kubron.app "dist/$ASSET.zip" ;;
+          esac
+          ls -l dist
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: kubron-${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          pattern: kubron-*
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum Kubron_* > SHA256SUMS.txt
+
+      # Описание релиза берётся из CHANGELOG.md (раздел версии; для rc-тегов без раздела: [Unreleased])
+      - name: Release notes
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          node scripts/changelog.mjs notes "${TAG#v}" --fallback-unreleased > notes.md
+          prev="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
+          {
+            echo
+            cat .github/release-footer.md
+            if [ -n "$prev" ]; then
+              printf '\n**Full Changelog**: https://github.com/%s/compare/%s...%s\n' "$GITHUB_REPOSITORY" "$prev" "$TAG"
+            fi
+          } >> notes.md
+          cat notes.md
+
+      # Релиз неизменяемый (Immutable): сначала черновик со всеми файлами, затем публикация.
+      # Оставить черновик для ручной проверки: переменная репозитория RELEASE_AUTO_PUBLISH=false.
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          AUTO_PUBLISH: ${{ vars.RELEASE_AUTO_PUBLISH }}
+        run: |
+          flags=""
+          case "$TAG" in v0.*|*-*) flags="--prerelease" ;; esac
+          gh release create "$TAG" dist/* \
+            --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
+            --title "Kubron $TAG" --notes-file notes.md $flags
+          if [ "$AUTO_PUBLISH" != "false" ]; then
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+            echo "Релиз опубликован: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Создан черновик релиза $TAG (RELEASE_AUTO_PUBLISH=false), опубликуйте его вручную" >> "$GITHUB_STEP_SUMMARY"
+          fi
