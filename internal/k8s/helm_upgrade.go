@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"helm.sh/helm/v4/pkg/action"
-	ci "helm.sh/helm/v4/pkg/chart"
 	chartv2 "helm.sh/helm/v4/pkg/chart/v2"
 	"helm.sh/helm/v4/pkg/kube"
 	helmrelease "helm.sh/helm/v4/pkg/release"
@@ -94,7 +93,7 @@ func (m *Manager) helmUpgrade(ctx context.Context, namespace, name string, targe
 		up.WaitStrategy = kube.StatusWatcherStrategy
 	}
 
-	var chrt ci.Charter = cur.Chart()
+	var chrt = cur.Chart()
 	if target != nil {
 		chrt = target
 	}
