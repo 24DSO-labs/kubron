@@ -29,6 +29,8 @@ type ClusterMeta struct {
 	ContextName      string `json:"contextName"`
 	// Environment — метка окружения (dev, test, stage, prod); пусто, если не задана.
 	Environment string `json:"environment"`
+	// TeamID — команда-владелец (только сервисное хранилище; в файловом пусто).
+	TeamID string `json:"teamId,omitempty"`
 }
 
 type ClusterStatus struct {
@@ -135,11 +137,17 @@ func AddClusterFromFile(sourcePath string, settings ClusterSettings) (*ClusterMe
 		return nil, err
 	}
 
-	return addClusterFromData(data, settings)
+	return addClusterFromData(data, settings, "")
 }
 
 // AddClusterFromText регистрирует кластер по тексту kubeconfig.
 func AddClusterFromText(kubeconfigText string, settings ClusterSettings) (*ClusterMeta, error) {
+	return AddClusterFromTextToTeam(kubeconfigText, settings, "")
+}
+
+// AddClusterFromTextToTeam — AddClusterFromText с владельцем-командой (пусто — команда по умолчанию).
+// Файловое хранилище команды не знает и поле игнорирует.
+func AddClusterFromTextToTeam(kubeconfigText string, settings ClusterSettings, teamID string) (*ClusterMeta, error) {
 	if err := InitKubronDir(); err != nil {
 		return nil, err
 	}
@@ -147,10 +155,10 @@ func AddClusterFromText(kubeconfigText string, settings ClusterSettings) (*Clust
 		return nil, errKubeconfigTooLarge
 	}
 
-	return addClusterFromData([]byte(kubeconfigText), settings)
+	return addClusterFromData([]byte(kubeconfigText), settings, teamID)
 }
 
-func addClusterFromData(data []byte, settings ClusterSettings) (*ClusterMeta, error) {
+func addClusterFromData(data []byte, settings ClusterSettings, teamID string) (*ClusterMeta, error) {
 	settings, err := settings.normalize("")
 	if err != nil {
 		return nil, err
@@ -186,6 +194,7 @@ func addClusterFromData(data []byte, settings ClusterSettings) (*ClusterMeta, er
 		KubeconfigFile:   id + ".kubeconfig",
 		AddedAt:          time.Now().Format(time.RFC3339),
 		ContextName:      contextName,
+		TeamID:           teamID,
 	}
 
 	// Хранилище записывает kubeconfig и метаданные вместе: при сбое не остаётся полузаписанного кластера.

@@ -86,6 +86,13 @@
     "SuspendArgoAutoSync": "Argo CD: auto-sync disabled",
     "ResumeArgoAutoSync": "Argo CD: auto-sync enabled",
     "DeleteArgoApplication": "Argo CD: application deleted",
-    "GetHelmReleaseContent": "Helm: release values / manifest viewed"
+    "GetHelmReleaseContent": "Helm: release values / manifest viewed",
+    "CreateTeam": "Team creation",
+    "RenameTeam": "Team rename",
+    "DeleteTeam": "Team deletion",
+    "SetTeamMember": "Team member added / role changed",
+    "RemoveTeamMember": "Team member removed",
+    "AddClusterToTeam": "Cluster added to a team",
+    "MoveCluster": "Cluster moved to another team"
   }
 }
