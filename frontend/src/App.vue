@@ -147,7 +147,7 @@ const clustersApi = useClusters()
 const notifications = useNotifications()
 
 const {
-  namespaces, selectedNamespaces, selectNamespaces, restoreNamespaces, currentView, error, loading,
+  namespaces, selectedNamespaces, selectNamespaces, restoreNamespaces, currentView, loading,
   switchView, refreshData,
   loadNamespaces,
 } = k8s
@@ -161,7 +161,6 @@ const {
 const clusterConn = useClusterConnection({
   clusters,
   activeClusterId,
-  error,
   namespaces,
   currentView,
   connectToCluster,

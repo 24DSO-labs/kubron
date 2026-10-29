@@ -40,7 +40,7 @@ const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const unescapeMessage = (s: string) => s.replace(/\{'(.)'\}/g, '$1')
 
 function compile(): Template[] {
-  const messages = i18n.global.getLocaleMessage(DEFAULT_LOCALE) as { backend?: Record<string, string> }
+  const messages = i18n.global.getLocaleMessage(DEFAULT_LOCALE) as unknown as { backend?: Record<string, string> }
   const out: Template[] = []
   for (const [key, raw] of Object.entries(messages.backend ?? {})) {
     const text = unescapeMessage(raw)
