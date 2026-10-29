@@ -69,7 +69,7 @@
     "success": "Success",
     "failed": "Failed",
     "canceled": "Canceled",
-    "noOps": "No operations yet{{ filtered }}.",
+    "noOps": "No operations yet{filtered}.",
     "time": "Time",
     "operation": "Operation",
     "release": "Release",
@@ -166,7 +166,7 @@
     "loading": "Loading…",
     "upgradeHint": "Only values change, chart version stays the same. Left: current user-values, right: editable. Removed keys revert to chart defaults.",
     "manifestChanges": "Manifest changes (Secret values hidden)",
-    "stale": "Release changed: current revision is {{ rev }}, your edits were made on revision {{ base }}. Applying will overwrite others's values changes.",
+    "stale": "Release changed: current revision is {rev}, your edits were made on revision {base}. Applying will overwrite others's values changes.",
     "reloadValues": "Load current values (edits will be lost)",
     "previewBtn": "Preview changes",
     "reset": "Reset",
@@ -174,7 +174,8 @@
     "applying": "Applying…",
     "applyBtn": "Apply upgrade",
     "confirmUpgrade": "Upgrade {name} with the edited values? A new revision will be created.",
-    "upgraded": "{name}: upgraded, revision #{rev}"
+    "upgraded": "{name}: upgraded, revision #{rev}",
+    "previewNote": "Preview is built without contacting the cluster: template lookup functions return empty, so charts that use them may produce a different result. Secret values are hidden."
   },
   "chartUpgrade": {
     "noPerm": "Changing the chart version requires write permission and access to secrets",
@@ -205,7 +206,13 @@
     "applyBtn": "Upgrade chart",
     "applying": "Upgrading…",
     "confirm": "Upgrade {name} from chart version {from} to {to}? A new revision will be created.",
-    "upgraded": "{name}: chart upgraded to {version}, revision #{rev}"
+    "upgraded": "{name}: chart upgraded to {version}, revision #{rev}",
+    "previewNote": "Preview is built without contacting the cluster: template lookup functions return empty, so charts that use them may produce a different result. Secret values are hidden.",
+    "tabManifest": "Manifest",
+    "tabDefaults": "Chart defaults",
+    "tabNotes": "Notes",
+    "defaultsHint": "Default values (values.yaml) of the installed chart (left) and target version (right). Check which keys are added, renamed or removed.",
+    "noNotes": "This chart version has no notes."
   },
   "ops_panel": {
     "cancel": "Cancel",
