@@ -46,6 +46,30 @@ func TestHelmOpLifecycleAndCancel(t *testing.T) {
 	}
 }
 
+// In web mode the operation registry is process-wide while every session has its own Manager:
+// another session must not be able to cancel (or even see) someone else's operation.
+func TestCancelOnlyFromOwningManager(t *testing.T) {
+	setupHelmHome(t)
+	owner, other := NewManager(), NewManager()
+	ctx, tr, err := owner.beginHelmOp(context.Background(), "op-fffffff1", "install", "prod", "web", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tr.finish(nil)
+	if err := other.CancelHelmOperation("op-fffffff1"); err == nil {
+		t.Error("another session must not cancel a foreign operation")
+	}
+	if ctx.Err() != nil {
+		t.Error("the operation must stay running after a foreign cancel attempt")
+	}
+	if err := owner.CancelHelmOperation("op-fffffff1"); err != nil {
+		t.Errorf("the owning session must be able to cancel: %v", err)
+	}
+	if ctx.Err() == nil {
+		t.Error("the owner's cancel must cancel the operation context")
+	}
+}
+
 func TestHelmOpNotCancelable(t *testing.T) {
 	setupHelmHome(t) // finish() пишет журнал операций: изолируем от настоящего ~/.kubron
 	m := NewManager()
