@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VadimIl224/kubron/internal/auth"
 	"github.com/VadimIl224/kubron/internal/secretbox"
 	"github.com/VadimIl224/kubron/pkg/ext"
 )
@@ -488,5 +489,99 @@ func TestAccessSnapshotIsCachedAndInvalidated(t *testing.T) {
 	s.invalidateAccess()
 	if _, ok := acc.ClusterTeam("c1"); ok {
 		t.Error("после сброса кэша кластера быть не должно")
+	}
+}
+
+func TestDirectory(t *testing.T) {
+	s := newTestStore(t, keyString("k1"))
+	zero := time.Duration(0)
+	s.accessTTLOverride = &zero
+	dir, acc := s.Directory(), s.Access()
+	now := time.Now()
+	if err := s.Users().Save(&ext.UserData{Users: []ext.UserRecord{
+		{ID: "adm", Username: "admin", Role: "admin", CreatedAt: now},
+		{ID: "bob", Username: "bob", Role: "user", CreatedAt: now},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+
+	teams, err := dir.Teams()
+	if err != nil || len(teams) != 1 || teams[0].Name != DefaultName || teams[0].Members != 2 || dir.DefaultTeam() != teams[0].ID {
+		t.Fatalf("%+v %v", teams, err)
+	}
+	blue, err := dir.CreateTeam("  Blue ")
+	if err != nil || blue.Name != "Blue" {
+		t.Fatalf("%+v %v", blue, err)
+	}
+	if _, err := dir.CreateTeam("Blue"); !errors.Is(err, ErrConflict) {
+		t.Errorf("точный повтор имени: %v", err)
+	}
+	if _, err := dir.CreateTeam("   "); err == nil {
+		t.Error("пустое имя")
+	}
+	if err := dir.RenameTeam(blue.ID, "Azure"); err != nil {
+		t.Fatal(err)
+	}
+	if err := dir.RenameTeam("nope", "X"); !errors.Is(err, auth.ErrTeamNotFound) {
+		t.Errorf("%v", err)
+	}
+
+	// Участники.
+	if err := dir.SetMember(blue.ID, "bob", "operator"); err != nil {
+		t.Fatal(err)
+	}
+	if err := dir.SetMember(blue.ID, "bob", "admin"); err != nil { // смена роли
+		t.Fatal(err)
+	}
+	if r, ok := acc.TeamRole("bob", blue.ID); !ok || r != "admin" {
+		t.Errorf("доступ сразу после изменения: %q %v", r, ok)
+	}
+	if err := dir.SetMember(blue.ID, "ghost", "user"); !errors.Is(err, auth.ErrTeamNotFound) {
+		t.Errorf("несуществующий пользователь: %v", err)
+	}
+	if err := dir.SetMember(blue.ID, "bob", "root"); !errors.Is(err, auth.ErrUnknownRole) {
+		t.Errorf("неизвестная роль: %v", err)
+	}
+	ms, err := dir.Members(blue.ID)
+	if err != nil || len(ms) != 1 || ms[0].Username != "bob" || ms[0].Role != "admin" {
+		t.Fatalf("%+v %v", ms, err)
+	}
+	if _, err := dir.Members("nope"); !errors.Is(err, auth.ErrTeamNotFound) {
+		t.Errorf("%v", err)
+	}
+
+	// Передача кластера и удаление команды.
+	saveCluster(t, s, "c1", "C1", []byte("kc"))
+	if err := dir.MoveCluster("c1", blue.ID); err != nil {
+		t.Fatal(err)
+	}
+	if team, _ := acc.ClusterTeam("c1"); team != blue.ID {
+		t.Errorf("владелец после передачи: %q", team)
+	}
+	if err := dir.MoveCluster("c1", "nope"); !errors.Is(err, auth.ErrTeamNotFound) {
+		t.Errorf("%v", err)
+	}
+	if err := dir.MoveCluster("nope", blue.ID); !errors.Is(err, ErrClusterNotFound) {
+		t.Errorf("%v", err)
+	}
+	saveCluster(t, s, "c2", "C1", []byte("kc")) // то же имя, но в Default — допустимо
+	if err := dir.MoveCluster("c2", blue.ID); !errors.Is(err, ErrConflict) {
+		t.Errorf("одноимённый кластер в целевой команде: %v", err)
+	}
+	if err := dir.DeleteTeam(blue.ID); !errors.Is(err, ErrTeamNotEmpty) {
+		t.Errorf("команда с кластерами: %v", err)
+	}
+	if err := dir.DeleteTeam(dir.DefaultTeam()); !errors.Is(err, ErrDefaultTeam) {
+		t.Errorf("команда по умолчанию: %v", err)
+	}
+	_ = s.Clusters().Delete("c1")
+	if err := dir.RemoveMember(blue.ID, "bob"); err != nil {
+		t.Fatal(err)
+	}
+	if err := dir.DeleteTeam(blue.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := dir.DeleteTeam(blue.ID); !errors.Is(err, auth.ErrTeamNotFound) {
+		t.Errorf("повторное удаление: %v", err)
 	}
 }
