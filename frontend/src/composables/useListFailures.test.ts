@@ -53,6 +53,7 @@ describe('handlePartialList', () => {
   it('длинный список сокращается', () => {
     const notify = vi.fn()
     handlePartialList(payload('a', 'b', 'c', 'd', 'e'), notify)
-    expect(notify.mock.calls[0][0]).toContain('и ещё 2')
+    // тесты не вызывают initI18n — локаль по умолчанию en, поэтому ожидаем английский текст
+    expect(notify.mock.calls[0][0]).toContain('and 2 more')
   })
 })
