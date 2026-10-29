@@ -7,6 +7,8 @@ import { askConfirm } from './confirm'
 import { reloadActive } from './store'
 import { useNotifications } from '../composables/useNotifications'
 import { useK8s } from '../composables/useK8s'
+import { errorText } from '../composables/errorText'
+import { t } from '../i18n'
 import { openUrl } from '../platform/files'
 import type {
   ArgoActionResult, ArgoAppRef, ArgoApplicationInfo, ArgoHistoryEntry, ArgoSyncOptions,
@@ -17,7 +19,6 @@ import type {
  * импортируют его напрямую, а не через actions.ts (иначе registry -> definitions -> actions даст цикл).
  */
 const notifications = useNotifications()
-const errText = (e: any): string => e?.message || String(e)
 
 /** Диалог Sync (рисует ResourceHost). Одно приложение — обычный sync; несколько — массовый */
 export const pendingArgoSync = shallowRef<{ apps: ArgoApplicationInfo[] } | null>(null)
@@ -46,53 +47,57 @@ function report(results: ArgoActionResult[], done: string): boolean {
   const failed = results.filter(r => r.error)
   const ok = results.length - failed.length
   if (ok) {
-    notifications.notifySuccess(results.length === 1 ? `${results[0].name}: ${done}` : `${done}: ${ok} of ${results.length}`)
+    notifications.notifySuccess(results.length === 1
+      ? t('argo.actions.doneOne', { name: results[0].name, done })
+      : t('argo.actions.doneMany', { done, ok, total: results.length }))
   }
-  for (const f of failed.slice(0, 3)) notifications.notifyError(`${f.name}: ${f.error}`)
-  if (failed.length > 3) notifications.notifyError(`…and ${failed.length - 3} more failed`)
+  for (const f of failed.slice(0, 3)) notifications.notifyError(t('argo.actions.failedItem', { name: f.name, error: errorText(f.error) }))
+  if (failed.length > 3) notifications.notifyError(t('argo.actions.moreFailed', { n: failed.length - 3 }))
   return failed.length === 0
 }
 
 export async function runArgoSync(apps: ArgoApplicationInfo[], opts: ArgoSyncOptions): Promise<void> {
   try {
     const res = await callApp('SyncArgoApplication', apps.map(refOf), opts)
-    report(res, opts.dryRun ? 'dry-run started' : 'sync started')
+    report(res, opts.dryRun ? t('argo.actions.dryRunStarted') : t('argo.actions.syncStarted'))
     changed()
   } catch (e) {
-    notifications.notifyError(`Sync: ${errText(e)}`)
+    notifications.notifyError(t('argo.actions.error.sync', { error: errorText(e) }))
   }
 }
 
 export async function refreshArgoApps(apps: ArgoApplicationInfo[], hard = false): Promise<void> {
   try {
     const res = await callApp('RefreshArgoApplication', apps.map(refOf), hard)
-    report(res, hard ? 'hard refresh requested' : 'refresh requested')
+    report(res, hard ? t('argo.actions.hardRefreshRequested') : t('argo.actions.refreshRequested'))
     changed()
   } catch (e) {
-    notifications.notifyError(`Refresh: ${errText(e)}`)
+    notifications.notifyError(t('argo.actions.error.refresh', { error: errorText(e) }))
   }
 }
 
 export async function terminateArgoOperation(apps: ArgoApplicationInfo[]): Promise<void> {
-  const what = apps.length === 1 ? `of ${apps[0].name}` : `of ${apps.length} applications`
-  if (!(await askConfirm(`Terminate the running operation ${what}?`))) return
+  const question = apps.length === 1
+    ? t('argo.actions.terminateConfirmOne', { name: apps[0].name })
+    : t('argo.actions.terminateConfirmMany', { n: apps.length })
+  if (!(await askConfirm(question))) return
   try {
     const res = await callApp('TerminateArgoOperation', apps.map(refOf))
-    report(res, 'operation terminating')
+    report(res, t('argo.actions.terminating'))
     changed()
   } catch (e) {
-    notifications.notifyError(`Terminate: ${errText(e)}`)
+    notifications.notifyError(t('argo.actions.error.terminate', { error: errorText(e) }))
   }
 }
 
 export async function rollbackArgo(app: Pick<ArgoApplicationInfo, 'namespace' | 'name'>, entry: ArgoHistoryEntry): Promise<void> {
-  if (!(await askConfirm(`Roll back ${app.name} to deployment #${entry.id}? Resources will be synced to that revision (no prune).`))) return
+  if (!(await askConfirm(t('argo.actions.rollbackConfirm', { name: app.name, id: entry.id })))) return
   try {
     await callApp('RollbackArgoApplication', app.namespace, app.name, entry.id, false, false)
-    notifications.notifySuccess(`${app.name}: rollback to #${entry.id} started`)
+    notifications.notifySuccess(t('argo.actions.rollbackStarted', { name: app.name, id: entry.id }))
     changed()
   } catch (e) {
-    notifications.notifyError(`Rollback: ${errText(e)}`)
+    notifications.notifyError(t('argo.actions.error.rollback', { error: errorText(e) }))
   }
 }
 
@@ -102,9 +107,9 @@ export async function openArgoUI(): Promise<void> {
     const info = await callApp('OpenArgoUI')
     await useK8s().refreshPortForwards()
     openUrl(info.url)
-    if (!info.reused) notifications.notifySuccess(`Argo CD UI: ${info.url}`)
+    if (!info.reused) notifications.notifySuccess(t('argo.actions.uiOpened', { url: info.url }))
   } catch (e) {
-    notifications.notifyError(`Argo CD UI: ${errText(e)}`)
+    notifications.notifyError(t('argo.actions.error.ui', { error: errorText(e) }))
   }
 }
 
@@ -117,25 +122,27 @@ export const closeArgoDelete = () => { pendingArgoDelete.value = null }
 export async function deleteArgoApplication(app: ArgoApplicationInfo, cascade: boolean): Promise<boolean> {
   try {
     await callApp('DeleteArgoApplication', app.namespace, app.name, cascade)
-    notifications.notifySuccess(`${app.name}: deleted${cascade ? ' with its resources' : ' (resources kept)'}`)
+    notifications.notifySuccess(t(cascade ? 'argo.actions.deletedCascade' : 'argo.actions.deletedKept', { name: app.name }))
     changed()
     return true
   } catch (e) {
-    notifications.notifyError(`Delete: ${errText(e)}`)
+    notifications.notifyError(t('argo.actions.error.delete', { error: errorText(e) }))
     return false
   }
 }
 
 export async function setArgoAutoSync(apps: ArgoApplicationInfo[], enabled: boolean): Promise<void> {
   if (enabled) {
-    const what = apps.length === 1 ? apps[0].name : `${apps.length} applications`
-    if (!(await askConfirm(`Enable automated sync for ${what}? Out-of-sync resources will be applied automatically.`))) return
+    const question = apps.length === 1
+      ? t('argo.actions.autoSyncConfirmOne', { name: apps[0].name })
+      : t('argo.actions.autoSyncConfirmMany', { n: apps.length })
+    if (!(await askConfirm(question))) return
   }
   try {
     const res = await callApp(enabled ? 'ResumeArgoAutoSync' : 'SuspendArgoAutoSync', apps.map(refOf))
-    report(res, enabled ? 'auto-sync enabled' : 'auto-sync disabled')
+    report(res, enabled ? t('argo.actions.autoSyncEnabled') : t('argo.actions.autoSyncDisabled'))
     changed()
   } catch (e) {
-    notifications.notifyError(`Auto-sync: ${errText(e)}`)
+    notifications.notifyError(t('argo.actions.error.autoSync', { error: errorText(e) }))
   }
 }

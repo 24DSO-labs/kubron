@@ -42,6 +42,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import MetricsChart from './MetricsChart.vue'
 import MultiLineChart from './MultiLineChart.vue'
 import { usePrometheusRange } from '../../composables/useMetrics'
@@ -54,6 +55,7 @@ const props = defineProps<{
   containerName?: string
 }>()
 
+const { t } = useI18n()
 const { queryRange } = usePrometheusRange(props.clusterName)
 
 // Селекторы PromQL (сетевые метрики cAdvisor — только на уровне пода): usage-метрики помечены контейнером (пропускаем пустой и pause "POD"),
@@ -85,9 +87,9 @@ async function fetchCpuCombined(start: number, end: number, step: number) {
   const requestsData = await fetchCpuRequests(start, end, step)
   const limitsData = await fetchCpuLimits(start, end, step)
   return [
-    { label: 'CPU Usage', data: usageData },
-    { label: 'CPU Requests', data: requestsData },
-    { label: 'CPU Limits', data: limitsData },
+    { label: t('metrics.cpuUsage'), data: usageData },
+    { label: t('metrics.cpuRequests'), data: requestsData },
+    { label: t('metrics.cpuLimits'), data: limitsData },
   ]
 }
 
@@ -111,9 +113,9 @@ async function fetchMemoryCombined(start: number, end: number, step: number) {
   const requestsData = await fetchMemoryRequests(start, end, step)
   const limitsData = await fetchMemoryLimits(start, end, step)
   return [
-    { label: 'Memory Usage', data: usageData },
-    { label: 'Memory Requests', data: requestsData },
-    { label: 'Memory Limits', data: limitsData },
+    { label: t('metrics.memoryUsage'), data: usageData },
+    { label: t('metrics.memoryRequests'), data: requestsData },
+    { label: t('metrics.memoryLimits'), data: limitsData },
   ]
 }
 
@@ -147,9 +149,9 @@ async function fetchDiskCombined(start: number, end: number, step: number) {
   const writesData = await fetchDiskWrites(start, end, step)
   const readsData = await fetchDiskReads(start, end, step)
   return [
-    { label: 'File System Usage', data: usageData },
-    { label: 'File System Writes', data: writesData },
-    { label: 'File System Reads', data: readsData },
+    { label: t('metrics.fsUsage'), data: usageData },
+    { label: t('metrics.fsWrites'), data: writesData },
+    { label: t('metrics.fsReads'), data: readsData },
   ]
 }
 
@@ -183,33 +185,33 @@ async function fetchNetworkCombined(start: number, end: number, step: number) {
   const rxData = await fetchNetworkRx(start, end, step)
   const txData = await fetchNetworkTx(start, end, step)
   return [
-    { label: 'Receive', data: rxData },
-    { label: 'Transmit', data: txData },
+    { label: t('metrics.receive'), data: rxData },
+    { label: t('metrics.transmit'), data: txData },
   ]
 }
 
-// Available metrics configuration
-const availableMetrics = [
-  { id: 'cpu', label: 'CPU', title: 'CPU Usage' },
-  { id: 'memory', label: 'Memory', title: 'Memory Usage' },
-  { id: 'network', label: 'Network', title: 'Network Traffic' },
-  { id: 'disk', label: 'Disk I/O', title: 'Disk I/O' },
-]
+// Available metrics configuration (computed: подписи следуют за языком интерфейса)
+const availableMetrics = computed(() => [
+  { id: 'cpu', label: t('metrics.tabs.cpu'), title: t('metrics.cpuUsage') },
+  { id: 'memory', label: t('metrics.tabs.memory'), title: t('metrics.memoryUsage') },
+  { id: 'network', label: t('metrics.tabs.network'), title: t('metrics.networkTraffic') },
+  { id: 'disk', label: t('metrics.tabs.diskIo'), title: t('metrics.diskIo') },
+])
 
 const selectedMetric = ref('cpu')
 
-const metricsConfig: Record<string, any> = {
+const metricsConfig = computed<Record<string, any>>(() => ({
   cpu: {
     id: 'cpu',
-    title: 'CPU Usage',
-    unit: 'cores',
+    title: t('metrics.cpuUsage'),
+    unit: t('metrics.units.cores'),
     fetchData: fetchCpuCombined,
     formatValue: formatCpu,
     multiLine: true,
   },
   memory: {
     id: 'memory',
-    title: 'Memory Usage',
+    title: t('metrics.memoryUsage'),
     unit: 'MB',
     fetchData: fetchMemoryCombined,
     formatValue: formatMemoryMB,
@@ -217,7 +219,7 @@ const metricsConfig: Record<string, any> = {
   },
   network: {
     id: 'network',
-    title: 'Network Traffic',
+    title: t('metrics.networkTraffic'),
     unit: 'KB/s',
     fetchData: fetchNetworkCombined,
     formatValue: formatNetwork,
@@ -225,16 +227,16 @@ const metricsConfig: Record<string, any> = {
   },
   disk: {
     id: 'disk',
-    title: 'Disk I/O',
+    title: t('metrics.diskIo'),
     unit: 'MB/s',
     fetchData: fetchDiskCombined,
     formatValue: formatDisk,
     multiLine: true,
   },
-}
+}))
 
 const currentMetricConfig = computed(() => {
-  return metricsConfig[selectedMetric.value as keyof typeof metricsConfig]
+  return metricsConfig.value[selectedMetric.value]
 })
 </script>
 

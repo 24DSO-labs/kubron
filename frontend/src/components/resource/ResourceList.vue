@@ -1,26 +1,26 @@
 <!-- Copyright 2026 The Kubron Authors -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
-  <div v-if="initialLoading" class="loading"> Загрузка...</div>
+  <div v-if="initialLoading" class="loading"> {{ $t('common.loading') }}</div>
   <ResourceTable
     v-else
     :items="items"
     :search="search"
-    :title="def.title"
+    :title="tl(def.title)"
     :prefs-key="def.view"
     :icon="def.icon"
-    :empty-message="`Нет ${def.title}`"
+    :empty-message="$t('resource.list.empty', { title: tl(def.title) })"
     :columns="def.columns"
     :menu-for="menuFor"
     :get-item-key="itemKey"
     :refreshing="refreshing"
-    :updated-at="updatedAt ? updatedAt.toLocaleTimeString() : undefined"
+    :updated-at="updatedAt ? formatTime(updatedAt) : undefined"
     :selectable="selectable"
     :selected="selection.selected.value"
     :all-selected="selection.allSelected.value"
     :some-selected="selection.someSelected.value"
     :show-create="creatable"
-    :create-title="`Создать ${def.kind}`"
+    :create-title="$t('resource.list.create', { kind: def.kind })"
     :hide-fab="!!opened"
     @toggle="selection.toggle"
     @toggle-all="selection.toggleAll"
@@ -44,8 +44,13 @@ import { useSelection } from '../../resources/selection'
 import { containersOf, itemName, itemNs } from '../../resources/utils'
 import { useK8s } from '../../composables/useK8s'
 import { computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { tl } from '../../i18n'
+import { formatTime } from '../../i18n/format'
 
 const props = defineProps<{ def: ResourceDefinition }>()
+
+const { t } = useI18n()
 
 const { selectNamespaces } = useK8s()
 
@@ -58,11 +63,11 @@ const { items, initialLoading, reload, refreshing, updatedAt, search } = useReso
 function menuFor(item: any): MenuItemDef[] {
   const containers = containersOf(item)
   return [
-    { label: 'Show Details', action: 'select' },
+    { label: t('resource.menu.showDetails'), action: 'select' },
     ...(props.def.actions ?? [])
   .filter(a => actionAllowed(a) && (!a.when || a.when(item)))
   .map(a => ({
-      label: a.label,
+      label: tl(a.label),
       action: a.id,
       danger: a.danger,
       submenu:
@@ -71,8 +76,8 @@ function menuFor(item: any): MenuItemDef[] {
           : undefined,
     })),
     // Без права на запись YAML открывается только для просмотра
-    ...(props.def.editable !== false ? [{ label: canEditYaml() ? 'Edit' : 'View YAML', action: 'edit' }] : []),
-    ...(canDelete(props.def) ? [{ label: 'Delete', action: 'delete', danger: true }] : []),
+    ...(props.def.editable !== false ? [{ label: canEditYaml() ? t('common.edit') : t('resource.menu.viewYaml'), action: 'edit' }] : []),
+    ...(canDelete(props.def) ? [{ label: t('common.delete'), action: 'delete', danger: true }] : []),
   ]
 }
 
@@ -128,7 +133,7 @@ function onAction(action: string, item: any, container?: string) {
       const a = props.def.actions?.find(x => x.id === action)
       if (!a) return
       if (a.when && !a.when(item)) {
-        return resourceActions.notifyError(`"${a.label}" недоступно для ${name}`)
+        return resourceActions.notifyError(t('actions.unavailable', { label: tl(a.label), name }))
       }
       return a.run(item, resourceActions, container)
     }

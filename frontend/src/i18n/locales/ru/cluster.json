@@ -1,0 +1,79 @@
+{
+  "connectionError": "Ошибка подключения: {message}",
+  "errorPrefix": "Ошибка: {message}",
+  "pickKubeconfigTitle": "Выберите kubeconfig файл",
+  "deleteConfirm": "Удалить кластер «{name}»? Его kubeconfig будет удалён из Kubron.",
+  "bar": {
+    "label": "Кластеры",
+    "add": "Добавить кластер",
+    "edit": "Редактировать…",
+    "delete": "Удалить…"
+  },
+  "glyph": {
+    "server": "Сервер",
+    "cloud": "Облако",
+    "database": "Данные",
+    "shield": "Защита",
+    "flask": "Лаборатория",
+    "cube": "Куб"
+  },
+  "env": {
+    "none": "Не задано",
+    "dev": "Dev",
+    "test": "Test",
+    "stage": "Stage",
+    "prod": "Prod"
+  },
+  "dialog": {
+    "newTitle": "Новый кластер",
+    "untitled": "Без названия",
+    "addSubtitle": "Добавление кластера в Kubron",
+    "sectionMain": "Основное",
+    "sectionConnection": "Подключение",
+    "sectionAppearance": "Оформление",
+    "name": "Название",
+    "namePlaceholder": "Например, Production EU",
+    "kubeconfigSource": "Источник kubeconfig",
+    "methodFile": "Файл",
+    "methodText": "Вставить текст",
+    "chooseFile": "Выбрать kubeconfig…",
+    "chooseOther": "Выбрать другой…",
+    "noFile": "Файл не выбран",
+    "kubeconfigText": "Текст kubeconfig",
+    "textHint": "Содержимое будет сохранено в каталоге Kubron, права доступа — только для вас.",
+    "submit": "Добавить кластер",
+    "uploadFromFile": "Загрузить из файла…"
+  },
+  "edit": {
+    "kubeconfig": "Kubeconfig",
+    "replaceWithFile": "Заменить файлом…",
+    "editText": "Править текст",
+    "revert": "Отменить",
+    "textWarning": "Текст содержит учётные данные кластера — не показывайте экран посторонним.",
+    "stateFile": "Будет заменён выбранным файлом",
+    "stateDirty": "Изменён вручную — сохранится при нажатии «Сохранить»",
+    "stateText": "Правка текста: пока без изменений",
+    "stateKeep": "Хранится в Kubron",
+    "deleteCluster": "Удалить кластер"
+  },
+  "appearance": {
+    "environment": "Окружение",
+    "prodHint": "Рабочий кластер: пока он открыт, в шапке приложения горит красная линия — его не спутать с другим.",
+    "glyph": "Значок",
+    "monogram": "Монограмма из названия",
+    "color": "Цвет",
+    "customColor": "Свой цвет"
+  },
+  "connection": {
+    "context": "Контекст",
+    "defaultSuffix": " (по умолчанию)",
+    "namespace": "Namespace по умолчанию",
+    "allNamespaces": "все namespaces",
+    "namespaceInvalid": "Допустимы строчные латинские буквы, цифры и дефис; не длиннее 63 символов.",
+    "namespaceAuto": "Выбирается автоматически при подключении к кластеру.",
+    "testing": "Проверяю…",
+    "test": "Проверить подключение",
+    "reachable": "Доступен · {version} · {latency} мс",
+    "failed": "Не удалось подключиться"
+  }
+}

@@ -7,6 +7,7 @@ import { callApp } from '../wails'
 import { flatNameCol, flatNsCol, ageCol, controlledByProp, managedByProp } from './common'
 import IngressRulesSection from '../../components/resource/sections/IngressRulesSection.vue'
 import IngressMetricsSection from '../../components/resource/sections/IngressMetricsSection.vue'
+import { t } from '../../i18n'
 
 const classLink = (i: any) => (i.class ? { id: 'ingressclass', ns: '', name: i.class } : null)
 
@@ -22,21 +23,21 @@ export const ingress = defineResource<k8s.IngressInfo>({
   columns: [
     flatNameCol,
     { ...flatNsCol, link: (i: any) => i.namespace ? { id: 'namespace', ns: '', name: i.namespace } : null },
-    { key: 'class', label: 'Class', link: classLink },
-    { key: 'address', label: 'Load Balancers', formatter: (i: any) => i.address || '—' },
-    { key: 'hosts', label: 'Hosts', formatter: (i: any) => [...new Set(i.hosts ?? [])].join(', ') || '—' },
-    { key: 'paths', label: 'Rules', formatter: (i: any) => i.paths || '—' },
-    { key: 'tls', label: 'TLS', formatter: (i: any) => (i.tls ? 'True' : 'False') },
+    { key: 'class', label: 'defs.columns.class', link: classLink },
+    { key: 'address', label: 'defs.columns.loadBalancers', formatter: (i: any) => i.address || '—' },
+    { key: 'hosts', label: 'defs.columns.hosts', formatter: (i: any) => [...new Set(i.hosts ?? [])].join(', ') || '—' },
+    { key: 'paths', label: 'defs.columns.rules', formatter: (i: any) => i.paths || '—' },
+    { key: 'tls', label: 'defs.columns.tls', formatter: (i: any) => (i.tls ? t('defs.values.true') : t('defs.values.false')) },
     ageCol,
   ],
 
   headSections: [IngressMetricsSection],
   properties: [
-    { label: 'Ingress Class', value: (i: any) => i.class, link: classLink },
-    { label: 'Ports', value: (i: any) => i.ports },
-    { label: 'Load Balancers', value: (i: any) => i.address },
-    { label: 'Hosts', value: (i: any) => [...new Set(i.hosts ?? [])].join(', ') },
-    { label: 'TLS', value: (i: any) => (i.tls ? 'True' : 'False') },
+    { label: 'defs.props.ingressClass', value: (i: any) => i.class, link: classLink },
+    { label: 'defs.columns.ports', value: (i: any) => i.ports },
+    { label: 'defs.columns.loadBalancers', value: (i: any) => i.address },
+    { label: 'defs.columns.hosts', value: (i: any) => [...new Set(i.hosts ?? [])].join(', ') },
+    { label: 'defs.columns.tls', value: (i: any) => (i.tls ? t('defs.values.true') : t('defs.values.false')) },
   ],
   sections: [IngressRulesSection],
 

@@ -8,7 +8,7 @@ import (
 	"sort"
 	"testing"
 
-	"analog/internal/app"
+	"github.com/VadimIl224/kubron/internal/app"
 )
 
 // Каждый экспортируемый метод app.App обязан быть либо в allowlist, либо явно в списке запрещённых:
@@ -17,13 +17,13 @@ func TestEveryAppMethodIsClassified(t *testing.T) {
 	allowed := map[string]bool{}
 	for _, n := range allowedMethods {
 		if allowed[n] {
-			t.Errorf("метод %s в allowlist дважды", n)
+			t.Errorf("method %s is in the allowlist twice", n)
 		}
 		allowed[n] = true
 	}
 	for n := range deniedMethods {
 		if allowed[n] {
-			t.Errorf("метод %s одновременно в allowlist и в списке запрещённых", n)
+			t.Errorf("method %s is in both the allowlist and the denied list", n)
 		}
 	}
 
@@ -39,16 +39,16 @@ func TestEveryAppMethodIsClassified(t *testing.T) {
 	}
 	sort.Strings(unclassified)
 	if len(unclassified) > 0 {
-		t.Errorf("методы App без решения (добавьте в allowedMethods или deniedMethods в methods.go): %v", unclassified)
+		t.Errorf("App methods without a decision (add to allowedMethods or deniedMethods in methods.go): %v", unclassified)
 	}
 	for n := range allowed {
 		if !exists[n] {
-			t.Errorf("в allowlist метод %s, которого нет у App (устаревшая запись)", n)
+			t.Errorf("the allowlist has method %s which App does not have (stale entry)", n)
 		}
 	}
 	for n := range deniedMethods {
 		if !exists[n] {
-			t.Errorf("в списке запрещённых метод %s, которого нет у App (устаревшая запись)", n)
+			t.Errorf("the denied list has method %s which App does not have (stale entry)", n)
 		}
 	}
 }
@@ -60,7 +60,7 @@ func TestAppDispatcherBuilds(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got := len(d.Methods()); got != len(allowedMethods) {
-		t.Errorf("в диспетчере %d методов, в allowlist %d", got, len(allowedMethods))
+		t.Errorf("the dispatcher has %d methods, the allowlist has %d", got, len(allowedMethods))
 	}
 }
 
@@ -71,13 +71,13 @@ func TestAppRPCWithoutLogin(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := d.Call("GetClusterStatuses", nil); err != nil {
-		t.Fatalf("GetClusterStatuses без входа возвращает пустой список, а не ошибку: %v", err)
+		t.Fatalf("GetClusterStatuses without login returns an empty list, not an error: %v", err)
 	}
 	if _, err := d.Call("GetNamespaces", nil); err == nil {
-		t.Fatal("без входа GetNamespaces должен возвращать ошибку доступа")
+		t.Fatal("GetNamespaces without login must return an access error")
 	}
 	caps, err := d.Call("GetCapabilities", nil)
 	if err != nil || caps == nil {
-		t.Fatalf("GetCapabilities публичный: %v %v", caps, err)
+		t.Fatalf("GetCapabilities is public: %v %v", caps, err)
 	}
 }

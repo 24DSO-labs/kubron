@@ -13,20 +13,20 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"analog/internal/auth"
+	"github.com/VadimIl224/kubron/internal/auth"
 )
 
 type httpTarget struct{}
 
 func (httpTarget) Add(a, b int) (int, error) { return a + b, nil }
 func (httpTarget) NeedLogin() error          { return auth.ErrNotAuthenticated }
-func (httpTarget) NeedRight() error          { return fmt.Errorf("обёрнуто: %w", auth.ErrForbidden) }
-func (httpTarget) Plain() error              { return errors.New("что-то пошло не так") }
+func (httpTarget) NeedRight() error          { return fmt.Errorf("wrapped: %w", auth.ErrForbidden) }
+func (httpTarget) Plain() error              { return errors.New("something went wrong") }
 
 func testHandler(t *testing.T) http.Handler {
 	t.Helper()
 	d, err := NewDispatcher(httpTarget{}, []string{"Add", "NeedLogin", "NeedRight", "Plain"},
-		map[string]string{"Hidden": "закрыт"})
+		map[string]string{"Hidden": "closed"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,13 +78,13 @@ func TestRPCSuccessAndErrorMapping(t *testing.T) {
 	} {
 		rec, rep := post(h, c.path, c.body, nil)
 		if rec.Code != c.status || rep.Error == nil || rep.Error.Code != c.code {
-			t.Errorf("%s %s: статус %d, ответ %s; ждали %d/%s", c.path, c.body, rec.Code, rec.Body, c.status, c.code)
+			t.Errorf("%s %s: status %d, reply %s; expected %d/%s", c.path, c.body, rec.Code, rec.Body, c.status, c.code)
 		}
 	}
 	// сообщение об ошибке сохраняется, чтобы фронтенд распознал «требуется вход в систему»
 	_, rep = post(h, "/api/rpc/NeedLogin", "[]", nil)
 	if rep.Error.Message != auth.ErrNotAuthenticated.Error() {
-		t.Errorf("сообщение изменено: %q", rep.Error.Message)
+		t.Errorf("message changed: %q", rep.Error.Message)
 	}
 }
 
@@ -93,19 +93,19 @@ func TestRPCRejectsForeignOriginAndWrongContentType(t *testing.T) {
 
 	rec, _ := post(h, "/api/rpc/Add", "[1,2]", map[string]string{"Origin": "https://evil.example"})
 	if rec.Code != 403 {
-		t.Errorf("чужой Origin: %d", rec.Code)
+		t.Errorf("foreign Origin: %d", rec.Code)
 	}
 	rec, rep := post(h, "/api/rpc/Add", "[1,2]", map[string]string{"Origin": "http://example.com"})
 	if rec.Code != 200 || string(rep.Result) != "3" {
-		t.Errorf("тот же Origin (Host=example.com) должен проходить: %d %s", rec.Code, rec.Body)
+		t.Errorf("the same Origin (Host=example.com) must pass: %d %s", rec.Code, rec.Body)
 	}
 	rec, _ = post(h, "/api/rpc/Add", "[1,2]", map[string]string{"Content-Type": "text/plain"})
 	if rec.Code != 415 {
-		t.Errorf("text/plain (CSRF без preflight) должен отклоняться: %d", rec.Code)
+		t.Errorf("text/plain (CSRF without preflight) must be rejected: %d", rec.Code)
 	}
 	rec, _ = post(h, "/api/rpc/Add", "[1,2]", map[string]string{"Content-Type": "application/json; charset=utf-8"})
 	if rec.Code != 200 {
-		t.Errorf("application/json с charset должен проходить: %d", rec.Code)
+		t.Errorf("application/json with a charset must pass: %d", rec.Code)
 	}
 }
 
@@ -114,7 +114,7 @@ func TestRPCBodyLimit(t *testing.T) {
 	big := "[\"" + strings.Repeat("a", maxRPCBody+10) + "\"]"
 	rec, _ := post(h, "/api/rpc/Add", big, nil)
 	if rec.Code != http.StatusRequestEntityTooLarge {
-		t.Errorf("слишком большое тело: %d", rec.Code)
+		t.Errorf("body too large: %d", rec.Code)
 	}
 }
 
@@ -139,20 +139,20 @@ func TestStaticAndSPAFallback(t *testing.T) {
 		t.Errorf("SPA-fallback: %d %s %v", rec.Code, rec.Body, rec.Header())
 	}
 	if rec := get(h, "/api/unknown"); rec.Code != 404 || !strings.Contains(rec.Header().Get("Content-Type"), "json") {
-		t.Errorf("/api/unknown должен отдавать JSON 404, а не index.html: %d %s", rec.Code, rec.Body)
+		t.Errorf("/api/unknown must return a JSON 404, not index.html: %d %s", rec.Code, rec.Body)
 	}
 	if rec := get(h, "/healthz"); rec.Code != 200 {
 		t.Errorf("healthz: %d", rec.Code)
 	}
 	// ServeMux нормализует путь редиректом (301/307 — зависит от версии Go); в любом случае содержимое вне корня отдаваться не должно
 	if rec := get(h, "/../../etc/passwd"); (rec.Code != 200 && (rec.Code < 300 || rec.Code > 399)) || strings.Contains(rec.Body.String(), "root:") {
-		t.Errorf("выход за корень: %d", rec.Code)
+		t.Errorf("path traversal: %d", rec.Code)
 	}
 	if rec := get(h, "/etc/passwd"); rec.Code != 200 || !strings.Contains(rec.Body.String(), "app") {
-		t.Errorf("несуществующий файл должен отдавать SPA-fallback: %d", rec.Code)
+		t.Errorf("a missing file must serve the SPA fallback: %d", rec.Code)
 	}
 	if h := get(h, "/").Header(); h.Get("X-Content-Type-Options") != "nosniff" || h.Get("X-Frame-Options") != "DENY" {
-		t.Errorf("заголовки безопасности: %v", h)
+		t.Errorf("security headers: %v", h)
 	}
 }
 
@@ -160,10 +160,10 @@ func TestNoFrontendGivesClearMessage(t *testing.T) {
 	d, _ := NewDispatcher(httpTarget{}, []string{"Add"}, nil)
 	rec := get(NewHandler(d, nil, nil), "/")
 	if rec.Code != http.StatusServiceUnavailable {
-		t.Errorf("без фронтенда ждали 503: %d", rec.Code)
+		t.Errorf("expected 503 without a frontend: %d", rec.Code)
 	}
 	rec = get(NewHandler(d, fstest.MapFS{}, nil), "/")
 	if rec.Code != http.StatusServiceUnavailable || !strings.Contains(rec.Body.String(), "index.html") {
-		t.Errorf("пустой фронтенд: %d %s", rec.Code, rec.Body)
+		t.Errorf("empty frontend: %d %s", rec.Code, rec.Body)
 	}
 }

@@ -89,7 +89,7 @@ function scheduleReconnect() {
 
 function dispatch(event: string, args: any[]) {
   handlers.get(event)?.forEach(h => {
-    try { h(...args) } catch (e) { console.error(`обработчик события ${event}:`, e) }
+    try { h(...args) } catch (e) { console.error('event handler', event, e) }
   })
 }
 

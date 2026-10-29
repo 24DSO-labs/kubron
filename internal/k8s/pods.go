@@ -443,8 +443,7 @@ func extractVolumeMounts(c corev1.Container) []VolumeMountInfo {
 }
 
 func extractResources(c corev1.Container) *ContainerResourcesInfo {
-	if (c.Resources.Requests == nil || len(c.Resources.Requests) == 0) &&
-		(c.Resources.Limits == nil || len(c.Resources.Limits) == 0) {
+	if len(c.Resources.Requests) == 0 && len(c.Resources.Limits) == 0 {
 		return nil
 	}
 

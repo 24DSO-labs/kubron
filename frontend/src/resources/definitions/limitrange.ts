@@ -20,12 +20,12 @@ export const limitRange = defineResource<k8s.LimitRangeInfo>({
   columns: [
     flatNameCol,
     { ...flatNsCol, link: (lr: any) => lr.namespace ? { id: 'namespace', ns: '', name: lr.namespace } : null },
-    { key: 'items', label: 'Limits' },
+    { key: 'items', label: 'defs.columns.limits' },
     ageCol,
   ],
 
   properties: [
-    { label: 'Finalizers', value: (lr: any) => (lr.finalizers ?? []).join(', ') },
+    { label: 'defs.props.finalizers', value: (lr: any) => (lr.finalizers ?? []).join(', ') },
     controlledByProp,
     managedByProp,
   ],

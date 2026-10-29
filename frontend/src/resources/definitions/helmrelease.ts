@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { defineResource } from '../types'
+import { t } from '../../i18n'
+import { errorText } from '../../composables/errorText'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { helmLiveTick, startHelmLive } from '../../composables/useHelmLive'
+import { runHelmOp } from '../../composables/useHelmOps'
 import { flatNameCol, flatNsCol } from './common'
 import { badgeClass, statusColor } from '../status'
 import { helmContentTab } from '../helmTabs'
@@ -12,6 +15,7 @@ import HelmResourcesTab from '../../components/resource/sections/HelmResourcesTa
 import HelmHistoryTab from '../../components/resource/sections/HelmHistoryTab.vue'
 import { Perm } from '../../types/auth'
 import HelmUpgradeTab from '../../components/resource/sections/HelmUpgradeTab.vue'
+import HelmChartUpgradeTab from '../../components/resource/sections/HelmChartUpgradeTab.vue'
 
 export const helmRelease = defineResource<k8s.HelmReleaseInfo, k8s.HelmReleaseDetail>({
   id: 'helmrelease',
@@ -29,58 +33,61 @@ export const helmRelease = defineResource<k8s.HelmReleaseInfo, k8s.HelmReleaseDe
   columns: [
     flatNameCol,
     { ...flatNsCol, link: (h: any) => h.namespace ? { id: 'namespace', ns: '', name: h.namespace } : null },
-    { key: 'chartVersion', label: 'Chart Version' },
-    { key: 'appVersion', label: 'App Version' },
-    { key: 'revision', label: 'Revision' },
-    { key: 'status', label: 'Status', colorFn: r => statusColor(r.status) },
+    { key: 'chartVersion', label: 'defs.columns.chartVersion' },
+    { key: 'appVersion', label: 'defs.columns.appVersion' },
+    { key: 'revision', label: 'defs.columns.revision' },
+    { key: 'status', label: 'common.status', colorFn: r => statusColor(r.status) },
     {
       key: 'latestVersion',
-      label: 'Update',
+      label: 'defs.columns.update',
       formatter: r => (r.latestVersion ? `${r.latestVersion} (${r.latestRepo})` : ''),
       colorFn: () => '#facc15',
       sortValue: r => r.latestVersion || null,
     },
-    { key: 'updated', label: 'Updated' },
+    { key: 'updated', label: 'defs.columns.updated' },
   ],
 
   properties: [
-    { label: 'Status', value: r => r.status, badge: r => badgeClass(r.status) },
-    { label: 'Chart', value: r => r.chart },
-    { label: 'Chart Version', value: r => r.chartVersion },
-    { label: 'Update available', value: r => (r.latestVersion ? `${r.latestVersion} (${r.latestRepo})` : '—') },
-    { label: 'App Version', value: r => r.appVersion },
-    { label: 'Revision', value: r => r.revision },
-    { label: 'Updated', value: r => r.updated },
-    { label: 'Description', value: r => r.description },
+    { label: 'common.status', value: r => r.status, badge: r => badgeClass(r.status) },
+    { label: 'defs.props.chart', value: r => r.chart },
+    { label: 'defs.columns.chartVersion', value: r => r.chartVersion },
+    { label: 'defs.props.storage', value: r => (r.storage === 'configmap' ? 'ConfigMap' : 'Secret') },
+    { label: 'defs.props.updateAvailable', value: r => (r.latestVersion ? `${r.latestVersion} (${r.latestRepo})` : '—') },
+    { label: 'defs.columns.appVersion', value: r => r.appVersion },
+    { label: 'defs.columns.revision', value: r => r.revision },
+    { label: 'defs.columns.updated', value: r => r.updated },
+    { label: 'defs.props.description', value: r => r.description },
   ],
 
   tabs: [
-    { id: 'helmValues', label: 'Values', component: helmContentTab('values') },
-    { id: 'helmNotes', label: 'Notes', component: helmContentTab('notes') },
-    { id: 'helmManifest', label: 'Manifest', component: helmContentTab('manifest') },
-    { id: 'helmEdit', label: 'Edit values', component: HelmUpgradeTab },
-    { id: 'helmResources', label: 'Resources', component: HelmResourcesTab },
-    { id: 'helmHistory', label: 'History', component: HelmHistoryTab },
+    { id: 'helmValues', label: 'defs.tabs.values', component: helmContentTab('values') },
+    { id: 'helmNotes', label: 'defs.tabs.notes', component: helmContentTab('notes') },
+    { id: 'helmManifest', label: 'defs.tabs.manifest', component: helmContentTab('manifest') },
+    { id: 'helmEdit', label: 'defs.tabs.editValues', component: HelmUpgradeTab },
+    { id: 'helmUpgradeChart', label: 'defs.tabs.upgradeChart', component: HelmChartUpgradeTab },
+    { id: 'helmResources', label: 'defs.tabs.resources', component: HelmResourcesTab },
+    { id: 'helmHistory', label: 'defs.tabs.history', component: HelmHistoryTab },
 
   ],
 actions: [
     {
       id: 'uninstall',
-      label: 'Uninstall',
+      label: 'defs.menu.uninstall',
       icon: 'delete',
       danger: true,
       permission: Perm.Write,
       run: async (r, ctx) => {
         if (!(await ctx.confirm(
-          `Uninstall release ${r.namespace}/${r.name}? All resources created by the release will be deleted from the cluster.`,
+          t('defs.helmRelease.uninstallConfirm', { namespace: r.namespace, name: r.name }),
         ))) return
         try {
-          await callApp('UninstallHelmRelease', r.namespace, r.name, false)
-          ctx.notifySuccess(`Release ${r.name} uninstalled`)
+          await runHelmOp({ op: 'uninstall', namespace: r.namespace, release: r.name }, id =>
+            callApp('UninstallHelmRelease', r.namespace, r.name, false, id))
+          ctx.notifySuccess(t('defs.helmRelease.uninstalled', { name: r.name }))
           ctx.closeDetail()
           await ctx.reload()
         } catch (e: any) {
-          ctx.notifyError(`Uninstall: ${e?.message || e}`)
+          ctx.notifyError(t('defs.helmRelease.uninstallError', { message: errorText(e) }))
         }
       },
     },

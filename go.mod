@@ -1,10 +1,10 @@
-module analog
+module github.com/VadimIl224/kubron
 
 go 1.27.3
 
 require (
-	analog/pkg/ext v0.0.0
 	github.com/Masterminds/semver/v3 v3.5.0
+	github.com/VadimIl224/kubron/pkg/ext v0.0.0
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/wailsapp/wails/v2 v2.17.0
@@ -74,6 +74,10 @@ require (
 	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/ianlancetaylor/demangle v0.0.0-20240805132620-81f5be970eca // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/pgx/v5 v5.11.0 // indirect
+	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jchv/go-winloader v0.0.0-20210711035445-715c2860da7e // indirect
 	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -159,4 +163,4 @@ require (
 // replace github.com/wailsapp/wails/v2 v2.11.0 => C:\Users\Вадим\go\pkg\mod
 
 // Публичные точки расширения — отдельный модуль только на stdlib (ADR-0013).
-replace analog/pkg/ext => ./pkg/ext
+replace github.com/VadimIl224/kubron/pkg/ext => ./pkg/ext

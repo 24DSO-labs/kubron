@@ -54,8 +54,8 @@ type ArgoActionResult struct {
 }
 
 var (
-	errArgoBusy    = errors.New("у приложения уже выполняется операция")
-	errArgoDeleted = errors.New("приложение удаляется")
+	errArgoBusy    = errors.New("an operation is already running for this application")
+	errArgoDeleted = errors.New("application is being deleted")
 )
 
 // ─── Manager: тонкие обёртки над функциями, которые тестируются на fake dynamic client ───
@@ -101,7 +101,7 @@ func (m *Manager) RollbackArgoApplication(namespace, name string, id int64, prun
 	defer cancel()
 	ref := ArgoAppRef{Namespace: strings.TrimSpace(namespace), Name: strings.TrimSpace(name)}
 	if ref.Namespace == "" || ref.Name == "" {
-		return errors.New("не указано приложение")
+		return errors.New("no application specified")
 	}
 	ri := conn.DynamicClient.Resource(kindTable["application"].gvr).Namespace(ref.Namespace)
 	return updateArgoApp(ctx, ri, ref.Name, func(obj *unstructured.Unstructured) error {
@@ -160,17 +160,17 @@ func forEachArgoApp(dyn dynamic.Interface, apps []ArgoAppRef, op func(ri dynamic
 
 func normalizeArgoRefs(apps []ArgoAppRef) ([]ArgoAppRef, error) {
 	if len(apps) == 0 {
-		return nil, errors.New("не выбрано ни одного приложения")
+		return nil, errors.New("no applications selected")
 	}
 	if len(apps) > argoMaxBulk {
-		return nil, fmt.Errorf("за раз можно обработать не более %d приложений", argoMaxBulk)
+		return nil, fmt.Errorf("at most %d applications can be processed at once", argoMaxBulk)
 	}
 	seen := make(map[ArgoAppRef]bool, len(apps))
 	out := make([]ArgoAppRef, 0, len(apps))
 	for _, a := range apps {
 		ref := ArgoAppRef{Namespace: strings.TrimSpace(a.Namespace), Name: strings.TrimSpace(a.Name)}
 		if ref.Namespace == "" || ref.Name == "" {
-			return nil, errors.New("у приложения не указан namespace или имя")
+			return nil, errors.New("application has no namespace or name")
 		}
 		if !seen[ref] {
 			seen[ref] = true
@@ -185,11 +185,11 @@ func validateArgoSyncOptions(o ArgoSyncOptions, appCount int) error {
 		return nil
 	}
 	if appCount > 1 {
-		return errors.New("ревизию можно указать только при синхронизации одного приложения")
+		return errors.New("a revision can only be specified when syncing a single application")
 	}
 	if len(o.Revision) > argoMaxRevisionLen ||
 		strings.ContainsFunc(o.Revision, func(r rune) bool { return unicode.IsSpace(r) || unicode.IsControl(r) }) {
-		return errors.New("некорректная ревизия")
+		return errors.New("invalid revision")
 	}
 	return nil
 }
@@ -259,7 +259,7 @@ func applySyncOperation(obj *unstructured.Unstructured, o ArgoSyncOptions) error
 		return errArgoBusy
 	}
 	if srcs, ok := sliceAt(obj.Object, "spec", "sources"); o.Revision != "" && ok && len(srcs) > 0 {
-		return errors.New("для multi-source приложения ревизию задать нельзя")
+		return errors.New("a revision cannot be set for a multi-source application")
 	}
 	sync := map[string]interface{}{"prune": o.Prune, "dryRun": o.DryRun}
 	if o.Revision != "" {
@@ -281,19 +281,19 @@ func applyTerminate(obj *unstructured.Unstructured) error {
 		}
 		return unstructured.SetNestedField(obj.Object, "operation is terminating", "status", "operationState", "message")
 	case phase == argoPhaseTerminating:
-		return errors.New("операция уже останавливается")
+		return errors.New("operation is already being terminated")
 	}
 	// операция запрошена, но контроллер её ещё не взял: достаточно убрать поле
 	if v, found, _ := unstructured.NestedFieldNoCopy(obj.Object, "operation"); found && v != nil {
 		unstructured.RemoveNestedField(obj.Object, "operation")
 		return nil
 	}
-	return errors.New("нет выполняющейся операции")
+	return errors.New("no operation is running")
 }
 
 func applyRollback(obj *unstructured.Unstructured, id int64, prune, dryRun bool) error {
 	if autoSyncEnabled(obj.Object) {
-		return errors.New("откат недоступен при включённой автосинхронизации: сначала отключите auto-sync")
+		return errors.New("rollback is unavailable while auto-sync is enabled: disable auto-sync first")
 	}
 	if argoOperationBusy(obj.Object) {
 		return errArgoBusy
@@ -307,7 +307,7 @@ func applyRollback(obj *unstructured.Unstructured, id int64, prune, dryRun bool)
 		}
 	}
 	if entry == nil {
-		return fmt.Errorf("запись истории #%d не найдена", id)
+		return fmt.Errorf("history entry #%d not found", id)
 	}
 
 	sync := map[string]interface{}{"prune": prune, "dryRun": dryRun}
@@ -318,7 +318,7 @@ func applyRollback(obj *unstructured.Unstructured, id int64, prune, dryRun bool)
 		}
 	}
 	if sync["revision"] == nil && sync["revisions"] == nil {
-		return errors.New("в записи истории нет ревизии")
+		return errors.New("history entry has no revision")
 	}
 	return setArgoOperation(obj, sync)
 }
@@ -363,7 +363,7 @@ func (m *Manager) DeleteArgoApplication(namespace, name string, cascade bool) er
 	}
 	namespace, name = strings.TrimSpace(namespace), strings.TrimSpace(name)
 	if namespace == "" || name == "" {
-		return errors.New("не указано приложение")
+		return errors.New("no application specified")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), argoActionTimeout)
 	defer cancel()
@@ -381,7 +381,7 @@ func (m *Manager) DeleteArgoApplication(namespace, name string, cascade bool) er
 func applySuspendAutoSync(obj *unstructured.Unstructured) error {
 	cur, found, _ := unstructured.NestedFieldNoCopy(obj.Object, "spec", "syncPolicy", "automated")
 	if !found || cur == nil {
-		return errors.New("автосинхронизация уже отключена")
+		return errors.New("auto-sync is already disabled")
 	}
 	raw, err := json.Marshal(cur)
 	if err != nil {
@@ -399,7 +399,7 @@ func applySuspendAutoSync(obj *unstructured.Unstructured) error {
 
 func applyResumeAutoSync(obj *unstructured.Unstructured) error {
 	if autoSyncEnabled(obj.Object) {
-		return errors.New("автосинхронизация уже включена")
+		return errors.New("auto-sync is already enabled")
 	}
 	automated := map[string]interface{}{}
 	ann := obj.GetAnnotations()

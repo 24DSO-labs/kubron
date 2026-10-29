@@ -2,11 +2,11 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <section class="ov-card bl">
-    <h2 class="ov-card-title">Blockers</h2>
+    <h2 class="ov-card-title">{{ $t('overview.blockers.title') }}</h2>
 
     <template v-if="risks">
       <template v-if="risks.quotas.length">
-        <h3 class="sub-title">Quotas near limit <span class="n">{{ risks.quotaTotal }}</span></h3>
+        <h3 class="sub-title">{{ $t('overview.blockers.quotas') }} <span class="n">{{ risks.quotaTotal }}</span></h3>
         <ul class="list">
           <li v-for="q in risks.quotas.slice(0, 4)" :key="`${q.namespace}/${q.name}/${q.resource}`" class="row">
             <span class="name" :title="`${q.namespace}/${q.name}`">{{ q.namespace }} · {{ q.resource }}</span>
@@ -17,20 +17,20 @@
       </template>
 
       <template v-if="risks.pdbs.length">
-        <h3 class="sub-title">PDB blocks drain <span class="n">{{ risks.pdbTotal }}</span></h3>
+        <h3 class="sub-title">{{ $t('overview.blockers.pdbs') }} <span class="n">{{ risks.pdbTotal }}</span></h3>
         <ul class="list">
           <li v-for="p in risks.pdbs.slice(0, 4)" :key="`${p.namespace}/${p.name}`" class="row">
             <span class="name" :title="`${p.namespace}/${p.name}`">{{ p.namespace }}/{{ p.name }}</span>
-            <span class="sub">healthy {{ p.healthy }} of {{ p.expected }}, needs {{ p.desired }}</span>
+            <span class="sub">{{ $t('overview.blockers.pdbDetail', { healthy: p.healthy, expected: p.expected, desired: p.desired }) }}</span>
           </li>
         </ul>
       </template>
 
       <p v-if="!risks.quotas.length && !risks.pdbs.length" class="none">
-        No quota above {{ 80 }}% and no PodDisruptionBudget blocking evictions
+        {{ $t('overview.blockers.none', { percent: 80 }) }}
       </p>
     </template>
-    <p v-else class="none">Loading…</p>
+    <p v-else class="none">{{ $t('common.loading') }}</p>
   </section>
 </template>
 

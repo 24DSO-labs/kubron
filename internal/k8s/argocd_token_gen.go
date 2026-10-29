@@ -52,15 +52,15 @@ func (c *argoAPIClient) postJSON(ctx context.Context, path, bearer string, in an
 	resp, err := c.hc.Do(req)
 	if err != nil {
 		// Ошибка транспорта содержит метод и URL, но не тело и не заголовки.
-		return nil, 0, fmt.Errorf("запрос к Argo CD API: %w", err)
+		return nil, 0, fmt.Errorf("Argo CD API request failed: %w", err)
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, argoAPIMaxBody+1))
 	if err != nil {
-		return nil, 0, fmt.Errorf("чтение ответа Argo CD API: %w", err)
+		return nil, 0, fmt.Errorf("failed to read Argo CD API response: %w", err)
 	}
 	if len(body) > argoAPIMaxBody {
-		return nil, 0, errors.New("ответ Argo CD API слишком большой")
+		return nil, 0, errors.New("Argo CD API response is too large")
 	}
 	return body, resp.StatusCode, nil
 }
@@ -92,19 +92,19 @@ func tokenFromBody(body []byte) string {
 // validateTokenRequest проверяет вход до обращения к сети.
 func validateTokenRequest(account, username, password string, days int) (int, error) {
 	if !argoAccountRe.MatchString(account) {
-		return 0, errors.New("недопустимое имя аккаунта Argo CD (разрешены буквы, цифры и . _ @ -, до 64 символов)")
+		return 0, errors.New("invalid Argo CD account name (letters, digits and . _ @ - are allowed, up to 64 characters)")
 	}
 	if username == "" || password == "" {
-		return 0, errors.New("укажите логин и пароль Argo CD")
+		return 0, errors.New("enter the Argo CD username and password")
 	}
 	if len(username) > argoCredMaxLen || len(password) > argoCredMaxLen {
-		return 0, errors.New("логин или пароль слишком длинный")
+		return 0, errors.New("username or password is too long")
 	}
 	if days == 0 {
 		days = argoTokenDefaultDays
 	}
 	if days < 1 || days > argoTokenMaxDays {
-		return 0, fmt.Errorf("срок действия токена: от 1 до %d дней", argoTokenMaxDays)
+		return 0, fmt.Errorf("token validity must be between 1 and %d days", argoTokenMaxDays)
 	}
 	return days, nil
 }
@@ -125,13 +125,13 @@ func generateArgoToken(ctx context.Context, c *argoAPIClient, account, username,
 	switch {
 	case status == http.StatusOK:
 	case status == http.StatusUnauthorized || status == http.StatusForbidden:
-		return "", errors.New("Argo CD отклонил логин или пароль (проверьте, что у аккаунта включён вход: login в argocd-cm)")
+		return "", errors.New("Argo CD rejected the username or password (check that login is enabled for the account in argocd-cm)")
 	default:
 		return "", argoAPIStatusError(status, scrub(body, password))
 	}
 	session := tokenFromBody(body)
 	if session == "" {
-		return "", errors.New("Argo CD не вернул токен сессии (проверьте версию сервера и server.rootpath)")
+		return "", errors.New("Argo CD returned no session token (check the server version and server.rootpath)")
 	}
 
 	// 2. Токен аккаунта
@@ -143,16 +143,16 @@ func generateArgoToken(ctx context.Context, c *argoAPIClient, account, username,
 	if status != http.StatusOK {
 		body = scrub(body, password, session)
 		if strings.Contains(string(body), "apiKey") {
-			return "", fmt.Errorf("у аккаунта %q не включена возможность apiKey: добавьте в argocd-cm строку accounts.%s: apiKey", account, account)
+			return "", fmt.Errorf("account %q does not have the apiKey capability enabled: add accounts.%s: apiKey to argocd-cm", account, account)
 		}
 		if status == http.StatusForbidden {
-			return "", fmt.Errorf("у пользователя %q нет права создавать токены для аккаунта %q (RBAC Argo CD: accounts, update)", username, account)
+			return "", fmt.Errorf("user %q is not allowed to create tokens for account %q (Argo CD RBAC: accounts, update)", username, account)
 		}
 		return "", argoAPIStatusError(status, body)
 	}
 	token, err := normalizeArgoToken(tokenFromBody(body))
 	if err != nil {
-		return "", errors.New("Argo CD вернул пустой или некорректный токен")
+		return "", errors.New("Argo CD returned an empty or invalid token")
 	}
 	return token, nil
 }
@@ -166,7 +166,7 @@ func (pfm *PortForwardManager) GenerateArgoAPIToken(account, username, password 
 	}
 	clusterID := pfm.k8sMgr.GetActiveContext()
 	if clusterID == "" {
-		return errors.New("нет активного подключения")
+		return errors.New("no active connection")
 	}
 	info, err := pfm.OpenArgoUI()
 	if err != nil {

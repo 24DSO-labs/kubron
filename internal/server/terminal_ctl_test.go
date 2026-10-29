@@ -11,12 +11,12 @@ func TestParseTermControl(t *testing.T) {
 		t.Fatalf("%d x %d, %v", c, r, err)
 	}
 	for _, bad := range []string{
-		`не json`, `{}`, `{"type":"exec","cols":1,"rows":1}`,
+		`not json`, `{}`, `{"type":"exec","cols":1,"rows":1}`,
 		`{"type":"resize","cols":0,"rows":10}`, `{"type":"resize","cols":10,"rows":-1}`,
 		`{"type":"resize","cols":100000,"rows":10}`, `{"type":"resize","cols":10}`,
 	} {
 		if _, _, err := parseTermControl([]byte(bad)); err == nil {
-			t.Errorf("%s: ждали ошибку", bad)
+			t.Errorf("%s: expected an error", bad)
 		}
 	}
 }
@@ -37,5 +37,5 @@ func TestTermConnsCloseSession(t *testing.T) {
 		t.Errorf("a1=%d a2=%d b=%d", a1.n, a2.n, b.n)
 	}
 	tc.closeSession("a") // повторно — без паники
-	tc.closeSession("нет")
+	tc.closeSession("missing")
 }

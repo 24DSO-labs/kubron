@@ -3,17 +3,17 @@
 <template>
   <form class="auth-form" @submit.prevent="submit" autocomplete="off">
     <label class="auth-field">
-      <span>Текущий пароль</span>
+      <span>{{ $t('auth.change.current') }}</span>
       <input ref="firstInput" v-model="oldPassword" type="password" autocomplete="current-password"
         :disabled="busy" required />
     </label>
     <label class="auth-field">
-      <span>Новый пароль</span>
+      <span>{{ $t('auth.change.new') }}</span>
       <input v-model="newPassword" type="password" autocomplete="new-password" :disabled="busy" required />
-      <small>Не короче {{ MIN_PASSWORD }} символов</small>
+      <small>{{ $t('auth.fields.minLength', { min: MIN_PASSWORD }) }}</small>
     </label>
     <label class="auth-field">
-      <span>Повторите новый пароль</span>
+      <span>{{ $t('auth.change.confirmNew') }}</span>
       <input v-model="confirm" type="password" autocomplete="new-password" :disabled="busy" required />
     </label>
 
@@ -22,7 +22,7 @@
     <div class="auth-actions">
       <slot name="secondary" />
       <button class="auth-submit" type="submit" :disabled="busy || !filled">
-        {{ busy ? 'Сохранение…' : 'Сменить пароль' }}
+        {{ busy ? $t('auth.change.submitting') : $t('auth.change.submit') }}
       </button>
     </div>
   </form>
@@ -30,11 +30,14 @@
 
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue'
-import { errorText, useAuth } from '../../composables/useAuth'
+import { useI18n } from 'vue-i18n'
+import { errorText } from '../../composables/errorText'
+import { useAuth } from '../../composables/useAuth'
 import { MIN_PASSWORD } from './constants'
 
 const emit = defineEmits<{ (e: 'done'): void }>()
 
+const { t } = useI18n()
 const auth = useAuth()
 const oldPassword = ref('')
 const newPassword = ref('')
@@ -50,11 +53,11 @@ onMounted(() => firstInput.value?.focus())
 async function submit() {
   error.value = ''
   if (newPassword.value.length < MIN_PASSWORD) {
-    error.value = `Пароль должен содержать не менее ${MIN_PASSWORD} символов`
+    error.value = t('auth.errors.passwordTooShort', { min: MIN_PASSWORD })
     return
   }
   if (newPassword.value !== confirm.value) {
-    error.value = 'Пароли не совпадают'
+    error.value = t('auth.errors.passwordMismatch')
     return
   }
   busy.value = true

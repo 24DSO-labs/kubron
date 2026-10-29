@@ -102,3 +102,10 @@ func TestStopAllClearsSessions(t *testing.T) {
 		t.Fatalf("expected no sessions, got %d", n)
 	}
 }
+
+func TestSessionSnapshotKeepsClusterID(t *testing.T) {
+	s := &PortForwardSession{ID: "x", ClusterID: "cluster-a", stopChan: make(chan struct{})}
+	if got := s.snapshot(); got.ClusterID != "cluster-a" {
+		t.Fatalf("snapshot ClusterID = %q, want cluster-a", got.ClusterID)
+	}
+}

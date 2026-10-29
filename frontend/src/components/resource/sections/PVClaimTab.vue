@@ -3,11 +3,11 @@
 <template>
   <div v-if="claimName" class="pv-tab">
     <div class="rd-row">
-      <span class="rd-label">Type</span>
+      <span class="rd-label">{{ $t('defs.columns.type') }}</span>
       <span class="rd-value">PersistentVolumeClaim</span>
     </div>
     <div class="rd-row">
-      <span class="rd-label">Name</span>
+      <span class="rd-label">{{ $t('common.name') }}</span>
       <span class="rd-value">
         <a class="rd-link" @click="emit('open', { id: 'persistentvolumeclaim', ns: claimNs, name: claimName })">
           {{ claimName }}
@@ -15,11 +15,11 @@
       </span>
     </div>
     <div class="rd-row">
-      <span class="rd-label">Namespace</span>
+      <span class="rd-label">{{ $t('common.namespace') }}</span>
       <span class="rd-value">{{ claimNs }}</span>
     </div>
   </div>
-  <div v-else class="rd-empty">Volume is not bound to a claim</div>
+  <div v-else class="rd-empty">{{ $t('sections.pvClaim.empty') }}</div>
 </template>
 
 <script lang="ts" setup>

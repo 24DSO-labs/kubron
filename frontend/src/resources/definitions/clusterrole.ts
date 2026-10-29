@@ -15,7 +15,7 @@ export const clusterRole = defineResource({
   namespaced: false,
   nav: { group: 'access', label: 'Cluster Roles' },
   columns: [nameCol, ageCol],
-  properties: [{ label: 'Rules', value: r => r.rules?.length ?? 0 }, controlledByProp, managedByProp],
+  properties: [{ label: 'defs.columns.rules', value: r => r.rules?.length ?? 0 }, controlledByProp, managedByProp],
   sections: [RulesSection],
   api: {
     list: () => callApp('GetClusterRoles'),

@@ -4,9 +4,9 @@
 package store
 
 import (
-	"analog/internal/audit"
-	"analog/internal/auth"
-	"analog/internal/k8s"
+	"github.com/VadimIl224/kubron/internal/audit"
+	"github.com/VadimIl224/kubron/internal/auth"
+	"github.com/VadimIl224/kubron/internal/k8s"
 )
 
 // fileStore — хранилище десктопа: файлы в каталоге данных приложения (~/.kubron).
@@ -21,3 +21,6 @@ func NewFile(dir string) Store { return fileStore{dir: dir} }
 func (s fileStore) Users() auth.Backend        { return auth.NewFileBackend(s.dir) }
 func (s fileStore) Audit() audit.Backend       { return audit.NewFileBackend(s.dir) }
 func (s fileStore) ArgoTokens() k8s.TokenStore { return k8s.NewFileTokenStore() }
+
+// Clusters — каталог clusters в каталоге данных (k8s.GetKubronDir): путь к kubeconfig нужен client-go и Helm.
+func (s fileStore) Clusters() k8s.ClusterStore { return k8s.NewFileClusterStore() }

@@ -18,6 +18,8 @@ export default defineConfig({
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: process.env.E2E_BASE_URL ?? 'http://127.0.0.1:8080',
+    // Тесты ищут элементы по русским надписям: язык интерфейса берётся из браузера (docs/i18n.md)
+    locale: 'ru-RU',
     // E2E_CHROMIUM — путь к уже установленному Chromium (если `playwright install` недоступен)
     launchOptions: process.env.E2E_CHROMIUM ? { executablePath: process.env.E2E_CHROMIUM } : {},
     trace: 'retain-on-failure',
