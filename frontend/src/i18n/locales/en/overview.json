@@ -1,0 +1,127 @@
+{
+  "title": "Overview",
+  "updated": "Updated {time}",
+  "staleData": "Update failed, showing last data",
+  "refreshing": "Refreshing…",
+  "loading": "Loading cluster data…",
+  "loadFailed": "Failed to load cluster overview",
+  "stats": {
+    "nodes": "Nodes",
+    "pods": "Pods",
+    "restarts": "Restarts (24h)",
+    "warnings": "Warnings (1h)",
+    "nodesReady": "Ready: {n}",
+    "podsRunning": "Running: {n}",
+    "podsProblems": "Problems: {problems} · Running: {running}",
+    "oomKilled": "OOMKilled: {n}",
+    "containersRestarted": "Containers restarted",
+    "noRestarts": "No restarts",
+    "noWarnings": "No warnings"
+  },
+  "cores": "{value} cores",
+  "time": {
+    "justNow": "just now",
+    "minutesAgo": "{n}m ago",
+    "hoursAgo": "{n}h ago",
+    "daysAgo": "{n}d ago"
+  },
+  "usage": {
+    "title": "Resource usage",
+    "memory": "Memory",
+    "cpuDetail": "{used} / {total} cores",
+    "requestedCpu": "Requested {used} / {total} cores ({percent}%)",
+    "requestedMemory": "Requested {used} / {total} ({percent}%)",
+    "installingTitle": "Metrics stack is installing",
+    "installingText": "Data will appear once the components start.",
+    "degradedTitle": "Metrics stack is not working",
+    "degradedText": "Check the components in the cluster settings.",
+    "openSettings": "Open settings",
+    "unavailableTitle": "Metrics are not available",
+    "unavailableText": "Install the metrics stack in the cluster settings to see CPU and memory load.",
+    "install": "Install metrics"
+  },
+  "topPods": {
+    "title": "Closest to limit",
+    "memory": "Memory",
+    "usedOfLimit": "{used} of limit",
+    "emptyMemory": "No pods with memory limits",
+    "emptyCpu": "No pods with CPU limits",
+    "needMetrics": "Install the metrics stack in cluster settings to see this"
+  },
+  "storage": {
+    "title": "Storage",
+    "empty": "No volume metrics yet (kubelet reports mounted volumes only)",
+    "needMetrics": "Install the metrics stack in cluster settings to see volume usage",
+    "pvcPending": "{n} PVC Pending",
+    "pvcLost": "{n} PVC Lost"
+  },
+  "warnings": {
+    "title": "Warnings, last hour",
+    "empty": "No warnings in the last hour",
+    "viewAll": "View all events →"
+  },
+  "workloads": {
+    "title": "Workloads",
+    "countOf": "{n} of {total}",
+    "allNamespaces": "All namespaces",
+    "search": "Search workloads…",
+    "searchLabel": "Search workloads",
+    "type": "Type",
+    "ready": "Ready",
+    "upToDate": "Up to date",
+    "noMatch": "Nothing matches the filter",
+    "empty": "No workloads in this cluster"
+  },
+  "problems": {
+    "title": "Needs attention",
+    "restarts": "{n} restart | {n} restarts",
+    "empty": "All pods are healthy",
+    "viewAll": "View all pods ({total}) →"
+  },
+  "health": {
+    "title": "Cluster health",
+    "score": "Health score {score} of 100",
+    "status": {
+      "Healthy": "Healthy",
+      "Degraded": "Degraded",
+      "Critical": "Critical"
+    },
+    "component": {
+      "healthy": "Healthy",
+      "unhealthy": "Unhealthy",
+      "unknown": "Unknown"
+    },
+    "chipBad": "{names}: unhealthy",
+    "chipOk": "Control plane healthy"
+  },
+  "changes": {
+    "title": "What changed",
+    "window60": "1h",
+    "window360": "6h",
+    "window1440": "24h",
+    "empty": "Nothing changed in this period"
+  },
+  "capacity": {
+    "title": "Scheduling headroom",
+    "largestSlot": "Largest free slot",
+    "on": "on {node}",
+    "free": "free {value}",
+    "hint": "Requests-based; cordoned and NotReady nodes are skipped. Bars: CPU, memory.",
+    "empty": "No schedulable nodes"
+  },
+  "blockers": {
+    "title": "Blockers",
+    "quotas": "Quotas near limit",
+    "pdbs": "PDB blocks drain",
+    "pdbDetail": "healthy {healthy} of {expected}, needs {desired}",
+    "none": "No quota above {percent}% and no PodDisruptionBudget blocking evictions"
+  },
+  "certs": {
+    "title": "Certificates",
+    "expired": "expired {n}d ago",
+    "today": "today",
+    "left": "{n}d left",
+    "none": "No TLS certificate expires within 30 days ({checked} checked)",
+    "more": "and {n} more"
+  }
+}

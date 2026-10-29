@@ -2,11 +2,11 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="cp-overlay" @click.self="emit('close')" @keydown.esc="emit('close')">
-    <div class="cp-dialog" role="dialog" aria-modal="true" aria-label="Смена пароля">
-      <h3>Смена пароля</h3>
+    <div class="cp-dialog" role="dialog" aria-modal="true" :aria-label="$t('auth.change.title')">
+      <h3>{{ $t('auth.change.title') }}</h3>
       <ChangePasswordForm @done="onDone">
         <template #secondary>
-          <button class="auth-link" type="button" @click="emit('close')">Отмена</button>
+          <button class="auth-link" type="button" @click="emit('close')">{{ $t('common.cancel') }}</button>
         </template>
       </ChangePasswordForm>
     </div>
@@ -14,14 +14,16 @@
 </template>
 
 <script lang="ts" setup>
+import { useI18n } from 'vue-i18n'
 import { useNotifications } from '../../composables/useNotifications'
 import ChangePasswordForm from './ChangePasswordForm.vue'
 
 const emit = defineEmits<{ (e: 'close'): void }>()
+const { t } = useI18n()
 const notifications = useNotifications()
 
 function onDone() {
-  notifications.notifySuccess('Пароль изменён')
+  notifications.notifySuccess(t('auth.change.done'))
   emit('close')
 }
 </script>

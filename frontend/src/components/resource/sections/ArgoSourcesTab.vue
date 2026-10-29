@@ -4,7 +4,7 @@
   <div v-if="sources.length" class="rd-table-wrap">
     <table class="rd-table">
       <thead>
-        <tr><th>#</th><th>Repository</th><th>Path / Chart</th><th>Target revision</th><th>Ref</th></tr>
+        <tr><th>#</th><th>{{ $t('argo.sources.repository') }}</th><th>{{ $t('argo.sources.pathOrChart') }}</th><th>{{ $t('argo.sources.targetRevision') }}</th><th>{{ $t('argo.sources.ref') }}</th></tr>
       </thead>
       <tbody>
         <tr v-for="(s, i) in sources" :key="i">
@@ -17,7 +17,7 @@
       </tbody>
     </table>
   </div>
-  <div v-else class="rd-empty">No sources</div>
+  <div v-else class="rd-empty">{{ $t('argo.sources.empty') }}</div>
 </template>
 
 <script lang="ts" setup>

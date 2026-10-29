@@ -39,7 +39,7 @@ func readJSON(t *testing.T, ws *websocket.Conn) map[string]any {
 	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
 	var m map[string]any
 	if err := ws.ReadJSON(&m); err != nil {
-		t.Fatalf("чтение: %v", err)
+		t.Fatalf("read: %v", err)
 	}
 	return m
 }
@@ -47,13 +47,13 @@ func readJSON(t *testing.T, ws *websocket.Conn) map[string]any {
 func TestWSRejectsWithoutSessionOrOrigin(t *testing.T) {
 	srv, _, _, cookie := wsSetup(t)
 	if _, resp, err := dial(srv, http.Header{"Origin": {srv.URL}}); err == nil || resp == nil || resp.StatusCode != 401 {
-		t.Errorf("без cookie: err=%v resp=%v", err, resp)
+		t.Errorf("no cookie: err=%v resp=%v", err, resp)
 	}
 	if _, resp, err := dial(srv, http.Header{"Cookie": {cookie}}); err == nil || resp == nil || resp.StatusCode != 403 {
-		t.Errorf("без Origin: err=%v resp=%v", err, resp)
+		t.Errorf("no Origin: err=%v resp=%v", err, resp)
 	}
 	if _, resp, err := dial(srv, http.Header{"Cookie": {cookie}, "Origin": {"https://evil.example"}}); err == nil || resp == nil || resp.StatusCode != 403 {
-		t.Errorf("чужой Origin: err=%v resp=%v", err, resp)
+		t.Errorf("foreign Origin: err=%v resp=%v", err, resp)
 	}
 }
 
@@ -75,7 +75,7 @@ func TestWSSubscribeAndReceive(t *testing.T) {
 	m := readJSON(t, ws)
 	b, _ := json.Marshal(m)
 	if m["event"] != "cluster:changed" || !strings.Contains(string(b), "prod") {
-		t.Errorf("событие: %s", b)
+		t.Errorf("event: %s", b)
 	}
 }
 

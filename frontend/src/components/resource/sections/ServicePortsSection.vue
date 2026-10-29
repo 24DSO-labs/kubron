@@ -2,8 +2,8 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="rd-row rd-click" @click="open = !open">
-    <span class="rd-label">Ports<span class="rd-arrow" :class="{ open }">›</span></span>
-    <span v-if="!open" class="rd-muted">{{ ports.length }} ports</span>
+    <span class="rd-label">{{ $t('defs.columns.ports') }}<span class="rd-arrow" :class="{ open }">›</span></span>
+    <span v-if="!open" class="rd-muted">{{ $t('sections.servicePorts.count', ports.length) }}</span>
     <div v-else-if="ports.length" class="rd-wide" @click.stop>
       <div v-for="p in ports" :key="p.port" class="svc-port">
         <span class="svc-port-label">{{ p.port }}:{{ p.targetPort }}/{{ p.protocol || 'TCP' }}</span>

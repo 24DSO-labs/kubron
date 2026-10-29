@@ -66,12 +66,12 @@ describe('isValidNamespace', () => {
 
 describe('справочники оформления', () => {
   it('значок находится по ключу, устаревшие эмодзи — нет', () => {
-    expect(findGlyph('server')?.label).toBe('Сервер')
+    expect(findGlyph('server')?.label).toBe('cluster.glyph.server')
     expect(findGlyph('🔵')).toBeNull()
     expect(findGlyph('')).toBeNull()
   })
   it('окружение находится по ключу, пустое и неизвестное — нет', () => {
-    expect(findEnvironment('prod')?.label).toBe('Prod')
+    expect(findEnvironment('prod')?.label).toBe('cluster.env.prod')
     expect(findEnvironment('')).toBeNull()
     expect(findEnvironment('qa')).toBeNull()
   })

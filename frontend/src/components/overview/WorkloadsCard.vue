@@ -3,15 +3,17 @@
 <template>
   <section class="ov-card workloads">
     <header class="head">
-      <h2 class="ov-card-title">Workloads</h2>
-      <span class="count">{{ filtered.length }}<template v-if="filtered.length !== workloads.length"> of {{ workloads.length }}</template></span>
+      <h2 class="ov-card-title">{{ $t('overview.workloads.title') }}</h2>
+      <span class="count">{{ filtered.length !== workloads.length ? $t('overview.workloads.countOf', { n: filtered.length, total: workloads.length }) : filtered.length }}</span>
 
       <div class="tools">
-        <select v-model="namespace" class="ov-input" aria-label="Namespace">
-          <option value="">All namespaces</option>
+        <select v-model="namespace" class="ov-input" 
+          :aria-label="$t('common.namespace')">
+          <option value="">{{ $t('overview.workloads.allNamespaces') }}</option>
           <option v-for="ns in namespaces" :key="ns" :value="ns">{{ ns }}</option>
         </select>
-        <input v-model="search" class="ov-input" type="search" placeholder="Search workloads…" aria-label="Search workloads" />
+        <input v-model="search" class="ov-input" type="search" :placeholder="$t('overview.workloads.search')"
+          :aria-label="$t('overview.workloads.searchLabel')" />
       </div>
     </header>
 
@@ -19,13 +21,13 @@
       <table v-if="filtered.length" class="table">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Namespace</th>
-            <th>Type</th>
-            <th>Status</th>
-            <th>Ready</th>
-            <th>Up to date</th>
-            <th>Age</th>
+            <th>{{ $t('common.name') }}</th>
+            <th>{{ $t('common.namespace') }}</th>
+            <th>{{ $t('overview.workloads.type') }}</th>
+            <th>{{ $t('common.status') }}</th>
+            <th>{{ $t('overview.workloads.ready') }}</th>
+            <th>{{ $t('overview.workloads.upToDate') }}</th>
+            <th>{{ $t('common.age') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -50,7 +52,7 @@
           </tr>
         </tbody>
       </table>
-      <p v-else class="none">{{ workloads.length ? 'Nothing matches the filter' : 'No workloads in this cluster' }}</p>
+      <p v-else class="none">{{ workloads.length ? $t('overview.workloads.noMatch') : $t('overview.workloads.empty') }}</p>
     </div>
   </section>
 </template>

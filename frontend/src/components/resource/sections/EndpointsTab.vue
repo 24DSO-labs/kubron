@@ -3,7 +3,7 @@
 <template>
   <div v-if="rows.length" class="rd-table-wrap">
     <table class="rd-table">
-      <thead><tr><th>Name</th><th>Endpoints</th></tr></thead>
+      <thead><tr><th>{{ $t('common.name') }}</th><th>{{ $t('defs.columns.endpoints') }}</th></tr></thead>
       <tbody>
         <tr
           v-for="r in rows"
@@ -17,7 +17,7 @@
       </tbody>
     </table>
   </div>
-  <div v-else class="rd-empty">No Endpoints</div>
+  <div v-else class="rd-empty">{{ $t('sections.endpointsTab.empty') }}</div>
 </template>
 
 <script lang="ts" setup>

@@ -1,14 +1,13 @@
 // Copyright 2026 The Kubron Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import { errorText } from '../composables/errorText'
+
 /** Результат пакетной операции: исключение одного элемента не прерывает остальные */
 export interface BatchResult<T> {
   done: T[]
   failed: { item: T; error: string }[]
 }
-
-const errText = (e: unknown): string =>
-  (e as { message?: string } | null)?.message || (typeof e === 'string' ? e : String(e))
 
 /**
  * Выполняет fn для каждого элемента не более чем `limit` вызовов одновременно.
@@ -25,7 +24,7 @@ export async function runBatch<T>(items: readonly T[], fn: (item: T) => Promise<
         await fn(item)
         result.done.push(item)
       } catch (e) {
-        result.failed.push({ item, error: errText(e) })
+        result.failed.push({ item, error: errorText(e) })
       }
     }
   }

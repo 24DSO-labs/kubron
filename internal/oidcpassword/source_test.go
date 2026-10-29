@@ -103,11 +103,11 @@ func TestPasswordGrantThenCache(t *testing.T) {
 		t.Fatalf("token: %v", err)
 	}
 	if !exp.Equal(clk.Now().Add(5 * time.Minute)) {
-		t.Errorf("expiry %v не равен exp из JWT", exp)
+		t.Errorf("expiry %v does not equal exp from the JWT", exp)
 	}
 	tok2, _, _ := s.Token(context.Background())
 	if tok1 != tok2 || idp.passwordN.Load() != 1 {
-		t.Fatalf("второй вызов должен браться из кэша (password=%d)", idp.passwordN.Load())
+		t.Fatalf("the second call must come from the cache (password=%d)", idp.passwordN.Load())
 	}
 }
 
@@ -123,10 +123,10 @@ func TestRefreshBeforeExpiry(t *testing.T) {
 		t.Fatal(err)
 	}
 	if second == first {
-		t.Error("токен должен обновиться до истечения")
+		t.Error("the token must be refreshed before it expires")
 	}
 	if idp.refreshN.Load() != 1 || idp.passwordN.Load() != 1 || s.LastGrant() != "refresh" {
-		t.Errorf("ждали 1 password + 1 refresh, а было password=%d refresh=%d grant=%s",
+		t.Errorf("expected 1 password + 1 refresh, got password=%d refresh=%d grant=%s",
 			idp.passwordN.Load(), idp.refreshN.Load(), s.LastGrant())
 	}
 }
@@ -140,7 +140,7 @@ func TestRevokedRefreshFallsBackToPassword(t *testing.T) {
 	idp.refreshBad.Store(true)
 	clk.Add(10 * time.Minute)
 	if _, _, err := s.Token(context.Background()); err != nil {
-		t.Fatalf("при отозванном refresh_token ждали повторный вход по паролю: %v", err)
+		t.Fatalf("expected a password re-login with a revoked refresh_token: %v", err)
 	}
 	if idp.passwordN.Load() != 2 || s.LastGrant() != "password" {
 		t.Errorf("password=%d grant=%s", idp.passwordN.Load(), s.LastGrant())
@@ -154,11 +154,11 @@ func TestWrongPasswordErrorHasNoSecrets(t *testing.T) {
 
 	_, _, err := s.Token(context.Background())
 	if err == nil {
-		t.Fatal("ожидали ошибку")
+		t.Fatal("expected an error")
 	}
 	for _, leak := range []string{"wrong-password-123", "alice"} {
 		if strings.Contains(err.Error(), leak) {
-			t.Errorf("ошибка раскрывает %q: %v", leak, err)
+			t.Errorf("error reveals %q: %v", leak, err)
 		}
 	}
 }
@@ -180,7 +180,7 @@ func TestConcurrentCallsHitIdPOnce(t *testing.T) {
 	}
 	wg.Wait()
 	if idp.passwordN.Load() != 1 {
-		t.Fatalf("в IdP ушло %d запросов, ждали 1", idp.passwordN.Load())
+		t.Fatalf("%d requests went to the IdP, expected 1", idp.passwordN.Load())
 	}
 }
 
@@ -223,10 +223,10 @@ func TestParseOIDCLoginExec(t *testing.T) {
 	}
 	// authcode по умолчанию — не поддерживается
 	if _, ok, err := ParseOIDCLoginExec("kubectl", []string{"oidc-login", "get-token", "--oidc-issuer-url=https://i", "--oidc-client-id=c"}); !ok || err == nil {
-		t.Errorf("authcode должен давать ошибку, ok=%v err=%v", ok, err)
+		t.Errorf("authcode must give an error, ok=%v err=%v", ok, err)
 	}
 	// другой exec — не наш
 	if _, ok, err := ParseOIDCLoginExec("aws", []string{"eks", "get-token"}); ok || err != nil {
-		t.Errorf("aws не oidc-login: ok=%v err=%v", ok, err)
+		t.Errorf("aws is not oidc-login: ok=%v err=%v", ok, err)
 	}
 }

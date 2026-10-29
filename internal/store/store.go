@@ -7,14 +7,14 @@
 // в каталоге данных. Серверная версия добавит реализацию на PostgreSQL с шифрованием секретов
 // (ADR-0008) и подставит её без изменений в ядре.
 //
-// Хранение kubeconfig и описаний кластеров пока остаётся файловым внутри internal/k8s
-// (их путь передаётся в client-go); вынос в Store — задача этапа 3.
+// Кластеры (метаданные и kubeconfig) хранятся через k8s.ClusterStore (задача 3.0): файлы в десктопе,
+// PostgreSQL с шифрованием — в сервисе.
 package store
 
 import (
-	"analog/internal/audit"
-	"analog/internal/auth"
-	"analog/internal/k8s"
+	"github.com/VadimIl224/kubron/internal/audit"
+	"github.com/VadimIl224/kubron/internal/auth"
+	"github.com/VadimIl224/kubron/internal/k8s"
 )
 
 // Store — всё, что приложение хранит постоянно.
@@ -25,4 +25,6 @@ type Store interface {
 	Audit() audit.Backend
 	// ArgoTokens — токены Argo CD API по кластерам.
 	ArgoTokens() k8s.TokenStore
+	// Clusters — кластеры: метаданные и kubeconfig (владение командой добавит этап 3).
+	Clusters() k8s.ClusterStore
 }

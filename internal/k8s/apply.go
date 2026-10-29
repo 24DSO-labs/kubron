@@ -33,14 +33,14 @@ func (m *Manager) ApplyYAML(namespace, kind, name, yamlData string) error {
 
 	// Защита от применения не к тому объекту
 	if obj.GetName() != name {
-		return fmt.Errorf("metadata.name изменять нельзя (было %q, стало %q)", name, obj.GetName())
+		return fmt.Errorf("metadata.name cannot be changed (was %q, now %q)", name, obj.GetName())
 	}
 	if want := info.gvr.GroupVersion().String(); obj.GetAPIVersion() != want {
-		return fmt.Errorf("apiVersion должен быть %q, а не %q", want, obj.GetAPIVersion())
+		return fmt.Errorf("apiVersion must be %q, not %q", want, obj.GetAPIVersion())
 	}
 	if info.namespaced {
 		if ns := obj.GetNamespace(); ns != "" && ns != namespace {
-			return fmt.Errorf("metadata.namespace изменять нельзя (было %q, стало %q)", namespace, ns)
+			return fmt.Errorf("metadata.namespace cannot be changed (was %q, now %q)", namespace, ns)
 		}
 		obj.SetNamespace(namespace)
 	}
@@ -50,14 +50,14 @@ func (m *Manager) ApplyYAML(namespace, kind, name, yamlData string) error {
 
 	cur, err := ri.Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("не удалось получить текущий объект: %w", err)
+		return fmt.Errorf("failed to get current object: %w", err)
 	}
 	// resourceVersion из редактора вырезан: берём актуальный, иначе Update у части ресурсов отклоняется
 	obj.SetResourceVersion(cur.GetResourceVersion())
 
 	if _, err := ri.Update(ctx, obj, metav1.UpdateOptions{}); err != nil {
 		if apierrors.IsConflict(err) {
-			return fmt.Errorf("объект изменился в кластере, закройте вкладку и откройте YAML заново: %w", err)
+			return fmt.Errorf("object was modified in the cluster, close the tab and reopen the YAML: %w", err)
 		}
 		return err
 	}
@@ -90,7 +90,7 @@ func parseSingleManifest(yamlData string) (*unstructured.Unstructured, error) {
 	// но парсит числа как int, а Kubernetes ожидает int64 — поэтому конвертируем.
 	var data map[string]interface{}
 	if err := yaml.Unmarshal([]byte(yamlData), &data); err != nil {
-		return nil, fmt.Errorf("ошибка парсинга YAML: %w", err)
+		return nil, fmt.Errorf("failed to parse YAML: %w", err)
 	}
 	converted := convertYAMLNumbers(data)
 	return &unstructured.Unstructured{Object: converted.(map[string]interface{})}, nil
@@ -162,13 +162,13 @@ func (m *Manager) CreateResourceYAML(namespace, kind, yamlData string) (string, 
 	}
 
 	if obj.GetKind() == "" {
-		return "", fmt.Errorf("в манифесте не указан kind")
+		return "", fmt.Errorf("manifest has no kind")
 	}
 	if want := info.gvr.GroupVersion().String(); obj.GetAPIVersion() != want {
-		return "", fmt.Errorf("apiVersion должен быть %q, а не %q", want, obj.GetAPIVersion())
+		return "", fmt.Errorf("apiVersion must be %q, not %q", want, obj.GetAPIVersion())
 	}
 	if obj.GetName() == "" && obj.GetGenerateName() == "" {
-		return "", fmt.Errorf("в манифесте не указан metadata.name")
+		return "", fmt.Errorf("manifest has no metadata.name")
 	}
 	if info.namespaced {
 		obj.SetNamespace(ns)
@@ -182,7 +182,7 @@ func (m *Manager) CreateResourceYAML(namespace, kind, yamlData string) (string, 
 	created, err := ri.Create(ctx, obj, metav1.CreateOptions{})
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			return "", fmt.Errorf("%s %q уже существует: %w", obj.GetKind(), obj.GetName(), err)
+			return "", fmt.Errorf("%s %q already exists: %w", obj.GetKind(), obj.GetName(), err)
 		}
 		return "", err
 	}

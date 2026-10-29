@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"analog/pkg/ext"
+	"github.com/VadimIl224/kubron/pkg/ext"
 )
 
 // memUsers — хранилище пользователей «из другого модуля»: знает только публичные типы pkg/ext.
@@ -29,13 +29,13 @@ func TestServiceOverExternalBackend(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !svc.Status().NeedsSetup {
-		t.Fatal("пустое хранилище должно требовать первичной настройки")
+		t.Fatal("an empty store must require initial setup")
 	}
 	if _, err := svc.Setup("admin", "correct-horse-1"); err != nil {
 		t.Fatal(err)
 	}
 	if mem.d == nil || len(mem.d.Users) != 1 || mem.d.Users[0].Role != string(RoleAdmin) {
-		t.Fatalf("внешнее хранилище не получило администратора: %+v", mem.d)
+		t.Fatalf("the external store did not receive an administrator: %+v", mem.d)
 	}
 
 	// «Перезапуск»: новый сервис над тем же хранилищем.
@@ -44,10 +44,10 @@ func TestServiceOverExternalBackend(t *testing.T) {
 		t.Fatal(err)
 	}
 	if svc2.Status().NeedsSetup {
-		t.Fatal("после перезапуска настройка не нужна")
+		t.Fatal("no setup is needed after a restart")
 	}
 	if _, err := svc2.Login("admin", "correct-horse-1"); err != nil {
-		t.Fatalf("вход после перезапуска: %v", err)
+		t.Fatalf("login after a restart: %v", err)
 	}
 }
 
@@ -73,6 +73,6 @@ func TestExtAdapterKeepsAllFields(t *testing.T) {
 	u := out.Users[0]
 	if u != in.Users[0] && (u.ID != "1" || u.Role != RoleAdmin || !u.Disabled || !u.MustChangePassword ||
 		u.LastLoginAt == nil || !u.LastLoginAt.Equal(now) || *out.Settings.IdleTimeoutMinutes != 15) {
-		t.Fatalf("поля потерялись: %+v", out)
+		t.Fatalf("fields were lost: %+v", out)
 	}
 }

@@ -2,15 +2,15 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="es-tab">
-    <div v-if="!endpointSlices.length" class="es-empty">No Endpoint Slices</div>
+    <div v-if="!endpointSlices.length" class="es-empty">{{ $t('sections.endpointSlices.empty') }}</div>
     <table v-else class="es-table">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Endpoints</th>
-          <th>Ports</th>
-          <th>Address Type</th>
-          <th>Age</th>
+          <th>{{ $t('common.name') }}</th>
+          <th>{{ $t('defs.columns.endpoints') }}</th>
+          <th>{{ $t('defs.columns.ports') }}</th>
+          <th>{{ $t('defs.columns.addressType') }}</th>
+          <th>{{ $t('common.age') }}</th>
           <th></th>
         </tr>
       </thead>
@@ -33,9 +33,9 @@
 
     <!-- Context menu -->
     <div v-if="menu" :style="menuStyle" class="cluster-context-menu" @click.stop>
-      <div class="ctx-menu-item" @click="showDetails(menu.item)">Show Details</div>
-      <div class="ctx-menu-item" @click="editYaml(menu.item)">Edit</div>
-      <div class="ctx-menu-item ctx-menu-danger" @click="remove(menu.item)">Delete</div>
+      <div class="ctx-menu-item" @click="showDetails(menu.item)">{{ $t('resource.menu.showDetails') }}</div>
+      <div class="ctx-menu-item" @click="editYaml(menu.item)">{{ $t('common.edit') }}</div>
+      <div class="ctx-menu-item ctx-menu-danger" @click="remove(menu.item)">{{ $t('common.delete') }}</div>
     </div>
   </div>
 </template>
@@ -48,6 +48,8 @@ import { askConfirm } from '../../../resources/confirm'
 import { can } from '../../../composables/useAuth'
 import { Perm } from '../../../types/auth'
 import { callApp } from '../../../platform/api'
+import { t } from '../../../i18n'
+import { errorText } from '../../../composables/errorText'
 
 const props = defineProps<{ resource: any }>()
 const endpointSlices = computed(() => props.resource?.endpointSlices ?? [])
@@ -86,29 +88,29 @@ function showDetails(item: any) {
 async function editYaml(item: any) {
   hideMenu()
   if (!can(Perm.Write)) {
-    notifications.notifyError('Insufficient permissions to edit')
+    notifications.notifyError(t('sections.endpointSlices.noEditPermission'))
     return
   }
   try {
     const yaml = await callApp('GetResourceYAML', item.namespace, 'endpointslice', item.name, true)
     globalTabbedPanel.openYamlTab('endpointslice', item.name, item.namespace, yaml)
   } catch (e: any) {
-    notifications.notifyError(`Failed to load YAML: ${e?.message || String(e)}`)
+    notifications.notifyError(t('actions.loadYamlFailed', { error: errorText(e) }))
   }
 }
 
 async function remove(item: any) {
   hideMenu()
   if (!can(Perm.Write)) {
-    notifications.notifyError('Insufficient permissions to delete')
+    notifications.notifyError(t('sections.endpointSlices.noDeletePermission'))
     return
   }
-  if (!(await askConfirm(`Delete EndpointSlice "${item.name}"?`))) return
+  if (!(await askConfirm(t('sections.endpointSlices.deleteConfirm', { name: item.name })))) return
   try {
     await callApp('DeleteResource', 'endpointslice', item.namespace, item.name)
-    notifications.notifySuccess(`EndpointSlice "${item.name}" deleted`)
+    notifications.notifySuccess(t('sections.endpointSlices.deleted', { name: item.name }))
   } catch (e: any) {
-    notifications.notifyError(`Failed to delete: ${e?.message || String(e)}`)
+    notifications.notifyError(t('sections.endpointSlices.deleteFailed', { error: errorText(e) }))
   }
 }
 </script>

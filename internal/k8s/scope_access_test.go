@@ -18,11 +18,11 @@ func TestListAllProbeCachesAndExpires(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		if !p.can(context.Background(), "/pods", check) {
-			t.Fatal("ожидалось разрешение")
+			t.Fatal("expected permission")
 		}
 	}
 	if calls != 1 {
-		t.Errorf("проверка должна кешироваться, вызовов: %d", calls)
+		t.Errorf("the check must be cached, calls: %d", calls)
 	}
 	// ключи независимы
 	p.can(context.Background(), "apps/deployments", check)
@@ -32,7 +32,7 @@ func TestListAllProbeCachesAndExpires(t *testing.T) {
 	clock = clock.Add(listAllAnswerTTL + time.Second)
 	p.can(context.Background(), "/pods", check)
 	if calls != 3 {
-		t.Errorf("после TTL проверка повторяется, calls=%d", calls)
+		t.Errorf("the check is repeated after the TTL, calls=%d", calls)
 	}
 }
 
@@ -43,16 +43,16 @@ func TestListAllProbeErrorIsDeniedWithShortTTL(t *testing.T) {
 	check := func(context.Context) (bool, error) { calls++; return true, errors.New("boom") }
 
 	if p.can(context.Background(), "k", check) {
-		t.Fatal("при ошибке проверки право не считается выданным")
+		t.Fatal("a failed check must not count as granted")
 	}
 	p.can(context.Background(), "k", check)
 	if calls != 1 {
-		t.Errorf("повтор внутри короткого TTL не должен ходить в API: %d", calls)
+		t.Errorf("a retry within the short TTL must not hit the API: %d", calls)
 	}
 	clock = clock.Add(listAllErrorTTL + time.Second)
 	p.can(context.Background(), "k", check)
 	if calls != 2 {
-		t.Errorf("после короткого TTL повторная проба: %d", calls)
+		t.Errorf("a retry probe after the short TTL: %d", calls)
 	}
 }
 
@@ -61,9 +61,9 @@ func TestListAllProbeCancelNotCached(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if p.can(ctx, "k", func(c context.Context) (bool, error) { return false, c.Err() }) {
-		t.Fatal("отмена = нет права")
+		t.Fatal("cancellation means no permission")
 	}
 	if len(p.entries) != 0 {
-		t.Error("отмена контекста не должна попадать в кеш")
+		t.Error("context cancellation must not be cached")
 	}
 }

@@ -4,17 +4,17 @@
   <div class="scale-dialog-overlay" @click="handleOverlayClick">
     <div class="scale-dialog" @click.stop>
       <div class="dialog-header">
-        <h3>Scale {{ deployment?._kind || 'Deployment' }} <span class="resource-name">{{ deployment?.namespace }}/{{ deployment?.name }}</span></h3>
+        <h3>{{ $t('panels.scale.title', { kind: deployment?._kind || 'Deployment' }) }} <span class="resource-name">{{ deployment?.namespace }}/{{ deployment?.name }}</span></h3>
       </div>
 
       <div class="dialog-content">
         <div class="scale-info">
           <div class="info-row">
-            <span class="info-label">Current replica scale:</span>
+            <span class="info-label">{{ $t('panels.scale.current') }}</span>
             <span class="info-value">{{ deployment?.replicas ?? deployment?.desired }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Desired number of replicas:</span>
+            <span class="info-label">{{ $t('panels.scale.desired') }}</span>
             <span class="info-value">{{ desiredReplicas }}</span>
           </div>
         </div>
@@ -28,16 +28,16 @@
             :max="maxReplicas"
           />
           <div class="slider-controls">
-            <button class="slider-btn minus-btn" @click="desiredReplicas = Math.max(0, desiredReplicas - 1)" title="Decrease">−</button>
-            <button class="slider-btn plus-btn" @click="desiredReplicas = Math.min(maxReplicas, desiredReplicas + 1)" title="Increase">+</button>
+            <button class="slider-btn minus-btn" @click="desiredReplicas = Math.max(0, desiredReplicas - 1)" :title="$t('panels.scale.decrease')">−</button>
+            <button class="slider-btn plus-btn" @click="desiredReplicas = Math.min(maxReplicas, desiredReplicas + 1)" :title="$t('panels.scale.increase')">+</button>
           </div>
         </div>
       </div>
 
       <div class="dialog-footer">
-        <button class="btn btn-cancel" @click="handleCancel">Cancel</button>
+        <button class="btn btn-cancel" @click="handleCancel">{{ $t('common.cancel') }}</button>
         <button class="btn btn-scale" @click="handleScale" :disabled="loading">
-          {{ loading ? '⏳ Scaling...' : '▶ Scale' }}
+          {{ loading ? $t('panels.scale.scaling') : $t('panels.scale.submit') }}
         </button>
       </div>
     </div>

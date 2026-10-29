@@ -5,27 +5,26 @@
     <header class="ov-header">
       <h1>Argo CD</h1>
       <div class="ov-header-right">
-        <span v-if="apps && error" class="ov-stale" :title="error">Update failed, showing last data</span>
-        <span v-else-if="updatedAt" class="ov-updated">Updated {{ updatedAt.toLocaleTimeString() }}</span>
-        <button v-if="can(Perm.PortForward)" type="button" class="ov-btn ov-btn-auto" @click="openArgoUI">Open Argo
-          UI</button>
+        <span v-if="apps && error" class="ov-stale" :title="error">{{ $t('argo.dashboard.updateFailed') }}</span>
+        <span v-else-if="updatedAt" class="ov-updated">{{ $t('argo.dashboard.updated', { time: formatTime(updatedAt) }) }}</span>
+        <button v-if="can(Perm.PortForward)" type="button" class="ov-btn ov-btn-auto" @click="openArgoUI">{{ $t('argo.dashboard.openUi') }}</button>
         <button v-if="apps?.length && can(Perm.Operate)" type="button" class="ov-btn ov-btn-auto"
-          @click="requestArgoSync(apps)">Sync…</button>
+          @click="requestArgoSync(apps)">{{ $t('argo.dashboard.sync') }}</button>
         <button type="button" class="ov-btn" :disabled="refreshing" @click="refresh">
-          {{ refreshing ? 'Refreshing…' : 'Refresh' }}
+          {{ refreshing ? $t('argo.dashboard.refreshing') : $t('common.refresh') }}
         </button>
       </div>
     </header>
 
-    <p v-if="loading && !apps" class="ov-state">Loading applications…</p>
+    <p v-if="loading && !apps" class="ov-state">{{ $t('argo.dashboard.loading') }}</p>
 
     <div v-else-if="!apps" class="ov-state ov-state-error">
-      <p>Failed to load Argo CD applications</p>
+      <p>{{ $t('argo.dashboard.loadFailed') }}</p>
       <p class="ov-state-detail">{{ error }}</p>
-      <button type="button" class="ov-btn ov-btn-primary" @click="refresh">Retry</button>
+      <button type="button" class="ov-btn ov-btn-primary" @click="refresh">{{ $t('common.retry') }}</button>
     </div>
 
-    <p v-else-if="!summary.total" class="ov-state">No applications found in any namespace</p>
+    <p v-else-if="!summary.total" class="ov-state">{{ $t('argo.dashboard.empty') }}</p>
 
     <template v-else>
       <div class="ov-stats">
@@ -35,8 +34,8 @@
 
       <div class="ov-row ov-row-2">
         <section class="ov-card">
-          <h2 class="ov-card-title">Needs attention</h2>
-          <p v-if="!summary.problems.length" class="argo-empty">All applications are synced and healthy</p>
+          <h2 class="ov-card-title">{{ $t('argo.dashboard.needsAttention') }}</h2>
+          <p v-if="!summary.problems.length" class="argo-empty">{{ $t('argo.dashboard.allGood') }}</p>
           <ul v-else class="argo-list">
             <li v-for="a in summary.problems.slice(0, 10)" :key="key(a)">
               <button type="button" class="argo-row" :class="{ 'argo-row-flash': changedKeys.has(key(a)) }" @click="open(a)">
@@ -45,21 +44,20 @@
                 <span class="argo-tags">
                   <span class="argo-tag" :class="tone(a.syncStatus)">{{ a.syncStatus }}</span>
                   <span class="argo-tag" :class="tone(a.healthStatus)">{{ a.healthStatus }}</span>
-                  <span v-if="a.lastSyncPhase === 'Failed' || a.lastSyncPhase === 'Error'" class="argo-tag t-err">Sync
-                    {{ a.lastSyncPhase }}</span>
+                  <span v-if="a.lastSyncPhase === 'Failed' || a.lastSyncPhase === 'Error'" class="argo-tag t-err">{{ $t('argo.dashboard.syncPhase', { phase: a.lastSyncPhase }) }}</span>
                 </span>
               </button>
             </li>
           </ul>
           <button v-if="summary.problems.length > 10" type="button" class="argo-more"
             @click="emit('navigate', 'argo-applications')">
-            View all ({{ summary.problems.length }})
+            {{ $t('argo.dashboard.viewAll', { n: summary.problems.length }) }}
           </button>
         </section>
 
         <section class="ov-card">
-          <h2 class="ov-card-title">Recent syncs</h2>
-          <p v-if="!summary.recentSyncs.length" class="argo-empty">No syncs yet</p>
+          <h2 class="ov-card-title">{{ $t('argo.dashboard.recentSyncs') }}</h2>
+          <p v-if="!summary.recentSyncs.length" class="argo-empty">{{ $t('argo.dashboard.noSyncs') }}</p>
           <ul v-else class="argo-list">
             <li v-for="a in summary.recentSyncs" :key="key(a)">
               <button type="button" class="argo-row" :class="{ 'argo-row-flash': changedKeys.has(key(a)) }" @click="open(a)">
@@ -74,8 +72,8 @@
       </div>
 
       <div class="ov-row ov-row-2">
-        <GroupCard title="By project" :rows="summary.byProject" />
-        <GroupCard title="By destination cluster" :rows="summary.byCluster" />
+        <GroupCard :title="$t('argo.dashboard.byProject')" :rows="summary.byProject" />
+        <GroupCard :title="$t('argo.dashboard.byCluster')" :rows="summary.byCluster" />
       </div>
     </template>
   </div>
@@ -83,6 +81,8 @@
 
 <script lang="ts" setup>
 import { computed, toRef } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { formatDateTime, formatTime } from '../../i18n/format'
 import StatCard from '../overview/StatCard.vue'
 import GroupCard from '../overview/ArgoGroupCard.vue'
 import { useArgoApplications } from '../../composables/useArgoApplications'
@@ -94,6 +94,7 @@ import { can } from '../../composables/useAuth'
 import { Perm } from '../../types/auth'
 import { openArgoUI, requestArgoSync } from '../../resources/argoActions'
 
+const { t } = useI18n()
 const props = withDefaults(defineProps<{ clusterName?: string }>(), { clusterName: '' })
 const emit = defineEmits<{ (e: 'navigate', view: string): void }>()
 
@@ -108,19 +109,33 @@ const stats = computed(() => {
   const syncTone: Tone = s.outOfSync > 0 ? 'warn' : 'ok'
   const healthTone: Tone = s.degraded + s.missing > 0 ? 'danger' : s.progressing > 0 ? 'warn' : 'ok'
   return [
-    { title: 'Applications', value: s.total, sub: s.syncing ? `Syncing: ${s.syncing}` : 'Total', tone: 'ok' as Tone },
-    { title: 'Synced', value: s.synced, sub: s.outOfSync ? `Out of sync: ${s.outOfSync}` : 'All in sync', tone: syncTone },
-    { title: 'Healthy', value: s.healthy, sub: `Of ${s.total}`, tone: healthTone },
     {
-      title: 'Degraded',
+      title: t('argo.dashboard.stats.applications'),
+      value: s.total,
+      sub: s.syncing ? t('argo.dashboard.stats.syncing', { n: s.syncing }) : t('argo.dashboard.stats.total'),
+      tone: 'ok' as Tone,
+    },
+    {
+      title: t('argo.dashboard.stats.synced'),
+      value: s.synced,
+      sub: s.outOfSync ? t('argo.dashboard.stats.outOfSync', { n: s.outOfSync }) : t('argo.dashboard.stats.allInSync'),
+      tone: syncTone,
+    },
+    { title: t('argo.dashboard.stats.healthy'), value: s.healthy, sub: t('argo.dashboard.stats.ofTotal', { n: s.total }), tone: healthTone },
+    {
+      title: t('argo.dashboard.stats.degraded'),
       value: s.degraded + s.missing,
-      sub: s.missing ? `Missing: ${s.missing}` : s.degraded ? 'Needs attention' : 'None',
+      sub: s.missing
+        ? t('argo.dashboard.stats.missing', { n: s.missing })
+        : s.degraded ? t('argo.dashboard.needsAttention') : t('common.none'),
       tone: (s.degraded + s.missing > 0 ? 'danger' : 'ok') as Tone,
     },
     {
-      title: 'Progressing',
+      title: t('argo.dashboard.stats.progressing'),
       value: s.progressing,
-      sub: s.suspended ? `Suspended: ${s.suspended}` : s.unknown ? `Unknown: ${s.unknown}` : 'In progress',
+      sub: s.suspended
+        ? t('argo.dashboard.stats.suspended', { n: s.suspended })
+        : s.unknown ? t('argo.dashboard.stats.unknown', { n: s.unknown }) : t('argo.dashboard.stats.inProgress'),
       tone: (s.progressing > 0 ? 'warn' : 'ok') as Tone,
     },
   ]
@@ -139,7 +154,7 @@ function tone(status: string): string {
 
 function formatWhen(iso: string): string {
   const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString()
+  return Number.isNaN(d.getTime()) ? iso : formatDateTime(d)
 }
 
 function open(a: ArgoApplicationInfo) {

@@ -7,7 +7,7 @@ import (
 	"context"
 	"testing"
 
-	"analog/pkg/ext"
+	"github.com/VadimIl224/kubron/pkg/ext"
 )
 
 func TestExternalModuleRegistersAuthenticator(t *testing.T) {
@@ -17,17 +17,17 @@ func TestExternalModuleRegistersAuthenticator(t *testing.T) {
 	}
 	a, ok := r.Authenticator("static")
 	if !ok {
-		t.Fatal("аутентификатор не зарегистрирован")
+		t.Fatal("authenticator is not registered")
 	}
 	pa, ok := a.(ext.PasswordAuthenticator)
 	if !ok {
-		t.Fatal("ждали PasswordAuthenticator")
+		t.Fatal("expected PasswordAuthenticator")
 	}
 	id, err := pa.Authenticate(context.Background(), "alice", "pw")
 	if err != nil || id.Username != "alice" {
-		t.Fatalf("вход: %+v %v", id, err)
+		t.Fatalf("login: %+v %v", id, err)
 	}
 	if _, err := pa.Authenticate(context.Background(), "alice", "wrong"); err == nil {
-		t.Fatal("неверный пароль должен отклоняться")
+		t.Fatal("a wrong password must be rejected")
 	}
 }

@@ -2,7 +2,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <section class="ov-card warnings">
-    <h2 class="ov-card-title">Warnings, last hour</h2>
+    <h2 class="ov-card-title">{{ $t('overview.warnings.title') }}</h2>
 
     <ul v-if="reasons.length" class="list">
       <li v-for="r in reasons" :key="r.reason" class="row">
@@ -11,9 +11,9 @@
         <span class="n">{{ r.count }}</span>
       </li>
     </ul>
-    <p v-else class="none">No warnings in the last hour</p>
+    <p v-else class="none">{{ $t('overview.warnings.empty') }}</p>
 
-    <button type="button" class="more" @click="emit('viewAll')">View all events →</button>
+    <button type="button" class="more" @click="emit('viewAll')">{{ $t('overview.warnings.viewAll') }}</button>
   </section>
 </template>
 

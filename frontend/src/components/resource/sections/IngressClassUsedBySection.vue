@@ -2,7 +2,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="rd-row">
-    <span class="rd-label">Used by</span>
+    <span class="rd-label">{{ $t('defs.columns.usedBy') }}</span>
     <span v-if="!list.length" class="rd-muted">—</span>
     <span v-else class="rd-value rd-links">
       <a
@@ -10,7 +10,7 @@
         :key="`${u.namespace}/${u.name}`"
         class="rd-link"
         @click="emit('open', { id: 'ingress', ns: u.namespace, name: u.name })"
-      >{{ u.namespace }}/{{ u.name }}<span v-if="u.implicit" class="rd-muted"> (default)</span></a>
+      >{{ u.namespace }}/{{ u.name }}<span v-if="u.implicit" class="rd-muted"> {{ $t('sections.ingressClassUsedBy.implicit') }}</span></a>
     </span>
   </div>
 </template>

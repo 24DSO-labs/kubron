@@ -68,11 +68,11 @@ func TestInstallRegistersAuthenticators(t *testing.T) {
 		ids = append(ids, a.ID())
 	}
 	if strings.Join(ids, ",") != "local,oidc" {
-		t.Fatalf("порядок регистрации потерян: %v", ids)
+		t.Fatalf("registration order was lost: %v", ids)
 	}
 	a, ok := r.Authenticator("oidc")
 	if !ok {
-		t.Fatal("oidc не найден")
+		t.Fatal("oidc not found")
 	}
 	start, err := a.(RedirectAuthenticator).BeginLogin(context.Background(), "https://kubron/cb")
 	if err != nil {
@@ -87,33 +87,33 @@ func TestInstallRegistersAuthenticators(t *testing.T) {
 func TestInstallRejectsWrongAPIVersion(t *testing.T) {
 	r := NewRegistry()
 	err := r.Install(fakeModule{"old", APIVersion + 1, func(*Registry) error {
-		t.Fatal("Register не должен вызываться для чужой версии")
+		t.Fatal("Register must not be called for a foreign version")
 		return nil
 	}})
 	if err == nil || !strings.Contains(err.Error(), "old") {
-		t.Fatalf("ждали ошибку версии с именем модуля, получили %v", err)
+		t.Fatalf("expected a version error naming the module, got %v", err)
 	}
 	if len(r.Modules()) != 0 {
-		t.Fatal("отвергнутый модуль не должен попадать в список")
+		t.Fatal("a rejected module must not end up in the list")
 	}
 }
 
 func TestRegisterAuthenticatorValidation(t *testing.T) {
 	r := NewRegistry()
 	if err := r.RegisterAuthenticator(nil); err == nil {
-		t.Error("nil должен отклоняться")
+		t.Error("nil must be rejected")
 	}
 	if err := r.RegisterAuthenticator(pwAuth{""}); err == nil {
-		t.Error("пустой ID должен отклоняться")
+		t.Error("an empty ID must be rejected")
 	}
 	if err := r.RegisterAuthenticator(lying{}); err == nil {
-		t.Error("kind без реализации интерфейса должен отклоняться")
+		t.Error("a kind without an interface implementation must be rejected")
 	}
 	if err := r.RegisterAuthenticator(pwAuth{"local"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := r.RegisterAuthenticator(pwAuth{"local"}); err == nil {
-		t.Error("дубликат ID должен отклоняться")
+		t.Error("a duplicate ID must be rejected")
 	}
 }
 
@@ -122,9 +122,9 @@ func TestInstallPropagatesModuleError(t *testing.T) {
 	boom := errors.New("boom")
 	err := r.Install(fakeModule{"bad", APIVersion, func(*Registry) error { return boom }})
 	if !errors.Is(err, boom) {
-		t.Fatalf("ошибка модуля должна оборачиваться: %v", err)
+		t.Fatalf("a module error must be wrapped: %v", err)
 	}
 	if err := r.Install(nil); err == nil {
-		t.Error("nil-модуль должен отклоняться")
+		t.Error("a nil module must be rejected")
 	}
 }

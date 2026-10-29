@@ -35,14 +35,14 @@ func TestUnifiedDiffFormat(t *testing.T) {
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
 	if d := unifiedDiff([]string{"a"}, []string{"a"}, 3); d != "" {
-		t.Errorf("одинаковые входы дают пустой diff, получили %q", d)
+		t.Errorf("identical inputs must give an empty diff, got %q", d)
 	}
 	// Два далёких изменения при ctx=1 — два hunk'а, строки между ними не попадают.
 	a := []string{"1", "2", "3", "4", "5", "6", "7", "8", "9"}
 	b := []string{"X", "2", "3", "4", "5", "6", "7", "8", "Y"}
 	d := unifiedDiff(a, b, 1)
 	if strings.Count(d, "@@") != 4 || strings.Contains(d, " 5") {
-		t.Errorf("ожидалось 2 hunk'а без средней части:\n%s", d)
+		t.Errorf("expected 2 hunks without the middle part:\n%s", d)
 	}
 }
 
@@ -65,10 +65,10 @@ func TestLineDiffReconstructsBothSides(t *testing.T) {
 			}
 		}
 		if !reflect.DeepEqual(append([]string{}, left...), append([]string{}, c[0]...)) && !(len(left) == 0 && len(c[0]) == 0) {
-			t.Errorf("случай %d: левая часть %v != %v", i, left, c[0])
+			t.Errorf("case %d: left part %v != %v", i, left, c[0])
 		}
 		if !reflect.DeepEqual(append([]string{}, right...), append([]string{}, c[1]...)) && !(len(right) == 0 && len(c[1]) == 0) {
-			t.Errorf("случай %d: правая часть %v != %v", i, right, c[1])
+			t.Errorf("case %d: right part %v != %v", i, right, c[1])
 		}
 	}
 }
@@ -98,7 +98,7 @@ func TestBuildArgoDiffStates(t *testing.T) {
 	}
 	// Различающиеся ресурсы идут первыми, InSync — в конце.
 	if d.Resources[len(d.Resources)-1].State != ArgoDiffInSync {
-		t.Errorf("InSync должен быть последним: %+v", d.Resources)
+		t.Errorf("InSync must come last: %+v", d.Resources)
 	}
 	for _, r := range d.Resources {
 		if r.Name == "mod" {
@@ -107,7 +107,7 @@ func TestBuildArgoDiffStates(t *testing.T) {
 			}
 		}
 		if r.State == ArgoDiffInSync && r.Diff != "" {
-			t.Errorf("у InSync diff должен быть пуст: %q", r.Diff)
+			t.Errorf("InSync diff must be empty: %q", r.Diff)
 		}
 	}
 }
@@ -117,7 +117,7 @@ func TestDiffResourceFallsBackToLiveAndTargetState(t *testing.T) {
 		Kind: "Deployment", Name: "w", LiveState: mustJSON(t, deploy(1)), TargetState: mustJSON(t, deploy(5)),
 	})
 	if !ok || r.State != ArgoDiffModified {
-		t.Fatalf("без normalized/predicted нужно сравнивать live и target: %+v", r)
+		t.Fatalf("without normalized/predicted, live and target must be compared: %+v", r)
 	}
 }
 
@@ -128,7 +128,7 @@ func TestDiffIgnoresManagedFieldsAndStatusNoise(t *testing.T) {
 
 	r, ok := diffResource(argoManagedResource{Kind: "Deployment", Name: "w", NormalizedLiveState: mustJSON(t, live), PredictedLiveState: mustJSON(t, deploy(2))})
 	if !ok || r.State != ArgoDiffInSync {
-		t.Errorf("managedFields и status не должны давать различия: %+v", r)
+		t.Errorf("managedFields and status must not produce differences: %+v", r)
 	}
 }
 
@@ -151,45 +151,45 @@ func TestDiffRedactsSecretValues(t *testing.T) {
 		NormalizedLiveState: mustJSON(t, liveM), PredictedLiveState: mustJSON(t, desM),
 	})
 	if !ok || r.State != ArgoDiffModified {
-		t.Fatalf("изменение значения секрета должно быть видно как Modified: %+v", r)
+		t.Fatalf("a changed secret value must show as Modified: %+v", r)
 	}
 	for _, m := range markers {
 		if strings.Contains(r.Diff, m) {
-			t.Errorf("значение %q секрета попало в diff:\n%s", m, r.Diff)
+			t.Errorf("secret value %q leaked into the diff:\n%s", m, r.Diff)
 		}
 	}
 	// Различие видно, значения нет; ключи сохранены.
 	for _, want := range []string{"REDACTED (current)", "REDACTED (desired)", "gone:", "added:"} {
 		if !strings.Contains(r.Diff, want) {
-			t.Errorf("в diff нет %q:\n%s", want, r.Diff)
+			t.Errorf("diff does not contain %q:\n%s", want, r.Diff)
 		}
 	}
 	if strings.Contains(r.Diff, "last-applied") {
-		t.Errorf("last-applied-configuration (копия данных) должен быть убран:\n%s", r.Diff)
+		t.Errorf("last-applied-configuration (a copy of the data) must be removed:\n%s", r.Diff)
 	}
 
 	// Одинаковые значения: InSync, и ничего не утекает.
 	same := secret(map[string]any{"pass": "S3CRET-SAME"}, `{"x":"S3CRET-ANN"}`)
 	rs, _ := diffResource(argoManagedResource{Kind: "Secret", Name: "db", NormalizedLiveState: mustJSON(t, same), PredictedLiveState: mustJSON(t, same)})
 	if rs.State != ArgoDiffInSync || rs.Diff != "" {
-		t.Errorf("одинаковый секрет: %+v", rs)
+		t.Errorf("identical secret: %+v", rs)
 	}
 
 	// Секрет, которого нет на одной из сторон (Missing/Extra), тоже редактируется.
 	only, _ := diffResource(argoManagedResource{Kind: "Secret", Name: "db", LiveState: "null", TargetState: mustJSON(t, liveM)})
 	if only.State != ArgoDiffMissing || strings.Contains(only.Diff, "S3CRET") {
-		t.Errorf("Missing-секрет: state=%s\n%s", only.State, only.Diff)
+		t.Errorf("Missing secret: state=%s\n%s", only.State, only.Diff)
 	}
 	extra, _ := diffResource(argoManagedResource{Kind: "Secret", Name: "db", LiveState: mustJSON(t, desM)})
 	if extra.State != ArgoDiffExtra || strings.Contains(extra.Diff, "S3CRET") {
-		t.Errorf("Extra-секрет: state=%s\n%s", extra.State, extra.Diff)
+		t.Errorf("Extra secret: state=%s\n%s", extra.State, extra.Diff)
 	}
 
 	// Весь результат сериализуется без секретов.
 	raw, _ := json.Marshal(buildArgoDiff([]argoManagedResource{{Kind: "Secret", Name: "db", NormalizedLiveState: mustJSON(t, liveM), PredictedLiveState: mustJSON(t, desM)}}))
 	for _, m := range markers {
 		if strings.Contains(string(raw), m) {
-			t.Errorf("значение %q в JSON-ответе: %s", m, raw)
+			t.Errorf("value %q in the JSON response: %s", m, raw)
 		}
 	}
 }
@@ -200,12 +200,12 @@ func TestDiffNonSecretKindsAreNotRedacted(t *testing.T) {
 	}
 	r, _ := diffResource(argoManagedResource{Kind: "ConfigMap", Name: "c", NormalizedLiveState: cm("old"), PredictedLiveState: cm("new")})
 	if !strings.Contains(r.Diff, "old") || !strings.Contains(r.Diff, "new") {
-		t.Errorf("ConfigMap не секрет, значения должны быть видны:\n%s", r.Diff)
+		t.Errorf("a ConfigMap is not a secret, values must be visible:\n%s", r.Diff)
 	}
 	// Kind Secret в другой группе (CRD) — не core Secret: правило касается только core.
 	crd, _ := diffResource(argoManagedResource{Group: "example.com", Kind: "Secret", Name: "c", NormalizedLiveState: cm("old"), PredictedLiveState: cm("new")})
 	if !strings.Contains(crd.Diff, "old") {
-		t.Errorf("Secret из чужой группы не должен редактироваться:\n%s", crd.Diff)
+		t.Errorf("a Secret from a foreign group must not be redacted:\n%s", crd.Diff)
 	}
 }
 
@@ -222,7 +222,7 @@ func TestDiffHugeManifestIsTruncatedNotComputed(t *testing.T) {
 		return mustJSON(t, map[string]any{"kind": "ConfigMap", "data": d})
 	}
 	r, _ := diffResource(argoManagedResource{Kind: "ConfigMap", Name: "big", NormalizedLiveState: big("a"), PredictedLiveState: big("b")})
-	if r.State != ArgoDiffModified || !r.Truncated || !strings.Contains(r.Diff, "слишком большой") {
+	if r.State != ArgoDiffModified || !r.Truncated || !strings.Contains(r.Diff, "too large") {
 		t.Errorf("state=%s truncated=%v diff=%q", r.State, r.Truncated, r.Diff)
 	}
 }

@@ -7,7 +7,9 @@ frontend/package.json.md5
 .cline
 nul
 jira
+*.tsbuildinfo
 
 # Playwright
 frontend/test-results/
 frontend/playwright-report/
+.vscode/

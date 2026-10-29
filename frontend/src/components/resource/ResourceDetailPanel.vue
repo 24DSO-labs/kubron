@@ -20,11 +20,11 @@
         <div v-if="a.perContainer && containers.length > 1" class="rd-action-group" data-rd-dropdown>
           <button
             class="rd-action"
-            :title="a.label"
+            :title="tl(a.label)"
             @click="toggleDropdown(a.id)"
           >
-            <K8sIcon v-if="a.icon" :name="a.icon" :alt="a.label" size="sm" />
-            <template v-else>{{ a.label }}</template>
+            <K8sIcon v-if="a.icon" :name="a.icon" :alt="tl(a.label)" size="sm" />
+            <template v-else>{{ tl(a.label) }}</template>
           </button>
           <div v-if="openDropdown === a.id" class="rd-action-dropdown">
             <div
@@ -41,11 +41,11 @@
         <button
           v-else
           class="rd-action"
-          :title="a.label"
+          :title="tl(a.label)"
           @click="a.run(resource, resourceActions)"
         >
-          <K8sIcon v-if="a.icon" :name="a.icon" :alt="a.label" size="sm"/>
-          <template v-else>{{ a.label }}</template>
+          <K8sIcon v-if="a.icon" :name="a.icon" :alt="tl(a.label)" size="sm"/>
+          <template v-else>{{ tl(a.label) }}</template>
         </button>
       </template>
     </template>
@@ -54,11 +54,11 @@
       <div class="rd-props">
         <component :is="s" v-for="(s, i) in def.headSections" :key="'h' + i" :resource="resource" @open="onOpen" />
 
-        <KeyValueSection title="Labels" :data="labels" />
-        <KeyValueSection title="Annotations" :data="annotations" />
+        <KeyValueSection :title="$t('resource.detail.labels')" :data="labels" />
+        <KeyValueSection :title="$t('resource.detail.annotations')" :data="annotations" />
 
         <div v-for="p in visibleProperties" :key="p.label" class="rd-row">
-          <span class="rd-label">{{ p.label }}</span>
+          <span class="rd-label">{{ tl(p.label) }}</span>
           <span v-if="p.links" class="rd-value rd-links">
             <template v-if="p.links(resource).length">
               <a
@@ -123,6 +123,7 @@ import type { ActionDef, ResourceDefinition } from '../../resources/types'
 import { resourceActions } from '../../resources/actions'
 import { actionAllowed, canDelete } from '../../resources/access'
 import { containersOf, itemName, itemNs } from '../../resources/utils'
+import { tl } from '../../i18n'
 
 const props = defineProps<{
   def: ResourceDefinition
@@ -162,7 +163,7 @@ const visibleActions = computed(() =>
 )
 
 const tabList = computed(() =>
-  (props.def.tabs ?? []).map(t => ({ id: t.id, label: t.label, slot: `tab-${t.id}` })),
+  (props.def.tabs ?? []).map(t => ({ id: t.id, label: tl(t.label), slot: `tab-${t.id}` })),
 )
 const tabComponents = computed(() =>
   Object.fromEntries((props.def.tabs ?? []).map(t => [t.id, t.component])),

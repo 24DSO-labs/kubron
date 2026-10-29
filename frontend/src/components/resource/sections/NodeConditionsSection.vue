@@ -2,7 +2,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div v-if="items.length" class="rd-row">
-    <span class="rd-label">Conditions</span>
+    <span class="rd-label">{{ $t('defs.columns.conditions') }}</span>
     <div class="rd-badges">
       <span v-for="c in items" :key="c.label" class="rd-badge" :class="c.cls" :title="c.title">{{ c.label }}</span>
     </div>
@@ -11,6 +11,7 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
+import { t } from '../../../i18n'
 
 const props = defineProps<{ resource: any }>()
 
@@ -37,7 +38,7 @@ const items = computed(() => {
     }
   }
   if (props.resource?.unschedulable) {
-    out.push({ label: 'SchedulingDisabled', cls: 'rd-warn', title: 'Node is cordoned' })
+    out.push({ label: 'SchedulingDisabled', cls: 'rd-warn', title: t('sections.nodeConditions.cordoned') })
   }
   return out
 })

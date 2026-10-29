@@ -24,7 +24,7 @@ export const resourceQuota = defineResource<k8s.ResourceQuotaInfo>({
   ],
 
   properties: [
-    { label: 'Finalizers', value: (q: any) => (q.finalizers ?? []).join(', ') },
+    { label: 'defs.props.finalizers', value: (q: any) => (q.finalizers ?? []).join(', ') },
     controlledByProp,
     managedByProp,
   ],
