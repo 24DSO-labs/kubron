@@ -150,15 +150,7 @@ func readKubeconfigFile(path string) ([]byte, error) {
 }
 
 func readStoredKubeconfig(id string) ([]byte, error) {
-	path := GetClusterKubeconfigPath(id)
-	if path == "" {
-		return nil, fmt.Errorf("kubeconfig not found for cluster %s", id)
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read kubeconfig: %w", err)
-	}
-	return data, nil
+	return clusterStore.Kubeconfig(id)
 }
 
 // ReadClusterKubeconfig возвращает текст сохранённого kubeconfig кластера (для правки в приложении).

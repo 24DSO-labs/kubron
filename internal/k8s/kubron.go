@@ -176,13 +176,6 @@ func addClusterFromData(data []byte, settings ClusterSettings) (*ClusterMeta, er
 		id = fmt.Sprintf("%s-%d", id, time.Now().Unix())
 	}
 
-	// Сохраняем kubeconfig
-	kcFile := id + ".kubeconfig"
-	kcPath := filepath.Join(getClustersDir(), kcFile)
-	if err := writeFileAtomic(kcPath, data, 0600); err != nil {
-		return nil, fmt.Errorf("failed to save kubeconfig: %w", err)
-	}
-
 	meta := &ClusterMeta{
 		ID:               id,
 		DisplayName:      settings.DisplayName,
@@ -207,11 +200,8 @@ func DeleteCluster(id string) error {
 	if !validClusterID(id) {
 		return fmt.Errorf("invalid cluster ID %q", id)
 	}
-	dir := getClustersDir()
-	for _, name := range []string{id + ".json", id + ".kubeconfig"} {
-		if err := os.Remove(filepath.Join(dir, name)); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("failed to delete %s: %w", name, err)
-		}
+	if err := clusterStore.Delete(id); err != nil {
+		return err
 	}
 	// Токен Argo CD API принадлежит кластеру: после удаления кластера он не должен оставаться на диске.
 	if err := deleteArgoToken(id); err != nil {

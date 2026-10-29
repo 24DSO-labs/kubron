@@ -12,6 +12,8 @@
 - Helm: upgrade a release to another chart version ("Chart version" tab). Choose the repository
   and version, keep or edit the current values, preview the manifest diff, then apply with live
   progress and cancel. Downgrades and deprecated versions are flagged.
+- Multilingual UI (English base + Russian) on vue-i18n v11: language switcher
+
 
 ### Fixed
 
@@ -20,6 +22,9 @@
 - Helm: repository badges (`oci`, `auth`, `no TLS verify`) and `deprecated` in the catalog are now translated.
 - Docs: the 0.1.0 notes said cancel is available for rollback and uninstall; it is available for
   install and upgrade only (the Helm SDK takes no context for the other two).
+- Web mode: idle sessions are now cleaned up in the background; per-user resource limits are
+  configurable in the server config; a Helm operation is bound to its owner session (only the
+  owner can cancel it).
 
  ## [0.1.0] - 2026-10-28
 

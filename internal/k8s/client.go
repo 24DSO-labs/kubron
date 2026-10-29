@@ -326,12 +326,10 @@ func (m *Manager) ConnectToCluster(clusterID string) error {
 }
 
 // buildClusterConnection создаёт подключение по сохранённому kubeconfig кластера.
+// Файловое хранилище отдаёт путь: client-go читает kubeconfig по пути, и относительные пути
+// внутри него резолвятся от каталога файла. Хранилища без файлов отдают байты — конфиг
+// строится в памяти (clientcmd.Load), файл на диске не создаётся.
 func buildClusterConnection(clusterID string) (*ClusterConnection, error) {
-	kcPath := GetClusterKubeconfigPath(clusterID)
-	if kcPath == "" {
-		return nil, fmt.Errorf("kubeconfig not found for cluster %s", clusterID)
-	}
-
 	meta, err := LoadClusterMeta(clusterID)
 	if err != nil {
 		return nil, fmt.Errorf("cluster metadata not found: %w", err)
@@ -342,10 +340,23 @@ func buildClusterConnection(clusterID string) (*ClusterConnection, error) {
 		overrides.CurrentContext = meta.ContextName
 	}
 
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kcPath},
-		overrides,
-	).ClientConfig()
+	var config *rest.Config
+	if kcPath := GetClusterKubeconfigPath(clusterID); kcPath != "" {
+		config, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+			&clientcmd.ClientConfigLoadingRules{ExplicitPath: kcPath},
+			overrides,
+		).ClientConfig()
+	} else {
+		var data []byte
+		if data, err = clusterStore.Kubeconfig(clusterID); err != nil {
+			return nil, fmt.Errorf("kubeconfig not found for cluster %s", clusterID)
+		}
+		var cfg *api.Config
+		if cfg, err = clientcmd.Load(data); err != nil {
+			return nil, fmt.Errorf("failed to parse kubeconfig: %w", err)
+		}
+		config, err = clientcmd.NewNonInteractiveClientConfig(*cfg, meta.ContextName, overrides, nil).ClientConfig()
+	}
 	if err != nil {
 		return nil, fmt.Errorf("configuration error: %w", err)
 	}
