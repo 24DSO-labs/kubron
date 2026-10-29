@@ -15,6 +15,7 @@ import HelmResourcesTab from '../../components/resource/sections/HelmResourcesTa
 import HelmHistoryTab from '../../components/resource/sections/HelmHistoryTab.vue'
 import { Perm } from '../../types/auth'
 import HelmUpgradeTab from '../../components/resource/sections/HelmUpgradeTab.vue'
+import HelmChartUpgradeTab from '../../components/resource/sections/HelmChartUpgradeTab.vue'
 
 export const helmRelease = defineResource<k8s.HelmReleaseInfo, k8s.HelmReleaseDetail>({
   id: 'helmrelease',
@@ -63,6 +64,7 @@ export const helmRelease = defineResource<k8s.HelmReleaseInfo, k8s.HelmReleaseDe
     { id: 'helmNotes', label: 'defs.tabs.notes', component: helmContentTab('notes') },
     { id: 'helmManifest', label: 'defs.tabs.manifest', component: helmContentTab('manifest') },
     { id: 'helmEdit', label: 'defs.tabs.editValues', component: HelmUpgradeTab },
+    { id: 'helmUpgradeChart', label: 'defs.tabs.upgradeChart', component: HelmChartUpgradeTab },
     { id: 'helmResources', label: 'defs.tabs.resources', component: HelmResourcesTab },
     { id: 'helmHistory', label: 'defs.tabs.history', component: HelmHistoryTab },
 

@@ -7,12 +7,19 @@
 
  ## [Unreleased]
 
- ### Fixed
+### Added
 
- - Helm: the "Add" button on the repositories page showed a stray "≥" instead of "+".
- - Helm: repository badges (`oci`, `auth`, `no TLS verify`) and `deprecated` in the catalog are now translated.
- - Docs: the 0.1.0 notes said cancel is available for rollback and uninstall; it is available for
-   install and upgrade only (the Helm SDK takes no context for the other two).
+- Helm: upgrade a release to another chart version ("Chart version" tab). Choose the repository
+  and version, keep or edit the current values, preview the manifest diff, then apply with live
+  progress and cancel. Downgrades and deprecated versions are flagged.
+
+### Fixed
+
+- Helm: the "Edit values" tab showed a raw translation key instead of its title.
+- Helm: the "Add" button on the repositories page showed a stray "≥" instead of "+".
+- Helm: repository badges (`oci`, `auth`, `no TLS verify`) and `deprecated` in the catalog are now translated.
+- Docs: the 0.1.0 notes said cancel is available for rollback and uninstall; it is available for
+  install and upgrade only (the Helm SDK takes no context for the other two).
 
  ## [0.1.0] - 2026-10-28
 
