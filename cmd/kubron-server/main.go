@@ -31,7 +31,7 @@ func main() {
 		if errors.Is(err, flag.ErrHelp) {
 			return
 		}
-		log.Fatalf("конфигурация: %v", err)
+		log.Fatalf("configuration: %v", err)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -39,10 +39,10 @@ func main() {
 
 	dist, err := fs.Sub(frontend.Dist, "dist")
 	if err != nil {
-		log.Fatalf("фронтенд: %v", err)
+		log.Fatalf("frontend: %v", err)
 	}
 	if err := server.CheckWebBuild(dist); err != nil {
-		log.Fatalf("фронтенд: %v", err)
+		log.Fatalf("frontend: %v", err)
 	}
 
 	// Каталог данных задаётся до запуска ядра: хранилища открываются в OnStartup
@@ -58,7 +58,7 @@ func main() {
 
 	dispatcher, err := server.NewAppDispatcher(core)
 	if err != nil {
-		log.Fatalf("диспетчер: %v", err)
+		log.Fatalf("dispatcher: %v", err)
 	}
 	// У каждой веб-сессии свой вид ядра (пользователь, права, кластер, терминалы, логи, события):
 	// одновременно могут работать несколько пользователей.
@@ -89,6 +89,6 @@ func main() {
 	defer terminals.CloseAll()
 
 	if err := server.Run(ctx, cfg, server.NewHandler(dispatcher, dist, guard)); err != nil {
-		log.Fatalf("сервер: %v", err)
+		log.Fatalf("server: %v", err)
 	}
 }

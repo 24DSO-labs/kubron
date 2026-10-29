@@ -24,7 +24,7 @@ const helmActionTimeout = 5 * time.Minute
 func (m *Manager) helmConfigForRelease(ctx context.Context, namespace, name string, h slog.Handler) (*action.Configuration, error) {
 	storage, err := m.helmStorageOf(ctx, namespace, name)
 	if err != nil {
-		return nil, fmt.Errorf("не удалось определить хранилище релиза %s/%s: %w", namespace, name, err)
+		return nil, fmt.Errorf("failed to determine the storage of release %s/%s: %w", namespace, name, err)
 	}
 	return m.helmConfigDriver(namespace, h, storage)
 }
@@ -41,16 +41,16 @@ func (m *Manager) helmConfigDriver(namespace string, h slog.Handler, storage str
 	}
 	id := m.GetActiveContext()
 	if id == "" {
-		return nil, errors.New("нет активного подключения")
+		return nil, errors.New("no active connection")
 	}
 	meta, err := LoadClusterMeta(id)
 	if err != nil {
-		return nil, fmt.Errorf("метаданные кластера не найдены: %w", err)
+		return nil, fmt.Errorf("cluster metadata not found: %w", err)
 	}
 	kubeconfig := GetClusterKubeconfigPath(id)
 	if kubeconfig == "" {
 		// Helm читает kubeconfig файлом: для хранилищ без файлов нужен собственный RESTClientGetter (задача 3.1b).
-		return nil, fmt.Errorf("kubeconfig-файл кластера %s недоступен: Helm работает только с файловым хранилищем кластеров", id)
+		return nil, fmt.Errorf("kubeconfig file of cluster %s is unavailable: Helm works only with the file-based cluster store", id)
 	}
 
 	flags := genericclioptions.NewConfigFlags(false)
@@ -66,7 +66,7 @@ func (m *Manager) helmConfigDriver(namespace string, h slog.Handler, storage str
 		cfg.SetLogger(h)
 	}
 	if err := cfg.Init(flags, namespace, driver); err != nil {
-		return nil, fmt.Errorf("не удалось инициализировать Helm: %w", err)
+		return nil, fmt.Errorf("failed to initialize Helm: %w", err)
 	}
 	return cfg, nil
 }
@@ -77,7 +77,7 @@ func (m *Manager) RollbackHelmRelease(namespace, name string, revision int, opID
 		return err
 	}
 	if revision <= 0 {
-		return fmt.Errorf("некорректная ревизия %d", revision)
+		return fmt.Errorf("invalid revision %d", revision)
 	}
 	_, tr, err := m.beginHelmOp(context.Background(), opID, "rollback", namespace, name, false)
 	if err != nil {
@@ -85,9 +85,9 @@ func (m *Manager) RollbackHelmRelease(namespace, name string, revision int, opID
 	}
 	defer func() { tr.finish(err) }()
 
-	tr.note(fmt.Sprintf("к ревизии %d", revision))
+	tr.note(fmt.Sprintf("to revision %d", revision))
 	tr.setRevision(revision)
-	tr.setPhase(fmt.Sprintf("Откат к ревизии %d…", revision))
+	tr.setPhase(fmt.Sprintf("Rolling back to revision %d…", revision))
 	cfg, err := m.helmConfigForRelease(context.Background(), namespace, name, tr.handler())
 	if err != nil {
 		return err
@@ -97,7 +97,7 @@ func (m *Manager) RollbackHelmRelease(namespace, name string, revision int, opID
 	a.Timeout = helmActionTimeout
 	a.WaitStrategy = kube.StatusWatcherStrategy
 	if err := a.Run(name); err != nil {
-		return fmt.Errorf("откат %s/%s к ревизии %d: %w", namespace, name, revision, err)
+		return fmt.Errorf("rollback of %s/%s to revision %d: %w", namespace, name, revision, err)
 	}
 	return nil
 }
@@ -115,9 +115,9 @@ func (m *Manager) UninstallHelmRelease(namespace, name string, keepHistory bool,
 	defer func() { tr.finish(err) }()
 
 	if keepHistory {
-		tr.note("с сохранением истории")
+		tr.note("keeping history")
 	}
-	tr.setPhase("Удаление релиза…")
+	tr.setPhase("Uninstalling release…")
 	cfg, err := m.helmConfigForRelease(context.Background(), namespace, name, tr.handler())
 	if err != nil {
 		return err
@@ -127,7 +127,7 @@ func (m *Manager) UninstallHelmRelease(namespace, name string, keepHistory bool,
 	a.Timeout = helmActionTimeout
 	a.WaitStrategy = kube.StatusWatcherStrategy
 	if _, err := a.Run(name); err != nil {
-		return fmt.Errorf("удаление %s/%s: %w", namespace, name, err)
+		return fmt.Errorf("uninstall %s/%s: %w", namespace, name, err)
 	}
 	return nil
 }
@@ -170,11 +170,11 @@ func splitLines(s string) []string {
 func textDiff(a, b string) string {
 	la, lb := splitLines(a), splitLines(b)
 	if len(la) > argoDiffMaxLines || len(lb) > argoDiffMaxLines {
-		return "(текст слишком большой для построчного сравнения)"
+		return "(text is too large for a line-by-line diff)"
 	}
 	d := unifiedDiff(la, lb, argoDiffContext)
 	if len(d) > argoDiffMaxTextBytes {
-		d = d[:argoDiffMaxTextBytes] + "\n… (diff обрезан)"
+		d = d[:argoDiffMaxTextBytes] + "\n… (diff truncated)"
 	}
 	return d
 }

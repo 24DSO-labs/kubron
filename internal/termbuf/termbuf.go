@@ -25,9 +25,9 @@ const (
 )
 
 var (
-	ErrAttached   = errors.New("терминал уже подключён к другому соединению")
-	ErrNotFound   = errors.New("терминал не найден")
-	ErrTooMany    = errors.New("слишком много открытых терминалов")
+	ErrAttached   = errors.New("terminal is already attached to another connection")
+	ErrNotFound   = errors.New("terminal not found")
+	ErrTooMany    = errors.New("too many open terminals")
 	errNoCapacity = ErrTooMany
 )
 
@@ -35,7 +35,7 @@ var (
 func NewID() string {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
-		panic("termbuf: нет источника случайности: " + err.Error())
+		panic("termbuf: crypto/rand is unavailable: " + err.Error())
 	}
 	return hex.EncodeToString(b)
 }

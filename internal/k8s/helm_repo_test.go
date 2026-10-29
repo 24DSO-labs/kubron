@@ -137,7 +137,7 @@ func TestValidateHelmRepoName(t *testing.T) {
 	long := strings.Repeat("a", 64)
 	for _, bad := range []string{"", "Bitnami", "../etc", "a/b", `a\b`, "-a", "a-", ".a", "a b", long} {
 		if err := validateHelmRepoName(bad); err == nil {
-			t.Errorf("%q должно отклоняться", bad)
+			t.Errorf("%q must be rejected", bad)
 		}
 	}
 }
@@ -152,7 +152,7 @@ func TestNormalizeHelmRepoURL(t *testing.T) {
 		"https://x.io/?a=1", "https://x.io/#f", "charts.example.com",
 	} {
 		if _, err := normalizeHelmRepoURL(bad); err == nil {
-			t.Errorf("%q должно отклоняться", bad)
+			t.Errorf("%q must be rejected", bad)
 		}
 	}
 }
@@ -172,20 +172,20 @@ func TestResolveChartURL(t *testing.T) {
 	}
 	for _, bad := range []string{"oci://x/y", "file:///etc/passwd", "ftp://x/y"} {
 		if _, err := resolveChartURL("https://r.io/stable", bad); err == nil {
-			t.Errorf("%q должно отклоняться", bad)
+			t.Errorf("%q must be rejected", bad)
 		}
 	}
 }
 
 func TestHelmMatches(t *testing.T) {
 	if !helmMatches(nil, "x", "", nil) {
-		t.Error("пустой запрос находит всё")
+		t.Error("an empty query matches everything")
 	}
 	if !helmMatches([]string{"web", "nginx"}, "web", "Server", []string{"NGINX"}) {
-		t.Error("все слова должны находиться (регистр не важен)")
+		t.Error("all words must match (case-insensitive)")
 	}
 	if helmMatches([]string{"web", "redis"}, "web", "Server", nil) {
-		t.Error("отсутствующее слово должно отсекать")
+		t.Error("a missing word must filter out")
 	}
 }
 
@@ -199,26 +199,26 @@ func TestHelmRepoLifecycle(t *testing.T) {
 
 	// Некорректный ввод и неверный пароль не должны ничего сохранять
 	if err := m.AddHelmRepo("Bad Name", srv.URL, "", "", false); err == nil {
-		t.Error("плохое имя")
+		t.Error("bad name")
 	}
 	if err := m.AddHelmRepo("demo", "ftp://x", "", "", false); err == nil {
-		t.Error("плохая схема")
+		t.Error("bad scheme")
 	}
 	if err := m.AddHelmRepo("demo", srv.URL, "bob", "wrong", false); err == nil {
-		t.Error("неверный пароль должен давать ошибку")
+		t.Error("a wrong password must give an error")
 	}
 	if err := m.AddHelmRepo("demo", srv.URL, "", "pw-without-user", false); err == nil {
-		t.Error("пароль без пользователя")
+		t.Error("password without a user")
 	}
 	if repos, _ := m.ListHelmRepos(); len(repos) != 0 {
-		t.Fatalf("после неудачных добавлений список должен быть пуст: %v", repos)
+		t.Fatalf("the list must be empty after failed additions: %v", repos)
 	}
 
 	if err := m.AddHelmRepo("demo", srv.URL, "bob", "secret", false); err != nil {
 		t.Fatal(err)
 	}
 	if err := m.AddHelmRepo("demo", srv.URL, "bob", "secret", false); err == nil {
-		t.Error("повторное добавление должно давать ошибку")
+		t.Error("adding again must give an error")
 	}
 	if runtime.GOOS != "windows" {
 		st, err := os.Stat(helmRepoFilePath())
@@ -240,10 +240,10 @@ func TestHelmRepoLifecycle(t *testing.T) {
 		t.Fatalf("search: %+v, %v", res, err)
 	}
 	if res, _ := m.SearchHelmCharts("zzz-nothing", ""); res.Total != 0 || res.Items == nil {
-		t.Errorf("пустой результат: %+v", res)
+		t.Errorf("empty result: %+v", res)
 	}
 	if res, _ := m.SearchHelmCharts("", "other"); res.Total != 0 {
-		t.Errorf("фильтр по несуществующему репозиторию: %+v", res)
+		t.Errorf("filter by a nonexistent repository: %+v", res)
 	}
 
 	vers, err := m.GetHelmChartVersions("demo", "web")
@@ -251,7 +251,7 @@ func TestHelmRepoLifecycle(t *testing.T) {
 		t.Fatalf("versions: %+v, %v", vers, err)
 	}
 	if _, err := m.GetHelmChartVersions("demo", "nope"); err == nil {
-		t.Error("несуществующий чарт")
+		t.Error("nonexistent chart")
 	}
 
 	pkg, err := m.GetHelmChartPackage("demo", "web", "1.2.0")
@@ -267,20 +267,20 @@ func TestHelmRepoLifecycle(t *testing.T) {
 		t.Fatalf("update: %+v, %v", upd, err)
 	}
 	if _, err := m.UpdateHelmRepos("missing"); err == nil {
-		t.Error("обновление несуществующего репозитория")
+		t.Error("updating a nonexistent repository")
 	}
 
 	if err := m.RemoveHelmRepo("demo"); err != nil {
 		t.Fatal(err)
 	}
 	if err := m.RemoveHelmRepo("demo"); err == nil {
-		t.Error("повторное удаление")
+		t.Error("removing again")
 	}
 	if _, err := os.Stat(helmIndexPath("demo")); !os.IsNotExist(err) {
-		t.Errorf("индекс должен быть удалён: %v", err)
+		t.Errorf("the index must be deleted: %v", err)
 	}
 	if repos, _ := m.ListHelmRepos(); len(repos) != 0 {
-		t.Errorf("список после удаления: %v", repos)
+		t.Errorf("list after deletion: %v", repos)
 	}
 }
 
@@ -294,8 +294,8 @@ func TestHelmChartDigestMismatch(t *testing.T) {
 	if err := m.AddHelmRepo("demo", srv.URL, "", "", false); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := m.GetHelmChartPackage("demo", "web", "1.2.0"); err == nil || !strings.Contains(err.Error(), "контрольная сумма") {
-		t.Errorf("ожидалась ошибка контрольной суммы: %v", err)
+	if _, err := m.GetHelmChartPackage("demo", "web", "1.2.0"); err == nil || !strings.Contains(err.Error(), "checksum") {
+		t.Errorf("expected a checksum error: %v", err)
 	}
 }
 
@@ -317,13 +317,13 @@ func TestHelmCredentialsNotSentToForeignHost(t *testing.T) {
 		t.Fatal(err)
 	}
 	if repoLog.get("/index.yaml") == "" {
-		t.Error("на хост репозитория учётные данные должны уходить")
+		t.Error("credentials must be sent to the repository host")
 	}
 	if _, err := m.GetHelmChartPackage("demo", "web", "1.2.0"); err != nil {
 		t.Fatal(err)
 	}
 	if got := foreignLog.get("/web-1.2.0.tgz"); got != "" {
-		t.Errorf("на чужой хост утёк Authorization: %q", got)
+		t.Errorf("Authorization leaked to a foreign host: %q", got)
 	}
 }
 
@@ -338,7 +338,7 @@ func TestHelmIndexSizeLimit(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
-	if err := NewManager().AddHelmRepo("big", srv.URL, "", "", false); err == nil || !strings.Contains(err.Error(), "больше") {
-		t.Errorf("ожидалась ошибка лимита размера: %v", err)
+	if err := NewManager().AddHelmRepo("big", srv.URL, "", "", false); err == nil || !strings.Contains(err.Error(), "larger than") {
+		t.Errorf("expected a size limit error: %v", err)
 	}
 }

@@ -16,7 +16,7 @@ func TestPlatformCapabilitiesAndFileDialog(t *testing.T) {
 	p := &Platform{}
 	c := p.Capabilities()
 	if c.FileDialog || c.LocalKubeconfig || !c.PortForward || !c.NodeShell || c.SSO {
-		t.Fatalf("возможности веба: %+v", c)
+		t.Fatalf("web capabilities: %+v", c)
 	}
 	if _, err := p.PickFile("x"); !errors.Is(err, ErrNotSupported) {
 		t.Fatalf("PickFile: %v", err)
@@ -31,6 +31,6 @@ func TestEmitGoesToEmitterWhenSet(t *testing.T) {
 	p.SetEmitter(func(event string, data ...any) { got = append(got, event) })
 	p.Emit("cluster:changed")
 	if len(got) != 1 || got[0] != "cluster:changed" {
-		t.Fatalf("события: %v", got)
+		t.Fatalf("events: %v", got)
 	}
 }

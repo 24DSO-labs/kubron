@@ -54,13 +54,13 @@ func TestSessionsHaveIndependentViews(t *testing.T) {
 	ca, csrfA := login(t, f.h, "ann")
 	cb, csrfB := login(t, f.h, "bob")
 	if len(f.created) != 2 {
-		t.Fatalf("видов %d, ожидалось 2", len(f.created))
+		t.Fatalf("%d views, expected 2", len(f.created))
 	}
 	if f.created[0].user.Username != "ann" || f.created[1].user.Username != "bob" {
-		t.Fatal("вход должен выполняться на собственном виде")
+		t.Fatal("login must run on its own view")
 	}
 	if f.def.user != nil {
-		t.Fatal("общий экземпляр не должен получать пользователя")
+		t.Fatal("the shared instance must not get a user")
 	}
 	for name, c := range map[string]struct {
 		ck   *http.Cookie
@@ -72,19 +72,19 @@ func TestSessionsHaveIndependentViews(t *testing.T) {
 		}
 		_ = json.Unmarshal(rep.Result, &st)
 		if rep.Error != nil || st.User == nil || st.User.Username != name {
-			t.Errorf("%s видит %s", name, rep.Result)
+			t.Errorf("%s sees %s", name, rep.Result)
 		}
 	}
 	// Выход одной сессии не затрагивает другую.
 	call(f.h, "Logout", `[]`, ca, csrfA)
 	if rec, _ := call(f.h, "Add", `[1,2]`, cb, csrfB); rec.Code != 200 {
-		t.Errorf("сессия bob должна жить: %d", rec.Code)
+		t.Errorf("bob's session must stay alive: %d", rec.Code)
 	}
 	if rec, _ := call(f.h, "Add", `[1,2]`, ca, csrfA); rec.Code != 401 {
-		t.Errorf("сессия ann закрыта: %d", rec.Code)
+		t.Errorf("ann's session is closed: %d", rec.Code)
 	}
 	if len(f.released) != 1 || f.released[0] != f.created[0] {
-		t.Errorf("освобождён должен быть вид ann: %v", f.released)
+		t.Errorf("ann's view must be released: %v", f.released)
 	}
 }
 
@@ -93,7 +93,7 @@ func TestExclusiveEvictionReleasesView(t *testing.T) {
 	login(t, f.h, "ann")
 	login(t, f.h, "bob")
 	if len(f.released) != 1 || f.released[0] != f.created[0] {
-		t.Errorf("вытесненный вид не освобождён: %v", f.released)
+		t.Errorf("the evicted view was not released: %v", f.released)
 	}
 }
 
@@ -101,13 +101,13 @@ func TestFailedLoginReleasesFreshView(t *testing.T) {
 	f := newViewFixture(t, false)
 	rec, _ := call(f.h, "Login", `["ann","bad"]`, nil, "")
 	if rec.Code == 200 {
-		t.Fatal("вход с неверным паролем не должен удаваться")
+		t.Fatal("login with a wrong password must not succeed")
 	}
 	if len(f.created) != 1 || len(f.released) != 1 || f.released[0] != f.created[0] {
-		t.Errorf("создано %d, освобождено %d", len(f.created), len(f.released))
+		t.Errorf("%d created, %d released", len(f.created), len(f.released))
 	}
 	if f.ss.Len() != 0 {
-		t.Error("сессии быть не должно")
+		t.Error("there must be no session")
 	}
 }
 
@@ -120,14 +120,14 @@ func TestLoginSourceUsesRemoteAddrOrTrustedProxy(t *testing.T) {
 	}
 	req.Header.Set("X-Forwarded-For", "6.6.6.6, 203.0.113.9")
 	if got := clientIP(req, true); got != "203.0.113.9" {
-		t.Errorf("доверенный прокси: %q", got)
+		t.Errorf("trusted proxy: %q", got)
 	}
 	if got := clientIP(req, false); got != "10.1.2.3" {
-		t.Errorf("без доверия XFF игнорируется: %q", got)
+		t.Errorf("XFF is ignored without trust: %q", got)
 	}
 	login(t, f.h, "ann") // httptest: RemoteAddr 192.0.2.1:1234
 	if f.sources[0] != "192.0.2.1" {
-		t.Errorf("источник входа: %q", f.sources[0])
+		t.Errorf("login source: %q", f.sources[0])
 	}
 }
 
@@ -138,12 +138,12 @@ func TestCallOnTargetValidation(t *testing.T) {
 	}
 	own := &guardTarget{user: nil}
 	if _, err := d.CallOn(own, "Add", raw("1", "2")); err == nil {
-		t.Error("без пользователя на собственном виде ожидалась ошибка")
+		t.Error("an error was expected without a user on its own view")
 	}
 	if _, err := d.CallOn(&fakeTarget{}, "Add", raw("1", "2")); err == nil {
-		t.Error("цель чужого типа должна отклоняться")
+		t.Error("a target of a foreign type must be rejected")
 	}
 	if _, err := d.CallOn(nil, "Add", raw("1", "2")); err == nil {
-		t.Error("nil — общий экземпляр (без пользователя): ожидалась ошибка входа")
+		t.Error("nil is the shared instance (no user): a login error was expected")
 	}
 }

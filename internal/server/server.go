@@ -32,7 +32,7 @@ func NewHandler(d *Dispatcher, static fs.FS, g *Guard) http.Handler {
 		_, _ = w.Write([]byte("ok\n"))
 	})
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, _ *http.Request) {
-		writeError(w, http.StatusNotFound, "not_found", "нет такой ручки API")
+		writeError(w, http.StatusNotFound, "not_found", "no such API endpoint")
 	})
 	mux.Handle("/", spaHandler(static))
 	return securityHeaders(mux)
@@ -52,11 +52,11 @@ func securityHeaders(next http.Handler) http.Handler {
 func spaHandler(static fs.FS) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			http.Error(w, "метод не поддерживается", http.StatusMethodNotAllowed)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if static == nil {
-			http.Error(w, "фронтенд не встроен в сборку", http.StatusServiceUnavailable)
+			http.Error(w, "frontend is not embedded in the build", http.StatusServiceUnavailable)
 			return
 		}
 		name := strings.TrimPrefix(path.Clean("/"+r.URL.Path), "/")
@@ -68,13 +68,13 @@ func spaHandler(static fs.FS) http.Handler {
 		}
 		f, err := static.Open(name)
 		if err != nil {
-			http.Error(w, "фронтенд не собран (нет index.html): выполните сборку frontend", http.StatusServiceUnavailable)
+			http.Error(w, "frontend is not built (no index.html): build the frontend first", http.StatusServiceUnavailable)
 			return
 		}
 		defer f.Close()
 		st, err := f.Stat()
 		if err != nil {
-			http.Error(w, "ошибка чтения", http.StatusInternalServerError)
+			http.Error(w, "read error", http.StatusInternalServerError)
 			return
 		}
 		if strings.HasPrefix(name, "assets/") {
@@ -87,7 +87,7 @@ func spaHandler(static fs.FS) http.Handler {
 			Seek(int64, int) (int64, error)
 		})
 		if !ok {
-			http.Error(w, "файл не поддерживает чтение с позиции", http.StatusInternalServerError)
+			http.Error(w, "file does not support seeking", http.StatusInternalServerError)
 			return
 		}
 		http.ServeContent(w, r, name, st.ModTime(), rs)
@@ -115,7 +115,7 @@ func Serve(ctx context.Context, ln net.Listener, h http.Handler) error {
 	}
 	errc := make(chan error, 1)
 	go func() { errc <- srv.Serve(ln) }()
-	log.Printf("kubron-server слушает http://%s", ln.Addr())
+	log.Printf("kubron-server is listening on http://%s", ln.Addr())
 
 	select {
 	case err := <-errc:
@@ -146,9 +146,9 @@ func CheckWebBuild(static fs.FS) error {
 		return nil
 	}
 	if !strings.Contains(string(b), webBuildMarker) {
-		return errors.New("встроенный frontend/dist собран для десктопа, а не для веба: " +
-			"выполните `cd frontend && npm run build:web` и пересоберите сервер (go build ./cmd/kubron-server); " +
-			"`wails build` перезаписывает frontend/dist десктопной сборкой")
+		return errors.New("the embedded frontend/dist was built for desktop, not for web: " +
+			"run `cd frontend && npm run build:web` and rebuild the server (go build ./cmd/kubron-server); " +
+			"`wails build` overwrites frontend/dist with the desktop build")
 	}
 	return nil
 }

@@ -122,7 +122,8 @@
     "remove": "Remove",
     "confirmRemove": "Remove repository {name}? Installed releases from it are not affected.",
     "removed": "Repository {name} removed",
-    "removeError": "Removal: {message}"
+    "removeError": "Removal: {message}",
+    "update": "Update"
   },
   "install": {
     "title": "Installing {repo}/{chart}",

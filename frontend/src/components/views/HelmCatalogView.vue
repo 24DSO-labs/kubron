@@ -89,6 +89,7 @@ import HelmInstallDialog from './HelmInstallDialog.vue'
 import { callApp } from '../../resources/wails'
 import { can } from '../../composables/useAuth'
 import { Perm } from '../../types/auth'
+import { errorText } from '../../composables/errorText'
 
 interface Chart { repo: string; name: string; version: string; appVersion: string; description: string; deprecated: boolean; versions: number }
 interface Ver { version: string; appVersion: string; deprecated: boolean }
@@ -135,7 +136,7 @@ async function search() {
     total.value = res.total ?? 0
     if (selected.value && !items.value.some(isSelected)) selected.value = null
   } catch (e: any) {
-    if (my === searchSeq) error.value = e?.message || String(e)
+    if (my === searchSeq) error.value = errorText(e)
   } finally {
     if (my === searchSeq) loaded.value = true
   }
@@ -162,7 +163,7 @@ async function select(c: Chart) {
     versions.value = v
     version.value = v[0]?.version ?? c.version // версии отсортированы по убыванию
   } catch (e: any) {
-    if (my === verSeq) pkgError.value = e?.message || String(e)
+    if (my === verSeq) pkgError.value = errorText(e)
   }
 }
 
@@ -177,7 +178,7 @@ watch([selected, version], async () => {
     const p = (await callApp('GetHelmChartPackage', c.repo, c.name, version.value)) as Pkg
     if (my === pkgSeq) pkg.value = p
   } catch (e: any) {
-    if (my === pkgSeq) { pkg.value = null; pkgError.value = e?.message || String(e) }
+    if (my === pkgSeq) { pkg.value = null; pkgError.value = errorText(e) }
   } finally {
     if (my === pkgSeq) pkgLoading.value = false
   }
@@ -187,7 +188,7 @@ onMounted(async () => {
   try {
     repoNames.value = ((await callApp('ListHelmRepos')) as { name: string }[]).map(r => r.name)
   } catch (e: any) {
-    error.value = e?.message || String(e)
+    error.value = errorText(e)
   }
   await search()
 })

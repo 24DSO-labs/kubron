@@ -17,21 +17,21 @@ import (
 func TestNormalizeHelmOCIURL(t *testing.T) {
 	got, host, err := normalizeHelmOCIURL(" oci://GHCR.io/Org/charts/ ")
 	if err == nil {
-		t.Fatalf("заглавные буквы в пути должны отклоняться, получено %q %q", got, host)
+		t.Fatalf("uppercase letters in the path must be rejected, got %q %q", got, host)
 	}
 	got, host, err = normalizeHelmOCIURL(" oci://GHCR.io/org/charts/ ")
 	if err != nil || got != "oci://ghcr.io/org/charts" || host != "ghcr.io" {
 		t.Fatalf("got %q %q %v", got, host, err)
 	}
 	if got, _, err := normalizeHelmOCIURL("oci://localhost:5000"); err != nil || got != "oci://localhost:5000" {
-		t.Errorf("реестр без пути: %q %v", got, err)
+		t.Errorf("registry without a path: %q %v", got, err)
 	}
 	for _, bad := range []string{
 		"", "https://ghcr.io/x", "ghcr.io/x", "oci://", "oci://u:p@ghcr.io/x", "oci://ghcr.io/x?a=1",
 		"oci://ghcr.io/x#f", "oci://ghcr.io/../etc", "oci://ghcr.io/a b", "oci://ghcr.io/-x",
 	} {
 		if _, _, err := normalizeHelmOCIURL(bad); err == nil {
-			t.Errorf("%q должно отклоняться", bad)
+			t.Errorf("%q must be rejected", bad)
 		}
 	}
 }
@@ -43,7 +43,7 @@ func TestOCIChartNames(t *testing.T) {
 	}
 	for _, bad := range [][]string{nil, {""}, {"Bad"}, {"a/b"}, {"../x"}, {strings.Repeat("a", 129)}} {
 		if _, err := normalizeOCIChartList(bad); err == nil {
-			t.Errorf("%v должно отклоняться", bad)
+			t.Errorf("%v must be rejected", bad)
 		}
 	}
 	many := make([]string, helmOCIMaxCharts+1)
@@ -51,13 +51,13 @@ func TestOCIChartNames(t *testing.T) {
 		many[i] = "c" + strings.Repeat("x", i%5) + string(rune('a'+i%26)) + string(rune('a'+i/26))
 	}
 	if _, err := normalizeOCIChartList(many); err == nil {
-		t.Error("слишком много чартов")
+		t.Error("too many charts")
 	}
 }
 
 func TestOCITagAndRef(t *testing.T) {
 	if ociTag("1.2.3+build.5") != "1.2.3_build.5" || ociTag("1.2.3") != "1.2.3" {
-		t.Error("«+» в теге заменяется на «_»")
+		t.Error("'+' in a tag is replaced with '_'")
 	}
 	r := &ociRepo{URL: "oci://ghcr.io/org/charts"}
 	if got := ociRef(r, "podinfo"); got != "ghcr.io/org/charts/podinfo" {
@@ -86,8 +86,8 @@ func TestLimitTransport(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
-	if _, err := io.ReadAll(resp.Body); err == nil || !strings.Contains(err.Error(), "превышает") {
-		t.Errorf("ожидалась ошибка превышения лимита: %v", err)
+	if _, err := io.ReadAll(resp.Body); err == nil || !strings.Contains(err.Error(), "exceeds") {
+		t.Errorf("expected a limit exceeded error: %v", err)
 	}
 }
 
@@ -125,29 +125,29 @@ func TestOCIRepoLifecycle(t *testing.T) {
 
 	// некорректный ввод и недоступный чарт ничего не сохраняют
 	if err := m.AddHelmOCIRepo("Bad Name", base, []string{"podinfo"}, "", ""); err == nil {
-		t.Error("плохое имя")
+		t.Error("bad name")
 	}
 	if err := m.AddHelmOCIRepo("demo", "https://x", []string{"podinfo"}, "", ""); err == nil {
-		t.Error("плохая схема")
+		t.Error("bad scheme")
 	}
 	if err := m.AddHelmOCIRepo("demo", base, nil, "", ""); err == nil {
-		t.Error("нужен хотя бы один чарт")
+		t.Error("at least one chart is required")
 	}
 	if err := m.AddHelmOCIRepo("demo", base, []string{"podinfo", "missing"}, "", ""); err == nil {
-		t.Error("несуществующий чарт должен отклонять весь реестр")
+		t.Error("a nonexistent chart must reject the whole registry")
 	}
 	if repos, _ := m.ListHelmRepos(); len(repos) != 0 {
-		t.Fatalf("после неудачных добавлений список должен быть пуст: %v", repos)
+		t.Fatalf("the list must be empty after failed additions: %v", repos)
 	}
 
 	if err := m.AddHelmOCIRepo("demo", base, []string{"podinfo"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if err := m.AddHelmOCIRepo("demo", base, []string{"podinfo"}, "", ""); err == nil {
-		t.Error("повторное добавление")
+		t.Error("duplicate addition")
 	}
 	if err := m.AddHelmRepo("demo", "https://charts.example.com", "", "", false); err == nil {
-		t.Error("имя занято OCI-реестром")
+		t.Error("the name is taken by an OCI registry")
 	}
 	// В Windows Unix-прав нет (Perm() всегда 0666): проверяем только там, где они есть.
 	if runtime.GOOS != "windows" {
@@ -170,7 +170,7 @@ func TestOCIRepoLifecycle(t *testing.T) {
 		t.Fatalf("versions: %+v %v", vers, err)
 	}
 	if _, err := m.GetHelmChartVersions("demo", "redis"); err == nil {
-		t.Error("чарт не добавлен в реестр")
+		t.Error("chart is not added to the registry")
 	}
 
 	// добавление и удаление чарта
@@ -178,19 +178,19 @@ func TestOCIRepoLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := m.AddHelmOCIChart("demo", "redis"); err == nil {
-		t.Error("дубликат чарта")
+		t.Error("duplicate chart")
 	}
 	if err := m.AddHelmOCIChart("demo", "nope"); err == nil {
-		t.Error("чарт без тегов")
+		t.Error("chart without tags")
 	}
 	if res, _ := m.SearchHelmCharts("", "demo"); res.Total != 2 {
-		t.Errorf("после добавления redis: %+v", res)
+		t.Errorf("after adding redis: %+v", res)
 	}
 	if err := m.RemoveHelmOCIChart("demo", "redis"); err != nil {
 		t.Fatal(err)
 	}
 	if err := m.RemoveHelmOCIChart("demo", "redis"); err == nil {
-		t.Error("повторное удаление чарта")
+		t.Error("removing a chart again")
 	}
 
 	// обновление индекса тегов
@@ -212,13 +212,13 @@ func TestOCIRemoveCleansUp(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(ociTagsPath("demo")); !os.IsNotExist(err) {
-		t.Errorf("кеш тегов должен быть удалён: %v", err)
+		t.Errorf("the tag cache must be deleted: %v", err)
 	}
 	if repos, _ := m.ListHelmRepos(); len(repos) != 0 {
-		t.Errorf("список после удаления: %v", repos)
+		t.Errorf("list after deletion: %v", repos)
 	}
 	if err := m.RemoveHelmRepo("demo"); err == nil {
-		t.Error("повторное удаление")
+		t.Error("removing again")
 	}
 }
 
@@ -233,9 +233,9 @@ func TestOCIIndexesFeedUpdateFinder(t *testing.T) {
 	}
 	u := helmUpdateFinder()("podinfo", "1.5.0")
 	if u == nil || u.Latest != "2.0.0" || u.Repo != "demo" {
-		t.Errorf("обновление: %+v", u)
+		t.Errorf("update: %+v", u)
 	}
 	if u := helmUpdateFinder()("podinfo", "9.9.9"); u != nil {
-		t.Errorf("неизвестная версия: %+v", u)
+		t.Errorf("unknown version: %+v", u)
 	}
 }

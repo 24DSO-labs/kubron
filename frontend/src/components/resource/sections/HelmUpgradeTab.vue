@@ -52,6 +52,7 @@ import { itemName, itemNs } from '../../../resources/utils'
 import { can } from '../../../composables/useAuth'
 import { useNotifications } from '../../../composables/useNotifications'
 import { Perm } from '../../../types/auth'
+import { errorText } from '../../../composables/errorText'
 
 const { t } = useI18n()
 const props = defineProps<{ resource: any }>()
@@ -90,7 +91,7 @@ async function load() {
     baseRevision.value = props.resource?.revision
     loaded.value = true
   } catch (e: any) {
-    if (my === seq) error.value = e?.message || String(e)
+    if (my === seq) error.value = errorText(e)
   }
 }
 // Релиз сменился или появилась новая ревизия: перечитываем исходные values
@@ -111,7 +112,7 @@ async function preview() {
     manifestNew.value = p.newManifest
     step.value = 'preview'
   } catch (e: any) {
-    error.value = e?.message || String(e)
+    error.value = errorText(e)
   } finally {
     busy.value = false
   }
@@ -130,7 +131,7 @@ async function apply() {
     baseRevision.value = rev // собственная ревизия не считается чужим изменением
     stale.value = false
   } catch (e: any) {
-    error.value = e?.message || String(e)
+    error.value = errorText(e)
   } finally {
     busy.value = false
   }

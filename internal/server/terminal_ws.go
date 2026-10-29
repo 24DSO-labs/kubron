@@ -52,12 +52,12 @@ func TerminalHandler(g *Guard) http.Handler {
 		token := g.token(r)
 		sess, ok := g.Sessions.Get(token)
 		if !ok {
-			writeError(w, http.StatusUnauthorized, "unauthenticated", "требуется вход в систему")
+			writeError(w, http.StatusUnauthorized, "unauthenticated", "authentication required")
 			return
 		}
 		id := r.PathValue("id")
 		if !g.Terminals.OwnedBy(id, sess.ID) { // чужой терминал неотличим от несуществующего
-			writeError(w, http.StatusNotFound, "not_found", "терминал не найден")
+			writeError(w, http.StatusNotFound, "not_found", "terminal not found")
 			return
 		}
 		ws, err := up.Upgrade(w, r, nil)

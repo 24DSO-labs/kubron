@@ -17,7 +17,7 @@
       <h3>{{ $t('helm.operations.running') }}</h3>
       <div v-for="o in running" :key="o.opId" class="ho-run">
         <span class="ho-spin" aria-hidden="true">⟳</span>
-        <strong>{{ LABEL[o.op] }} {{ o.release }}</strong>
+        <strong>{{ helmOpLabel(o.op) }} {{ o.release }}</strong>
         <span class="ho-muted">{{ o.namespace }} · {{ o.phase }}</span>
       </div>
     </section>
@@ -26,7 +26,7 @@
       <input v-model="search" class="form-input" type="search" :placeholder="$t('helm.operations.searchPlaceholder')" :aria-label="$t('helm.operations.searchAria')" />
       <select v-model="opFilter" class="form-input" :aria-label="$t('helm.operations.allOps')" @change="load">
         <option value="">{{ $t('helm.operations.allOps') }}</option>
-        <option v-for="(label, key) in LABEL" :key="key" :value="key">{{ label }}</option>
+        <option v-for="key in HELM_OPS" :key="key" :value="key">{{ helmOpLabel(key) }}</option>
       </select>
       <select v-model="statusFilter" class="form-input" :aria-label="$t('helm.operations.anyStatus')" @change="load">
         <option value="">{{ $t('helm.operations.anyStatus') }}</option>
@@ -47,7 +47,7 @@
         <template v-for="r in records" :key="r.id">
           <tr class="ho-row" :class="{ open: openId === r.id }" tabindex="0" @click="toggle(r)" @keydown.enter="toggle(r)">
             <td class="ho-muted" :title="r.startedAt">{{ formatTime(r.startedAt) }}</td>
-            <td>{{ LABEL.value[r.op] || r.op }}</td>
+            <td>{{ helmOpLabel(r.op) }}</td>
             <td><strong>{{ r.release }}</strong><span class="ho-muted"> · {{ r.namespace }}</span></td>
             <td class="ho-muted">{{ r.cluster || $t('common.dash') }}</td>
             <td class="ho-desc" :title="r.detail">{{ r.detail }}<span v-if="r.revision" class="ho-muted"> #{{ r.revision }}</span></td>
@@ -78,19 +78,19 @@ import { callApp } from '../../resources/wails'
 import { askConfirm } from '../../resources/confirm'
 import { can } from '../../composables/useAuth'
 import { useNotifications } from '../../composables/useNotifications'
-import { HELM_OP_LABEL, helmJournalTick, helmOps, startHelmOps } from '../../composables/useHelmOps'
+import { HELM_OPS, helmOpLabel, helmJournalTick, helmOps, startHelmOps } from '../../composables/useHelmOps'
 
 const { t } = useI18n()
 import { Perm } from '../../types/auth'
+import { errorText } from '../../composables/errorText'
 
 interface Rec {
   id: string; op: string; cluster: string; namespace: string; release: string; detail: string; revision: number
   status: string; error: string; startedAt: string; finishedAt: string; durationMs: number; log?: string[]
 }
 
-const RAW_LABEL = HELM_OP_LABEL
-const LABEL: any = computed(() => ({ install: t('helm.ops_panel.install'), upgrade: t('helm.ops_panel.upgrade'), rollback: t('helm.ops_panel.rollback'), uninstall: t('helm.ops_panel.uninstall') }))
-const STATUS: Record<string, string> = { success: t('helm.operations.success'), failed: t('helm.operations.failed'), canceled: t('helm.operations.canceled') }
+/** Подписи статусов: computed, чтобы обновлялись при смене языка */
+const STATUS = computed<Record<string, string>>(() => ({ success: t('helm.operations.success'), failed: t('helm.operations.failed'), canceled: t('helm.operations.canceled') }))
 
 const notifications = useNotifications()
 const canClear = computed(() => can(Perm.ClusterManage))
@@ -135,7 +135,7 @@ async function load() {
     if (openId.value && !records.value.some(x => x.id === openId.value)) openId.value = ''
     loaded.value = true
   } catch (e: any) {
-    if (my === seq) error.value = e?.message || String(e)
+    if (my === seq) error.value = errorText(e)
   } finally {
     if (my === seq) loading.value = false
   }
@@ -153,7 +153,7 @@ async function toggle(r: Rec) {
     const d = (await callApp('GetHelmOperation', r.id)) as Rec
     if (my === dseq) detail.value = d
   } catch (e: any) {
-    if (my === dseq) detailError.value = e?.message || String(e)
+    if (my === dseq) detailError.value = errorText(e)
   } finally {
     if (my === dseq) detailLoading.value = false
   }
@@ -166,7 +166,7 @@ async function clearAll() {
     openId.value = ''
     notifications.notifySuccess(t('helm.operations.cleared'))
   } catch (e: any) {
-    notifications.notifyError(t('helm.operations.clearError', { message: e?.message || String(e) }))
+    notifications.notifyError(t('helm.operations.clearError', { message: errorText(e) }))
   } finally {
     await load()
   }
