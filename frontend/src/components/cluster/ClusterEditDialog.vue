@@ -6,10 +6,10 @@
       <header class="cl-head">
         <ClusterAvatar :name="name" :icon="icon" :color="color" :environment="environment" :size="44" show-env />
         <div class="cl-head-text">
-          <div :id="`${uid}-title`" class="cl-title">{{ name.trim() || 'Без названия' }}</div>
+          <div :id="`${uid}-title`" class="cl-title">{{ name.trim() || $t('cluster.dialog.untitled') }}</div>
           <div class="cl-subtitle cl-mono">{{ subtitle }}</div>
         </div>
-        <button type="button" class="cl-close" aria-label="Закрыть" @click="emit('close')">
+        <button type="button" class="cl-close" :aria-label="$t('common.close')" @click="emit('close')">
           <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
             <path d="M2 2l10 10M12 2L2 12" />
           </svg>
@@ -18,25 +18,25 @@
 
       <div class="cl-body">
         <section class="cl-section">
-          <h3 class="cl-section-title">Основное</h3>
+          <h3 class="cl-section-title">{{ $t('cluster.dialog.sectionMain') }}</h3>
           <div class="cl-field">
-            <label :for="`${uid}-name`" class="cl-label">Название</label>
+            <label :for="`${uid}-name`" class="cl-label">{{ $t('cluster.dialog.name') }}</label>
             <input :id="`${uid}-name`" ref="nameInput" v-model="name" class="cl-input" :maxlength="MAX_CLUSTER_NAME"
               autocomplete="off" spellcheck="false" @keydown.enter.prevent="submit" />
           </div>
         </section>
 
         <section class="cl-section">
-          <h3 class="cl-section-title">Оформление</h3>
+          <h3 class="cl-section-title">{{ $t('cluster.dialog.sectionAppearance') }}</h3>
           <ClusterAppearanceFields v-model:icon="icon" v-model:color="color" v-model:environment="environment"
             :name="name" />
         </section>
 
         <section class="cl-section">
-          <h3 class="cl-section-title">Подключение</h3>
+          <h3 class="cl-section-title">{{ $t('cluster.dialog.sectionConnection') }}</h3>
 
           <div class="cl-field">
-            <span class="cl-label">Kubeconfig</span>
+            <span class="cl-label">{{ $t('cluster.edit.kubeconfig') }}</span>
             <div class="cl-kc">
               <div class="cl-kc-info">
                 <div class="cl-kc-name cl-mono" :title="kcLabel">{{ kcLabel }}</div>
@@ -44,22 +44,22 @@
               </div>
               <div class="cl-kc-actions">
                 <button type="button" class="cl-btn cl-btn-sm" @click="replaceWithFile">
-                  {{ capabilities.fileDialog ? 'Заменить файлом…' : 'Загрузить из файла…' }}
+                  {{ capabilities.fileDialog ? $t('cluster.edit.replaceWithFile') : $t('cluster.dialog.uploadFromFile') }}
                 </button>
                 <button v-if="kcMode !== 'text'" type="button" class="cl-btn cl-btn-sm" @click="editText">
-                  Править текст
+                  {{ $t('cluster.edit.editText') }}
                 </button>
                 <button v-if="kcMode !== 'keep'" type="button" class="cl-btn cl-btn-sm cl-btn-quiet"
                   @click="revertKubeconfig">
-                  Отменить
+                  {{ $t('cluster.edit.revert') }}
                 </button>
               </div>
             </div>
 
             <template v-if="kcMode === 'text'">
-              <textarea v-model="kcText" class="cl-textarea cl-mono" spellcheck="false" aria-label="Текст kubeconfig"
+              <textarea v-model="kcText" class="cl-textarea cl-mono" spellcheck="false" :aria-label="$t('cluster.dialog.kubeconfigText')"
                 style="margin-top: 8px" @input="onTextInput"></textarea>
-              <p class="cl-hint is-warn">Текст содержит учётные данные кластера — не показывайте экран посторонним.</p>
+              <p class="cl-hint is-warn">{{ $t('cluster.edit.textWarning') }}</p>
             </template>
             <p v-if="hasReplacement && probe.inspectError.value" class="cl-hint is-error">
               {{ probe.inspectError.value }}
@@ -76,13 +76,13 @@
 
       <footer class="cl-foot">
         <button type="button" class="cl-btn cl-btn-danger" :disabled="saving" @click="emit('delete', cluster.id)">
-          Удалить кластер
+          {{ $t('cluster.edit.deleteCluster') }}
         </button>
         <span class="cl-foot-spacer"></span>
-        <button type="button" class="cl-btn" @click="emit('close')">Отмена</button>
+        <button type="button" class="cl-btn" @click="emit('close')">{{ $t('common.cancel') }}</button>
         <button type="button" class="cl-btn cl-btn-primary" :disabled="!canSave" @click="submit">
           <span v-if="saving" class="cl-spin" aria-hidden="true"></span>
-          Сохранить
+          {{ $t('common.save') }}
         </button>
       </footer>
     </div>
@@ -91,6 +91,7 @@
 
 <script lang="ts" setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { ClusterSettings, ClusterStatus, KubeconfigSource } from '../../types'
 import { NO_KUBECONFIG_SOURCE, pickContextName, useKubeconfigProbe } from '../../composables/useKubeconfigProbe'
 import { errorText } from '../../composables/errorText'
@@ -116,6 +117,7 @@ const emit = defineEmits<{
   (e: 'delete', id: string): void
 }>()
 
+const { t } = useI18n()
 const uid = useId()
 const probe = useKubeconfigProbe()
 
@@ -185,10 +187,10 @@ const kcLabel = computed(() => {
   return props.cluster.kubeconfigFile
 })
 const kcState = computed(() => {
-  if (kcMode.value === 'file' && kcPath.value) return 'Будет заменён выбранным файлом'
-  if (textDirty.value) return 'Изменён вручную — сохранится при нажатии «Сохранить»'
-  if (kcMode.value === 'text') return 'Правка текста: пока без изменений'
-  return 'Хранится в Kubron'
+  if (kcMode.value === 'file' && kcPath.value) return t('cluster.edit.stateFile')
+  if (textDirty.value) return t('cluster.edit.stateDirty')
+  if (kcMode.value === 'text') return t('cluster.edit.stateText')
+  return t('cluster.edit.stateKeep')
 })
 
 async function refreshProbe() {

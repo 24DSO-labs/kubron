@@ -29,6 +29,9 @@ export const viewRegistry: Record<string, ViewConfig> = {
   },
   'helm-repos': { component: lazy('HelmReposView') },
 'helm-catalog': { component: lazy('HelmCatalogView') },
+  'helm-ops': {
+    component: lazy('HelmOperationsView'),
+  },
   settings: {
     component: lazy('ClusterSettings'),
   },

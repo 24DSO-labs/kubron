@@ -112,10 +112,10 @@ func (b *graphBuilder) warn(format string, args ...any) {
 // listWarn превращает ошибку чтения в предупреждение: нехватка прав или отсутствие ресурса не должны ломать граф.
 func (b *graphBuilder) listWarn(what, ns string, err error) {
 	if apierrors.IsForbidden(err) {
-		b.warn("нет доступа к %s в namespace %s", what, ns)
+		b.warn("no access to %s in namespace %s", what, ns)
 		return
 	}
-	b.warn("не удалось прочитать %s в namespace %s: %v", what, ns, err)
+	b.warn("failed to read %s in namespace %s: %v", what, ns, err)
 }
 
 // buildArgoGraph — чистая по отношению к Application часть: принимает уже разобранные status.resources.

@@ -5,14 +5,14 @@ import type { ColumnDef, PropertyDef } from '../types'
 import { ageToMinutes } from '../utils'
 
 // Элементы Role/RoleBinding/... приходят в k8s-формате (metadata.name)
-export const nameCol: ColumnDef = { key: 'metadata.name', label: 'Name', className: 'resource-name' }
-export const nsCol: ColumnDef = { key: 'metadata.namespace', label: 'Namespace', className: 'ns-label' }
+export const nameCol: ColumnDef = { key: 'metadata.name', label: 'common.name', className: 'resource-name' }
+export const nsCol: ColumnDef = { key: 'metadata.namespace', label: 'common.namespace', className: 'ns-label' }
 
 // Остальные приходят плоскими (name, namespace)
-export const flatNameCol: ColumnDef = { key: 'name', label: 'Name', className: 'resource-name' }
-export const flatNsCol: ColumnDef = { key: 'namespace', label: 'Namespace', className: 'ns-label' }
+export const flatNameCol: ColumnDef = { key: 'name', label: 'common.name', className: 'resource-name' }
+export const flatNsCol: ColumnDef = { key: 'namespace', label: 'common.namespace', className: 'ns-label' }
 
-export const ageCol: ColumnDef = { key: 'age', label: 'Age', sortValue: (r: any) => ageToMinutes(r.age) }
+export const ageCol: ColumnDef = { key: 'age', label: 'common.age', sortValue: (r: any) => ageToMinutes(r.age) }
 
 // ─── Controlled By / Managed by ───
 // Бэкенд отдаёт оба поля строкой "Kind/name" (controlledBy — владелец из ownerReferences,
@@ -74,7 +74,7 @@ function managedByOf(r: any): string {
 
 /** Свойство «Controlled By»: "Kind name"; имя — ссылка, если kind известен приложению. Пустое скрывается */
 export const controlledByProp: PropertyDef = {
-  label: 'Controlled By',
+  label: 'defs.props.controlledBy',
   hideEmpty: true,
   value: (r: any) => {
     const [kind, name] = splitRef(controlledByOf(r))
@@ -91,7 +91,7 @@ export const controlledByProp: PropertyDef = {
 
 /** Свойство «Managed by»: "Application/name" (Argo CD) или "Helm/release". Ссылок нет: эти ресурсы приложение не открывает */
 export const managedByProp: PropertyDef = {
-  label: 'Managed by',
+  label: 'defs.columns.managedBy',
   hideEmpty: true,
   value: (r: any) => managedByOf(r) || null,
 }

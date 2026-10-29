@@ -2,7 +2,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div v-if="taints.length" class="rd-row">
-    <span class="rd-label">Taints</span>
+    <span class="rd-label">{{ $t('defs.columns.taints') }}</span>
     <div class="rd-badges">
       <span v-for="(t, i) in taints" :key="i" class="rd-badge rd-unk" :title="t.effect">
         {{ taintText(t) }}

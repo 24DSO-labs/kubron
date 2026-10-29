@@ -19,16 +19,16 @@ export const networkPolicy = defineResource<k8s.NetworkPolicyInfo>({
   columns: [
     flatNameCol,
     { ...flatNsCol, link: (np: any) => np.namespace ? { id: 'namespace', ns: '', name: np.namespace } : null },
-    { key: 'podSelector', label: 'Pod Selector' },
-    { key: 'policyTypes', label: 'Policy Types', formatter: (np: any) => (np.policyTypes ?? []).join(', ') },
+    { key: 'podSelector', label: 'defs.columns.podSelector' },
+    { key: 'policyTypes', label: 'defs.columns.policyTypes', formatter: (np: any) => (np.policyTypes ?? []).join(', ') },
     ageCol,
   ],
 
   properties: [
-    { label: 'Pod Selector', value: (np: any) => np.podSelector },
-    { label: 'Policy Types', value: (np: any) => (np.policyTypes ?? []).join(', ') },
-    { label: 'Ingress rules', value: (np: any) => (np.policyTypes ?? []).includes('Ingress') ? (np.ingress?.length ?? 0) : '—' },
-    { label: 'Egress rules', value: (np: any) => (np.policyTypes ?? []).includes('Egress') ? (np.egress?.length ?? 0) : '—' },
+    { label: 'defs.columns.podSelector', value: (np: any) => np.podSelector },
+    { label: 'defs.columns.policyTypes', value: (np: any) => (np.policyTypes ?? []).join(', ') },
+    { label: 'defs.props.ingressRules', value: (np: any) => (np.policyTypes ?? []).includes('Ingress') ? (np.ingress?.length ?? 0) : '—' },
+    { label: 'defs.props.egressRules', value: (np: any) => (np.policyTypes ?? []).includes('Egress') ? (np.egress?.length ?? 0) : '—' },
     controlledByProp,
     managedByProp,
   ],

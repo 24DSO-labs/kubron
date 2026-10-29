@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { ref } from 'vue'
+import { t } from '../i18n'
 import { onEvent } from '../platform/events'
 import { useNotifications } from './useNotifications'
 
@@ -39,8 +40,8 @@ export function handlePartialList(payload: PartialListPayload | undefined | null
   if (notified.has(key)) return false
   notified.add(key)
 
-  const shown = names.slice(0, 3).join(', ') + (names.length > 3 ? ` и ещё ${names.length - 3}` : '')
-  notify(`Нет доступа к namespace: ${shown}. Показаны остальные.`)
+  const shown = names.slice(0, 3).join(', ') + (names.length > 3 ? ` ${t('helm.helm_card.more', { count: names.length - 3 })}` : '')
+  notify(t('helm.list_failures.noAccess', { shown }))
   return true
 }
 

@@ -1,8 +1,10 @@
 <!-- Copyright 2026 The Kubron Authors -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
-  <div class="tabbed-panel" :style="panelStyle" @mousedown="startDrag">
-    <div class="panel-header" @mousedown.stop="startDrag">
+  <div class="tabbed-panel" :style="panelStyle">
+    <!-- Перетаскивание только за заголовок: иначе выделение текста в логах/терминале двигало бы панель -->
+    <div class="panel-header" @pointerdown="startDrag" @pointermove="handleDrag" @pointerup="stopDrag"
+      @pointercancel="stopDrag">
       <div class="tabs-container">
         <div class="tabs-list">
           <div v-for="tab in tabs" :key="tab.id" class="tab" :class="{ active: activeTabId === tab.id }"
@@ -26,15 +28,16 @@
           :active="activeTabId === tab.id" />
       </template>
       <div v-if="tabs.length === 0" class="no-tabs">
-        <p>No tabs open</p>
+        <p>{{ $t('utils.tab.noTabs') }}</p>
       </div>
     </div>
-    <div class="resize-handle" @mousedown.stop="startResize"></div>
+    <div class="resize-handle" @pointerdown="startResize" @pointermove="handleResize" @pointerup="stopResize"
+      @pointercancel="stopResize"></div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import { globalTabbedPanel } from '../../composables/useTabbedPanel'
 import LogsView from './LogsView.vue'
@@ -87,20 +90,22 @@ onMounted(() => {
     style.textContent = `@font-face { font-family: 'codicon'; src: url('${new URL('monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon.ttf', import.meta.url).href}') format('truetype'); }`
     document.head.appendChild(style)
   }
-  window.addEventListener('mousemove', handleResize)
-  window.addEventListener('mousemove', handleDrag)
-  window.addEventListener('mouseup', stopResize)
-  window.addEventListener('mouseup', stopDrag)
 })
 
-onBeforeUnmount(() => {
-  window.removeEventListener('mousemove', handleResize)
-  window.removeEventListener('mousemove', handleDrag)
-  window.removeEventListener('mouseup', stopResize)
-  window.removeEventListener('mouseup', stopDrag)
-})
+// Заголовок не должен уходить за пределы окна, иначе панель нечем будет вернуть.
+const HEADER_MIN_VISIBLE = 80
+const HEADER_HEIGHT = 44
 
-function startDrag(e: MouseEvent) {
+function clampPanel() {
+  panelX.value = Math.min(Math.max(panelX.value, HEADER_MIN_VISIBLE - panelWidth.value), window.innerWidth - HEADER_MIN_VISIBLE)
+  panelY.value = Math.min(Math.max(panelY.value, 0), window.innerHeight - HEADER_HEIGHT)
+}
+
+function startDrag(e: PointerEvent) {
+  if (e.button !== 0) return
+  // Вкладки и кнопки получают обычный click; захват указателя перенаправил бы его на заголовок.
+  if ((e.target as HTMLElement).closest('button, .tab')) return
+  ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   isDragging.value = true
   dragStartX.value = e.clientX
   dragStartY.value = e.clientY
@@ -108,15 +113,22 @@ function startDrag(e: MouseEvent) {
   dragStartTop.value = panelY.value
 }
 
-function stopDrag() { isDragging.value = false }
+function stopDrag(e: PointerEvent) {
+  if (!isDragging.value) return
+  isDragging.value = false
+  ;(e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId)
+}
 
-function handleDrag(e: MouseEvent) {
+function handleDrag(e: PointerEvent) {
   if (!isDragging.value) return
   panelX.value = dragStartLeft.value + (e.clientX - dragStartX.value)
   panelY.value = dragStartTop.value + (e.clientY - dragStartY.value)
+  clampPanel()
 }
 
-function startResize(e: MouseEvent) {
+function startResize(e: PointerEvent) {
+  if (e.button !== 0) return
+  ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   isResizing.value = true
   resizeStartX.value = e.clientX
   resizeStartY.value = e.clientY
@@ -125,9 +137,13 @@ function startResize(e: MouseEvent) {
   e.preventDefault()
 }
 
-function stopResize() { isResizing.value = false }
+function stopResize(e: PointerEvent) {
+  if (!isResizing.value) return
+  isResizing.value = false
+  ;(e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId)
+}
 
-function handleResize(e: MouseEvent) {
+function handleResize(e: PointerEvent) {
   if (!isResizing.value) return
   panelWidth.value = Math.max(400, resizeStartWidth.value + (e.clientX - resizeStartX.value))
   panelHeight.value = Math.max(250, resizeStartHeight.value + (e.clientY - resizeStartY.value))
@@ -156,6 +172,7 @@ function handleResize(e: MouseEvent) {
   min-height: 44px;
   user-select: none;
   cursor: move;
+  touch-action: none;
 }
 
 .tabs-container {
@@ -258,6 +275,7 @@ function handleResize(e: MouseEvent) {
   width: 20px;
   height: 20px;
   cursor: se-resize;
+  touch-action: none;
   background: linear-gradient(135deg, transparent 50%, #3b3d5c 50%);
   opacity: 0.5;
 }

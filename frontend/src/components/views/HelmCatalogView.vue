@@ -4,74 +4,74 @@
   <div class="hc-view">
     <header class="hc-head">
       <div>
-        <h2>Каталог чартов</h2>
-        <p class="hc-sub">Поиск по индексам добавленных репозиториев. Индексы обновляются в разделе Repositories.</p>
+        <h2>{{ $t('helm.catalog.title') }}</h2>
+        <p class="hc-sub">{{ $t('helm.catalog.subtitle') }}</p>
       </div>
     </header>
 
     <form class="hc-filters" @submit.prevent="search">
-      <input v-model="query" class="form-input" type="search" placeholder="Поиск: nginx, postgres, ingress…" aria-label="Поиск" />
-      <select v-model="repoFilter" class="form-input" aria-label="Репозиторий" @change="search">
-        <option value="">Все репозитории</option>
+      <input v-model="query" class="form-input" type="search" :placeholder="$t('helm.catalog.searchPlaceholder')" :aria-label="$t('helm.catalog.searchAria')" />
+      <select v-model="repoFilter" class="form-input" :aria-label="$t('helm.catalog.repository')" @change="search">
+        <option value="">{{ $t('helm.catalog.allRepos') }}</option>
         <option v-for="r in repoNames" :key="r" :value="r">{{ r }}</option>
       </select>
     </form>
 
     <p v-if="error" class="form-error">{{ error }}</p>
-    <p v-if="loaded && !repoNames.length" class="hc-empty">Нет репозиториев. Добавьте их в разделе Helm → Repositories.</p>
-    <p v-else-if="loaded && !items.length && !error" class="hc-empty">Ничего не найдено.</p>
+    <p v-if="loaded && !repoNames.length" class="hc-empty">{{ $t('helm.catalog.noRepos') }}</p>
+    <p v-else-if="loaded && !items.length && !error" class="hc-empty">{{ $t('helm.catalog.nothingFound') }}</p>
 
     <div v-if="items.length" class="hc-layout">
       <div class="hc-list">
         <table class="hc-table">
-          <thead><tr><th>Чарт</th><th>Репозиторий</th><th>Версия</th><th>App</th><th>Описание</th></tr></thead>
+          <thead><tr><th>{{ $t('helm.catalog.chart') }}</th><th>{{ $t('helm.catalog.repository') }}</th><th>{{ $t('helm.catalog.version') }}</th><th>{{ $t('helm.catalog.app') }}</th><th>{{ $t('helm.catalog.description') }}</th></tr></thead>
           <tbody>
             <tr v-for="c in items" :key="c.repo + '/' + c.name" :class="{ sel: isSelected(c) }" tabindex="0"
               @click="select(c)" @keydown.enter="select(c)">
-              <td><strong>{{ c.name }}</strong><span v-if="c.deprecated" class="hc-dep">deprecated</span></td>
+              <td><strong>{{ c.name }}</strong><span v-if="c.deprecated" class="hc-dep">{{ $t('helm.catalog.deprecated') }}</span></td>
               <td>{{ c.repo }}</td>
               <td class="hc-mono">{{ c.version }}</td>
-              <td class="hc-mono">{{ c.appVersion || '—' }}</td>
+              <td class="hc-mono">{{ c.appVersion || $t('common.dash') }}</td>
               <td class="hc-desc" :title="c.description">{{ c.description }}</td>
             </tr>
           </tbody>
         </table>
-        <p v-if="total > items.length" class="hc-empty">Показано {{ items.length }} из {{ total }}: уточните запрос.</p>
+        <p v-if="total > items.length" class="hc-empty">{{ $t('helm.catalog.shown', { count: items.length, total }) }}</p>
       </div>
 
       <section v-if="selected" class="hc-detail">
         <div class="hc-detail-bar">
           <h3>{{ selected.repo }}/{{ selected.name }}</h3>
           <label class="hc-field">
-            Версия
-            <select v-model="version" class="form-input" aria-label="Версия">
+            {{ $t('helm.catalog.version') }}
+            <select v-model="version" class="form-input" :aria-label="$t('helm.catalog.version')">
               <option v-for="v in versions" :key="v.version" :value="v.version">
-                {{ v.version }}{{ v.appVersion ? ` (app ${v.appVersion})` : '' }}{{ v.deprecated ? ' · deprecated' : '' }}
+                {{ v.version }}{{ v.appVersion ? ` (app ${v.appVersion})` : '' }}{{ v.deprecated ? ` · ${$t('helm.catalog.deprecated')}` : '' }}
               </option>
             </select>
           </label>
           <button v-if="canInstall" type="button" class="btn hc-install" :disabled="!pkg || pkgLoading" @click="showInstall = true">
-            Install
+            {{ $t('helm.catalog.install') }}
           </button>
-          <div class="hc-seg" role="group" aria-label="Раздел">
+          <div class="hc-seg" role="group" :aria-label="$t('common.actions')">
             <button v-for="t in TABS" :key="t.id" type="button" :class="{ on: tab === t.id }" @click="tab = t.id">{{ t.label }}</button>
           </div>
         </div>
 
         <p v-if="pkgError" class="form-error">{{ pkgError }}</p>
-        <p v-else-if="pkgLoading && !pkg" class="hc-empty">Загрузка чарта…</p>
+        <p v-else-if="pkgLoading && !pkg" class="hc-empty">{{ $t('helm.catalog.loadingChart') }}</p>
         <template v-else-if="pkg">
           <!-- README показываем как текст в редакторе: Markdown из внешнего репозитория не рендерим как HTML -->
-          <MonacoReadonly v-if="tab === 'readme'" :value="pkg.readme || '# У чарта нет README'" language="markdown" />
-          <MonacoReadonly v-else-if="tab === 'values'" :value="pkg.values || '# У чарта нет values.yaml'" language="yaml" />
+          <MonacoReadonly v-if="tab === 'readme'" :value="pkg.readme || $t('helm.catalog.noReadme')" language="markdown" />
+          <MonacoReadonly v-else-if="tab === 'values'" :value="pkg.values || $t('helm.catalog.noValues')" language="yaml" />
           <dl v-else class="hc-info">
-            <dt>Описание</dt><dd>{{ pkg.description || '—' }}</dd>
-            <dt>Версия чарта</dt><dd class="hc-mono">{{ pkg.version }}</dd>
-            <dt>Версия приложения</dt><dd class="hc-mono">{{ pkg.appVersion || '—' }}</dd>
-            <dt>Сайт</dt><dd class="hc-mono">{{ pkg.home || '—' }}</dd>
-            <dt>Исходники</dt><dd class="hc-mono">{{ (pkg.sources || []).join('\n') || '—' }}</dd>
-            <dt>Ключевые слова</dt><dd>{{ (pkg.keywords || []).join(', ') || '—' }}</dd>
-            <dt>Мейнтейнеры</dt><dd>{{ (pkg.maintainers || []).join(', ') || '—' }}</dd>
+            <dt>{{ $t('helm.catalog.description') }}</dt><dd>{{ pkg.description || $t('common.dash') }}</dd>
+            <dt>{{ $t('helm.catalog.chartVer') }}</dt><dd class="hc-mono">{{ pkg.version }}</dd>
+            <dt>{{ $t('helm.catalog.appVer') }}</dt><dd class="hc-mono">{{ pkg.appVersion || $t('common.dash') }}</dd>
+            <dt>{{ $t('helm.catalog.website') }}</dt><dd class="hc-mono">{{ pkg.home || $t('common.dash') }}</dd>
+            <dt>{{ $t('helm.catalog.sources') }}</dt><dd class="hc-mono">{{ (pkg.sources || []).join('\n') || $t('common.dash') }}</dd>
+            <dt>{{ $t('helm.catalog.keywords') }}</dt><dd>{{ (pkg.keywords || []).join(', ') || $t('common.dash') }}</dd>
+            <dt>{{ $t('helm.catalog.maintainers') }}</dt><dd>{{ (pkg.maintainers || []).join(', ') || $t('common.dash') }}</dd>
           </dl>
         </template>
       </section>
@@ -89,6 +89,7 @@ import HelmInstallDialog from './HelmInstallDialog.vue'
 import { callApp } from '../../resources/wails'
 import { can } from '../../composables/useAuth'
 import { Perm } from '../../types/auth'
+import { errorText } from '../../composables/errorText'
 
 interface Chart { repo: string; name: string; version: string; appVersion: string; description: string; deprecated: boolean; versions: number }
 interface Ver { version: string; appVersion: string; deprecated: boolean }
@@ -135,7 +136,7 @@ async function search() {
     total.value = res.total ?? 0
     if (selected.value && !items.value.some(isSelected)) selected.value = null
   } catch (e: any) {
-    if (my === searchSeq) error.value = e?.message || String(e)
+    if (my === searchSeq) error.value = errorText(e)
   } finally {
     if (my === searchSeq) loaded.value = true
   }
@@ -162,7 +163,7 @@ async function select(c: Chart) {
     versions.value = v
     version.value = v[0]?.version ?? c.version // версии отсортированы по убыванию
   } catch (e: any) {
-    if (my === verSeq) pkgError.value = e?.message || String(e)
+    if (my === verSeq) pkgError.value = errorText(e)
   }
 }
 
@@ -177,7 +178,7 @@ watch([selected, version], async () => {
     const p = (await callApp('GetHelmChartPackage', c.repo, c.name, version.value)) as Pkg
     if (my === pkgSeq) pkg.value = p
   } catch (e: any) {
-    if (my === pkgSeq) { pkg.value = null; pkgError.value = e?.message || String(e) }
+    if (my === pkgSeq) { pkg.value = null; pkgError.value = errorText(e) }
   } finally {
     if (my === pkgSeq) pkgLoading.value = false
   }
@@ -187,7 +188,7 @@ onMounted(async () => {
   try {
     repoNames.value = ((await callApp('ListHelmRepos')) as { name: string }[]).map(r => r.name)
   } catch (e: any) {
-    error.value = e?.message || String(e)
+    error.value = errorText(e)
   }
   await search()
 })

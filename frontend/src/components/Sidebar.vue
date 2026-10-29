@@ -10,7 +10,7 @@
     <!-- Navigation Tree: пункты строятся из resources/navigation.ts -->
     <nav class="nav-tree">
       <div :class="['nav-item', { active: currentView === 'overview' }]" @click="emit('navigate', 'overview')">
-        <span class="nav-icon"></span> Overview
+        <span class="nav-icon"></span> {{ $t('nav.overview') }}
       </div>
 
       <template v-for="entry in visibleEntries" :key="entry.type === 'group' ? entry.id : entry.view">
@@ -19,7 +19,7 @@
           :class="['nav-item', { active: currentView === entry.view }]"
           @click="emit('navigate', entry.view)"
         >
-          <span class="nav-icon"></span> {{ entry.label }}
+          <span class="nav-icon"></span> {{ tl(entry.label) }}
         </div>
 
         <NavGroupNode
@@ -37,21 +37,21 @@
       <!-- Settings -->
       <div class="nav-separator"></div>
       <div :class="['nav-item', { active: currentView === 'settings' }]" @click="emit('navigate', 'settings')">
-        <span class="nav-icon">⚙️</span> Settings
+        <span class="nav-icon">⚙️</span> {{ $t('nav.settings') }}
       </div>
       <div v-if="can(Perm.UsersManage)" :class="['nav-item', { active: currentView === 'users' }]"
         @click="emit('navigate', 'users')">
-        <span class="nav-icon">👥</span> Users
+        <span class="nav-icon">👥</span> {{ $t('nav.users') }}
       </div>
       <div v-if="can(Perm.AuditRead)" :class="['nav-item', { active: currentView === 'audit' }]"
         @click="emit('navigate', 'audit')">
-        <span class="nav-icon">📜</span> Audit
+        <span class="nav-icon">📜</span> {{ $t('nav.audit') }}
       </div>
     </nav>
 
     <!-- Namespace selector -->
     <div class="ns-selector">
-      <label class="ns-label-text">Namespace</label>
+      <label class="ns-label-text">{{ $t('nav.namespace') }}</label>
       <NamespaceSelect
         :modelValue="selectedNamespaces"
         :namespaces="namespaces"
@@ -64,7 +64,7 @@
     class="sidebar-resizer"
     role="separator"
     aria-orientation="vertical"
-    aria-label="Resize sidebar"
+    :aria-label="$t('nav.resizeSidebar')"
     tabindex="0"
     @pointerdown="startResize"
     @keydown="onResizerKey"
@@ -78,6 +78,7 @@ import { computed, reactive, onBeforeUnmount } from 'vue'
 import type { NamespaceInfo } from '../types'
 import type { NavGroupId } from '../resources/types'
 import { NAV_GROUPS, buildNav } from '../resources/navigation'
+import { tl } from '../i18n'
 import NavGroupNode from './nav/NavGroupNode.vue'
 import NamespaceSelect from './NamespaceSelect.vue'
 import { useListFailures } from '../composables/useListFailures'

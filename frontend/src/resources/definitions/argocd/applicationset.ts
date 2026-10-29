@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { defineResource } from '../../types'
+import { t } from '../../../i18n'
 import { callApp } from '../../wails'
 import { statusColor } from '../../status'
 import { flatNameCol, flatNsCol, ageCol } from '../common'
@@ -24,12 +25,12 @@ export const argoApplicationSet = defineResource<ArgoApplicationSetInfo>({
   columns: [
     flatNameCol,
     flatNsCol,
-    { key: 'generators', label: 'Generators', formatter: s => s.generators.join(', ') || '—' },
-    { key: 'templateProject', label: 'Project', formatter: s => s.templateProject || '—' },
-    { key: 'appCount', label: 'Apps' },
+    { key: 'generators', label: 'argo.columns.generators', formatter: s => s.generators.join(', ') || '—' },
+    { key: 'templateProject', label: 'argo.columns.project', formatter: s => s.templateProject || '—' },
+    { key: 'appCount', label: 'argo.columns.apps' },
     {
       key: 'healthy',
-      label: 'Status',
+      label: 'common.status',
       formatter: s => (s.healthy ? 'Healthy' : 'Error'),
       colorFn: s => statusColor(s.healthy ? 'Healthy' : 'Error'),
     },
@@ -37,16 +38,16 @@ export const argoApplicationSet = defineResource<ArgoApplicationSetInfo>({
   ],
 
   properties: [
-    { label: 'Generators', value: s => s.generators.join(', ') || null, hideEmpty: true },
-    { label: 'Template Project', value: s => s.templateProject, hideEmpty: true },
-    { label: 'Template Repository', value: s => shortRepo(s.repoURL), hideEmpty: true },
-    { label: 'Applications Sync', value: s => s.syncPolicy, hideEmpty: true },
-    { label: 'Preserve on Deletion', value: s => (s.preserveResourcesOnDeletion ? 'Yes' : null), hideEmpty: true },
-    { label: 'Applications', value: s => s.appCount },
+    { label: 'argo.columns.generators', value: s => s.generators.join(', ') || null, hideEmpty: true },
+    { label: 'argo.props.templateProject', value: s => s.templateProject, hideEmpty: true },
+    { label: 'argo.props.templateRepository', value: s => shortRepo(s.repoURL), hideEmpty: true },
+    { label: 'argo.props.applicationsSync', value: s => s.syncPolicy, hideEmpty: true },
+    { label: 'argo.props.preserveOnDeletion', value: s => (s.preserveResourcesOnDeletion ? t('common.yes') : null), hideEmpty: true },
+    { label: 'argo.tabs.applications', value: s => s.appCount },
   ],
 
   sections: [ArgoConditionsSection],
-  tabs: [{ id: 'argoSetApps', label: 'Applications', component: ArgoSetAppsTab }],
+  tabs: [{ id: 'argoSetApps', label: 'argo.tabs.applications', component: ArgoSetAppsTab }],
 
   api: {
     list: ns => callApp('GetArgoApplicationSets', ns) as Promise<ArgoApplicationSetInfo[]>,

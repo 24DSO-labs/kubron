@@ -1,7 +1,7 @@
 <!-- Copyright 2026 The Kubron Authors -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
-  <CodeBlockSection title="Pod Anti Affinities" :lines="lines" />
+  <CodeBlockSection :title="$t('sections.podAntiAffinity.title')" :lines="lines" />
 </template>
 
 <script lang="ts" setup>

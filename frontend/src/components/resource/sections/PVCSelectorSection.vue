@@ -2,10 +2,10 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="sel">
-    <div class="sel-title">Selector</div>
+    <div class="sel-title">{{ $t('defs.columns.selector') }}</div>
 
     <div class="rd-row">
-      <span class="rd-label">Match Labels</span>
+      <span class="rd-label">{{ $t('sections.pvcSelector.matchLabels') }}</span>
       <span v-if="labels.length" class="rd-value sel-chips">
         <span v-for="[k, v] in labels" :key="k" class="sel-chip">{{ k }}={{ v }}</span>
       </span>
@@ -13,7 +13,7 @@
     </div>
 
     <div class="rd-row">
-      <span class="rd-label">Match Expressions</span>
+      <span class="rd-label">{{ $t('sections.pvcSelector.matchExpressions') }}</span>
       <span v-if="expressions.length" class="rd-value sel-chips">
         <span v-for="(e, i) in expressions" :key="i" class="sel-chip">{{ format(e) }}</span>
       </span>

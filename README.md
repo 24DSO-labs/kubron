@@ -50,8 +50,8 @@ A lightweight, open-source Kubernetes desktop IDE built with **Go** and **Wails*
 
 ### Helm
 - **Releases** — list, inspect values/manifest/notes, view history, diff revisions, roll back, uninstall
-- **Chart catalog** — manage repositories (including basic auth and custom TLS settings), search charts and browse versions
-- **Install & upgrade** — dry-run preview before installing; upgrade releases to a newer chart version
+- **Chart catalog** — manage repositories (including basic auth and an option to skip TLS verification), search charts and browse versions
+- **Install & upgrade** — dry-run preview before installing; upgrade a release to another chart version (pick the repository and version, carry over or edit values, review the manifest diff first) or change only its values
 - **Update hints** — see which installed releases have a newer chart available
 
 ### Argo CD
@@ -71,7 +71,19 @@ A lightweight, open-source Kubernetes desktop IDE built with **Go** and **Wails*
 
 ### Download
 
-Grab the latest release for your platform on the [Releases](https://github.com/VadimIl224/kubron/releases) page.
+Grab the latest release for your platform on the [Releases](https://github.com/VadimIl224/kubron/releases) page:
+
+| Platform | File |
+|---|---|
+| Windows (x64) | `Kubron_<version>_windows-amd64.zip` |
+| Linux (x64) | `Kubron_<version>_linux-amd64.tar.gz` |
+| macOS (Apple Silicon and Intel) | `Kubron_<version>_macos-universal.zip` |
+
+Checksums are in `SHA256SUMS.txt`.
+
+> The builds are not code-signed yet. On Windows, SmartScreen may warn you (More info → Run anyway).
+> On macOS, right-click the app and choose Open, or run `xattr -dr com.apple.quarantine Kubron.app`.
+> On Linux, GTK 3 and WebKitGTK 4.1 are required (on Ubuntu 24.04: `libwebkit2gtk-4.1-0`).
 
 ### Build from source
 
@@ -108,6 +120,11 @@ The Kubron core is open source under [Apache-2.0](LICENSE).
 
 Paid subscription features are planned. The first one — **SSO/OIDC login for organizations** — will ship as a separate commercial module. The open core will always include local users, roles, audit log and emergency admin access.
 
+## Contributors
+- [VadimIl224](https://github.com/VadimIl224)
+
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) (DCO sign-off required).
+See [CONTRIBUTING.md](CONTRIBUTING.md) (DCO sign-off required). Please follow the
+[Code of Conduct](CODE_OF_CONDUCT.md). To report a vulnerability, see [SECURITY.md](SECURITY.md).
+Release notes: see [CHANGELOG.md](CHANGELOG.md).

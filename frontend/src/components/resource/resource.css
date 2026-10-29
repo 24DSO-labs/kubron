@@ -113,9 +113,9 @@
 }
 .rd-action:hover { background: rgba(255, 255, 255, 0.08); }
 .rd-action.danger { color: #ef4444; }
-.rd-action :deep(.k8s-icon) { opacity: 0.85; }
-.rd-action:hover :deep(.k8s-icon) { opacity: 1; }
-.rd-action.danger :deep(.k8s-icon) {
+.rd-action .k8s-icon { opacity: 0.85; }
+.rd-action:hover .k8s-icon { opacity: 1; }
+.rd-action.danger .k8s-icon {
   filter: invert(31%) sepia(91%) saturate(6000%) hue-rotate(350deg) brightness(95%) contrast(90%);
 }
 

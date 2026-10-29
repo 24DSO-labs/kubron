@@ -1,0 +1,10 @@
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS settings;
+DROP TABLE IF EXISTS audit_events;
+DROP TABLE IF EXISTS group_mappings;
+DROP TABLE IF EXISTS argo_tokens;
+DROP TABLE IF EXISTS clusters;
+DROP TABLE IF EXISTS memberships;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS teams;
+DROP TABLE IF EXISTS organizations;

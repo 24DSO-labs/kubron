@@ -5,6 +5,7 @@
  * Раскладка графа ресурсов Argo CD (без Vue и Wails): слои слева направо по самому длинному пути от приложения,
  * порядок внутри слоя по среднему положению родителей, схлопывание больших групп подов.
  */
+import { t } from '../i18n'
 import type { ArgoEdgeType, ArgoGraph, ArgoGraphEdge, ArgoGraphNode } from '../types/argocd'
 
 export const NODE_W = 190
@@ -126,7 +127,7 @@ export function collapseLeaves(g: ArgoGraph, expanded: ReadonlySet<string>): { n
     let health = ''
     for (const m of members) health = worstHealth(health, m.health)
     synthetic.push({
-      id, group: '', kind: 'Pod', namespace: members[0].namespace, name: `${members.length} pods`,
+      id, group: '', kind: 'Pod', namespace: members[0].namespace, name: t('argo.graph.podsGroup', members.length),
       status: '', health, message: '', hook: false, managed: false,
       count: members.length, members: members.map(m => m.id).sort(),
     })
@@ -182,7 +183,7 @@ export function collapseKinds(
     let health = ''
     for (const m of members) health = worstHealth(health, m.health)
     synthetic.push({
-      id, group: '', kind, namespace: '', name: `${members.length} × ${kind}`,
+      id, group: '', kind, namespace: '', name: t('argo.graph.kindGroup', { n: members.length, kind }),
       status: '', health, message: '', hook: false, managed: false,
       count: members.length, members: members.map(m => m.id).sort(),
     })

@@ -24,10 +24,10 @@ func TestPickArgoPort(t *testing.T) {
 		t.Errorf("fallback: %+v", p)
 	}
 	if _, ok := pickArgoPort(nil, false); ok {
-		t.Error("без портов ok должен быть false")
+		t.Error("ok must be false without ports")
 	}
 	if argoScheme(false) != "https" || argoScheme(true) != "http" {
-		t.Error("схема")
+		t.Error("scheme")
 	}
 }
 
@@ -43,9 +43,36 @@ func TestFindArgoServerService(t *testing.T) {
 
 	got, err := findArgoServerService(ctx, fake.NewSimpleClientset(svc("zzz", "argocd-server", true), svc("argocd", "argocd-server", true), svc("x", "other", false)))
 	if err != nil || got.Namespace != "argocd" {
-		t.Fatalf("ожидался namespace argocd: %+v, %v", got, err)
+		t.Fatalf("expected namespace argocd: %+v, %v", got, err)
 	}
 	if _, err := findArgoServerService(ctx, fake.NewSimpleClientset(svc("x", "other", false))); err == nil {
-		t.Error("без сервиса ожидалась ошибка")
+		t.Error("expected an error without a service")
+	}
+}
+
+func TestFindArgoForward(t *testing.T) {
+	fwd := func(cluster, status string, local int) PortForwardSession {
+		return PortForwardSession{
+			ClusterID: cluster, Namespace: "argocd", Service: "argocd-server",
+			ServicePort: 443, LocalPort: local, Status: status,
+		}
+	}
+	forwards := []PortForwardSession{
+		fwd("cluster-a", PortForwardActive, 51001),
+		fwd("cluster-b", PortForwardError, 51002),
+	}
+
+	if s := findArgoForward(forwards, "cluster-a", "argocd", "argocd-server", 443); s == nil || s.LocalPort != 51001 {
+		t.Errorf("same cluster must reuse its own forward: %+v", s)
+	}
+	// Регрессия: после переключения на другой кластер нельзя получить туннель предыдущего.
+	if s := findArgoForward(forwards, "cluster-b", "argocd", "argocd-server", 443); s != nil {
+		t.Errorf("forward of another cluster must not be reused: %+v", s)
+	}
+	if s := findArgoForward(forwards, "cluster-a", "argocd", "argocd-server", 80); s != nil {
+		t.Errorf("different service port must not match: %+v", s)
+	}
+	if s := findArgoForward(nil, "cluster-a", "argocd", "argocd-server", 443); s != nil {
+		t.Errorf("no forwards: %+v", s)
 	}
 }

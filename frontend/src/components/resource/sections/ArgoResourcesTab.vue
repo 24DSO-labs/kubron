@@ -3,9 +3,9 @@
 <template>
   <div>
     <div v-if="all.length" class="argo-toolbar">
-      <input v-model="search" class="argo-search" type="search" placeholder="Filter by kind, name or namespace" />
+      <input v-model="search" class="argo-search" type="search" :placeholder="$t('argo.resources.filterPlaceholder')" />
       <label class="argo-check">
-        <input v-model="onlyProblems" type="checkbox" /> Only out of sync / unhealthy
+        <input v-model="onlyProblems" type="checkbox" /> {{ $t('argo.resources.onlyProblems') }}
       </label>
       <span class="rd-muted">{{ filtered.length }} / {{ all.length }}</span>
     </div>
@@ -13,7 +13,7 @@
     <div v-if="visible.length" class="rd-table-wrap">
       <table class="rd-table">
         <thead>
-          <tr><th>Kind</th><th>Name</th><th>Namespace</th><th>Sync</th><th>Health</th><th>Message</th></tr>
+          <tr><th>{{ $t('defs.columns.kind') }}</th><th>{{ $t('common.name') }}</th><th>{{ $t('common.namespace') }}</th><th>{{ $t('argo.columns.sync') }}</th><th>{{ $t('argo.columns.health') }}</th><th>{{ $t('defs.columns.message') }}</th></tr>
         </thead>
         <tbody>
           <tr
@@ -22,10 +22,10 @@
             :class="{ 'rd-click': !!target(r) }"
             @click="openRef(r)"
           >
-            <td>{{ r.kind }}<span v-if="r.hook" class="rd-muted"> (hook)</span></td>
+            <td>{{ r.kind }}<span v-if="r.hook" class="rd-muted"> ({{ $t('argo.hook') }})</span></td>
             <td :class="{ 'rd-link': !!target(r) }">{{ r.name }}</td>
             <td class="rd-muted">{{ r.namespace || '—' }}</td>
-            <td><span class="rd-badge" :class="badgeClass(r.status)">{{ r.status || 'Unknown' }}</span></td>
+            <td><span class="rd-badge" :class="badgeClass(r.status)">{{ r.status || $t('common.unknown') }}</span></td>
             <td>
               <span v-if="r.health" class="rd-badge" :class="badgeClass(r.health)">{{ r.health }}</span>
               <span v-else class="rd-muted">—</span>
@@ -35,11 +35,11 @@
         </tbody>
       </table>
     </div>
-    <div v-else class="rd-empty">{{ all.length ? 'No resources match the filter' : 'No resources reported by Argo CD' }}</div>
+    <div v-else class="rd-empty">{{ all.length ? $t('argo.resources.noMatch') : $t('argo.resources.reported') }}</div>
 
     <!-- status.resources у больших приложений — тысячи строк: рисуем порциями -->
     <div v-if="filtered.length > limit" class="argo-more">
-      <button class="rd-btn" @click="limit += PAGE">Show more ({{ filtered.length - limit }} left)</button>
+      <button class="rd-btn" @click="limit += PAGE">{{ $t('argo.resources.showMore', { n: filtered.length - limit }) }}</button>
     </div>
   </div>
 </template>

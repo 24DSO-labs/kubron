@@ -7,13 +7,13 @@
         <K8sIcon v-if="icon" :name="icon" size="lg" class="header-icon" />
         {{ title }}
       </h2>
-      <span class="count" v-if="count !== undefined && count >= 0">{{ count }} items</span>
+      <span class="count" v-if="count !== undefined && count >= 0">{{ $t('app.content.count', count) }}</span>
     </div>
-    <input v-if="showSearch" :value="search" @input="$emit('search', ($event.target as HTMLInputElement).value)" placeholder="Поиск..." class="search-input"/>
-    <span v-if="updatedAt" class="content-updated">Updated {{ updatedAt }}</span>
+    <input v-if="showSearch" :value="search" @input="$emit('search', ($event.target as HTMLInputElement).value)" :placeholder="$t('app.content.searchPlaceholder')" class="search-input"/>
+    <span v-if="updatedAt" class="content-updated">{{ $t('app.content.updated', { time: updatedAt }) }}</span>
     <span v-else class="content-updated content-updated--empty">&nbsp;</span>
     <button type="button" :disabled="refreshing" @click="$emit('refresh')" class="ov-btn">
-      {{ refreshing ? 'Refreshing…' : 'Refresh' }}
+      {{ refreshing ? $t('app.content.refreshing') : $t('common.refresh') }}
     </button>
   </div>
 </template>

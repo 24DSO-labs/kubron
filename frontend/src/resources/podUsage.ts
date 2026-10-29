@@ -61,13 +61,13 @@ export function mergePodMetrics<P extends { name: string; namespace: string }>(
 // p.cpu / p.memory уже отформатированы в mergePodMetrics: повторно их форматировать нельзя
 // («1.50» ядра стало бы «1.5m»), а сортировать нужно по сырым числам, не по тексту.
 export const podCpuCol: ColumnDef = {
-  key: 'cpu', label: 'CPU', className: 'mono metric-cell', animated: true, width: 100,
+  key: 'cpu', label: 'defs.columns.cpu', className: 'mono metric-cell', animated: true, width: 100,
   formatter: (p: any) => p.cpu ?? '—',
   sortValue: (p: any) => p.cpuMillicores,
 }
 
 export const podMemoryCol: ColumnDef = {
-  key: 'memory', label: 'MEMORY', className: 'mono metric-cell', animated: true, width: 110,
+  key: 'memory', label: 'defs.columns.memory', className: 'mono metric-cell', animated: true, width: 110,
   formatter: (p: any) => p.memory ?? '—',
   sortValue: (p: any) => p.memoryBytes,
 }

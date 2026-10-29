@@ -4,10 +4,10 @@
 package store
 
 import (
-	"analog/internal/audit"
-	"analog/internal/auth"
-	"analog/internal/k8s"
-	"analog/pkg/ext"
+	"github.com/VadimIl224/kubron/internal/audit"
+	"github.com/VadimIl224/kubron/internal/auth"
+	"github.com/VadimIl224/kubron/internal/k8s"
+	"github.com/VadimIl224/kubron/pkg/ext"
 )
 
 // FromExt адаптирует публичное хранилище (pkg/ext), например серверное на PostgreSQL из другого
@@ -19,3 +19,6 @@ type extStore struct{ s ext.Store }
 func (e extStore) Users() auth.Backend        { return auth.FromExt(e.s.Users()) }
 func (e extStore) Audit() audit.Backend       { return e.s.Audit() }
 func (e extStore) ArgoTokens() k8s.TokenStore { return e.s.ArgoTokens() }
+
+// Clusters: публичный интерфейс pkg/ext кластеры пока не описывает, поэтому используются файлы ядра.
+func (e extStore) Clusters() k8s.ClusterStore { return k8s.NewFileClusterStore() }

@@ -4,13 +4,14 @@
 package app
 
 import (
-	"analog/internal/audit"
-	"analog/internal/auth"
-	"analog/internal/k8s"
-	"analog/internal/termbuf"
 	"context"
 	"errors"
 	"fmt"
+	"github.com/VadimIl224/kubron/internal/audit"
+	"github.com/VadimIl224/kubron/internal/auth"
+	"github.com/VadimIl224/kubron/internal/k8s"
+	"github.com/VadimIl224/kubron/internal/store"
+	"github.com/VadimIl224/kubron/internal/termbuf"
 	"net"
 	"strings"
 	"time"
@@ -23,7 +24,14 @@ type App struct {
 	audit    *audit.Logger
 	auth     *auth.Service // nil, если хранилище пользователей не открылось (см. authErr)
 	authErr  error
+	store    store.Store // nil — файловое хранилище десктопа (SetStore подменяет, например, на PostgreSQL)
+	// sessionID — веб-сессия владельца вида (пусто у корневого экземпляра и в десктопе).
+	sessionID string
 }
+
+// SetStore задаёт хранилище вместо файлового; вызывается до OnStartup. Это функция пакета, а не метод App:
+// она не должна попадать в привязки Wails и RPC.
+func SetStore(a *App, st store.Store) { a.store = st }
 
 // NewApp создаёт ядро приложения. p — возможности оболочки (Wails или HTTP-сервер);
 // nil допустим (все операции платформы тогда не делают ничего).
@@ -50,7 +58,11 @@ func (a *App) startup(ctx context.Context) {
 	if err := k8s.InitKubronDir(); err != nil {
 		println("Error:", err.Error())
 	}
-	a.initAuth(k8s.GetKubronDir())
+	if a.store != nil {
+		a.initAuthWith(a.store)
+	} else {
+		a.initAuth(k8s.GetKubronDir())
+	}
 	if a.auth != nil {
 		go a.auth.RunIdleWatcher(ctx, 10*time.Second)
 	}
@@ -70,16 +82,28 @@ func (a *App) GetClusterStatuses() []k8s.ClusterStatus {
 	if a.authz(auth.PermRead) != nil {
 		return nil
 	}
-	return a.k8sMgr.GetClusterStatuses()
+	// В сервисном режиме пользователь видит только кластеры своих команд.
+	all := a.k8sMgr.GetClusterStatuses()
+	out := make([]k8s.ClusterStatus, 0, len(all))
+	for _, st := range all {
+		if a.auth.CanSeeCluster(st.ID) {
+			out = append(out, st)
+		}
+	}
+	return out
 }
 
 // PickKubeconfigFile opens a native file dialog and returns the chosen path
-// (empty string when the dialog was cancelled).
-func (a *App) PickKubeconfigFile() (string, error) {
+// (empty string when the dialog was cancelled). The dialog title is supplied
+// by the frontend (already translated); an empty title falls back to English.
+func (a *App) PickKubeconfigFile(title string) (string, error) {
 	if err := a.authz(auth.PermClusterManage); err != nil {
 		return "", err
 	}
-	return a.platform.PickFile("Выберите kubeconfig файл")
+	if title == "" {
+		title = "Select kubeconfig file"
+	}
+	return a.platform.PickFile(title)
 }
 
 // AddClusterFromFile adds a cluster from a kubeconfig file previously chosen
@@ -120,14 +144,14 @@ func (a *App) TestKubeconfig(src k8s.KubeconfigSource, contextName string) (*k8s
 
 // GetClusterKubeconfig возвращает текст сохранённого kubeconfig (с секретами) для правки в диалоге.
 func (a *App) GetClusterKubeconfig(id string) (string, error) {
-	if err := a.authz(auth.PermClusterManage, "id", id); err != nil {
+	if err := a.authzCluster(auth.PermClusterManage, id, "id", id); err != nil {
 		return "", err
 	}
 	return k8s.ReadClusterKubeconfig(id)
 }
 
 func (a *App) DeleteCluster(id string) error {
-	if err := a.authz(auth.PermClusterManage, "id", id); err != nil {
+	if err := a.authzCluster(auth.PermClusterManage, id, "id", id); err != nil {
 		return err
 	}
 	if err := k8s.DeleteCluster(id); err != nil {
@@ -143,7 +167,7 @@ func (a *App) DeleteCluster(id string) error {
 // UpdateCluster сохраняет настройки кластера; непустой kubeconfig заменяет сохранённый.
 // Содержимое kubeconfig в журнал не попадает — только способ замены.
 func (a *App) UpdateCluster(id string, settings k8s.ClusterSettings, kubeconfig k8s.KubeconfigSource) (*k8s.ClusterUpdateResult, error) {
-	if err := a.authz(auth.PermClusterManage, "id", id, "displayName", settings.DisplayName, "kubeconfig", kubeconfigChange(kubeconfig)); err != nil {
+	if err := a.authzCluster(auth.PermClusterManage, id, "id", id, "displayName", settings.DisplayName, "kubeconfig", kubeconfigChange(kubeconfig)); err != nil {
 		return nil, err
 	}
 	res, err := k8s.UpdateClusterSettings(id, settings, kubeconfig)
@@ -170,7 +194,7 @@ func kubeconfigChange(src k8s.KubeconfigSource) string {
 }
 
 func (a *App) ConnectToCluster(clusterID string) error {
-	if err := a.authz(auth.PermRead); err != nil {
+	if err := a.authzCluster(auth.PermRead, clusterID); err != nil {
 		return err
 	}
 	err := a.k8sMgr.ConnectToCluster(clusterID)
@@ -182,7 +206,8 @@ func (a *App) ConnectToCluster(clusterID string) error {
 		config = &k8s.KubronConfig{}
 	}
 	config.LastActiveCluster = clusterID
-	k8s.SaveKubronConfig(config)
+	_ = k8s.SaveKubronConfig(config) // запоминание последнего кластера не критично
+
 	return a.k8sMgr.TestConnection()
 }
 
@@ -191,8 +216,8 @@ func (a *App) GetLastActiveCluster() string {
 		return ""
 	}
 	config, err := k8s.LoadKubronConfig()
-	if err != nil {
-		return ""
+	if err != nil || !a.auth.CanSeeCluster(config.LastActiveCluster) {
+		return "" // настройка общая: чужой кластер не должен выдавать даже своё имя
 	}
 	return config.LastActiveCluster
 }
@@ -401,7 +426,8 @@ func (a *App) GetArgoAPIStatus() (*k8s.ArgoAPIStatus, error) {
 // SetArgoAPIToken сохраняет токен Argo CD API для активного кластера.
 // Токен нельзя передавать в authz: аргументы попадают в журнал аудита.
 func (a *App) SetArgoAPIToken(token string) error {
-	if err := a.authz(auth.PermClusterManage); err != nil {
+	// Токен относится к активному кластеру: право проверяется по роли в его команде, а не «где-нибудь админ».
+	if err := a.authzCluster(auth.PermClusterManage, a.k8sMgr.GetActiveContext()); err != nil {
 		return err
 	}
 	return a.k8sMgr.SetArgoAPIToken(token)
@@ -411,7 +437,7 @@ func (a *App) SetArgoAPIToken(token string) error {
 // Логин и пароль Argo CD нужны только для этого вызова: они не сохраняются и не передаются в authz
 // (аргументы authz попадают в журнал аудита); токен фронтенду не возвращается.
 func (a *App) GenerateArgoAPIToken(account, username, password string, days int) error {
-	if err := a.authz(auth.PermClusterManage, "account", account); err != nil {
+	if err := a.authzCluster(auth.PermClusterManage, a.k8sMgr.GetActiveContext(), "account", account); err != nil {
 		return err
 	}
 	return a.pfMgr.GenerateArgoAPIToken(account, username, password, days)
@@ -697,11 +723,37 @@ func (a *App) PreviewHelmUpgrade(namespace, name, valuesYAML string) (*k8s.HelmU
 }
 
 // UpgradeHelmRelease применяет новые values; возвращает номер новой ревизии.
-func (a *App) UpgradeHelmRelease(namespace, name, valuesYAML string) (int, error) {
+func (a *App) UpgradeHelmRelease(namespace, name, valuesYAML, opID string) (int, error) {
 	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name); err != nil {
 		return 0, err
 	}
-	return a.k8sMgr.UpgradeHelmRelease(namespace, name, valuesYAML)
+	return a.k8sMgr.UpgradeHelmRelease(namespace, name, valuesYAML, opID)
+}
+
+// GetHelmUpgradeSources — репозитории, из которых можно обновить чарт релиза, и их версии (локальные индексы).
+func (a *App) GetHelmUpgradeSources(namespace, name string) (*k8s.HelmUpgradeSources, error) {
+	if err := a.authz(auth.PermRead, "namespace", namespace, "name", name); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetHelmUpgradeSources(namespace, name)
+}
+
+// PreviewHelmChartUpgrade — dry-run апгрейда релиза на другую версию чарта; в ответе манифесты
+// (Secret скрыты) и values, нужен secrets.read.
+func (a *App) PreviewHelmChartUpgrade(req k8s.HelmChartUpgradeRequest) (*k8s.HelmChartUpgradePreview, error) {
+	if err := a.authz(auth.PermSecretsRead, "namespace", req.Namespace, "name", req.Name, "repo", req.Repo, "version", req.Version); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.PreviewHelmChartUpgrade(req)
+}
+
+// UpgradeHelmChart переводит релиз на другую версию чарта; возвращает номер новой ревизии.
+// В authz не передаём Values: там могут быть пароли, а аргументы попадают в журнал аудита.
+func (a *App) UpgradeHelmChart(req k8s.HelmChartUpgradeRequest) (int, error) {
+	if err := a.authz(auth.PermWrite, "namespace", req.Namespace, "name", req.Name, "repo", req.Repo, "version", req.Version); err != nil {
+		return 0, err
+	}
+	return a.k8sMgr.UpgradeHelmChart(req)
 }
 
 // ВАЖНО: в authz не передаём URL и пароль. Адрес, введённый пользователем, может содержать
@@ -789,18 +841,18 @@ func (a *App) GetHelmReleaseContent(namespace, name string, revision int) (*k8s.
 	return a.k8sMgr.GetHelmReleaseContent(namespace, name, revision)
 }
 
-func (a *App) RollbackHelmRelease(namespace, name string, revision int) error {
+func (a *App) RollbackHelmRelease(namespace, name string, revision int, opID string) error {
 	if err := a.authz(auth.PermOperate, "namespace", namespace, "name", name, "revision", revision); err != nil {
 		return err
 	}
-	return a.k8sMgr.RollbackHelmRelease(namespace, name, revision)
+	return a.k8sMgr.RollbackHelmRelease(namespace, name, revision, opID)
 }
 
-func (a *App) UninstallHelmRelease(namespace, name string, keepHistory bool) error {
+func (a *App) UninstallHelmRelease(namespace, name string, keepHistory bool, opID string) error {
 	if err := a.authz(auth.PermWrite, "namespace", namespace, "name", name, "keepHistory", keepHistory); err != nil {
 		return err
 	}
-	return a.k8sMgr.UninstallHelmRelease(namespace, name, keepHistory)
+	return a.k8sMgr.UninstallHelmRelease(namespace, name, keepHistory, opID)
 }
 
 // GetHelmRevisionDiff сравнивает ревизии релиза (values и манифест); как и GetHelmReleaseContent, требует secrets.read.
@@ -828,6 +880,60 @@ func (a *App) InstallHelmChart(req k8s.HelmInstallRequest) (*k8s.HelmInstallResu
 		return nil, err
 	}
 	return a.k8sMgr.InstallHelmChart(req)
+}
+
+// CancelHelmOperation прерывает идущую операцию (установка и апгрейд); откат и удаление отменить нельзя.
+func (a *App) CancelHelmOperation(opID string) error {
+	if err := a.authz(auth.PermWrite, "opID", opID); err != nil {
+		return err
+	}
+	return a.k8sMgr.CancelHelmOperation(opID)
+}
+
+// AddHelmOCIRepo добавляет OCI-реестр с набором чартов. В authz — только имя: пароль и адрес не логируются.
+func (a *App) AddHelmOCIRepo(name, url string, charts []string, username, password string) error {
+	if err := a.authz(auth.PermClusterManage, "name", name); err != nil {
+		return err
+	}
+	return a.k8sMgr.AddHelmOCIRepo(name, url, charts, username, password)
+}
+
+func (a *App) AddHelmOCIChart(repo, chart string) error {
+	if err := a.authz(auth.PermClusterManage, "repo", repo, "chart", chart); err != nil {
+		return err
+	}
+	return a.k8sMgr.AddHelmOCIChart(repo, chart)
+}
+
+func (a *App) RemoveHelmOCIChart(repo, chart string) error {
+	if err := a.authz(auth.PermClusterManage, "repo", repo, "chart", chart); err != nil {
+		return err
+	}
+	return a.k8sMgr.RemoveHelmOCIChart(repo, chart)
+}
+
+// ListHelmOperations — история Helm-операций (без журнала Helm).
+func (a *App) ListHelmOperations(q k8s.HelmOperationQuery) ([]k8s.HelmOperationRecord, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.ListHelmOperations(q)
+}
+
+// GetHelmOperation — запись истории вместе с журналом Helm.
+func (a *App) GetHelmOperation(id string) (*k8s.HelmOperationRecord, error) {
+	if err := a.authz(auth.PermRead); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetHelmOperation(id)
+}
+
+// ClearHelmOperations стирает историю Helm-операций.
+func (a *App) ClearHelmOperations() error {
+	if err := a.authz(auth.PermClusterManage); err != nil {
+		return err
+	}
+	return a.k8sMgr.ClearHelmOperations()
 }
 
 // === Events ===
@@ -1246,7 +1352,7 @@ func (a *App) OpenTerminal(namespace, pod, container, shell string, cols, rows u
 	}
 	host, ok := a.platform.(terminalHost)
 	if !ok {
-		return "", errors.New("веб-терминал недоступен в этой оболочке")
+		return "", errors.New("web terminal is unavailable in this shell")
 	}
 	reg := host.Terminals()
 	id := termbuf.NewID()
@@ -1254,6 +1360,7 @@ func (a *App) OpenTerminal(namespace, pod, container, shell string, cols, rows u
 		Input:  func(p []byte) error { return a.k8sMgr.WriteTerminal(id, p) },
 		Resize: func(c, r uint16) error { return a.k8sMgr.ResizeTerminal(id, c, r) },
 		Close:  func() { _ = a.k8sMgr.CloseTerminal(id) },
+		Owner:  a.sessionID,
 	})
 	if err != nil {
 		return "", err

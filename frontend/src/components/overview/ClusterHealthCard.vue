@@ -2,10 +2,10 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <section class="ov-card health">
-    <h2 class="ov-card-title">Cluster health</h2>
+    <h2 class="ov-card-title">{{ $t('overview.health.title') }}</h2>
 
     <div class="health-body">
-      <div class="health-ring" :class="`tone-${tone}`" role="img" :aria-label="`Health score ${health.score} of 100`">
+      <div class="health-ring" :class="`tone-${tone}`" role="img" :aria-label="$t('overview.health.score', { score: health.score })">
         <svg viewBox="0 0 100 100" aria-hidden="true">
           <circle class="health-ring-track" cx="50" cy="50" :r="RADIUS" />
           <circle
@@ -18,14 +18,14 @@
         </svg>
         <div class="health-ring-label">
           <span class="health-ring-score">{{ health.score }}</span>
-          <span class="health-ring-status">{{ health.status }}</span>
+          <span class="health-ring-status">{{ statusText }}</span>
         </div>
       </div>
 
       <ul class="components">
         <li v-for="c in health.components" :key="c.name">
           <span class="c-name">{{ c.name }}</span>
-          <span class="c-status" :class="`s-${c.status}`">{{ STATUS_LABEL[c.status] }}</span>
+          <span class="c-status" :class="`s-${c.status}`">{{ componentStatus(c.status) }}</span>
         </li>
       </ul>
     </div>
@@ -34,6 +34,7 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { ClusterHealth, HealthStatus } from '../../types/overview'
 
 const props = defineProps<{ health: ClusterHealth }>()
@@ -41,11 +42,14 @@ const props = defineProps<{ health: ClusterHealth }>()
 const RADIUS = 42
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
-const STATUS_LABEL: Record<HealthStatus, string> = {
-  healthy: 'Healthy',
-  unhealthy: 'Unhealthy',
-  unknown: 'Unknown',
-}
+const { t, te } = useI18n()
+
+const componentStatus = (s: HealthStatus) => (te(`overview.health.component.${s}`) ? t(`overview.health.component.${s}`) : s)
+// Статус кластера — значение API (Healthy | Degraded | Critical); неизвестное показываем как есть
+const statusText = computed(() => {
+  const s = props.health.status
+  return te(`overview.health.status.${s}`) ? t(`overview.health.status.${s}`) : s
+})
 
 const offset = computed(() => {
   const score = Math.min(Math.max(props.health.score, 0), 100)
