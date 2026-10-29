@@ -82,7 +82,15 @@ func (a *App) GetClusterStatuses() []k8s.ClusterStatus {
 	if a.authz(auth.PermRead) != nil {
 		return nil
 	}
-	return a.k8sMgr.GetClusterStatuses()
+	// В сервисном режиме пользователь видит только кластеры своих команд.
+	all := a.k8sMgr.GetClusterStatuses()
+	out := make([]k8s.ClusterStatus, 0, len(all))
+	for _, st := range all {
+		if a.auth.CanSeeCluster(st.ID) {
+			out = append(out, st)
+		}
+	}
+	return out
 }
 
 // PickKubeconfigFile opens a native file dialog and returns the chosen path
@@ -136,14 +144,14 @@ func (a *App) TestKubeconfig(src k8s.KubeconfigSource, contextName string) (*k8s
 
 // GetClusterKubeconfig возвращает текст сохранённого kubeconfig (с секретами) для правки в диалоге.
 func (a *App) GetClusterKubeconfig(id string) (string, error) {
-	if err := a.authz(auth.PermClusterManage, "id", id); err != nil {
+	if err := a.authzCluster(auth.PermClusterManage, id, "id", id); err != nil {
 		return "", err
 	}
 	return k8s.ReadClusterKubeconfig(id)
 }
 
 func (a *App) DeleteCluster(id string) error {
-	if err := a.authz(auth.PermClusterManage, "id", id); err != nil {
+	if err := a.authzCluster(auth.PermClusterManage, id, "id", id); err != nil {
 		return err
 	}
 	if err := k8s.DeleteCluster(id); err != nil {
@@ -159,7 +167,7 @@ func (a *App) DeleteCluster(id string) error {
 // UpdateCluster сохраняет настройки кластера; непустой kubeconfig заменяет сохранённый.
 // Содержимое kubeconfig в журнал не попадает — только способ замены.
 func (a *App) UpdateCluster(id string, settings k8s.ClusterSettings, kubeconfig k8s.KubeconfigSource) (*k8s.ClusterUpdateResult, error) {
-	if err := a.authz(auth.PermClusterManage, "id", id, "displayName", settings.DisplayName, "kubeconfig", kubeconfigChange(kubeconfig)); err != nil {
+	if err := a.authzCluster(auth.PermClusterManage, id, "id", id, "displayName", settings.DisplayName, "kubeconfig", kubeconfigChange(kubeconfig)); err != nil {
 		return nil, err
 	}
 	res, err := k8s.UpdateClusterSettings(id, settings, kubeconfig)
@@ -186,7 +194,7 @@ func kubeconfigChange(src k8s.KubeconfigSource) string {
 }
 
 func (a *App) ConnectToCluster(clusterID string) error {
-	if err := a.authz(auth.PermRead); err != nil {
+	if err := a.authzCluster(auth.PermRead, clusterID); err != nil {
 		return err
 	}
 	err := a.k8sMgr.ConnectToCluster(clusterID)
@@ -208,8 +216,8 @@ func (a *App) GetLastActiveCluster() string {
 		return ""
 	}
 	config, err := k8s.LoadKubronConfig()
-	if err != nil {
-		return ""
+	if err != nil || !a.auth.CanSeeCluster(config.LastActiveCluster) {
+		return "" // настройка общая: чужой кластер не должен выдавать даже своё имя
 	}
 	return config.LastActiveCluster
 }
@@ -418,7 +426,8 @@ func (a *App) GetArgoAPIStatus() (*k8s.ArgoAPIStatus, error) {
 // SetArgoAPIToken сохраняет токен Argo CD API для активного кластера.
 // Токен нельзя передавать в authz: аргументы попадают в журнал аудита.
 func (a *App) SetArgoAPIToken(token string) error {
-	if err := a.authz(auth.PermClusterManage); err != nil {
+	// Токен относится к активному кластеру: право проверяется по роли в его команде, а не «где-нибудь админ».
+	if err := a.authzCluster(auth.PermClusterManage, a.k8sMgr.GetActiveContext()); err != nil {
 		return err
 	}
 	return a.k8sMgr.SetArgoAPIToken(token)
@@ -428,7 +437,7 @@ func (a *App) SetArgoAPIToken(token string) error {
 // Логин и пароль Argo CD нужны только для этого вызова: они не сохраняются и не передаются в authz
 // (аргументы authz попадают в журнал аудита); токен фронтенду не возвращается.
 func (a *App) GenerateArgoAPIToken(account, username, password string, days int) error {
-	if err := a.authz(auth.PermClusterManage, "account", account); err != nil {
+	if err := a.authzCluster(auth.PermClusterManage, a.k8sMgr.GetActiveContext(), "account", account); err != nil {
 		return err
 	}
 	return a.pfMgr.GenerateArgoAPIToken(account, username, password, days)

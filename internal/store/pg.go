@@ -20,6 +20,9 @@ type pgBackend struct{ s *pgstore.Store }
 func (p pgBackend) Users() auth.Backend        { return auth.FromExt(p.s.Users()) }
 func (p pgBackend) Audit() audit.Backend       { return p.s.Audit() }
 func (p pgBackend) ArgoTokens() k8s.TokenStore { return p.s.ArgoTokens() }
+
+// Access — права по членству в командах (задача 3.2); app подключает их к сервису аутентификации.
+func (p pgBackend) Access() auth.Access        { return p.s.Access() }
 func (p pgBackend) Clusters() k8s.ClusterStore { return pgClusters{p.s.Clusters()} }
 
 // pgClusters приводит pgstore.Clusters к k8s.ClusterStore. Файла kubeconfig у кластера в БД нет
