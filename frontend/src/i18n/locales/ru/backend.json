@@ -445,5 +445,15 @@
   "extAuthenticatorUnknownKind": "ext: аутентификатор {p0}: неизвестный kind {p1}",
   "extAuthenticatorIsAlreadyRegistered": "ext: аутентификатор {p0} уже зарегистрирован",
   "kubronSessionTtl": "KUBRON_SESSION_TTL {p0}: {p1}",
-  "listenAddress": "адрес прослушивания {p0}: {p1}"
+  "listenAddress": "адрес прослушивания {p0}: {p1}",
+  "encryptionKeyIsNotSet": "ключ шифрования не задан",
+  "ciphertextWasEncryptedWithAnUnknownKey": "данные зашифрованы неизвестным ключом",
+  "failedToDecryptTheSecret": "не удалось расшифровать секрет",
+  "encryptionKeyMustLookLikeIdBase64IdLettersDigitsUpTo32Characters": "ключ шифрования должен иметь вид id:base64 (id: буквы, цифры, _ . -, до 32 символов)",
+  "encryptionKeyIsNotValidBase64": "ключ шифрования {p0}: некорректный base64: {p1}",
+  "encryptionKeyMustBeBytesGot": "ключ шифрования {p0} должен быть длиной {p1} байт, получено {p2}",
+  "unsupportedEncoding": "неподдерживаемая кодировка",
+  "invalidEncryptionKeyId": "некорректный идентификатор ключа шифрования",
+  "duplicateEncryptionKeyId": "повтор идентификатора ключа шифрования {p0}",
+  "randomSourceUnavailable": "источник случайных чисел недоступен: {p0}"
 }
