@@ -53,7 +53,8 @@
     "info": "Info",
     "installing": "Installing…",
     "installed": "{name}: installed in {ns} (revision #{rev}). Releases: Helm → Releases",
-    "subtitle": "Chart sources for the catalog. List stored locally in ~/.kubron/helm and does not depend on the cluster."
+    "subtitle": "Chart sources for the catalog. List stored locally in ~/.kubron/helm and does not depend on the cluster.",
+    "deprecated": "deprecated"
   },
   "operations": {
     "title": "Helm Operations",
@@ -85,7 +86,7 @@
     "title": "Helm Repositories",
     "subtitle": "Chart sources for the catalog. List stored locally in ~/.kubron/helm and does not depend on the cluster.",
     "updateAll": "🔄 Update all",
-    "add": "≥ Add",
+    "add": "+ Add",
     "hideForm": "Hide form",
     "namePlaceholder": "Name (e.g. bitnami)",
     "nameAria": "Name",
@@ -123,7 +124,10 @@
     "confirmRemove": "Remove repository {name}? Installed releases from it are not affected.",
     "removed": "Repository {name} removed",
     "removeError": "Removal: {message}",
-    "update": "Update"
+    "update": "Update",
+    "tagOci": "oci",
+    "tagAuth": "auth",
+    "tagNoTls": "no TLS verify"
   },
   "install": {
     "title": "Installing {repo}/{chart}",
