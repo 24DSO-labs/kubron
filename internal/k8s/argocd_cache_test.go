@@ -72,23 +72,23 @@ func TestArgoCacheFiltersBySet(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer ac.stop()
-	waitFor(t, "синхронизация informer", ac.inf.HasSynced)
+	waitFor(t, "informer sync", ac.inf.HasSynced)
 
 	got, ok := ac.list(nsScope{names: []string{"ns-a", "ns-c"}})
 	if !ok || len(got) != 3 {
-		t.Fatalf("набор из двух namespace: ok=%v %+v", ok, got)
+		t.Fatalf("set of two namespaces: ok=%v %+v", ok, got)
 	}
 	// порядок детерминирован: по namespace, затем по имени; ns-b в ответ не попадает
 	want := [][2]string{{"ns-a", "x"}, {"ns-a", "y"}, {"ns-c", "w"}}
 	for i, w := range want {
 		if got[i].Namespace != w[0] || got[i].Name != w[1] {
-			t.Errorf("позиция %d: %s/%s, ожидалось %s/%s", i, got[i].Namespace, got[i].Name, w[0], w[1])
+			t.Errorf("position %d: %s/%s, expected %s/%s", i, got[i].Namespace, got[i].Name, w[0], w[1])
 		}
 	}
 
 	none, ok := ac.list(nsScope{names: []string{"ns-missing"}})
 	if !ok || len(none) != 0 {
-		t.Errorf("namespace без Application: ok=%v %+v", ok, none)
+		t.Errorf("namespace without an Application: ok=%v %+v", ok, none)
 	}
 }
 

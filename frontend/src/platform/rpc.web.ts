@@ -6,6 +6,7 @@
  * (internal/server/http.go). Сессия — HttpOnly-cookie, защита от CSRF — заголовок X-CSRF-Token.
  */
 import { closeEvents, connectEvents, flushSubscriptions } from './events.web'
+import { t } from '../i18n'
 
 const CSRF_HEADER = 'X-CSRF-Token'
 
@@ -51,7 +52,7 @@ async function post(method: string, args: unknown[]): Promise<Reply> {
       method: 'POST', credentials: 'same-origin', headers, body: JSON.stringify(args),
     })
   } catch {
-    throw new RpcError('нет связи с сервером Kubron', 'network', 0)
+    throw new RpcError(t('platform.noConnection'), 'network', 0)
   }
   let body: any = null
   try { body = await res.json() } catch { /* не JSON: прокси, 502 */ }
@@ -81,7 +82,7 @@ export async function rpc(method: string, args: unknown[]): Promise<unknown> {
   const err = reply.body?.error
   if (err?.code === 'unauthenticated' && !PRE_LOGIN_METHODS.has(method)) resetWebSession()
   throw new RpcError(
-    err?.message || `сервер ответил HTTP ${reply.status}`,
+    err?.message || t('platform.httpStatus', { status: reply.status }),
     err?.code || 'error',
     reply.status,
   )

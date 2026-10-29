@@ -58,7 +58,7 @@ func helmStoredFromConfigMap(cm *corev1.ConfigMap) (helmStored, bool) {
 // decodeHelmRaw распаковывает release (base64 → gzip → JSON) в out.
 func decodeHelmRaw(raw []byte, ident string, out any) error {
 	if raw == nil {
-		return fmt.Errorf("%s: нет поля release", ident)
+		return fmt.Errorf("%s: no release field", ident)
 	}
 	decoded, err := base64.StdEncoding.DecodeString(string(raw))
 	if err != nil {
@@ -134,7 +134,7 @@ func getHelmStored(ctx context.Context, c kubernetes.Interface, namespace, name 
 		if s, ok := helmStoredFromSecret(sec); ok {
 			return s, nil
 		}
-		return helmStored{}, fmt.Errorf("секрет %s не является релизом Helm", key)
+		return helmStored{}, fmt.Errorf("secret %s is not a Helm release", key)
 	}
 	if !apierrors.IsNotFound(err) && !apierrors.IsForbidden(err) {
 		return helmStored{}, err
@@ -144,7 +144,7 @@ func getHelmStored(ctx context.Context, c kubernetes.Interface, namespace, name 
 		if s, ok := helmStoredFromConfigMap(cm); ok {
 			return s, nil
 		}
-		return helmStored{}, fmt.Errorf("configmap %s не является релизом Helm", key)
+		return helmStored{}, fmt.Errorf("configmap %s is not a Helm release", key)
 	}
 	if apierrors.IsNotFound(errC) && apierrors.IsNotFound(err) {
 		return helmStored{}, apierrors.NewNotFound(corev1.Resource("secrets"), key)
@@ -218,5 +218,5 @@ func helmDriverName(storage string) (string, error) {
 	case helmStorageConfigMap:
 		return "configmap", nil
 	}
-	return "", fmt.Errorf("неизвестное хранилище релизов %q (допустимы secret и configmap)", storage)
+	return "", fmt.Errorf("unknown release storage %q (allowed: secret and configmap)", storage)
 }

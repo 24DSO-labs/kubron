@@ -57,6 +57,7 @@ import { can } from '../../../composables/useAuth'
 import { useNotifications } from '../../../composables/useNotifications'
 import { Perm } from '../../../types/auth'
 import type { k8s } from '../../../../wailsjs/go/models'
+import { errorText } from '../../../composables/errorText'
 
 const props = defineProps<{ resource: any }>()
 const { t } = useI18n()
@@ -78,7 +79,7 @@ async function rollback(revision: number) {
     notifications.notifySuccess(t('helm.history.rolledBack', { name: name.value, revision }))
     await reloadActive()
   } catch (e: any) {
-    notifications.notifyError(t('helm.history.rollbackError', { message: e?.message || e }))
+    notifications.notifyError(t('helm.history.rollbackError', { message: errorText(e) }))
   } finally {
     busy.value = false
   }
@@ -104,7 +105,7 @@ async function showDiff(revision: number) {
     diff.value = d
   } catch (e: any) {
     if (my !== seq) return
-    diffError.value = e?.message || String(e)
+    diffError.value = errorText(e)
   } finally {
     if (my === seq) diffLoading.value = false
   }

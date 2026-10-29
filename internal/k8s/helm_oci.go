@@ -54,7 +54,7 @@ const (
 
 var (
 	helmOCISegmentRe = regexp.MustCompile(`^[a-z0-9]+([._-][a-z0-9]+)*$`)
-	errOCITooLarge   = errors.New("ответ реестра превышает допустимый размер")
+	errOCITooLarge   = errors.New("registry response exceeds the allowed size")
 )
 
 type ociRepo struct {
@@ -87,11 +87,11 @@ func ociLoadLocked() (*ociFile, error) {
 		return &ociFile{}, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("не удалось прочитать список OCI-реестров: %w", err)
+		return nil, fmt.Errorf("failed to read the OCI registry list: %w", err)
 	}
 	f := &ociFile{}
 	if err := yaml.Unmarshal(b, f); err != nil {
-		return nil, fmt.Errorf("oci.yaml повреждён: %w", err)
+		return nil, fmt.Errorf("oci.yaml is corrupted: %w", err)
 	}
 	return f, nil
 }
@@ -160,26 +160,26 @@ func ociWriteTags(name string, c ociTagCache) error {
 func normalizeHelmOCIURL(raw string) (normalized, host string, err error) {
 	raw = strings.TrimSpace(raw)
 	if !strings.HasPrefix(strings.ToLower(raw), "oci://") {
-		return "", "", errors.New("адрес OCI-реестра должен начинаться с oci://")
+		return "", "", errors.New("OCI registry address must start with oci://")
 	}
 	u, err := url.Parse(raw)
 	if err != nil {
-		return "", "", fmt.Errorf("некорректный URL: %w", err)
+		return "", "", fmt.Errorf("invalid URL: %w", err)
 	}
 	if u.Hostname() == "" {
-		return "", "", errors.New("в URL не указан хост")
+		return "", "", errors.New("URL has no host")
 	}
 	if u.User != nil {
-		return "", "", errors.New("логин и пароль задаются отдельными полями, а не в URL")
+		return "", "", errors.New("username and password are set in separate fields, not in the URL")
 	}
 	if u.RawQuery != "" || u.Fragment != "" {
-		return "", "", errors.New("URL не должен содержать query и fragment")
+		return "", "", errors.New("URL must not contain a query or fragment")
 	}
 	path := strings.Trim(u.Path, "/")
 	if path != "" {
 		for _, seg := range strings.Split(path, "/") {
 			if !helmOCISegmentRe.MatchString(seg) {
-				return "", "", fmt.Errorf("недопустимый сегмент пути %q: нужны строчные латинские буквы, цифры, «.», «_», «-»", seg)
+				return "", "", fmt.Errorf("invalid path segment %q: use lowercase Latin letters, digits, '.', '_' and '-'", seg)
 			}
 		}
 	}
@@ -192,7 +192,7 @@ func normalizeHelmOCIURL(raw string) (normalized, host string, err error) {
 
 func validateHelmOCIChartName(name string) error {
 	if len(name) > 128 || !helmOCISegmentRe.MatchString(name) {
-		return fmt.Errorf("некорректное имя чарта %q: нужны строчные латинские буквы, цифры, «.», «_», «-»", name)
+		return fmt.Errorf("invalid chart name %q: use lowercase Latin letters, digits, '.', '_' and '-'", name)
 	}
 	return nil
 }
@@ -214,10 +214,10 @@ func normalizeOCIChartList(in []string) ([]string, error) {
 		}
 	}
 	if len(out) == 0 {
-		return nil, errors.New("укажите хотя бы один чарт: у OCI-реестра нет списка чартов")
+		return nil, errors.New("specify at least one chart: an OCI registry has no chart list")
 	}
 	if len(out) > helmOCIMaxCharts {
-		return nil, fmt.Errorf("не больше %d чартов в одном реестре", helmOCIMaxCharts)
+		return nil, fmt.Errorf("at most %d charts per registry", helmOCIMaxCharts)
 	}
 	return out, nil
 }
@@ -297,7 +297,7 @@ func ociFetchTags(r *ociRepo, chart string) ([]string, error) {
 	}
 	tags, err := c.Tags(ociRef(r, chart))
 	if err != nil {
-		return nil, fmt.Errorf("чарт %q: %w", chart, err)
+		return nil, fmt.Errorf("chart %q: %w", chart, err)
 	}
 	if len(tags) > helmOCIMaxTags {
 		tags = tags[:helmOCIMaxTags]
@@ -334,14 +334,14 @@ func nameTaken(name string) error {
 	helmRepoMu.Lock()
 	defer helmRepoMu.Unlock()
 	if hf, err := loadHelmRepoFile(); err == nil && hf.Has(name) {
-		return fmt.Errorf("репозиторий %q уже добавлен", name)
+		return fmt.Errorf("repository %q is already added", name)
 	}
 	of, err := ociLoadLocked()
 	if err != nil {
 		return err
 	}
 	if of.find(name) != nil {
-		return fmt.Errorf("репозиторий %q уже добавлен", name)
+		return fmt.Errorf("repository %q is already added", name)
 	}
 	return nil
 }
@@ -360,7 +360,7 @@ func (m *Manager) AddHelmOCIRepo(name, rawURL string, charts []string, username,
 		return err
 	}
 	if password != "" && username == "" {
-		return errors.New("пароль без имени пользователя")
+		return errors.New("password without a username")
 	}
 	if err := nameTaken(name); err != nil {
 		return err
@@ -374,7 +374,7 @@ func (m *Manager) AddHelmOCIRepo(name, rawURL string, charts []string, username,
 			return err
 		}
 		if err := c.Login(host, registry.LoginOptBasicAuth(username, password)); err != nil {
-			return fmt.Errorf("вход в реестр %s не удался: %w", host, err)
+			return fmt.Errorf("login to registry %s failed: %w", host, err)
 		}
 		loggedIn = true
 	}
@@ -395,10 +395,10 @@ func (m *Manager) AddHelmOCIRepo(name, rawURL string, charts []string, username,
 	for _, ch := range list {
 		tags, err := ociFetchTags(&r, ch)
 		if err != nil {
-			return fail(fmt.Errorf("реестр %q недоступен: %w", name, err))
+			return fail(fmt.Errorf("registry %q is unavailable: %w", name, err))
 		}
 		if len(tags) == 0 {
-			return fail(fmt.Errorf("у чарта %q нет версий (semver-тегов) или нет доступа", ch))
+			return fail(fmt.Errorf("chart %q has no versions (semver tags) or access is denied", ch))
 		}
 		cache.Tags[ch] = tags
 	}
@@ -410,7 +410,7 @@ func (m *Manager) AddHelmOCIRepo(name, rawURL string, charts []string, username,
 		return fail(err)
 	}
 	if f.find(name) != nil {
-		return fail(fmt.Errorf("репозиторий %q уже добавлен", name))
+		return fail(fmt.Errorf("repository %q is already added", name))
 	}
 	if err := ociWriteTags(name, cache); err != nil {
 		return fail(err)
@@ -418,7 +418,7 @@ func (m *Manager) AddHelmOCIRepo(name, rawURL string, charts []string, username,
 	f.Repositories = append(f.Repositories, r)
 	if err := ociSaveLocked(f); err != nil {
 		_ = os.Remove(ociTagsPath(name))
-		return fail(fmt.Errorf("не удалось сохранить список OCI-реестров: %w", err))
+		return fail(fmt.Errorf("failed to save the OCI registry list: %w", err))
 	}
 	return nil
 }
@@ -433,17 +433,17 @@ func (m *Manager) AddHelmOCIChart(repoName, chart string) error {
 		return err
 	}
 	if !ok {
-		return fmt.Errorf("OCI-реестр %q не найден", repoName)
+		return fmt.Errorf("OCI registry %q not found", repoName)
 	}
 	if len(r.Charts) >= helmOCIMaxCharts {
-		return fmt.Errorf("не больше %d чартов в одном реестре", helmOCIMaxCharts)
+		return fmt.Errorf("at most %d charts per registry", helmOCIMaxCharts)
 	}
 	tags, err := ociFetchTags(&r, chart)
 	if err != nil {
 		return err
 	}
 	if len(tags) == 0 {
-		return fmt.Errorf("у чарта %q нет версий (semver-тегов) или нет доступа", chart)
+		return fmt.Errorf("chart %q has no versions (semver tags) or access is denied", chart)
 	}
 
 	helmRepoMu.Lock()
@@ -454,11 +454,11 @@ func (m *Manager) AddHelmOCIChart(repoName, chart string) error {
 	}
 	cur := f.find(repoName)
 	if cur == nil {
-		return fmt.Errorf("OCI-реестр %q не найден", repoName)
+		return fmt.Errorf("OCI registry %q not found", repoName)
 	}
 	for _, c := range cur.Charts {
 		if c == chart {
-			return fmt.Errorf("чарт %q уже добавлен", chart)
+			return fmt.Errorf("chart %q is already added", chart)
 		}
 	}
 	cur.Charts = append(cur.Charts, chart)
@@ -487,7 +487,7 @@ func (m *Manager) RemoveHelmOCIChart(repoName, chart string) error {
 	}
 	cur := f.find(repoName)
 	if cur == nil {
-		return fmt.Errorf("OCI-реестр %q не найден", repoName)
+		return fmt.Errorf("OCI registry %q not found", repoName)
 	}
 	kept := cur.Charts[:0]
 	found := false
@@ -499,7 +499,7 @@ func (m *Manager) RemoveHelmOCIChart(repoName, chart string) error {
 		kept = append(kept, c)
 	}
 	if !found {
-		return fmt.Errorf("чарт %q не найден в реестре %q", chart, repoName)
+		return fmt.Errorf("chart %q not found in registry %q", chart, repoName)
 	}
 	cur.Charts = kept
 	if cache, err := ociReadTags(repoName); err == nil {
@@ -528,7 +528,7 @@ func ociRemove(name string) error {
 	}
 	if removed == nil {
 		helmRepoMu.Unlock()
-		return fmt.Errorf("репозиторий %q не найден", name)
+		return fmt.Errorf("repository %q not found", name)
 	}
 	f.Repositories = kept
 	if err := ociSaveLocked(f); err != nil {
@@ -623,7 +623,7 @@ func ociInfos() ([]HelmRepoInfo, error) {
 		if c, err := ociReadTags(r.Name); err == nil {
 			info.Updated = c.Updated.UTC().Format(time.RFC3339)
 		} else {
-			info.Error = "теги не загружены: выполните Update"
+			info.Error = "tags are not loaded: run Update"
 		}
 		out = append(out, info)
 	}
@@ -673,11 +673,11 @@ func ociSearch(terms []string, repoName string) []HelmCatalogChart {
 func ociVersions(r ociRepo, chart string) ([]HelmChartVersionInfo, error) {
 	cache, err := ociReadTags(r.Name)
 	if err != nil {
-		return nil, fmt.Errorf("теги реестра %q не загружены: выполните Update", r.Name)
+		return nil, fmt.Errorf("tags of registry %q are not loaded: run Update", r.Name)
 	}
 	tags := cache.Tags[chart]
 	if len(tags) == 0 {
-		return nil, fmt.Errorf("чарт %q не найден в реестре %q", chart, r.Name)
+		return nil, fmt.Errorf("chart %q not found in registry %q", chart, r.Name)
 	}
 	out := make([]HelmChartVersionInfo, 0, len(tags))
 	for _, t := range tags {
@@ -728,17 +728,17 @@ func ociPull(ctx context.Context, r ociRepo, chart, version string) (*chartv2.Ch
 		}
 	}
 	if !known {
-		return nil, fmt.Errorf("чарт %q не добавлен в реестр %q", chart, r.Name)
+		return nil, fmt.Errorf("chart %q is not added to registry %q", chart, r.Name)
 	}
 	if version == "" {
 		cache, err := ociReadTags(r.Name)
 		if err != nil || len(cache.Tags[chart]) == 0 {
-			return nil, fmt.Errorf("версии чарта %q не загружены: выполните Update", chart)
+			return nil, fmt.Errorf("versions of chart %q are not loaded: run Update", chart)
 		}
 		version = latestStable(cache.Tags[chart])
 	}
 	if _, err := semver.StrictNewVersion(version); err != nil {
-		return nil, fmt.Errorf("некорректная версия %q: %w", version, err)
+		return nil, fmt.Errorf("invalid version %q: %w", version, err)
 	}
 
 	c, err := newOCIClient(r.PlainHTTP, helmOCIChartMaxBytes)
@@ -755,11 +755,11 @@ func ociPull(ctx context.Context, r ociRepo, chart, version string) (*chartv2.Ch
 	go func() {
 		res, err := c.Pull(ref, registry.PullOptWithChart(true))
 		if err != nil {
-			ch <- pulled{err: fmt.Errorf("загрузка %s: %w", ref, err)}
+			ch <- pulled{err: fmt.Errorf("download %s: %w", ref, err)}
 			return
 		}
 		if res.Chart == nil || len(res.Chart.Data) == 0 {
-			ch <- pulled{err: fmt.Errorf("в %s нет слоя с чартом", ref)}
+			ch <- pulled{err: fmt.Errorf("%s has no chart layer", ref)}
 			return
 		}
 		ch <- pulled{data: res.Chart.Data}
@@ -773,7 +773,7 @@ func ociPull(ctx context.Context, r ociRepo, chart, version string) (*chartv2.Ch
 		}
 		chrt, err := loader.LoadArchive(bytes.NewReader(p.data))
 		if err != nil {
-			return nil, fmt.Errorf("не удалось разобрать архив чарта: %w", err)
+			return nil, fmt.Errorf("failed to parse chart archive: %w", err)
 		}
 		return chrt, nil
 	}

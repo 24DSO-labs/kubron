@@ -5,7 +5,7 @@
     <div v-for="o in helmOps" :key="o.opId" class="ho-op" :class="{ err: !!o.error, ok: o.done && !o.error }">
       <div class="ho-head">
         <span class="ho-icon" aria-hidden="true">{{ o.error ? '✕' : o.done ? '✓' : '⟳' }}</span>
-        <span class="ho-title" :title="`${o.namespace}/${o.release}`">{{ LABEL[o.op] }} {{ o.release }}</span>
+        <span class="ho-title" :title="`${o.namespace}/${o.release}`">{{ helmOpLabel(o.op) }} {{ o.release }}</span>
         <span class="ho-time">{{ elapsed(o) }}</span>
         <button v-if="!o.done && o.cancelable" type="button" class="ho-btn" @click="cancelHelmOp(o.opId)">{{ $t('helm.ops_panel.cancel') }}</button>
         <button v-if="o.done" type="button" class="ho-btn" :aria-label="$t('helm.ops_panel.close')" @click="dismissHelmOp(o.opId)">✕</button>
@@ -25,10 +25,9 @@
 <script lang="ts" setup>
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { cancelHelmOp, dismissHelmOp, HELM_OP_LABEL, helmOps, startHelmOps, type HelmOp } from '../composables/useHelmOps'
+import { cancelHelmOp, dismissHelmOp, helmOpLabel, helmOps, startHelmOps, type HelmOp } from '../composables/useHelmOps'
 
 const { t } = useI18n()
-const LABEL = HELM_OP_LABEL
 
 const expanded = reactive<Record<string, boolean>>({})
 const now = ref(Date.now())

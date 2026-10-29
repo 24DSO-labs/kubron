@@ -89,7 +89,7 @@ func (fileClusterStore) List() ([]ClusterMeta, error) {
 
 func (fileClusterStore) Get(id string) (*ClusterMeta, error) {
 	if !validClusterID(id) {
-		return nil, fmt.Errorf("недопустимый идентификатор кластера %q", id)
+		return nil, fmt.Errorf("invalid cluster ID %q", id)
 	}
 	data, err := os.ReadFile(filepath.Join(getClustersDir(), id+".json"))
 	if err != nil {
@@ -114,27 +114,27 @@ func (s fileClusterStore) KubeconfigPath(id string) string {
 func (s fileClusterStore) Kubeconfig(id string) ([]byte, error) {
 	path := s.KubeconfigPath(id)
 	if path == "" {
-		return nil, fmt.Errorf("kubeconfig не найден для кластера %s", id)
+		return nil, fmt.Errorf("kubeconfig not found for cluster %s", id)
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("не удалось прочитать kubeconfig: %w", err)
+		return nil, fmt.Errorf("failed to read kubeconfig: %w", err)
 	}
 	return data, nil
 }
 
 func (fileClusterStore) Save(meta *ClusterMeta, kubeconfig []byte) error {
 	if !validClusterID(meta.ID) {
-		return fmt.Errorf("недопустимый идентификатор кластера %q", meta.ID)
+		return fmt.Errorf("invalid cluster ID %q", meta.ID)
 	}
 	if err := os.MkdirAll(getClustersDir(), 0o700); err != nil {
-		return fmt.Errorf("не удалось создать %s: %w", getClustersDir(), err)
+		return fmt.Errorf("failed to create %s: %w", getClustersDir(), err)
 	}
 	if meta.KubeconfigFile == "" {
 		meta.KubeconfigFile = meta.ID + ".kubeconfig"
 	}
 	if filepath.Base(meta.KubeconfigFile) != meta.KubeconfigFile {
-		return fmt.Errorf("недопустимое имя файла kubeconfig %q", meta.KubeconfigFile)
+		return fmt.Errorf("invalid kubeconfig file name %q", meta.KubeconfigFile)
 	}
 
 	kcPath := filepath.Join(getClustersDir(), meta.KubeconfigFile)
@@ -143,7 +143,7 @@ func (fileClusterStore) Save(meta *ClusterMeta, kubeconfig []byte) error {
 	if kubeconfig != nil {
 		old, readErr = os.ReadFile(kcPath)
 		if err := writeFileAtomic(kcPath, kubeconfig, 0o600); err != nil {
-			return fmt.Errorf("не удалось сохранить kubeconfig: %w", err)
+			return fmt.Errorf("failed to save kubeconfig: %w", err)
 		}
 	}
 
@@ -168,7 +168,7 @@ func (fileClusterStore) Delete(id string) error {
 	dir := getClustersDir()
 	for _, name := range []string{id + ".json", id + ".kubeconfig"} {
 		if err := os.Remove(filepath.Join(dir, name)); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("не удалось удалить %s: %w", name, err)
+			return fmt.Errorf("failed to delete %s: %w", name, err)
 		}
 	}
 	return nil

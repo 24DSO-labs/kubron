@@ -122,7 +122,7 @@ func (m *Manager) StartTerminalSession(sessionID, namespace, pod, container, she
 // StartTerminalWithOutput запускает сессию с произвольным приёмником вывода (веб).
 func (m *Manager) StartTerminalWithOutput(sessionID, namespace, pod, container, shell string, cols, rows uint16, out TerminalOutput) error {
 	if out == nil {
-		return errors.New("не задан приёмник вывода терминала")
+		return errors.New("terminal output sink is not set")
 	}
 	return m.startTerminal(sessionID, namespace, pod, container, shell, cols, rows, out)
 }
@@ -136,7 +136,7 @@ func (m *Manager) startTerminal(sessionID, namespace, pod, container, shell stri
 		return err
 	}
 	if max := m.Limits().Terminals; max > 0 && m.terminalSessions.count() >= max {
-		return fmt.Errorf("слишком много открытых терминалов (максимум %d)", max)
+		return fmt.Errorf("too many open terminals (maximum %d)", max)
 	}
 
 	// Пустой shell — режим attach к основному процессу контейнера.
@@ -232,7 +232,7 @@ func (m *Manager) startTerminal(sessionID, namespace, pod, container, shell stri
 		_ = stdinW.Close()
 		_ = stdoutR.Close()
 		_ = stdoutW.Close()
-		return fmt.Errorf("слишком много открытых терминалов (максимум %d)", m.Limits().Terminals)
+		return fmt.Errorf("too many open terminals (maximum %d)", m.Limits().Terminals)
 	}
 
 	go m.pumpTerminal(session)

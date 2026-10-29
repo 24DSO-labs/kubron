@@ -19,7 +19,7 @@ const (
 	maxTermDim     = 1000
 	termMaxFrame   = 64 << 10
 	termCloseExit  = "exit"
-	termCloseMaxed = "терминал уже подключён или не найден"
+	termCloseMaxed = "terminal is already attached or not found"
 )
 
 type termControl struct {
@@ -32,13 +32,13 @@ type termControl struct {
 func parseTermControl(raw []byte) (cols, rows uint16, err error) {
 	var c termControl
 	if err := json.Unmarshal(raw, &c); err != nil {
-		return 0, 0, errors.New("управляющий кадр должен быть JSON")
+		return 0, 0, errors.New("control frame must be JSON")
 	}
 	if c.Type != ctlResize {
-		return 0, 0, errors.New("неизвестный управляющий кадр: " + c.Type)
+		return 0, 0, errors.New("unknown control frame: " + c.Type)
 	}
 	if c.Cols < 1 || c.Cols > maxTermDim || c.Rows < 1 || c.Rows > maxTermDim {
-		return 0, 0, errors.New("недопустимый размер терминала")
+		return 0, 0, errors.New("invalid terminal size")
 	}
 	return uint16(c.Cols), uint16(c.Rows), nil
 }

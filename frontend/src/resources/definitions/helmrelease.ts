@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { defineResource } from '../types'
+import { t } from '../../i18n'
+import { errorText } from '../../composables/errorText'
 import type { k8s } from '../../../wailsjs/go/models'
 import { callApp } from '../wails'
 import { helmLiveTick, startHelmLive } from '../../composables/useHelmLive'
@@ -68,22 +70,22 @@ export const helmRelease = defineResource<k8s.HelmReleaseInfo, k8s.HelmReleaseDe
 actions: [
     {
       id: 'uninstall',
-      label: 'Uninstall',
+      label: 'defs.menu.uninstall',
       icon: 'delete',
       danger: true,
       permission: Perm.Write,
       run: async (r, ctx) => {
         if (!(await ctx.confirm(
-          `Uninstall release ${r.namespace}/${r.name}? All resources created by the release will be deleted from the cluster.`,
+          t('defs.helmRelease.uninstallConfirm', { namespace: r.namespace, name: r.name }),
         ))) return
         try {
           await runHelmOp({ op: 'uninstall', namespace: r.namespace, release: r.name }, id =>
             callApp('UninstallHelmRelease', r.namespace, r.name, false, id))
-          ctx.notifySuccess(`Release ${r.name} uninstalled`)
+          ctx.notifySuccess(t('defs.helmRelease.uninstalled', { name: r.name }))
           ctx.closeDetail()
           await ctx.reload()
         } catch (e: any) {
-          ctx.notifyError(`Uninstall: ${e?.message || e}`)
+          ctx.notifyError(t('defs.helmRelease.uninstallError', { message: errorText(e) }))
         }
       },
     },

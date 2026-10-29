@@ -23,20 +23,20 @@ func TestParseHelmValues(t *testing.T) {
 		t.Fatalf("replicaCount = %#v", got["replicaCount"])
 	}
 	for name, in := range map[string]string{
-		"список":       "- a\n- b\n",
-		"скаляр":       "just a string",
-		"битый YAML":   "a: [unclosed",
-		"слишком длин": strings.Repeat("a", helmValuesMaxBytes+1),
+		"list":        "- a\n- b\n",
+		"scalar":      "just a string",
+		"broken YAML": "a: [unclosed",
+		"too long":    strings.Repeat("a", helmValuesMaxBytes+1),
 	} {
 		if _, err := parseHelmValues(in); err == nil {
-			t.Errorf("%s: ожидалась ошибка", name)
+			t.Errorf("%s: expected an error", name)
 		}
 	}
 }
 
 func TestMarshalHelmValues(t *testing.T) {
 	if s, err := marshalHelmValues(nil); err != nil || s != "" {
-		t.Fatalf("пустые values: %q, %v", s, err)
+		t.Fatalf("empty values: %q, %v", s, err)
 	}
 	s, err := marshalHelmValues(map[string]interface{}{"b": 1, "a": "x"})
 	if err != nil || s != "a: x\nb: 1\n" {
@@ -47,12 +47,12 @@ func TestMarshalHelmValues(t *testing.T) {
 func TestUpgradeValidatesBeforeNetwork(t *testing.T) {
 	m := NewManager()
 	if _, err := m.PreviewHelmUpgrade("Prod", "web", ""); err == nil {
-		t.Error("некорректный namespace должен отклоняться")
+		t.Error("an invalid namespace must be rejected")
 	}
 	if _, err := m.PreviewHelmUpgrade("prod", "web", "- x"); err == nil || !strings.Contains(err.Error(), "YAML") {
-		t.Errorf("не-map values: %v", err)
+		t.Errorf("non-map values: %v", err)
 	}
 	if _, err := m.UpgradeHelmRelease("prod", "", "", ""); err == nil {
-		t.Error("пустое имя должно отклоняться")
+		t.Error("an empty name must be rejected")
 	}
 }

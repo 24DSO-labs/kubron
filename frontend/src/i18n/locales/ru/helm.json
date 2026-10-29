@@ -122,7 +122,8 @@
     "remove": "Remove",
     "confirmRemove": "Удалить репозиторий {name}? Установленные из него релизы не затрагиваются.",
     "removed": "Репозиторий {name} удалён",
-    "removeError": "Удаление: {message}"
+    "removeError": "Удаление: {message}",
+    "update": "Обновить"
   },
   "install": {
     "title": "Установка {repo}/{chart}",

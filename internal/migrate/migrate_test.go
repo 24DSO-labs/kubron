@@ -31,22 +31,22 @@ func TestLoadOrdersAndChecksums(t *testing.T) {
 		t.Fatalf("%+v", ms)
 	}
 	if ms[0].Checksum == "" || ms[0].Checksum == ms[1].Checksum {
-		t.Error("контрольные суммы должны быть заданы и различаться")
+		t.Error("checksums must be set and differ")
 	}
 }
 
 func TestLoadRejectsBadSets(t *testing.T) {
 	cases := map[string]map[string]string{
-		"пропуск версии":   {"0001_a.up.sql": "x", "0001_a.down.sql": "x", "0003_c.up.sql": "x", "0003_c.down.sql": "x"},
-		"нет down":         {"0001_a.up.sql": "x"},
-		"нет up":           {"0001_a.down.sql": "x"},
-		"плохое имя файла": {"001_a.up.sql": "x"},
-		"разные имена":     {"0001_a.up.sql": "x", "0001_b.down.sql": "x"},
-		"нумерация с 2":    {"0002_a.up.sql": "x", "0002_a.down.sql": "x"},
+		"skipped version":       {"0001_a.up.sql": "x", "0001_a.down.sql": "x", "0003_c.up.sql": "x", "0003_c.down.sql": "x"},
+		"no down":               {"0001_a.up.sql": "x"},
+		"no up":                 {"0001_a.down.sql": "x"},
+		"bad file name":         {"001_a.up.sql": "x"},
+		"different names":       {"0001_a.up.sql": "x", "0001_b.down.sql": "x"},
+		"numbering starts at 2": {"0002_a.up.sql": "x", "0002_a.down.sql": "x"},
 	}
 	for name, files := range cases {
 		if _, err := Load(mfs(files), "m"); err == nil {
-			t.Errorf("%s: ожидалась ошибка", name)
+			t.Errorf("%s: expected an error", name)
 		}
 	}
 }
@@ -70,7 +70,7 @@ func (f *fakeDB) Applied(context.Context) ([]Applied, error) {
 }
 func (f *fakeDB) Apply(_ context.Context, m Migration, up bool) error {
 	if !f.locked {
-		return errors.New("Apply без блокировки")
+		return errors.New("Apply without a lock")
 	}
 	if m.Version == f.failOn {
 		return errors.New("boom")
@@ -105,11 +105,11 @@ func TestUpAppliesPendingInOrderUnderLock(t *testing.T) {
 		t.Fatalf("%+v %v", res, err)
 	}
 	if db.calls[0] != "lock" || db.calls[len(db.calls)-1] != "unlock" {
-		t.Errorf("блокировка должна охватывать все миграции: %v", db.calls)
+		t.Errorf("the lock must cover all migrations: %v", db.calls)
 	}
 	// Повторный запуск ничего не делает.
 	if res, err := m.Up(context.Background()); err != nil || len(res.Applied) != 0 {
-		t.Errorf("повторный Up: %+v %v", res, err)
+		t.Errorf("repeated Up: %+v %v", res, err)
 	}
 }
 
@@ -118,14 +118,14 @@ func TestUpResumesAfterFailure(t *testing.T) {
 	m := &Migrator{DB: db, Migrations: three()}
 	res, err := m.Up(context.Background())
 	if err == nil || !reflect.DeepEqual(res.Applied, []int{1}) {
-		t.Fatalf("ожидали сбой на 2: %+v %v", res, err)
+		t.Fatalf("expected a failure at 2: %+v %v", res, err)
 	}
 	if db.locked {
-		t.Error("блокировка должна сниматься и при ошибке")
+		t.Error("the lock must be released on error too")
 	}
 	db.failOn = 0
 	if res, err := m.Up(context.Background()); err != nil || !reflect.DeepEqual(res.Applied, []int{2, 3}) {
-		t.Fatalf("продолжение: %+v %v", res, err)
+		t.Fatalf("resume: %+v %v", res, err)
 	}
 }
 
@@ -133,7 +133,7 @@ func TestChecksumDriftIsRejected(t *testing.T) {
 	db := &fakeDB{applied: []Applied{{1, "a", "other"}}}
 	m := &Migrator{DB: db, Migrations: three()}
 	if _, err := m.Up(context.Background()); !errors.Is(err, ErrChecksum) {
-		t.Fatalf("ожидали ErrChecksum, получили %v", err)
+		t.Fatalf("expected ErrChecksum, got %v", err)
 	}
 }
 
@@ -141,7 +141,7 @@ func TestGapInJournalIsRejected(t *testing.T) {
 	db := &fakeDB{applied: []Applied{{2, "b", "sum-b"}}}
 	m := &Migrator{DB: db, Migrations: three()}
 	if _, err := m.Up(context.Background()); !errors.Is(err, ErrGap) {
-		t.Fatalf("ожидали ErrGap, получили %v", err)
+		t.Fatalf("expected ErrGap, got %v", err)
 	}
 }
 
@@ -154,7 +154,7 @@ func TestNewerDatabaseDoesNotBlockOlderReplica(t *testing.T) {
 		t.Fatalf("%+v %v", res, err)
 	}
 	if _, err := m.Down(context.Background(), 1); !errors.Is(err, ErrGap) {
-		t.Errorf("старая версия не должна откатывать схему, которую не знает: %v", err)
+		t.Errorf("an old version must not roll back a schema it does not know: %v", err)
 	}
 }
 
@@ -175,7 +175,7 @@ func TestDownRollsBackNewestFirst(t *testing.T) {
 	st, _ := m.Status(context.Background())
 	for _, s := range st {
 		if s.Applied {
-			t.Errorf("после полного отката применена %+v", s)
+			t.Errorf("applied after a full rollback: %+v", s)
 		}
 	}
 }

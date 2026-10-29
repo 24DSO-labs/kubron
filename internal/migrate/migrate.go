@@ -59,7 +59,7 @@ var fileRe = regexp.MustCompile(`^(\d{4})_([a-z0-9_]+)\.(up|down)\.sql$`)
 func Load(fsys fs.FS, dir string) ([]Migration, error) {
 	entries, err := fs.ReadDir(fsys, dir)
 	if err != nil {
-		return nil, fmt.Errorf("миграции: %w", err)
+		return nil, fmt.Errorf("migrations: %w", err)
 	}
 	byVersion := map[int]*Migration{}
 	for _, e := range entries {
@@ -68,12 +68,12 @@ func Load(fsys fs.FS, dir string) ([]Migration, error) {
 		}
 		m := fileRe.FindStringSubmatch(e.Name())
 		if m == nil {
-			return nil, fmt.Errorf("миграции: недопустимое имя файла %q (ожидается NNNN_имя.up.sql / .down.sql)", e.Name())
+			return nil, fmt.Errorf("migrations: invalid file name %q (expected NNNN_name.up.sql / .down.sql)", e.Name())
 		}
 		v, _ := strconv.Atoi(m[1])
 		body, err := fs.ReadFile(fsys, path.Join(dir, e.Name()))
 		if err != nil {
-			return nil, fmt.Errorf("миграции: %w", err)
+			return nil, fmt.Errorf("migrations: %w", err)
 		}
 		cur := byVersion[v]
 		if cur == nil {
@@ -81,7 +81,7 @@ func Load(fsys fs.FS, dir string) ([]Migration, error) {
 			byVersion[v] = cur
 		}
 		if cur.Name != m[2] {
-			return nil, fmt.Errorf("миграции: версия %04d имеет разные имена: %q и %q", v, cur.Name, m[2])
+			return nil, fmt.Errorf("migrations: version %04d has different names: %q and %q", v, cur.Name, m[2])
 		}
 		if m[3] == "up" {
 			cur.Up = string(body)
@@ -97,10 +97,10 @@ func Load(fsys fs.FS, dir string) ([]Migration, error) {
 	sort.Slice(out, func(i, j int) bool { return out[i].Version < out[j].Version })
 	for i := range out {
 		if want := i + 1; out[i].Version != want {
-			return nil, fmt.Errorf("миграции: ожидалась версия %04d, найдена %04d (нумерация без пропусков)", want, out[i].Version)
+			return nil, fmt.Errorf("migrations: expected version %04d, found %04d (numbering must have no gaps)", want, out[i].Version)
 		}
 		if out[i].Up == "" || out[i].Down == "" {
-			return nil, fmt.Errorf("миграции: у версии %04d_%s должны быть и up, и down", out[i].Version, out[i].Name)
+			return nil, fmt.Errorf("migrations: version %04d_%s must have both up and down", out[i].Version, out[i].Name)
 		}
 		sum := sha256.Sum256([]byte(out[i].Up))
 		out[i].Checksum = hex.EncodeToString(sum[:])
@@ -111,9 +111,9 @@ func Load(fsys fs.FS, dir string) ([]Migration, error) {
 // Ошибки мигратора.
 var (
 	// ErrChecksum — применённая миграция отличается от файла: её правили после применения.
-	ErrChecksum = errors.New("миграция изменена после применения")
+	ErrChecksum = errors.New("migration was modified after being applied")
 	// ErrGap — в журнале БД пропущена версия или есть неизвестная миграция среди известных.
-	ErrGap = errors.New("журнал миграций не согласован с набором миграций")
+	ErrGap = errors.New("migration journal is inconsistent with the migration set")
 )
 
 // Migrator применяет и откатывает миграции.
@@ -160,7 +160,7 @@ func (m *Migrator) state(ctx context.Context) (applied map[int]Applied, ahead []
 	for _, mg := range m.Migrations {
 		if _, ok := applied[mg.Version]; ok {
 			if seenGap {
-				return nil, nil, fmt.Errorf("%w: версия %04d применена, а предыдущая нет", ErrGap, mg.Version)
+				return nil, nil, fmt.Errorf("%w: version %04d is applied but the previous one is not", ErrGap, mg.Version)
 			}
 		} else {
 			seenGap = true
@@ -174,7 +174,7 @@ func (m *Migrator) state(ctx context.Context) (applied map[int]Applied, ahead []
 func (m *Migrator) Up(ctx context.Context) (Result, error) {
 	unlock, err := m.DB.Lock(ctx)
 	if err != nil {
-		return Result{}, fmt.Errorf("блокировка миграций: %w", err)
+		return Result{}, fmt.Errorf("migration lock: %w", err)
 	}
 	defer unlock()
 
@@ -188,7 +188,7 @@ func (m *Migrator) Up(ctx context.Context) (Result, error) {
 			continue
 		}
 		if err := m.DB.Apply(ctx, mg, true); err != nil {
-			return res, fmt.Errorf("миграция %04d_%s: %w", mg.Version, mg.Name, err)
+			return res, fmt.Errorf("migration %04d_%s: %w", mg.Version, mg.Name, err)
 		}
 		res.Applied = append(res.Applied, mg.Version)
 	}
@@ -200,7 +200,7 @@ func (m *Migrator) Up(ctx context.Context) (Result, error) {
 func (m *Migrator) Down(ctx context.Context, steps int) ([]int, error) {
 	unlock, err := m.DB.Lock(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("блокировка миграций: %w", err)
+		return nil, fmt.Errorf("migration lock: %w", err)
 	}
 	defer unlock()
 
@@ -209,7 +209,7 @@ func (m *Migrator) Down(ctx context.Context, steps int) ([]int, error) {
 		return nil, err
 	}
 	if len(ahead) > 0 {
-		return nil, fmt.Errorf("%w: в БД есть версии новее известных (%v), откат выполняет новая версия приложения", ErrGap, ahead)
+		return nil, fmt.Errorf("%w: the database has versions newer than the known ones (%v); the rollback is performed by a newer version of the application", ErrGap, ahead)
 	}
 	var done []int
 	for i := len(m.Migrations) - 1; i >= 0; i-- {
@@ -221,7 +221,7 @@ func (m *Migrator) Down(ctx context.Context, steps int) ([]int, error) {
 			break
 		}
 		if err := m.DB.Apply(ctx, mg, false); err != nil {
-			return done, fmt.Errorf("откат %04d_%s: %w", mg.Version, mg.Name, err)
+			return done, fmt.Errorf("rollback %04d_%s: %w", mg.Version, mg.Name, err)
 		}
 		done = append(done, mg.Version)
 	}

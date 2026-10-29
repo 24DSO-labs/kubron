@@ -10,7 +10,7 @@ import (
 )
 
 // ErrNotFound — «нет такого значения» для хранилищ (токена нет и т. п.).
-var ErrNotFound = errors.New("ext: не найдено")
+var ErrNotFound = errors.New("ext: not found")
 
 // Module — подключаемый модуль (например, платный SSO). Собирается в отдельном Go-модуле
 // и подключается при сборке приложения: registry.Install(mymodule.New()).
@@ -38,13 +38,13 @@ func NewRegistry() *Registry {
 // Install подключает модуль: проверяет версию контракта и вызывает его Register.
 func (r *Registry) Install(m Module) error {
 	if m == nil {
-		return errors.New("ext: пустой модуль")
+		return errors.New("ext: empty module")
 	}
 	if v := m.APIVersion(); v != APIVersion {
-		return fmt.Errorf("ext: модуль %q собран под версию API %d, ядро поддерживает %d", m.Name(), v, APIVersion)
+		return fmt.Errorf("ext: module %q was built for API version %d, the core supports %d", m.Name(), v, APIVersion)
 	}
 	if err := m.Register(r); err != nil {
-		return fmt.Errorf("ext: модуль %q: %w", m.Name(), err)
+		return fmt.Errorf("ext: module %q: %w", m.Name(), err)
 	}
 	r.mu.Lock()
 	r.modules = append(r.modules, m.Name())
@@ -63,24 +63,24 @@ func (r *Registry) Modules() []string {
 // соответствовать Kind(): PasswordAuthenticator для KindPassword, RedirectAuthenticator для KindRedirect.
 func (r *Registry) RegisterAuthenticator(a Authenticator) error {
 	if a == nil || a.ID() == "" {
-		return errors.New("ext: у аутентификатора нет ID")
+		return errors.New("ext: authenticator has no ID")
 	}
 	switch a.Kind() {
 	case KindPassword:
 		if _, ok := a.(PasswordAuthenticator); !ok {
-			return fmt.Errorf("ext: аутентификатор %q объявляет kind=password, но не реализует PasswordAuthenticator", a.ID())
+			return fmt.Errorf("ext: authenticator %q declares kind=password but does not implement PasswordAuthenticator", a.ID())
 		}
 	case KindRedirect:
 		if _, ok := a.(RedirectAuthenticator); !ok {
-			return fmt.Errorf("ext: аутентификатор %q объявляет kind=redirect, но не реализует RedirectAuthenticator", a.ID())
+			return fmt.Errorf("ext: authenticator %q declares kind=redirect but does not implement RedirectAuthenticator", a.ID())
 		}
 	default:
-		return fmt.Errorf("ext: аутентификатор %q: неизвестный kind %q", a.ID(), a.Kind())
+		return fmt.Errorf("ext: authenticator %q: unknown kind %q", a.ID(), a.Kind())
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, dup := r.auths[a.ID()]; dup {
-		return fmt.Errorf("ext: аутентификатор %q уже зарегистрирован", a.ID())
+		return fmt.Errorf("ext: authenticator %q is already registered", a.ID())
 	}
 	r.auths[a.ID()] = a
 	r.order = append(r.order, a.ID())
