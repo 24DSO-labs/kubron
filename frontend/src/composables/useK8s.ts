@@ -199,7 +199,7 @@ export function useK8s() {
     namespaces,
     podMetrics, portForwards,
     selectedNamespaces, selectNamespaces, restoreNamespaces, currentView, search,
-    error, loading,
+    loading,
 
     // Helpers
     formatCpu, formatMemory, mergePodMetrics,

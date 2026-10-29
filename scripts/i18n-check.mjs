@@ -4,7 +4,7 @@
 
 /**
  * Проверка локализации без внешних зависимостей: `npm run i18n:check` (из frontend/) или
- * `node scripts/i18n-check.mjs`. Те же проверки гоняет vitest (src/i18n/locales.test.ts).
+ * `node scripts/i18n-check.mjs`. В CI — отдельный шаг до сборки.
  *
  * Ошибки (код возврата 1):
  *  - файл локали не парсится или не объект;
@@ -12,6 +12,7 @@
  *  - в переводе другой набор плейсхолдеров {name}, чем в en;
  *  - в коде t('a.b') / $t('a.b') / <i18n-t keypath> ссылается на ключ, которого нет в en;
  *  - t('Какой-то текст') — вместо ключа передан текст;
+ *  - errors.New/fmt.Errorf в internal/ и pkg/ без записи в backend.json;
  *  - кириллица в исходниках вне комментариев (UI-тексты живут только в locales/).
  *
  * Предупреждения (с --strict тоже ошибки):
@@ -190,6 +191,44 @@ function scanTemplate(file, code) {
   for (const m of tpl.matchAll(/>([^<>]+)</g)) report(m.index + 1, m[1])
   for (const m of tpl.matchAll(/(?<![:@\w-])(?:title|placeholder|aria-label|alt|label)="([^"]*[A-Za-z]{2,}[^"]*)"/g)) report(m.index, m[1])
   for (const m of tpl.matchAll(/:(?:title|placeholder|aria-label|alt|label)="'([^']*[A-Za-z]{2,}[^']*)'"/g)) report(m.index, m[1])
+}
+
+// ---------- 2b. ошибки Go и таблица перевода backend.* ----------
+
+/** Go-формат → шаблон таблицы: %s/%d/%q/%v/%w по порядку → {p0}, {p1}… */
+function goTemplate(format) {
+  let n = 0
+  return format
+    .replace(/\\"/g, '"')
+    .replace(/\\n/g, '\n')
+    .replace(/\\\\/g, '\\')
+    .replace(/%[-+# 0-9.*]*[a-zA-Z%]/g, (m) => (m === '%%' ? '%' : `{p${n++}}`))
+}
+{
+  const unescapeVue = (v) => v.replace(/\{'(.)'\}/g, '$1')
+  const known = new Set([...base].filter(([k]) => k.startsWith('backend.')).map(([, v]) => unescapeVue(v)))
+  // Сообщение целиком из чужого текста: переводить нечего
+  const passthrough = new Set(['{p0}', '{p0}: {p1}', '{p0} {p1}: {p2}', '{p0}: HTTP {p1}', '{p0}: {p1}_{p2}'])
+  const goRoots = ['internal', 'pkg'].map((d) => join(root, d))
+  const missing = new Map()
+  for (const dir of goRoots) {
+    let files = []
+    try {
+      files = walk(dir, (f) => f.endsWith('.go') && !f.endsWith('_test.go'))
+    } catch {
+      continue
+    }
+    for (const file of files) {
+      const text = readFileSync(file, 'utf8')
+      for (const m of text.matchAll(/(?:errors\.New|fmt\.Errorf)\(\s*"((?:[^"\\]|\\.)*)"/g)) {
+        const template = goTemplate(m[1])
+        if (!known.has(template) && !passthrough.has(template)) missing.set(template, `${rel(file)}:${lineOf(text, m.index)}`)
+      }
+    }
+  }
+  for (const [template, where] of missing) {
+    errors.push(`${where}: ошибка Go без записи в backend.json (en и ru): «${template.slice(0, 80)}»`)
+  }
 }
 
 // ---------- 3. неиспользуемые ключи ----------
