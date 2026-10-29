@@ -75,10 +75,10 @@ describe('rpc.web', () => {
 
   it('ошибка сервера → RpcError с кодом и текстом; 401 вне входа сбрасывает сессию', async () => {
     queue.push({ body: { authenticated: true, csrfToken: 't' } })
-    queue.push({ status: 401, body: { error: { code: 'unauthenticated', message: 'требуется вход в систему' } } })
+    queue.push({ status: 401, body: { error: { code: 'unauthenticated', message: 'authentication required' } } })
     const err = (await rpc('ListUsers', []).catch(e => e)) as RpcError
     expect(err).toBeInstanceOf(RpcError)
-    expect(err.message).toBe('требуется вход в систему')
+    expect(err.message).toBe('authentication required')
     expect(err.code).toBe('unauthenticated')
     expect(events.closeEvents).toHaveBeenCalled()
   })

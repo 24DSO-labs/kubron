@@ -38,7 +38,7 @@ var usernameRe = regexp.MustCompile(`^[A-Za-z0-9._-]{3,32}$`)
 // ValidateUsername проверяет формат логина.
 func ValidateUsername(username string) error {
 	if !usernameRe.MatchString(username) {
-		return errors.New("логин: 3–32 символа, допустимы латиница, цифры, точка, дефис и подчёркивание")
+		return errors.New("username must be 3–32 characters: Latin letters, digits, dot, hyphen and underscore")
 	}
 	return nil
 }
@@ -46,10 +46,10 @@ func ValidateUsername(username string) error {
 // ValidatePassword проверяет требования к паролю.
 func ValidatePassword(password string) error {
 	if utf8.RuneCountInString(password) < minPassRunes {
-		return fmt.Errorf("пароль должен содержать не менее %d символов", minPassRunes)
+		return fmt.Errorf("password must be at least %d characters", minPassRunes)
 	}
 	if len(password) > maxPassBytes {
-		return fmt.Errorf("пароль слишком длинный (максимум %d байт)", maxPassBytes)
+		return fmt.Errorf("password is too long (maximum %d bytes)", maxPassBytes)
 	}
 	return nil
 }
@@ -57,7 +57,7 @@ func ValidatePassword(password string) error {
 func hashPassword(password string) (string, error) {
 	salt := make([]byte, saltLength)
 	if _, err := rand.Read(salt); err != nil {
-		return "", fmt.Errorf("не удалось получить случайные данные: %w", err)
+		return "", fmt.Errorf("failed to get random data: %w", err)
 	}
 	key, err := pbkdf2.Key(sha256.New, password, salt, pbkdf2Iterations, keyLength)
 	if err != nil {

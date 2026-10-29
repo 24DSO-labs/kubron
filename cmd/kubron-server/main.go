@@ -18,20 +18,32 @@ import (
 	"syscall"
 	"time"
 
-	"analog/frontend"
-	"analog/internal/app"
-	"analog/internal/k8s"
-	webplatform "analog/internal/platform/web"
-	"analog/internal/server"
+	"github.com/VadimIl224/kubron/frontend"
+	"github.com/VadimIl224/kubron/internal/app"
+	"github.com/VadimIl224/kubron/internal/k8s"
+	"github.com/VadimIl224/kubron/internal/pgstore"
+	webplatform "github.com/VadimIl224/kubron/internal/platform/web"
+	"github.com/VadimIl224/kubron/internal/secretbox"
+	"github.com/VadimIl224/kubron/internal/server"
+	"github.com/VadimIl224/kubron/internal/store"
 )
 
 func main() {
+	if len(os.Args) > 1 && adminCommands[os.Args[1]] {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		err := runAdmin(ctx, os.Args[1], os.Args[2:], os.Stdout)
+		stop()
+		if err != nil {
+			log.Fatalf("%s: %v", os.Args[1], err)
+		}
+		return
+	}
 	cfg, err := server.LoadConfig(os.Args[1:], os.Getenv, os.Stderr)
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return
 		}
-		log.Fatalf("конфигурация: %v", err)
+		log.Fatalf("configuration: %v", err)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -39,10 +51,10 @@ func main() {
 
 	dist, err := fs.Sub(frontend.Dist, "dist")
 	if err != nil {
-		log.Fatalf("фронтенд: %v", err)
+		log.Fatalf("frontend: %v", err)
 	}
 	if err := server.CheckWebBuild(dist); err != nil {
-		log.Fatalf("фронтенд: %v", err)
+		log.Fatalf("frontend: %v", err)
 	}
 
 	// Каталог данных задаётся до запуска ядра: хранилища открываются в OnStartup
@@ -51,25 +63,80 @@ func main() {
 	hub := server.NewHub()
 	platform := &webplatform.Platform{}
 	platform.SetEmitter(hub.Emit)
+	platform.SetSessionEmitter(hub.EmitTo)
 	core := app.NewApp(platform)
+	if cfg.DatabaseURL != "" {
+		pg, err := openPostgres(ctx, cfg)
+		if err != nil {
+			log.Fatalf("database: %v", err)
+		}
+		defer pg.Close()
+		app.SetStore(core, store.FromPostgres(pg))
+	}
 	app.OnStartup(core)(ctx)
 	defer app.OnShutdown(core)(context.Background())
 
 	dispatcher, err := server.NewAppDispatcher(core)
 	if err != nil {
-		log.Fatalf("диспетчер: %v", err)
+		log.Fatalf("dispatcher: %v", err)
 	}
-	// Ядро пока одно на всех: не более одной веб-сессии (снимется на этапе 2).
-	sessions := server.NewSessions(cfg.SessionTTL, true)
+	// У каждой веб-сессии свой вид ядра (пользователь, права, кластер, терминалы, логи, события):
+	// одновременно могут работать несколько пользователей.
+	sessions := server.NewSessions(cfg.SessionTTL, false)
 	terminals := platform.Terminals()
 	guard := &server.Guard{Sessions: sessions, TrustProxy: cfg.TrustProxy, Hub: hub, Terminals: terminals}
+	app.SetResourceLimits(core, k8s.Limits{Terminals: cfg.MaxTerminals, LogStreams: cfg.MaxLogStreams, PortForwards: cfg.MaxPortForwards})
+	app.SetClusterIdleTTL(core, 2*time.Minute)
 	guard.NewView = func(src string) any { return app.NewSessionView(core, src) }
+	guard.Bind = func(v any, id string) { app.BindView(v.(*app.App), id) }
 	sessions.Release = func(v any) { app.ReleaseView(v.(*app.App)) }
 	sessions.OnEnd = guard.CloseSession // закрытая сессия закрывает и свои WebSocket
 	go terminals.Run(ctx.Done(), 5*time.Second)
+	// Фоновая уборка веб-сессий: закрывает те, у которых ядро уже завершило пользовательскую сессию
+	// (простой, отключение пользователя) или истёк срок, и освобождает их ресурсы и ссылки пула.
+	go func() {
+		t := time.NewTicker(10 * time.Second)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				sessions.Reap(func(v any) bool { return app.ViewActive(v.(*app.App)) })
+			}
+		}
+	}()
 	defer terminals.CloseAll()
 
 	if err := server.Run(ctx, cfg, server.NewHandler(dispatcher, dist, guard)); err != nil {
-		log.Fatalf("сервер: %v", err)
+		log.Fatalf("server: %v", err)
 	}
+}
+
+// openPostgres подключается к БД, применяет миграции и готовит организацию по умолчанию.
+func openPostgres(ctx context.Context, cfg server.Config) (*pgstore.Store, error) {
+	keys, err := secretbox.ParseKeyring(cfg.SecretKey, cfg.PreviousSecretKeys...)
+	if err != nil {
+		return nil, err
+	}
+	pg, err := pgstore.Open(ctx, cfg.DatabaseURL, keys)
+	if err != nil {
+		return nil, err
+	}
+	res, err := pg.Migrate(ctx)
+	if err != nil {
+		pg.Close()
+		return nil, err
+	}
+	if len(res.Applied) > 0 {
+		log.Printf("database: applied migrations %v", res.Applied)
+	}
+	if len(res.Ahead) > 0 {
+		log.Printf("database: the schema is newer than this build (versions %v); running in compatibility mode", res.Ahead)
+	}
+	if err := pg.Init(ctx); err != nil {
+		pg.Close()
+		return nil, err
+	}
+	return pg, nil
 }

@@ -17,8 +17,8 @@ import (
 
 // Ошибки диспетчера; HTTP-статус для них выбирает MapError.
 var (
-	ErrUnknownMethod = errors.New("неизвестный метод")
-	ErrMethodDenied  = errors.New("метод недоступен в веб-режиме")
+	ErrUnknownMethod = errors.New("unknown method")
+	ErrMethodDenied  = errors.New("method is unavailable in web mode")
 )
 
 // BadArgsError — аргументы вызова не соответствуют сигнатуре метода.
@@ -54,14 +54,14 @@ func NewDispatcher(target any, allowed []string, denied map[string]string) (*Dis
 	for _, name := range allowed {
 		tm, ok := tv.Type().MethodByName(name)
 		if !ok {
-			return nil, fmt.Errorf("allowlist: у %T нет метода %s", target, name)
+			return nil, fmt.Errorf("allowlist: %T has no method %s", target, name)
 		}
 		t := tv.Method(tm.Index).Type()
 		if t.IsVariadic() {
-			return nil, fmt.Errorf("allowlist: метод %s variadic — не поддерживается", name)
+			return nil, fmt.Errorf("allowlist: variadic method %s is not supported", name)
 		}
 		if t.NumOut() > 2 || (t.NumOut() == 2 && t.Out(1) != errorType) {
-			return nil, fmt.Errorf("allowlist: метод %s должен возвращать (T), (error) или (T, error)", name)
+			return nil, fmt.Errorf("allowlist: method %s must return (T), (error) or (T, error)", name)
 		}
 		d.methods[name] = method{idx: tm.Index, typ: t}
 	}
@@ -91,7 +91,7 @@ func (d *Dispatcher) CallOn(target any, name string, args []json.RawMessage) (re
 		target = d.target
 	}
 	if reflect.TypeOf(target) != d.ttype {
-		return nil, fmt.Errorf("диспетчер построен для %v, получен %T", d.ttype, target)
+		return nil, fmt.Errorf("dispatcher was built for %v, got %T", d.ttype, target)
 	}
 	meth, ok := d.methods[name]
 	if !ok {
@@ -102,20 +102,20 @@ func (d *Dispatcher) CallOn(target any, name string, args []json.RawMessage) (re
 	}
 	t := meth.typ
 	if len(args) != t.NumIn() {
-		return nil, &BadArgsError{fmt.Sprintf("%s: ожидается аргументов: %d, получено: %d", name, t.NumIn(), len(args))}
+		return nil, &BadArgsError{fmt.Sprintf("%s: expected %d arguments, got %d", name, t.NumIn(), len(args))}
 	}
 	in := make([]reflect.Value, len(args))
 	for i, raw := range args {
 		v, err := decodeArg(raw, t.In(i))
 		if err != nil {
-			return nil, &BadArgsError{fmt.Sprintf("%s: аргумент %d: %v", name, i+1, err)}
+			return nil, &BadArgsError{fmt.Sprintf("%s: argument %d: %v", name, i+1, err)}
 		}
 		in[i] = v
 	}
 
 	defer func() {
 		if r := recover(); r != nil {
-			result, err = nil, fmt.Errorf("внутренняя ошибка при выполнении %s", name)
+			result, err = nil, fmt.Errorf("internal error while executing %s", name)
 		}
 	}()
 	out := reflect.ValueOf(target).Method(meth.idx).Call(in)
@@ -152,7 +152,7 @@ func decodeArg(raw json.RawMessage, typ reflect.Type) (reflect.Value, error) {
 		if json.Unmarshal(raw, &s) == nil {
 			b, err := base64.StdEncoding.DecodeString(s)
 			if err != nil {
-				return reflect.Value{}, fmt.Errorf("ожидается base64-строка или массив байт: %v", err)
+				return reflect.Value{}, fmt.Errorf("expected a base64 string or a byte array: %v", err)
 			}
 			ptr.Elem().SetBytes(b)
 			return ptr.Elem(), nil
@@ -160,11 +160,11 @@ func decodeArg(raw json.RawMessage, typ reflect.Type) (reflect.Value, error) {
 		var nums []byte
 		var ints []int
 		if err := json.Unmarshal(raw, &ints); err != nil {
-			return reflect.Value{}, errors.New("ожидается base64-строка или массив байт")
+			return reflect.Value{}, errors.New("expected a base64 string or a byte array")
 		}
 		for _, n := range ints {
 			if n < 0 || n > 255 {
-				return reflect.Value{}, errors.New("значение байта вне диапазона 0..255")
+				return reflect.Value{}, errors.New("byte value out of range 0..255")
 			}
 			nums = append(nums, byte(n))
 		}

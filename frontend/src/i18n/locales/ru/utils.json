@@ -1,0 +1,50 @@
+{
+  "tab": {
+    "terminalTitle": "Терминал: {target}",
+    "attachTitle": "Подключение: {target}",
+    "newTitle": "Новый {kind}",
+    "noTabs": "Нет открытых вкладок"
+  },
+  "confirm": {
+    "deleteTitle": "Удалить {type} «{name}»?"
+  },
+  "logs": {
+    "pods": "Поды",
+    "allPods": "Все поды",
+    "containers": "Контейнеры",
+    "allContainers": "Все контейнеры",
+    "lines": "Строк",
+    "searchPlaceholder": "Поиск в логах",
+    "live": "онлайн",
+    "toEnd": "в конец",
+    "waiting": "Ожидание логов…",
+    "noLogs": "Нет логов",
+    "noPods": "Поды не найдены",
+    "streamClosed": "[{pod}поток закрыт{reason}]",
+    "error": "Ошибка: {message}"
+  },
+  "terminal": {
+    "shell": "Терминал",
+    "attach": "Подключение",
+    "sessionEnded": "[Сеанс завершён]"
+  },
+  "yaml": {
+    "newKind": "Новый {kind}",
+    "inNamespace": "в {namespace}",
+    "unsaved": "Есть несохранённые изменения",
+    "reviewChanges": "Просмотр изменений",
+    "createHint": "Измените манифест и создайте объект",
+    "createTitle": "Создать объект в кластере (Ctrl+S)",
+    "creating": "Создание…",
+    "backToEditing": "К редактированию",
+    "applying": "Применение…",
+    "reloadTitle": "Перечитать манифест из кластера",
+    "reload": "Перечитать",
+    "readOnly": "Только чтение",
+    "readOnlyTitle": "Для изменения ресурсов нужны права администратора",
+    "reviewSaveTitle": "Посмотреть изменения и применить (Ctrl+S)",
+    "reviewSave": "Просмотр и сохранение",
+    "discardConfirm": "Отбросить несохранённые изменения и перечитать YAML из кластера?",
+    "reloadError": "Не удалось перечитать YAML: {message}"
+  }
+}

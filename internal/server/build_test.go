@@ -12,14 +12,14 @@ import (
 func TestCheckWebBuild(t *testing.T) {
 	web := fstest.MapFS{"index.html": {Data: []byte(`<head><meta name="kubron-target" content="web"></head>`)}}
 	if err := CheckWebBuild(web); err != nil {
-		t.Errorf("веб-сборка отвергнута: %v", err)
+		t.Errorf("web build rejected: %v", err)
 	}
 	desktop := fstest.MapFS{"index.html": {Data: []byte(`<head><title>Kubron</title></head>`)}}
 	err := CheckWebBuild(desktop)
 	if err == nil || !strings.Contains(err.Error(), "build:web") {
-		t.Errorf("десктопная сборка должна отвергаться с подсказкой: %v", err)
+		t.Errorf("a desktop build must be rejected with a hint: %v", err)
 	}
 	if err := CheckWebBuild(fstest.MapFS{}); err != nil {
-		t.Errorf("пустой dist — не ошибка (будет 503): %v", err)
+		t.Errorf("an empty dist is not an error (503 will be served): %v", err)
 	}
 }

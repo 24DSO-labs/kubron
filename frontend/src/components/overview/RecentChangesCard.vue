@@ -3,10 +3,10 @@
 <template>
   <section class="ov-card rc">
     <header class="head">
-      <h2 class="ov-card-title">What changed</h2>
+      <h2 class="ov-card-title">{{ $t('overview.changes.title') }}</h2>
       <div class="tabs" role="tablist">
         <button v-for="w in WINDOWS" :key="w.min" type="button" role="tab" :aria-selected="windowMinutes === w.min"
-          :class="{ on: windowMinutes === w.min }" @click="emit('update:windowMinutes', w.min)">{{ w.label }}</button>
+          :class="{ on: windowMinutes === w.min }" @click="emit('update:windowMinutes', w.min)">{{ $t(`overview.changes.window${w.min}`) }}</button>
       </div>
     </header>
 
@@ -20,8 +20,8 @@
         </button>
       </li>
     </ul>
-    <p v-else-if="changes" class="none">Nothing changed in this period</p>
-    <p v-else class="none">Loading…</p>
+    <p v-else-if="changes" class="none">{{ $t('overview.changes.empty') }}</p>
+    <p v-else class="none">{{ $t('common.loading') }}</p>
   </section>
 </template>
 
@@ -33,7 +33,7 @@ import type { ChangeEvent } from '../../types/insights'
 defineProps<{ changes: ChangeEvent[] | null; windowMinutes: number }>()
 const emit = defineEmits<{ (e: 'open', c: ChangeEvent): void; (e: 'update:windowMinutes', v: number): void }>()
 
-const WINDOWS = [{ min: 60, label: '1h' }, { min: 360, label: '6h' }, { min: 1440, label: '24h' }]
+const WINDOWS = [{ min: 60 }, { min: 360 }, { min: 1440 }]
 
 const now = ref(Date.now())
 let tick: ReturnType<typeof setInterval> | null = null

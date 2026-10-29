@@ -48,7 +48,7 @@ func (pfm *PortForwardManager) OpenArgoUI() (*ArgoUIInfo, error) {
 	insecure := argoServerInsecure(ctx, conn.Client, svc.Namespace)
 	port, ok := pickArgoPort(svc.Spec.Ports, insecure)
 	if !ok {
-		return nil, fmt.Errorf("у сервиса %s/%s нет портов", svc.Namespace, svc.Name)
+		return nil, fmt.Errorf("service %s/%s has no ports", svc.Namespace, svc.Name)
 	}
 	scheme := argoScheme(insecure)
 	info := func(local int, reused bool) *ArgoUIInfo {
@@ -58,12 +58,8 @@ func (pfm *PortForwardManager) OpenArgoUI() (*ArgoUIInfo, error) {
 		}
 	}
 
-	forwards := pfm.ListPortForwards()
-	for i := range forwards {
-		s := &forwards[i]
-		if s.Status == PortForwardActive && s.Namespace == svc.Namespace && s.Service == svc.Name && s.ServicePort == int(port.Port) {
-			return info(s.LocalPort, true), nil
-		}
+	if s := findArgoForward(pfm.ListPortForwards(), conn.Name, svc.Namespace, svc.Name, int(port.Port)); s != nil {
+		return info(s.LocalPort, true), nil
 	}
 	local, err := freeLocalPort()
 	if err != nil {
@@ -76,6 +72,20 @@ func (pfm *PortForwardManager) OpenArgoUI() (*ArgoUIInfo, error) {
 	return info(sess.LocalPort, false), nil
 }
 
+// findArgoForward возвращает активную сессию проброса на argocd-server именно этого кластера.
+// У разных кластеров совпадают namespace, имя сервиса и порт (argocd/argocd-server:443), поэтому
+// без сравнения clusterID после переключения кластера вернулся бы туннель в предыдущий.
+func findArgoForward(forwards []PortForwardSession, clusterID, namespace, service string, servicePort int) *PortForwardSession {
+	for i := range forwards {
+		s := &forwards[i]
+		if s.Status == PortForwardActive && s.ClusterID == clusterID &&
+			s.Namespace == namespace && s.Service == service && s.ServicePort == servicePort {
+			return s
+		}
+	}
+	return nil
+}
+
 // findArgoServerService ищет Service argocd-server по лейблу; при нескольких предпочитает namespace argocd.
 func findArgoServerService(ctx context.Context, client kubernetes.Interface) (*corev1.Service, error) {
 	list, err := client.CoreV1().Services("").List(ctx, metav1.ListOptions{LabelSelector: argoServerSelector})
@@ -83,11 +93,11 @@ func findArgoServerService(ctx context.Context, client kubernetes.Interface) (*c
 		// нет прав на все namespace: пробуем стандартный
 		list, err = client.CoreV1().Services(argoDefaultNS).List(ctx, metav1.ListOptions{LabelSelector: argoServerSelector})
 		if err != nil {
-			return nil, fmt.Errorf("поиск сервиса argocd-server: %w", err)
+			return nil, fmt.Errorf("failed to look up argocd-server service: %w", err)
 		}
 	}
 	if len(list.Items) == 0 {
-		return nil, errors.New("сервис argocd-server не найден (лейбл app.kubernetes.io/name=argocd-server)")
+		return nil, errors.New("argocd-server service not found (label app.kubernetes.io/name=argocd-server)")
 	}
 	items := list.Items
 	sort.Slice(items, func(i, j int) bool {
@@ -142,7 +152,7 @@ func pickArgoPort(ports []corev1.ServicePort, insecure bool) (corev1.ServicePort
 func freeLocalPort() (int, error) {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		return 0, fmt.Errorf("нет свободного локального порта: %w", err)
+		return 0, fmt.Errorf("no free local port: %w", err)
 	}
 	defer l.Close()
 	return l.Addr().(*net.TCPAddr).Port, nil

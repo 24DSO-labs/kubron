@@ -2,14 +2,11 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="hu">
-    <div v-if="!allowed" class="rd-empty">Изменение values требует права на запись</div>
+    <div v-if="!allowed" class="rd-empty">{{ $t('helm.upgrade.noWritePerm') }}</div>
     <div v-else-if="error && !loaded" class="rd-empty">{{ error }}</div>
-    <div v-else-if="!loaded" class="rd-empty">Loading…</div>
+    <div v-else-if="!loaded" class="rd-empty">{{ $t('common.loading') }}</div>
     <template v-else>
-      <p class="rd-muted hu-hint">
-        Меняются только values, версия чарта остаётся прежней. Слева текущие user-values, справа редактируемые.
-        Удалённый ключ возвращается к значению по умолчанию из чарта.
-      </p>
+      <p class="rd-muted hu-hint">{{ $t('helm.upgrade.upgradeHint') }}</p>
 
       <MonacoDiff
         v-show="step === 'edit'"
@@ -18,26 +15,25 @@
         editable
       />
       <template v-if="step === 'preview'">
-        <div class="rd-muted hu-hint">Изменения манифеста (значения Secret скрыты)</div>
+        <div class="rd-muted hu-hint">{{ $t('helm.upgrade.manifestChanges') }}</div>
         <MonacoDiff :original="manifestOld" :modified="manifestNew" />
       </template>
 
       <div v-if="stale" class="hu-stale">
-        Релиз изменился: сейчас ревизия {{ props.resource?.revision }}, а ваши правки сделаны на ревизии {{ baseRevision }}.
-        Применение перезапишет чужие изменения values.
-        <button type="button" class="rd-btn" :disabled="busy" @click="load">Загрузить актуальные values (правки будут потеряны)</button>
+        {{ $t('helm.upgrade.stale', { rev: props.resource?.revision, base: baseRevision }) }}
+        <button type="button" class="rd-btn" :disabled="busy" @click="load">{{ $t('helm.upgrade.reloadValues') }}</button>
       </div>
 
       <p v-if="error" class="hu-error">{{ error }}</p>
 
       <div class="hu-actions">
         <template v-if="step === 'edit'">
-          <button class="rd-btn" :disabled="!dirty || busy" @click="preview">{{ busy ? 'Считаю…' : 'Preview changes' }}</button>
-          <button class="rd-btn" :disabled="!dirty || busy" @click="edited = original">Reset</button>
+          <button class="rd-btn" :disabled="!dirty || busy" @click="preview">{{ busy ? $t('helm.upgrade.applying') : $t('helm.upgrade.previewBtn') }}</button>
+          <button class="rd-btn" :disabled="!dirty || busy" @click="edited = original">{{ $t('helm.upgrade.reset') }}</button>
         </template>
         <template v-else>
-          <button class="rd-btn" :disabled="busy" @click="step = 'edit'">Back</button>
-          <button class="rd-btn hu-apply" :disabled="busy" @click="apply">{{ busy ? 'Применяю…' : 'Apply upgrade' }}</button>
+          <button class="rd-btn" :disabled="busy" @click="step = 'edit'">{{ $t('helm.upgrade.back') }}</button>
+          <button class="rd-btn hu-apply" :disabled="busy" @click="apply">{{ busy ? $t('helm.upgrade.applying') : $t('helm.upgrade.applyBtn') }}</button>
         </template>
       </div>
     </template>
@@ -46,15 +42,19 @@
 
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import MonacoDiff from '../MonacoDiff.vue'
 import { callApp } from '../../../resources/wails'
+import { runHelmOp } from '../../../composables/useHelmOps'
 import { askConfirm } from '../../../resources/confirm'
 import { reloadActive } from '../../../resources/store'
 import { itemName, itemNs } from '../../../resources/utils'
 import { can } from '../../../composables/useAuth'
 import { useNotifications } from '../../../composables/useNotifications'
 import { Perm } from '../../../types/auth'
+import { errorText } from '../../../composables/errorText'
 
+const { t } = useI18n()
 const props = defineProps<{ resource: any }>()
 const notifications = useNotifications()
 
@@ -91,7 +91,7 @@ async function load() {
     baseRevision.value = props.resource?.revision
     loaded.value = true
   } catch (e: any) {
-    if (my === seq) error.value = e?.message || String(e)
+    if (my === seq) error.value = errorText(e)
   }
 }
 // Релиз сменился или появилась новая ревизия: перечитываем исходные values
@@ -112,25 +112,26 @@ async function preview() {
     manifestNew.value = p.newManifest
     step.value = 'preview'
   } catch (e: any) {
-    error.value = e?.message || String(e)
+    error.value = errorText(e)
   } finally {
     busy.value = false
   }
 }
 
 async function apply() {
-  if (!(await askConfirm(`Upgrade ${name.value} with the edited values? A new revision will be created.`))) return
+  if (!(await askConfirm(t('helm.upgrade.confirmUpgrade', { name: name.value })))) return
   busy.value = true
   error.value = ''
   try {
-    const rev = await callApp('UpgradeHelmRelease', ns.value, name.value, edited.value)
-    notifications.notifySuccess(`${name.value}: upgraded, revision #${rev}`)
+    const rev = await runHelmOp({ op: 'upgrade', namespace: ns.value, release: name.value, cancelable: true }, id =>
+      callApp('UpgradeHelmRelease', ns.value, name.value, edited.value, id))
+    notifications.notifySuccess(t('helm.upgrade.upgraded', { name: name.value, rev }))
     await reloadActive()
     await load()
     baseRevision.value = rev // собственная ревизия не считается чужим изменением
     stale.value = false
   } catch (e: any) {
-    error.value = e?.message || String(e)
+    error.value = errorText(e)
   } finally {
     busy.value = false
   }

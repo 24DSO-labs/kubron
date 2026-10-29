@@ -8,12 +8,12 @@ import "testing"
 func TestAdminHasEverything(t *testing.T) {
 	for _, p := range allPermissions {
 		if !RoleAdmin.Has(p) {
-			t.Errorf("admin должен иметь %q", p)
+			t.Errorf("admin must have %q", p)
 		}
 	}
 	// в том числе права, которых пока нет
 	if !RoleAdmin.Has(Permission("future.permission")) {
-		t.Error("admin должен проходить любую проверку, в том числе для будущих прав")
+		t.Error("admin must pass any check, including for future permissions")
 	}
 }
 
@@ -21,7 +21,7 @@ func TestUserIsReadOnly(t *testing.T) {
 	allowed := map[Permission]bool{PermRead: true, PermSecretsRead: true}
 	for _, p := range allPermissions {
 		if got := RoleUser.Has(p); got != allowed[p] {
-			t.Errorf("user.Has(%q) = %v, ожидалось %v", p, got, allowed[p])
+			t.Errorf("user.Has(%q) = %v, expected %v", p, got, allowed[p])
 		}
 	}
 }
@@ -30,13 +30,13 @@ func TestOperatorCanOperateButNotDestroy(t *testing.T) {
 	allowed := map[Permission]bool{PermRead: true, PermSecretsRead: true, PermOperate: true}
 	for _, p := range allPermissions {
 		if got := RoleOperator.Has(p); got != allowed[p] {
-			t.Errorf("operator.Has(%q) = %v, ожидалось %v", p, got, allowed[p])
+			t.Errorf("operator.Has(%q) = %v, expected %v", p, got, allowed[p])
 		}
 	}
 	// оператор не слабее пользователя: всё, что видит user, видит и operator
 	for _, p := range RoleUser.Permissions() {
 		if !RoleOperator.Has(p) {
-			t.Errorf("оператор лишён права %q, которое есть у пользователя", p)
+			t.Errorf("the operator lacks permission %q that the user has", p)
 		}
 	}
 }
@@ -44,26 +44,26 @@ func TestOperatorCanOperateButNotDestroy(t *testing.T) {
 func TestUnknownRoleHasNothing(t *testing.T) {
 	r := Role("hacker")
 	if r.Valid() {
-		t.Fatal("неизвестная роль не должна быть валидной")
+		t.Fatal("an unknown role must not be valid")
 	}
 	for _, p := range allPermissions {
 		if r.Has(p) {
-			t.Errorf("неизвестная роль получила право %q", p)
+			t.Errorf("an unknown role got permission %q", p)
 		}
 	}
 	if len(r.Permissions()) != 0 {
-		t.Error("у неизвестной роли не должно быть прав")
+		t.Error("an unknown role must have no permissions")
 	}
 }
 
 func TestRolesListMatchesTable(t *testing.T) {
 	list := Roles()
 	if len(list) != len(roles) {
-		t.Fatalf("Roles() вернула %d ролей, в таблице %d: забыли добавить роль в roleOrder?", len(list), len(roles))
+		t.Fatalf("Roles() returned %d roles, the table has %d: was a role forgotten in roleOrder?", len(list), len(roles))
 	}
 	for _, ri := range list {
 		if !ri.ID.Valid() || ri.Label == "" {
-			t.Errorf("некорректное описание роли: %+v", ri)
+			t.Errorf("invalid role description: %+v", ri)
 		}
 	}
 }
@@ -72,7 +72,7 @@ func TestRolePermissionsAreKnown(t *testing.T) {
 	for id, d := range roles {
 		for _, p := range d.permissions {
 			if !KnownPermission(p) {
-				t.Errorf("роль %s содержит неизвестное право %q", id, p)
+				t.Errorf("role %s contains unknown permission %q", id, p)
 			}
 		}
 	}

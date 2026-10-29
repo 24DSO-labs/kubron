@@ -17,6 +17,7 @@ import PodVolumesSection from '../../components/resource/sections/PodVolumesSect
 import ContainersTab from '../../components/resource/sections/ContainersTab.vue'
 import TolerationsSection from '../../components/resource/sections/TolerationsSection.vue'
 import ConditionsSection from '../../components/resource/sections/ConditionsSection.vue'
+import { t } from '../../i18n'
 
 const k8s = useK8s()
 
@@ -62,38 +63,38 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
     podMemoryCol,
     {
       key: 'containers',
-      label: 'CONTAINERS',
+      label: 'defs.columns.containers',
       component: PodContainersCell,
     },
     {
       key: 'status',
-      label: 'STATUS',
+      label: 'common.status',
       className: 'status-label',
       formatter: podStatus,
       colorFn: p => statusColor(podStatus(p)),
     },
-    { key: 'restarts', label: 'RESTARTS', sortValue: (p: any) => Number.parseInt(p.restarts, 10) },
+    { key: 'restarts', label: 'defs.columns.restarts', sortValue: (p: any) => Number.parseInt(p.restarts, 10) },
     ageCol,
-    { key: 'node', label: 'NODE', link: (p: any) => p.node ? { id: 'node', ns: '', name: p.node } : null },
+    { key: 'node', label: 'defs.columns.node', link: (p: any) => p.node ? { id: 'node', ns: '', name: p.node } : null },
     {
       key: 'controlledBy',
-      label: 'Controller',
+      label: 'defs.columns.controller',
       className: 'ns-label',
       formatter: (p: any) => p.controlledBy?.split('/')[0] || '—',
       link: controlledByLink,
     },
-    { key: 'qos', label: 'QOS' },
+    { key: 'qos', label: 'defs.columns.qos' },
   ],
 
   headSections: [PodMetricsSection],
   properties: [
-    { label: 'Status', value: p => podStatus(p), badge: p => badgeClass(podStatus(p)) },
-    { label: 'Ready', value: p => p.ready },
-    { label: 'Restarts', value: p => p.restarts },
-    { label: 'Node', value: p => p.node, link: p => p.node ? { id: 'node', ns: '', name: p.node } : null },
-    { label: 'IP', value: p => p.ip },
+    { label: 'common.status', value: p => podStatus(p), badge: p => badgeClass(podStatus(p)) },
+    { label: 'defs.columns.ready', value: p => p.ready },
+    { label: 'defs.columns.restarts', value: p => p.restarts },
+    { label: 'defs.columns.node', value: p => p.node, link: p => p.node ? { id: 'node', ns: '', name: p.node } : null },
+    { label: 'defs.props.ip', value: p => p.ip },
     {
-      label: 'Controlled By',
+      label: 'defs.props.controlledBy',
       value: p => {
         const cb = p.controlledBy
         if (!cb) return null
@@ -109,44 +110,44 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
       },
       link: controlledByLink,
     },
-    { label: 'Service Account', value: p => p.serviceAccount, link: p => p.serviceAccount ? { id: 'serviceaccount', ns: p.namespace, name: p.serviceAccount } : null },
-    { label: 'QoS', value: p => p.qos },
+    { label: 'defs.props.serviceAccount', value: p => p.serviceAccount, link: p => p.serviceAccount ? { id: 'serviceaccount', ns: p.namespace, name: p.serviceAccount } : null },
+    { label: 'defs.columns.qos', value: p => p.qos },
     managedByProp,
   ],
   sections: [PodVolumesSection, TolerationsSection, ConditionsSection],
   tabs: [
-    { id: 'containers', label: 'Containers', component: ContainersTab },
+    { id: 'containers', label: 'defs.tabs.containers', component: ContainersTab },
   ],
 
   actions: [
     {
       id: 'attach',
       permission: Perm.Exec,
-      label: 'Attach',
+      label: 'defs.menu.attach',
       icon: 'attach',
       perContainer: true,
       run: (p, ctx, container) => {
         const c = container ?? containersOf(p)[0]?.name
-        if (!c) return ctx.notifyError('No containers available')
+        if (!c) return ctx.notifyError(t('defs.pod.noContainers'))
         return ctx.openAttach(p.namespace, p.name, c)
       },
     },
     {
       id: 'shell',
       permission: Perm.Exec,
-      label: 'Shell',
+      label: 'defs.menu.shell',
       icon: 'terminal',
       perContainer: true,
       run: (p, ctx, container) => {
         const c = container ?? containersOf(p)[0]?.name
-        if (!c) return ctx.notifyError('No containers available')
+        if (!c) return ctx.notifyError(t('defs.pod.noContainers'))
         return ctx.openShell(p.namespace, p.name, c)
       },
     },
     {
       id: 'logs',
       permission: Perm.Read,
-      label: 'Logs',
+      label: 'defs.menu.logs',
       icon: 'logs',
       perContainer: true,
       run: (p, ctx, container) => {
@@ -156,14 +157,14 @@ export const pod = defineResource<models.PodInfo, models.PodDetail>({
     },
     {
       id: 'evict',
-      label: 'Evict',
+      label: 'defs.menu.evict',
       icon: 'evict',
       danger: true,
       run: async (p, ctx) => {
-        if (!(await ctx.confirm(`Evict pod ${p.name}?`))) return
+        if (!(await ctx.confirm(t('defs.pod.evictConfirm', { name: p.name })))) return
         return ctx.perform(
           () => callApp('EvictPod', p.namespace, p.name),
-          `Pod ${p.name} evicted`,
+          t('defs.pod.evicted', { name: p.name }),
         )
       },
     },

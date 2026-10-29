@@ -86,6 +86,39 @@ type Manager struct {
 	notifyMu sync.RWMutex
 	notifier func(event string, data ...any)
 	logs     logStreams
+	limits   Limits // лимиты ресурсов вида; наследуются видами сессий
+}
+
+// Limits — ограничения на ресурсы одного вида (пользователя). 0 — без ограничения.
+type Limits struct {
+	Terminals    int
+	LogStreams   int
+	PortForwards int
+}
+
+// DefaultLimits — значения для сервера: 8 терминалов, 20 потоков логов, 10 port-forward на пользователя.
+func DefaultLimits() Limits { return Limits{Terminals: 8, LogStreams: 20, PortForwards: 10} }
+
+// SetLimits задаёт лимиты; виды, созданные ForSession после вызова, их наследуют.
+func (m *Manager) SetLimits(l Limits) {
+	m.viewMu.Lock()
+	m.limits = l
+	m.viewMu.Unlock()
+}
+
+// SetIdleTTL задаёт, через сколько после ухода последнего вида останавливаются informers кластера
+// (0 — сразу). Относится к общему пулу.
+func (m *Manager) SetIdleTTL(d time.Duration) {
+	m.pool.mu.Lock()
+	m.pool.idleTTL = d
+	m.pool.mu.Unlock()
+}
+
+// Limits возвращает действующие лимиты вида.
+func (m *Manager) Limits() Limits {
+	m.viewMu.RLock()
+	defer m.viewMu.RUnlock()
+	return m.limits
 }
 
 // SetNotifier задаёт функцию, которой бэкенд сообщает фронтенду о событиях (Wails EventsEmit).
@@ -93,6 +126,14 @@ func (m *Manager) SetNotifier(f func(event string, data ...any)) {
 	m.notifyMu.Lock()
 	m.notifier = f
 	m.notifyMu.Unlock()
+}
+
+// emitCluster сообщает об изменении данных кластера всем видам, у которых он активен:
+// кеши informers общие, а получатели — свои у каждой сессии.
+func (m *Manager) emitCluster(event, clusterName string) {
+	for _, h := range m.pool.holdersOf(clusterName) {
+		h.emit(event, clusterName)
+	}
 }
 
 func (m *Manager) emit(event string, data ...any) {
@@ -112,12 +153,12 @@ func (m *Manager) activateLocked(clusterID string) error {
 	if prev == clusterID {
 		return nil
 	}
-	if err := m.pool.acquire(clusterID); err != nil {
+	if err := m.pool.acquire(clusterID, m); err != nil {
 		return err
 	}
 	m.activeCtx = clusterID
 	if prev != "" {
-		m.pool.release(prev)
+		m.pool.release(prev, m)
 	}
 	return nil
 }
@@ -126,6 +167,7 @@ func NewManager() *Manager {
 	return &Manager{
 		pool:             newConnPool(),
 		terminalSessions: NewTerminalSessionManager(),
+		limits:           Limits{LogStreams: logMaxStreams}, // десктоп: прежний предел логов
 	}
 }
 
@@ -135,6 +177,7 @@ func (m *Manager) ForSession() *Manager {
 	return &Manager{
 		pool:             m.pool,
 		terminalSessions: NewTerminalSessionManager(),
+		limits:           m.Limits(),
 	}
 }
 
@@ -144,7 +187,7 @@ func (m *Manager) Detach() {
 	m.viewMu.Lock()
 	defer m.viewMu.Unlock()
 	if m.activeCtx != "" {
-		m.pool.release(m.activeCtx)
+		m.pool.release(m.activeCtx, m)
 		m.activeCtx = ""
 	}
 }
@@ -184,7 +227,7 @@ func (m *Manager) LoadContexts() ([]ContextInfo, error) {
 	path := GetKubeconfigPath()
 	config, err := clientcmd.LoadFromFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("не удалось загрузить kubeconfig: %w", err)
+		return nil, fmt.Errorf("failed to load kubeconfig: %w", err)
 	}
 
 	m.viewMu.Lock()
@@ -208,16 +251,16 @@ func (m *Manager) LoadContexts() ([]ContextInfo, error) {
 func buildConnection(name string, config *rest.Config) (*ClusterConnection, error) {
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка создания клиента: %w", err)
+		return nil, fmt.Errorf("failed to create client: %w", err)
 	}
 	dynClient, err := dynamic.NewForConfig(config)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка создания dynamic клиента: %w", err)
+		return nil, fmt.Errorf("failed to create dynamic client: %w", err)
 	}
 
 	discClient, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка создания discovery клиента: %w", err)
+		return nil, fmt.Errorf("failed to create discovery client: %w", err)
 	}
 
 	return &ClusterConnection{
@@ -248,7 +291,7 @@ func (m *Manager) GetActiveConnection() (*ClusterConnection, error) {
 	m.viewMu.RUnlock()
 	conn, exists := m.pool.get(id)
 	if !exists {
-		return nil, fmt.Errorf("нет активного подключения")
+		return nil, fmt.Errorf("no active connection")
 	}
 	return conn, nil
 }
@@ -283,15 +326,13 @@ func (m *Manager) ConnectToCluster(clusterID string) error {
 }
 
 // buildClusterConnection создаёт подключение по сохранённому kubeconfig кластера.
+// Файловое хранилище отдаёт путь: client-go читает kubeconfig по пути, и относительные пути
+// внутри него резолвятся от каталога файла. Хранилища без файлов отдают байты — конфиг
+// строится в памяти (clientcmd.Load), файл на диске не создаётся.
 func buildClusterConnection(clusterID string) (*ClusterConnection, error) {
-	kcPath := GetClusterKubeconfigPath(clusterID)
-	if kcPath == "" {
-		return nil, fmt.Errorf("kubeconfig не найден для кластера %s", clusterID)
-	}
-
 	meta, err := LoadClusterMeta(clusterID)
 	if err != nil {
-		return nil, fmt.Errorf("метаданные кластера не найдены: %w", err)
+		return nil, fmt.Errorf("cluster metadata not found: %w", err)
 	}
 
 	overrides := &clientcmd.ConfigOverrides{}
@@ -299,12 +340,25 @@ func buildClusterConnection(clusterID string) (*ClusterConnection, error) {
 		overrides.CurrentContext = meta.ContextName
 	}
 
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kcPath},
-		overrides,
-	).ClientConfig()
+	var config *rest.Config
+	if kcPath := GetClusterKubeconfigPath(clusterID); kcPath != "" {
+		config, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+			&clientcmd.ClientConfigLoadingRules{ExplicitPath: kcPath},
+			overrides,
+		).ClientConfig()
+	} else {
+		var data []byte
+		if data, err = clusterStore.Kubeconfig(clusterID); err != nil {
+			return nil, fmt.Errorf("kubeconfig not found for cluster %s", clusterID)
+		}
+		var cfg *api.Config
+		if cfg, err = clientcmd.Load(data); err != nil {
+			return nil, fmt.Errorf("failed to parse kubeconfig: %w", err)
+		}
+		config, err = clientcmd.NewNonInteractiveClientConfig(*cfg, meta.ContextName, overrides, nil).ClientConfig()
+	}
 	if err != nil {
-		return nil, fmt.Errorf("ошибка конфигурации: %w", err)
+		return nil, fmt.Errorf("configuration error: %w", err)
 	}
 
 	config.QPS = 50

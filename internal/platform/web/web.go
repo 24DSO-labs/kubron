@@ -8,18 +8,19 @@ import (
 	"errors"
 	"sync"
 
-	"analog/internal/termbuf"
-	"analog/pkg/ext"
+	"github.com/VadimIl224/kubron/internal/termbuf"
+	"github.com/VadimIl224/kubron/pkg/ext"
 )
 
 // ErrNotSupported — операция есть только в десктопе.
-var ErrNotSupported = errors.New("недоступно в веб-режиме")
+var ErrNotSupported = errors.New("unavailable in web mode")
 
 // Platform: события уходят подписчикам через эмиттер (WebSocket-хаб, задача 1.5);
 // пока эмиттер не задан, события отбрасываются.
 type Platform struct {
-	mu   sync.RWMutex
-	emit func(event string, data ...any)
+	mu     sync.RWMutex
+	emit   func(event string, data ...any)
+	emitTo func(session, event string, data ...any)
 
 	termOnce  sync.Once
 	terminals *termbuf.Registry
@@ -37,6 +38,25 @@ func (p *Platform) SetEmitter(f func(event string, data ...any)) {
 	p.mu.Lock()
 	p.emit = f
 	p.mu.Unlock()
+}
+
+// SetSessionEmitter подключает адресную доставку событий одной веб-сессии.
+func (p *Platform) SetSessionEmitter(f func(session, event string, data ...any)) {
+	p.mu.Lock()
+	p.emitTo = f
+	p.mu.Unlock()
+}
+
+// EmitTo доставляет событие только указанной сессии (без адресной доставки — всем).
+func (p *Platform) EmitTo(session, event string, data ...any) {
+	p.mu.RLock()
+	f := p.emitTo
+	p.mu.RUnlock()
+	if f != nil {
+		f(session, event, data...)
+		return
+	}
+	p.Emit(event, data...)
 }
 
 func (p *Platform) Emit(event string, data ...any) {

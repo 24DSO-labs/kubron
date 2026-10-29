@@ -4,9 +4,11 @@
 package k8s
 
 import (
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 // newTestPoolManager создаёт Manager с пулом, в котором уже лежат кластеры ids, и счётчиком
@@ -49,17 +51,17 @@ func TestViewsHaveIndependentActiveCluster(t *testing.T) {
 	mustActivate(t, v2, "b")
 
 	if got := activeName(t, v1); got != "a" {
-		t.Errorf("v1 активен %q, ждали a", got)
+		t.Errorf("v1 active is %q, expected a", got)
 	}
 	if got := activeName(t, v2); got != "b" {
-		t.Errorf("v2 активен %q, ждали b", got)
+		t.Errorf("v2 active is %q, expected b", got)
 	}
 	if v1.terminalSessions == v2.terminalSessions || v1.terminalSessions == root.terminalSessions {
-		t.Error("терминалы должны быть у каждого вида свои")
+		t.Error("each view must have its own terminals")
 	}
 	for id, n := range closes {
 		if n.Load() != 0 {
-			t.Errorf("кластер %s закрыт без причины", id)
+			t.Errorf("cluster %s was closed for no reason", id)
 		}
 	}
 }
@@ -73,14 +75,14 @@ func TestSharedClusterStaysOpenUntilLastViewLeaves(t *testing.T) {
 
 	mustActivate(t, v1, "b") // v2 ещё на a: informers a не трогаем
 	if n := closes["a"].Load(); n != 0 {
-		t.Fatalf("a закрыт при уходе одного из двух видов (closes=%d)", n)
+		t.Fatalf("a was closed when one of two views left (closes=%d)", n)
 	}
 	mustActivate(t, v2, "b") // последний вид ушёл с a
 	if n := closes["a"].Load(); n != 1 {
-		t.Fatalf("a должен закрыться ровно один раз, closes=%d", n)
+		t.Fatalf("a must be closed exactly once, closes=%d", n)
 	}
 	if !root.pool.has("a") {
-		t.Error("подключение a должно остаться в пуле для повторного использования")
+		t.Error("connection a must stay in the pool for reuse")
 	}
 }
 
@@ -92,14 +94,14 @@ func TestDetachReleasesOnlyOwnReference(t *testing.T) {
 
 	v1.Detach()
 	if closes["a"].Load() != 0 {
-		t.Fatal("Detach одного вида закрыл кластер, который держит другой")
+		t.Fatal("Detach of one view closed a cluster held by another")
 	}
 	if activeName(t, v2) != "a" {
-		t.Fatal("v2 потерял активный кластер")
+		t.Fatal("v2 lost its active cluster")
 	}
 	v2.Detach()
 	if closes["a"].Load() != 1 {
-		t.Fatal("после выхода всех видов кластер должен закрыться")
+		t.Fatal("the cluster must be closed after all views leave")
 	}
 }
 
@@ -110,10 +112,10 @@ func TestRemoveConnectionAffectsEveryView(t *testing.T) {
 	mustActivate(t, v2, "a")
 
 	if !v1.RemoveConnection("a") {
-		t.Error("для вида-инициатора wasActive должно быть true")
+		t.Error("wasActive must be true for the initiating view")
 	}
 	if _, err := v2.GetActiveConnection(); err == nil {
-		t.Error("у второго вида подключение должно пропасть (ошибка «нет активного подключения»)")
+		t.Error("the second view must lose its connection (\"no active connection\" error)")
 	}
 }
 
@@ -126,10 +128,10 @@ func TestActivateUnknownClusterKeepsPreviousActive(t *testing.T) {
 	err := v.activateLocked("missing")
 	v.viewMu.Unlock()
 	if err == nil {
-		t.Fatal("ожидали ошибку для неподключённого кластера")
+		t.Fatal("expected an error for a cluster that is not connected")
 	}
 	if activeName(t, v) != "a" {
-		t.Error("неудачная активация не должна сбрасывать прежний кластер")
+		t.Error("a failed activation must not reset the previous cluster")
 	}
 }
 
@@ -151,7 +153,7 @@ func TestGetOrCreateBuildsOnce(t *testing.T) {
 	}
 	wg.Wait()
 	if builds.Load() != 1 {
-		t.Fatalf("подключение создано %d раз, ждали 1", builds.Load())
+		t.Fatalf("connection created %d times, expected 1", builds.Load())
 	}
 }
 
@@ -174,7 +176,7 @@ func TestManyViewsConcurrentSwitching(t *testing.T) {
 				_ = v.activateLocked(id)
 				v.viewMu.Unlock()
 				if _, err := v.GetActiveConnection(); err != nil {
-					t.Errorf("вид %d: %v", i, err)
+					t.Errorf("view %d: %v", i, err)
 					return
 				}
 			}
@@ -187,7 +189,134 @@ func TestManyViewsConcurrentSwitching(t *testing.T) {
 	defer root.pool.mu.Unlock()
 	for id, e := range root.pool.entries {
 		if e.refs != 0 {
-			t.Errorf("%s: refs=%d после выхода всех видов", id, e.refs)
+			t.Errorf("%s: refs=%d after all views left", id, e.refs)
 		}
+	}
+}
+
+func TestClusterEventsGoToEveryViewHoldingCluster(t *testing.T) {
+	root, _ := newTestPoolManager(t, "a", "b")
+	got := map[string][]string{}
+	var mu sync.Mutex
+	mk := func(name string) *Manager {
+		v := root.ForSession()
+		v.SetNotifier(func(ev string, data ...any) {
+			mu.Lock()
+			got[name] = append(got[name], ev)
+			mu.Unlock()
+		})
+		return v
+	}
+	v1, v2, v3 := mk("v1"), mk("v2"), mk("v3")
+	mustActivate(t, v1, "a")
+	mustActivate(t, v2, "a")
+	mustActivate(t, v3, "b")
+
+	// Событие инициирует любой вид, получают все, у кого кластер активен, и только они.
+	v1.emitCluster(EventClusterChanged, "a")
+	mu.Lock()
+	if len(got["v1"]) != 1 || len(got["v2"]) != 1 || len(got["v3"]) != 0 {
+		t.Errorf("receivers: %v", got)
+	}
+	mu.Unlock()
+
+	// После выхода вида из кластера события ему больше не идут.
+	v2.Detach()
+	v1.emitCluster(EventClusterChanged, "a")
+	mu.Lock()
+	defer mu.Unlock()
+	if len(got["v1"]) != 2 || len(got["v2"]) != 1 {
+		t.Errorf("after Detach: %v", got)
+	}
+}
+
+func TestSlowBuildDoesNotBlockOtherClusters(t *testing.T) {
+	p := newConnPool()
+	release := make(chan struct{})
+	started := make(chan struct{})
+	go func() {
+		_, _ = p.getOrCreate("slow", func() (*ClusterConnection, error) {
+			close(started)
+			<-release
+			return &ClusterConnection{Name: "slow"}, nil
+		})
+	}()
+	<-started
+	done := make(chan struct{})
+	go func() {
+		_, _ = p.getOrCreate("fast", func() (*ClusterConnection, error) { return &ClusterConnection{Name: "fast"}, nil })
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("building a slow cluster blocked another one")
+	}
+	close(release)
+}
+
+func TestSingleflightSharesErrorAndAllowsRetry(t *testing.T) {
+	p := newConnPool()
+	var builds atomic.Int32
+	gate := make(chan struct{})
+	var wg sync.WaitGroup
+	errs := make([]error, 10)
+	for i := range errs {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			_, errs[i] = p.getOrCreate("a", func() (*ClusterConnection, error) {
+				builds.Add(1)
+				<-gate
+				return nil, errors.New("oidc unavailable")
+			})
+		}(i)
+	}
+	time.Sleep(50 * time.Millisecond)
+	close(gate)
+	wg.Wait()
+	for _, err := range errs {
+		if err == nil {
+			t.Fatal("all waiters must receive the build error")
+		}
+	}
+	if builds.Load() > 3 { // допускаем запоздавших, но не лавину
+		t.Errorf("%d builds", builds.Load())
+	}
+	// Ошибка не кешируется: следующая попытка строит заново.
+	if _, err := p.getOrCreate("a", func() (*ClusterConnection, error) { return &ClusterConnection{Name: "a"}, nil }); err != nil {
+		t.Fatalf("retry after an error: %v", err)
+	}
+}
+
+func TestBuildPanicBecomesError(t *testing.T) {
+	p := newConnPool()
+	if _, err := p.getOrCreate("a", func() (*ClusterConnection, error) { panic("boom") }); err == nil {
+		t.Fatal("a build panic must become an error")
+	}
+	if len(p.flights) != 0 {
+		t.Error("an unfinished build stayed in the registry")
+	}
+}
+
+func TestIdleTTLDefersInformersShutdown(t *testing.T) {
+	root, closes := newTestPoolManager(t, "a")
+	root.SetIdleTTL(80 * time.Millisecond)
+	v := root.ForSession()
+	mustActivate(t, v, "a")
+	v.Detach()
+	if closes["a"].Load() != 0 {
+		t.Fatal("informers were stopped before the TTL expired")
+	}
+	// Возврат в пределах TTL отменяет остановку.
+	mustActivate(t, v, "a")
+	time.Sleep(200 * time.Millisecond)
+	if closes["a"].Load() != 0 {
+		t.Fatal("the cluster is active again, there must be no stop")
+	}
+	v.Detach()
+	time.Sleep(250 * time.Millisecond)
+	if closes["a"].Load() != 1 {
+		t.Fatalf("after the TTL exactly one stop was expected, got %d", closes["a"].Load())
 	}
 }

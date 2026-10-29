@@ -2,10 +2,10 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <template>
   <div class="ing">
-    <div class="ing-title">Rules</div>
+    <div class="ing-title">{{ $t('defs.columns.rules') }}</div>
     <div v-if="rows.length" class="rd-table-wrap">
       <table class="rd-table">
-        <thead><tr><th>Host</th><th>Path</th><th>Type</th><th>Backend</th></tr></thead>
+        <thead><tr><th>{{ $t('sections.shared.host') }}</th><th>{{ $t('sections.shared.path') }}</th><th>{{ $t('defs.columns.type') }}</th><th>{{ $t('sections.ingressRules.backend') }}</th></tr></thead>
         <tbody>
           <tr v-for="(r, i) in rows" :key="i">
             <td>{{ r.host }}</td>
@@ -21,13 +21,13 @@
         </tbody>
       </table>
     </div>
-    <div v-else class="rd-muted">No rules</div>
+    <div v-else class="rd-muted">{{ $t('sections.ingressRules.empty') }}</div>
 
     <template v-if="tls.length">
-      <div class="ing-title">TLS</div>
+      <div class="ing-title">{{ $t('defs.columns.tls') }}</div>
       <div class="rd-table-wrap">
         <table class="rd-table">
-          <thead><tr><th>Hosts</th><th>Secret</th></tr></thead>
+          <thead><tr><th>{{ $t('defs.columns.hosts') }}</th><th>{{ $t('sections.shared.secret') }}</th></tr></thead>
           <tbody>
             <tr v-for="(t, i) in tls" :key="i">
               <td>{{ (t.hosts ?? []).join(', ') || '—' }}</td>
@@ -46,6 +46,7 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
+import { t } from '../../../i18n'
 
 const props = defineProps<{ resource: any }>()
 const emit = defineEmits<{ (e: 'open', p: { id: string; ns: string; name: string }): void }>()
@@ -54,7 +55,7 @@ const tls = computed<any[]>(() => props.resource?.tlsEntries ?? [])
 const rows = computed<any[]>(() => {
   const list = [...(props.resource?.rules ?? [])]
   const d = props.resource?.defaultBackend
-  if (d) list.unshift({ host: 'default backend', path: '—', pathType: '', backend: d })
+  if (d) list.unshift({ host: t('sections.ingressRules.defaultBackend'), path: '—', pathType: '', backend: d })
   return list
 })
 const openService = (name: string) => emit('open', { id: 'service', ns: props.resource.namespace, name })

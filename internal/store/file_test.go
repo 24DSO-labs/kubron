@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"analog/internal/audit"
-	"analog/internal/auth"
+	"github.com/VadimIl224/kubron/internal/audit"
+	"github.com/VadimIl224/kubron/internal/auth"
 )
 
 // Файловое хранилище должно давать рабочие реализации всех интерфейсов.
@@ -23,7 +23,7 @@ func TestFileStoreBackendsWork(t *testing.T) {
 		t.Fatal(err)
 	}
 	if svc.Status().NeedsSetup != true {
-		t.Fatal("пустое хранилище должно требовать первичной настройки")
+		t.Fatal("an empty store must require initial setup")
 	}
 
 	// журнал: запись и выборка
@@ -31,14 +31,14 @@ func TestFileStoreBackendsWork(t *testing.T) {
 	l.Record(audit.Event{User: "u", Action: "Test", Result: audit.ResultOK})
 	page, err := l.Query(audit.Filter{})
 	if err != nil || len(page.Events) != 1 || page.Events[0].Action != "Test" {
-		t.Fatalf("журнал: %+v %v", page, err)
+		t.Fatalf("journal: %+v %v", page, err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "audit.log")); err != nil {
-		t.Fatalf("audit.log не создан: %v", err)
+		t.Fatalf("audit.log was not created: %v", err)
 	}
 
 	// токены Argo: хранилище не nil
 	if s.ArgoTokens() == nil {
-		t.Fatal("ArgoTokens() вернул nil")
+		t.Fatal("ArgoTokens() returned nil")
 	}
 }

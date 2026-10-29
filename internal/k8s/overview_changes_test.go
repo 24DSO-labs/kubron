@@ -44,6 +44,6 @@ func TestFinishChanges(t *testing.T) {
 		t.Errorf("len=%d first=%+v", len(got), got[0])
 	}
 	if finishChanges(nil) == nil {
-		t.Error("пустой результат должен быть [], а не null")
+		t.Error("an empty result must be [], not null")
 	}
 }
