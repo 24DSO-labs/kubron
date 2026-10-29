@@ -29,6 +29,7 @@ GitHub — основной репозиторий. GitLab (`origin`) — вто
    scripts/release.sh 0.2.0             # сам выпуск (--watch: дождаться релизного workflow)
    ```
 5. **Готово.** Через 10-20 минут релиз опубликован: `https://github.com/VadimIl224/kubron/releases`.
+   После выпуска `refactor` уже равна `master`: продолжайте работу с `git checkout refactor && git pull`.
 
 ## Что делает `scripts/release.sh`
 
@@ -37,7 +38,12 @@ GitHub — основной репозиторий. GitLab (`origin`) — вто
    в `wails.json` и `frontend/package*.json`; коммит `chore(release): vX.Y.Z`, push в `dev`.
 3. Создаёт pull request `dev` → `master`, ждёт зелёных проверок, сливает его (merge commit).
 4. Ставит аннотированный тег `vX.Y.Z` на `master` и отправляет его.
-5. Продвигает `dev` до `master`.
+5. Продвигает `dev` и рабочую ветку `refactor` до `master` (быстрая перемотка), чтобы в `refactor`
+   был релизный коммит и свёрнутый CHANGELOG. Другие ветки: `RELEASE_SYNC_BRANCHES="refactor feature-x"`,
+   отключить: `RELEASE_SYNC_BRANCHES=" "`. Если в ветке есть свои коммиты, она не трогается:
+   скрипт подскажет, что слить вручную (`git merge github/master`).
+   В этом случае возможен конфликт в `CHANGELOG.md`: оставьте в `[Unreleased]` только свои новые
+   строки, а то, что уже свёрнуто в `[X.Y.Z]`, возьмите из `master`.
 
 Если скрипт остановился (красная проверка, обрыв сети), исправьте причину (для проверок:
 коммит в `dev` и push) и запустите **ту же команду** снова: готовые шаги пропускаются.
