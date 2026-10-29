@@ -18,7 +18,6 @@ import type {
 export function useClusterConnection(deps: {
   clusters: Ref<ClusterStatus[]>
   activeClusterId: Ref<string>
-  error: Ref<string>
   namespaces: Ref<NamespaceInfo[]>
   currentView: Ref<string>
   connectToCluster: (id: string) => Promise<void>
@@ -35,7 +34,7 @@ export function useClusterConnection(deps: {
   autoConnect: () => Promise<boolean>
 }) {
   const {
-    clusters, activeClusterId, error,
+    clusters, activeClusterId,
     namespaces, currentView,
     connectToCluster, loadNamespaces, restoreNamespaces, refreshData,
     k8sDisconnect, loadClusters,

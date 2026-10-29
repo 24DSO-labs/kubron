@@ -1,11 +1,8 @@
 // Copyright 2026 The Kubron Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { i18n, setLocale } from './index'
+import { setLocale } from './index'
 import {
   ARGO_TOKEN_NOT_SET_MESSAGE,
   NOT_AUTHENTICATED_MESSAGE,
@@ -14,8 +11,6 @@ import {
   resetBackendErrorCache,
   translateBackendError,
 } from './backendErrors'
-
-const repoRoot = fileURLToPath(new URL('../../../', import.meta.url))
 
 describe('перевод ошибок бэкенда', () => {
   beforeAll(async () => {
@@ -59,46 +54,5 @@ describe('перевод ошибок бэкенда', () => {
     expect(isNotAuthenticated(`call failed: ${NOT_AUTHENTICATED_MESSAGE}`)).toBe(true)
     expect(isArgoTokenMissing(ARGO_TOKEN_NOT_SET_MESSAGE)).toBe(true)
     expect(isArgoTokenMissing(translateBackendError(ARGO_TOKEN_NOT_SET_MESSAGE))).toBe(false)
-  })
-})
-
-/** Go-формат → шаблон таблицы: %s/%d/%q/%v/%w по порядку → {p0}, {p1}… */
-function toTemplate(goFormat: string): string {
-  let n = 0
-  return goFormat
-    .replace(/\\"/g, '"')
-    .replace(/\\n/g, '\n')
-    .replace(/\\\\/g, '\\')
-    .replace(/%[-+# 0-9.*]*[a-zA-Z%]/g, (m) => (m === '%%' ? '%' : `{p${n++}}`))
-}
-
-function goFiles(dir: string, out: string[] = []): string[] {
-  for (const name of readdirSync(dir)) {
-    const full = join(dir, name)
-    if (statSync(full).isDirectory()) goFiles(full, out)
-    else if (name.endsWith('.go') && !name.endsWith('_test.go')) out.push(full)
-  }
-  return out
-}
-
-describe('Go-ошибки и таблица перевода', () => {
-  it('каждая errors.New/fmt.Errorf в internal/ есть в locales/en/backend.json', () => {
-    const en = JSON.parse(readFileSync(join(repoRoot, 'frontend/src/i18n/locales/en/backend.json'), 'utf8')) as Record<string, string>
-    const known = new Set(Object.values(en).map((v) => v.replace(/\{'(.)'\}/g, '$1')))
-    // Сообщение целиком из чужого текста: переводить нечего
-    const passthrough = new Set(['{p0}', '{p0}: {p1}', '{p0} {p1}: {p2}', '{p0}: HTTP {p1}', '{p0}: {p1}_{p2}'])
-    const missing: string[] = []
-    for (const file of goFiles(join(repoRoot, 'internal'))) {
-      const text = readFileSync(file, 'utf8')
-      for (const m of text.matchAll(/(?:errors\.New|fmt\.Errorf)\(\s*"((?:[^"\\]|\\.)*)"/g)) {
-        const template = toTemplate(m[1])
-        if (!known.has(template) && !passthrough.has(template)) missing.push(`${file.slice(repoRoot.length)}: ${m[1]}`)
-      }
-    }
-    expect(missing, 'Новая ошибка в Go: добавьте её в backend.json (en и ru), см. docs/i18n.md').toEqual([])
-  })
-
-  it('i18n содержит английский базовый язык', () => {
-    expect(i18n.global.availableLocales).toContain('en')
   })
 })

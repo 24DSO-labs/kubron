@@ -12,7 +12,9 @@
 import { createI18n } from 'vue-i18n'
 import { DEFAULT_LOCALE, LANGUAGES, isSupportedLocale, matchLocale } from './languages'
 
-type Messages = Record<string, unknown>
+// Структура сообщений проверяется скриптом i18n-check, а не типами TS: схема задаётся JSON-файлами
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Messages = Record<string, any>
 
 const STORAGE_KEY = 'kubron.locale'
 
@@ -46,12 +48,15 @@ const pluralRules = Object.fromEntries(
   LANGUAGES.filter((l) => l.pluralRule).map((l) => [l.code, l.pluralRule!]),
 )
 
+const initialMessages: Messages = { [DEFAULT_LOCALE]: mergeNamespaces(Object.entries(baseFiles)) }
+
 export const i18n = createI18n({
   legacy: false,
   globalInjection: true, // $t в шаблонах
-  locale: DEFAULT_LOCALE,
-  fallbackLocale: DEFAULT_LOCALE,
-  messages: { [DEFAULT_LOCALE]: mergeNamespaces(Object.entries(baseFiles)) },
+  // `as string`: иначе TS выводит литерал 'en' и сужает набор допустимых языков до одного
+  locale: DEFAULT_LOCALE as string,
+  fallbackLocale: DEFAULT_LOCALE as string,
+  messages: initialMessages,
   pluralRules,
   // Пропущенный ключ в dev — предупреждение в консоли; в продакшене тихо показываем английский.
   missingWarn: import.meta.env.DEV,

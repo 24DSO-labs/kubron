@@ -40,15 +40,17 @@ export const LANGUAGES: readonly LanguageDef[] = [
   { code: 'ru', name: 'Русский', pluralRule: russianPlural },
 ]
 
+const isKnown = (code: string) => LANGUAGES.some((l) => l.code === code)
+
 export function isSupportedLocale(code: string | null | undefined): code is string {
-  return !!code && LANGUAGES.some((l) => l.code === code)
+  return !!code && isKnown(code)
 }
 
 /** 'ru-RU' → 'ru', 'pt_BR' → 'pt'; неподдерживаемый язык → undefined */
 export function matchLocale(tag: string | null | undefined): string | undefined {
   if (!tag) return undefined
   const lower = tag.toLowerCase().replace('_', '-')
-  if (isSupportedLocale(lower)) return lower
+  if (isKnown(lower)) return lower
   const base = lower.split('-')[0]
-  return isSupportedLocale(base) ? base : undefined
+  return isKnown(base) ? base : undefined
 }
