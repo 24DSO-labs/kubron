@@ -28,7 +28,7 @@
           <tbody>
             <tr v-for="c in items" :key="c.repo + '/' + c.name" :class="{ sel: isSelected(c) }" tabindex="0"
               @click="select(c)" @keydown.enter="select(c)">
-              <td><strong>{{ c.name }}</strong><span v-if="c.deprecated" class="hc-dep">deprecated</span></td>
+              <td><strong>{{ c.name }}</strong><span v-if="c.deprecated" class="hc-dep">{{ $t('helm.catalog.deprecated') }}</span></td>
               <td>{{ c.repo }}</td>
               <td class="hc-mono">{{ c.version }}</td>
               <td class="hc-mono">{{ c.appVersion || $t('common.dash') }}</td>
@@ -46,7 +46,7 @@
             {{ $t('helm.catalog.version') }}
             <select v-model="version" class="form-input" :aria-label="$t('helm.catalog.version')">
               <option v-for="v in versions" :key="v.version" :value="v.version">
-                {{ v.version }}{{ v.appVersion ? ` (app ${v.appVersion})` : '' }}{{ v.deprecated ? ' · deprecated' : '' }}
+                {{ v.version }}{{ v.appVersion ? ` (app ${v.appVersion})` : '' }}{{ v.deprecated ? ` · ${$t('helm.catalog.deprecated')}` : '' }}
               </option>
             </select>
           </label>

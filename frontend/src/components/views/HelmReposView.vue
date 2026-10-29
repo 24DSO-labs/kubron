@@ -49,7 +49,7 @@
         <tr v-for="r in repos" :key="r.name">
           <td><strong>{{ r.name }}</strong></td>
           <td class="hr-mono" :title="r.url">
-            {{ r.url }}<span v-if="r.kind === 'oci'" class="hr-tag">oci</span><span v-if="r.username" class="hr-tag">auth</span><span v-if="r.insecureTLS" class="hr-tag warn">no-tls-verify</span>
+            {{ r.url }}<span v-if="r.kind === 'oci'" class="hr-tag">{{ $t('helm.repos.tagOci') }}</span><span v-if="r.username" class="hr-tag">{{ $t('helm.repos.tagAuth') }}</span><span v-if="r.insecureTLS" class="hr-tag warn">{{ $t('helm.repos.tagNoTls') }}</span>
             <div v-if="r.kind === 'oci'" class="hr-chips">
               <span v-for="c in r.chartNames" :key="c" class="hr-chip">
                 {{ c }}<button v-if="canManage" type="button" class="hr-chip-x" :title="$t('helm.repos.removeChartLabel', { c })" :disabled="!!busy" @click="removeChart(r.name, c)">✕</button>
