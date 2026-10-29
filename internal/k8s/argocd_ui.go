@@ -58,12 +58,8 @@ func (pfm *PortForwardManager) OpenArgoUI() (*ArgoUIInfo, error) {
 		}
 	}
 
-	forwards := pfm.ListPortForwards()
-	for i := range forwards {
-		s := &forwards[i]
-		if s.Status == PortForwardActive && s.Namespace == svc.Namespace && s.Service == svc.Name && s.ServicePort == int(port.Port) {
-			return info(s.LocalPort, true), nil
-		}
+	if s := findArgoForward(pfm.ListPortForwards(), conn.Name, svc.Namespace, svc.Name, int(port.Port)); s != nil {
+		return info(s.LocalPort, true), nil
 	}
 	local, err := freeLocalPort()
 	if err != nil {
@@ -74,6 +70,20 @@ func (pfm *PortForwardManager) OpenArgoUI() (*ArgoUIInfo, error) {
 		return nil, err
 	}
 	return info(sess.LocalPort, false), nil
+}
+
+// findArgoForward возвращает активную сессию проброса на argocd-server именно этого кластера.
+// У разных кластеров совпадают namespace, имя сервиса и порт (argocd/argocd-server:443), поэтому
+// без сравнения clusterID после переключения кластера вернулся бы туннель в предыдущий.
+func findArgoForward(forwards []PortForwardSession, clusterID, namespace, service string, servicePort int) *PortForwardSession {
+	for i := range forwards {
+		s := &forwards[i]
+		if s.Status == PortForwardActive && s.ClusterID == clusterID &&
+			s.Namespace == namespace && s.Service == service && s.ServicePort == servicePort {
+			return s
+		}
+	}
+	return nil
 }
 
 // findArgoServerService ищет Service argocd-server по лейблу; при нескольких предпочитает namespace argocd.

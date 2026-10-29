@@ -33,7 +33,10 @@ const portForwardReadyTimeout = 15 * time.Second
 
 // PortForwardSession — сессия проброса порта в под (напрямую или через сервис).
 type PortForwardSession struct {
-	ID        string `json:"id"`
+	ID string `json:"id"`
+	// ClusterID — кластер, в котором открыт туннель. Туннель построен на подключении
+	// этого кластера и после переключения активного кластера продолжает вести в него.
+	ClusterID string `json:"clusterId,omitempty"`
 	Namespace string `json:"namespace"`
 	Pod       string `json:"pod"`
 	Service   string `json:"service,omitempty"` // заполнено, если проброс запущен через сервис
@@ -58,6 +61,7 @@ func (s *PortForwardSession) stop() {
 func (s *PortForwardSession) snapshot() PortForwardSession {
 	return PortForwardSession{
 		ID:          s.ID,
+		ClusterID:   s.ClusterID,
 		Namespace:   s.Namespace,
 		Pod:         s.Pod,
 		Service:     s.Service,
@@ -199,6 +203,7 @@ func (pfm *PortForwardManager) start(id, namespace, pod, service string, service
 
 	session := &PortForwardSession{
 		ID:          id,
+		ClusterID:   conn.Name,
 		Namespace:   namespace,
 		Pod:         pod,
 		Service:     service,
