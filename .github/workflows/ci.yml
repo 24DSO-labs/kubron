@@ -2,11 +2,16 @@ name: CI
 
 on:
   push:
-    branches: [main, master, refactor]
+    branches: [main, master, dev, refactor]
   pull_request:
 
 permissions:
   contents: read
+
+# Новый push в PR отменяет прежний прогон; прогоны веток (dev, master) не отменяются
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   # Wails на Linux собирается с webkit2gtk 4.1
@@ -16,7 +21,7 @@ jobs:
   dco:
     name: DCO (Signed-off-by)
     if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
         with:
@@ -25,14 +30,14 @@ jobs:
 
   headers:
     name: License headers
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - run: python3 scripts/license-headers.py
 
   licenses:
     name: Dependency licenses
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
 
@@ -71,7 +76,7 @@ jobs:
 
   go:
     name: Go (build, vet, test)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
 
@@ -104,7 +109,7 @@ jobs:
   # SQL-схема сервиса: применяется и откатывается на настоящем PostgreSQL (задача 3.1a).
   migrations:
     name: SQL migrations (PostgreSQL 16)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
@@ -128,7 +133,7 @@ jobs:
 
   lint:
     name: Go (golangci-lint)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
@@ -144,7 +149,7 @@ jobs:
 
   frontend:
     name: Frontend (test, type-check, build)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
 
@@ -189,7 +194,7 @@ jobs:
   # Блокирует сборку: gate этапов 1 и 2 (в том числе два пользователя одновременно).
   e2e:
     name: E2E (web, Playwright + kind)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
 
