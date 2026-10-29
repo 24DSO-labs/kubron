@@ -103,6 +103,8 @@ var (
 	ErrNotInitialized  = errors.New("database store is not initialized")
 	ErrClusterNotFound = errors.New("cluster not found")
 	ErrConflict        = errors.New("a record with this name already exists")
+	ErrTeamNotEmpty    = errors.New("the team still has clusters: move or delete them first")
+	ErrDefaultTeam     = errors.New("the default team cannot be deleted")
 )
 
 func opCtx() (context.Context, context.CancelFunc) {

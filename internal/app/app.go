@@ -24,7 +24,8 @@ type App struct {
 	audit    *audit.Logger
 	auth     *auth.Service // nil, если хранилище пользователей не открылось (см. authErr)
 	authErr  error
-	store    store.Store // nil — файловое хранилище десктопа (SetStore подменяет, например, на PostgreSQL)
+	dir      auth.Directory // команды и участники; nil вне сервисного режима
+	store    store.Store    // nil — файловое хранилище десктопа (SetStore подменяет, например, на PostgreSQL)
 	// sessionID — веб-сессия владельца вида (пусто у корневого экземпляра и в десктопе).
 	sessionID string
 }
@@ -109,7 +110,7 @@ func (a *App) PickKubeconfigFile(title string) (string, error) {
 // AddClusterFromFile adds a cluster from a kubeconfig file previously chosen
 // with PickKubeconfigFile.
 func (a *App) AddClusterFromFile(path string, settings k8s.ClusterSettings) (*k8s.ClusterMeta, error) {
-	if err := a.authz(auth.PermClusterManage, "displayName", settings.DisplayName); err != nil {
+	if err := a.authzTeam(auth.PermClusterManage, a.defaultTeam(), "displayName", settings.DisplayName); err != nil {
 		return nil, err
 	}
 	if path == "" {
@@ -119,7 +120,8 @@ func (a *App) AddClusterFromFile(path string, settings k8s.ClusterSettings) (*k8
 }
 
 func (a *App) AddClusterFromText(kubeconfigText string, settings k8s.ClusterSettings) (*k8s.ClusterMeta, error) {
-	if err := a.authz(auth.PermClusterManage, "displayName", settings.DisplayName); err != nil {
+	// Без указания команды кластер попадает в команду по умолчанию: добавлять в неё может только её администратор.
+	if err := a.authzTeam(auth.PermClusterManage, a.defaultTeam(), "displayName", settings.DisplayName); err != nil {
 		return nil, err
 	}
 	return k8s.AddClusterFromText(kubeconfigText, settings)
@@ -131,12 +133,18 @@ func (a *App) InspectKubeconfig(src k8s.KubeconfigSource) (*k8s.KubeconfigInfo, 
 	if err := a.authz(auth.PermClusterManage); err != nil {
 		return nil, err
 	}
+	if err := a.checkKubeconfigSource(src); err != nil {
+		return nil, err
+	}
 	return k8s.InspectKubeconfig(src)
 }
 
 // TestKubeconfig пробно подключается к кластеру по kubeconfig, ничего не сохраняя.
 func (a *App) TestKubeconfig(src k8s.KubeconfigSource, contextName string) (*k8s.ConnectionCheck, error) {
 	if err := a.authz(auth.PermClusterManage, "context", contextName); err != nil {
+		return nil, err
+	}
+	if err := a.checkKubeconfigSource(src); err != nil {
 		return nil, err
 	}
 	return k8s.CheckKubeconfig(src, contextName)
@@ -168,6 +176,9 @@ func (a *App) DeleteCluster(id string) error {
 // Содержимое kubeconfig в журнал не попадает — только способ замены.
 func (a *App) UpdateCluster(id string, settings k8s.ClusterSettings, kubeconfig k8s.KubeconfigSource) (*k8s.ClusterUpdateResult, error) {
 	if err := a.authzCluster(auth.PermClusterManage, id, "id", id, "displayName", settings.DisplayName, "kubeconfig", kubeconfigChange(kubeconfig)); err != nil {
+		return nil, err
+	}
+	if err := a.checkKubeconfigSource(kubeconfig); err != nil {
 		return nil, err
 	}
 	res, err := k8s.UpdateClusterSettings(id, settings, kubeconfig)

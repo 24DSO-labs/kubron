@@ -22,7 +22,10 @@ func (p pgBackend) Audit() audit.Backend       { return p.s.Audit() }
 func (p pgBackend) ArgoTokens() k8s.TokenStore { return p.s.ArgoTokens() }
 
 // Access — права по членству в командах (задача 3.2); app подключает их к сервису аутентификации.
-func (p pgBackend) Access() auth.Access        { return p.s.Access() }
+func (p pgBackend) Access() auth.Access { return p.s.Access() }
+
+// Directory — команды и участники (задача 3.3).
+func (p pgBackend) Directory() auth.Directory  { return p.s.Directory() }
 func (p pgBackend) Clusters() k8s.ClusterStore { return pgClusters{p.s.Clusters()} }
 
 // pgClusters приводит pgstore.Clusters к k8s.ClusterStore. Файла kubeconfig у кластера в БД нет
@@ -58,7 +61,7 @@ func (p pgClusters) Save(m *k8s.ClusterMeta, kubeconfig []byte) error {
 	}
 	return p.c.Save(&pgstore.Cluster{
 		ID: m.ID, DisplayName: m.DisplayName, Icon: m.Icon, Color: m.Color, Environment: m.Environment,
-		DefaultNamespace: m.DefaultNamespace, ContextName: m.ContextName, AddedAt: m.AddedAt,
+		DefaultNamespace: m.DefaultNamespace, ContextName: m.ContextName, AddedAt: m.AddedAt, TeamID: m.TeamID,
 	}, kubeconfig)
 }
 
@@ -67,6 +70,6 @@ func (p pgClusters) Delete(id string) error { return p.c.Delete(id) }
 func toMeta(c *pgstore.Cluster) k8s.ClusterMeta {
 	return k8s.ClusterMeta{
 		ID: c.ID, DisplayName: c.DisplayName, Icon: c.Icon, Color: c.Color, Environment: c.Environment,
-		DefaultNamespace: c.DefaultNamespace, ContextName: c.ContextName, AddedAt: c.AddedAt,
+		DefaultNamespace: c.DefaultNamespace, ContextName: c.ContextName, AddedAt: c.AddedAt, TeamID: c.TeamID,
 	}
 }
