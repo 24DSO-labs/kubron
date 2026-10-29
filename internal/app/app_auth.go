@@ -32,6 +32,10 @@ func (a *App) initAuthWith(st store.Store) {
 		return
 	}
 	svc.SetAuditor(a.audit)
+	// Серверное хранилище задаёт права по членству в командах; файловое — нет (глобальная роль, как раньше).
+	if ap, ok := st.(interface{ Access() auth.Access }); ok {
+		svc.SetAccess(ap.Access())
+	}
 	// При выходе из учётной записи ничего из сессии не должно продолжать работать.
 	svc.SetOnLogout(a.endSessionResources)
 	a.auth = svc
@@ -126,28 +130,44 @@ var quietMethods = map[string]bool{
 // a.authz(auth.PermWrite, "namespace", ns, "name", name). Секреты и содержимое (пароли,
 // YAML, ввод терминала) сюда передавать нельзя.
 func (a *App) authz(p auth.Permission, kv ...any) error {
+	// Права кластера определяются по активному кластеру вида: сигнатуры методов не меняются (этап 3, решение 1).
+	id := ""
+	if auth.ClusterScoped(p) {
+		id = a.k8sMgr.GetActiveContext()
+	}
+	return a.authzAt(p, id, kv, 1)
+}
+
+// authzCluster — authz для метода, который получает идентификатор кластера явно (подключение, правка, удаление).
+// Чужой и несуществующий кластер дают одну и ту же ошибку auth.ErrClusterNotFound.
+func (a *App) authzCluster(p auth.Permission, clusterID string, kv ...any) error {
+	return a.authzAt(p, clusterID, kv, 1)
+}
+
+// authzAt — общая часть; depth — число служебных кадров между ней и методом App (для журнала).
+func (a *App) authzAt(p auth.Permission, clusterID string, kv []any, depth int) error {
 	if a.auth == nil {
 		return a.authUnavailable()
 	}
-	actor, err := a.auth.Check(p)
+	actor, err := a.auth.CheckCluster(p, clusterID)
 	switch {
 	case err == nil:
 		if auditedPermissions[p] {
-			a.auditCall(actor, audit.ResultOK, p, kv)
+			a.auditCall(actor, audit.ResultOK, p, kv, depth)
 		}
 	case errors.Is(err, auth.ErrForbidden):
-		a.auditCall(actor, audit.ResultDenied, p, kv)
+		a.auditCall(actor, audit.ResultDenied, p, kv, depth)
 	}
 	return err
 }
 
 // auditCall записывает вызов метода App. Имя метода берётся из стека, чтобы его не дублировать
 // в каждом вызове authz.
-func (a *App) auditCall(actor auth.Actor, result string, p auth.Permission, kv []any) {
+func (a *App) auditCall(actor auth.Actor, result string, p auth.Permission, kv []any, depth int) {
 	if a.audit == nil {
 		return
 	}
-	action := callerMethod(3)
+	action := callerMethod(3 + depth)
 	if quietMethods[action] {
 		return
 	}

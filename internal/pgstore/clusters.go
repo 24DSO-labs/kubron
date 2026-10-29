@@ -128,6 +128,7 @@ func (c *Clusters) Save(cl *Cluster, kubeconfig []byte) error {
 	}
 	ctx, cancel := opCtx()
 	defer cancel()
+	defer c.s.invalidateAccess()
 	if kubeconfig == nil {
 		// Обновление без смены kubeconfig: CHECK-ограничения проверяются до разрешения конфликта, поэтому
 		// вставка строки без kubeconfig в ON CONFLICT не прошла бы даже для существующего кластера.
@@ -170,6 +171,7 @@ func clusterErr(cl *Cluster, err error) error {
 func (c *Clusters) Delete(id string) error {
 	ctx, cancel := opCtx()
 	defer cancel()
+	defer c.s.invalidateAccess()
 	_, err := c.s.pool.Exec(ctx, `DELETE FROM clusters WHERE id = $1`, id)
 	return err
 }

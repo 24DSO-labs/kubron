@@ -208,7 +208,7 @@ func firstStmtPermission(stmt ast.Stmt, t *testing.T, method string) (Permission
 				return true
 			}
 			sel, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok || sel.Sel.Name != "authz" || len(call.Args) < 1 {
+			if !ok || (sel.Sel.Name != "authz" && sel.Sel.Name != "authzCluster") || len(call.Args) < 1 {
 				return true
 			}
 			arg, ok := call.Args[0].(*ast.SelectorExpr)

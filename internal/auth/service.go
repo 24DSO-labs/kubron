@@ -109,6 +109,7 @@ type shared struct {
 	failures map[string]*failure
 	now      func() time.Time
 	rec      Recorder
+	access   Access                // nil — прежняя модель: глобальная роль пользователя
 	sessions map[*Service]struct{} // живые сессии, включая неявную сессию десктопа
 
 	dummyOnce sync.Once
@@ -391,6 +392,11 @@ func (s *Service) SetIdleTimeout(minutes int) (int, error) {
 }
 
 func (s *Service) authorizeLocked(p Permission) (*UserRecord, error) {
+	return s.authorizeScopedLocked(p, "")
+}
+
+// authorizeScopedLocked — проверка права; clusterID задаёт кластер, к которому относится действие (пусто — вне кластера).
+func (s *Service) authorizeScopedLocked(p Permission, clusterID string) (*UserRecord, error) {
 	u := s.sessionUserLocked()
 	if u == nil {
 		return nil, ErrNotAuthenticated
@@ -398,10 +404,34 @@ func (s *Service) authorizeLocked(p Permission) (*UserRecord, error) {
 	if u.MustChangePassword {
 		return nil, ErrPasswordChangeRequired
 	}
+	if s.access != nil {
+		_, err := s.accessLocked(u, p, clusterID)
+		return u, err
+	}
 	if !u.Role.Has(p) {
 		return u, ErrForbidden
 	}
 	return u, nil
+}
+
+// checkLocked — Check для заданного кластера; под s.mu.
+func (s *Service) checkLocked(p Permission, clusterID string) (Actor, error) {
+	u, err := s.authorizeScopedLocked(p, clusterID)
+	if u == nil {
+		if cu := s.sessionUserLocked(); cu != nil {
+			return Actor{Username: cu.Username, Role: cu.Role, Source: s.source}, err
+		}
+		return Actor{Source: s.source}, err
+	}
+	role := u.Role
+	if s.access != nil && clusterID != "" {
+		if team, ok := s.access.ClusterTeam(clusterID); ok {
+			if r, ok := s.access.TeamRole(u.ID, team); ok {
+				role = r
+			}
+		}
+	}
+	return Actor{Username: u.Username, Role: role, Source: s.source}, err
 }
 
 // Authorize проверяет, что есть вошедший пользователь и у него есть право p.
@@ -416,15 +446,7 @@ func (s *Service) Authorize(p Permission) error {
 func (s *Service) Check(p Permission) (Actor, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	u, err := s.authorizeLocked(p)
-	if u == nil {
-		// authorizeLocked не вернул пользователя: либо нет сессии, либо нужна смена пароля
-		if cu := s.sessionUserLocked(); cu != nil {
-			return Actor{Username: cu.Username, Role: cu.Role, Source: s.source}, err
-		}
-		return Actor{Source: s.source}, err
-	}
-	return Actor{Username: u.Username, Role: u.Role, Source: s.source}, err
+	return s.checkLocked(p, "")
 }
 
 // Status возвращает состояние для стартового экрана.

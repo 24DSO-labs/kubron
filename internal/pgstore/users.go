@@ -92,6 +92,23 @@ func (b userBackend) Save(d *ext.UserData) error {
 		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, int64(0x6B756274)); err != nil {
 			return err
 		}
+		prev := map[string]string{} // прежняя глобальная роль: по ней видно, кого создали или повысили/понизили
+		rows, err := tx.Query(ctx, `SELECT id, role FROM users WHERE org_id = $1`, b.s.orgID)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			var id, role string
+			if err := rows.Scan(&id, &role); err != nil {
+				rows.Close()
+				return err
+			}
+			prev[id] = role
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
 		// Сначала удаляем: освобождаются имена, которые могут занять новые записи.
 		if _, err := tx.Exec(ctx, `DELETE FROM users WHERE org_id = $1 AND id <> ALL($2)`, b.s.orgID, ids); err != nil {
 			return err
@@ -125,10 +142,23 @@ func (b userBackend) Save(d *ext.UserData) error {
 				return err
 			}
 		}
-		_, err := tx.Exec(ctx, `
+		// Переходное правило до API управления командами (3.3): новый пользователь и тот, кому сменили
+		// глобальную роль, получает ту же роль в команде «Default». Остальные членства Save не трогает.
+		for _, u := range d.Users {
+			if old, ok := prev[u.ID]; ok && old == u.Role {
+				continue
+			}
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO memberships (user_id, team_id, role) VALUES ($1, $2, $3)
+				ON CONFLICT (user_id, team_id) DO UPDATE SET role = EXCLUDED.role`, u.ID, b.s.teamID, u.Role); err != nil {
+				return err
+			}
+		}
+		_, err = tx.Exec(ctx, `
 			INSERT INTO settings (key, value) VALUES ($1, $2)
 			ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`, settingsKeySecurity, settings)
 		return err
 	})
+	b.s.invalidateAccess()
 	return err
 }

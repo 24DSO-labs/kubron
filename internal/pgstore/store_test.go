@@ -396,3 +396,97 @@ func TestRekeyAndCounts(t *testing.T) {
 		t.Errorf("%q %v", v, err)
 	}
 }
+
+func TestAccessFromMemberships(t *testing.T) {
+	s := newTestStore(t, keyString("k1"))
+	zero := time.Duration(0)
+	s.accessTTLOverride = &zero // без кэша: проверяем сам запрос
+	acc := s.Access()
+	now := time.Now()
+	if err := s.Users().Save(&ext.UserData{Users: []ext.UserRecord{
+		{ID: "adm", Username: "admin", Role: "admin", CreatedAt: now},
+		{ID: "bob", Username: "bob", Role: "operator", CreatedAt: now},
+		{ID: "off", Username: "off", Role: "user", Disabled: true, CreatedAt: now},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	saveCluster(t, s, "c1", "C1", []byte("kc"))
+
+	if team, ok := acc.ClusterTeam("c1"); !ok || team != s.teamID {
+		t.Errorf("команда кластера: %q %v", team, ok)
+	}
+	if _, ok := acc.ClusterTeam("nope"); ok {
+		t.Error("несуществующий кластер")
+	}
+	if r, ok := acc.TeamRole("bob", s.teamID); !ok || r != "operator" {
+		t.Errorf("bob: %q %v", r, ok)
+	}
+	if r, ok := acc.TeamRole("adm", s.teamID); !ok || r != "admin" {
+		t.Errorf("admin → админ команды Default: %q %v", r, ok)
+	}
+	if !acc.IsOrgAdmin("adm") || acc.IsOrgAdmin("bob") {
+		t.Error("администратор организации")
+	}
+	if _, ok := acc.TeamRole("off", s.teamID); ok || len(acc.TeamRoles("off")) != 0 {
+		t.Error("отключённый пользователь не должен иметь доступа")
+	}
+
+	// Смена глобальной роли переносится на членство; повторное сохранение без изменений ничего не трогает.
+	_, err := s.pool.Exec(context.Background(), `INSERT INTO teams (org_id, name) VALUES ($1, 'Other')`, s.orgID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var other string
+	_ = s.pool.QueryRow(context.Background(), `SELECT id FROM teams WHERE name='Other'`).Scan(&other)
+	_, _ = s.pool.Exec(context.Background(), `INSERT INTO memberships (user_id, team_id, role) VALUES ('bob', $1, 'user')`, other)
+	d, _ := s.Users().Load()
+	if err := s.Users().Save(d); err != nil {
+		t.Fatal(err)
+	}
+	if r, ok := acc.TeamRole("bob", other); !ok || r != "user" {
+		t.Errorf("Save без изменений не должен трогать чужие членства: %q %v", r, ok)
+	}
+	for i := range d.Users {
+		if d.Users[i].ID == "bob" {
+			d.Users[i].Role = "user"
+		}
+	}
+	if err := s.Users().Save(d); err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := acc.TeamRole("bob", s.teamID); r != "user" {
+		t.Errorf("смена роли: %q", r)
+	}
+	if r, _ := acc.TeamRole("bob", other); r != "user" {
+		t.Errorf("членство в другой команде: %q", r)
+	}
+	if !acc.IsOrgAdmin("adm") {
+		t.Error("org-admin пропал")
+	}
+	// Удаление пользователя убирает его членства (каскад).
+	d.Users = d.Users[:1]
+	if err := s.Users().Save(d); err != nil {
+		t.Fatal(err)
+	}
+	if len(acc.TeamRoles("bob")) != 0 {
+		t.Error("членства удалённого пользователя остались")
+	}
+}
+
+func TestAccessSnapshotIsCachedAndInvalidated(t *testing.T) {
+	s := newTestStore(t, keyString("k1"))
+	acc := s.Access() // TTL по умолчанию: снимок кэшируется
+	saveCluster(t, s, "c1", "C1", []byte("kc"))
+	if _, ok := acc.ClusterTeam("c1"); !ok {
+		t.Fatal("после Save кэш должен быть сброшен")
+	}
+	// Правка в обход Store (как сделала бы другая реплика) не видна, пока снимок свеж.
+	_, _ = s.pool.Exec(context.Background(), `DELETE FROM clusters WHERE id='c1'`)
+	if _, ok := acc.ClusterTeam("c1"); !ok {
+		t.Error("снимок должен кэшироваться на accessTTL")
+	}
+	s.invalidateAccess()
+	if _, ok := acc.ClusterTeam("c1"); ok {
+		t.Error("после сброса кэша кластера быть не должно")
+	}
+}

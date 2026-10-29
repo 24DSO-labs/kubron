@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -30,6 +31,10 @@ type Store struct {
 	keys   *secretbox.Keyring
 	orgID  string
 	teamID string
+
+	accessMu          sync.Mutex
+	accessSnap        *accessSnap
+	accessTTLOverride *time.Duration // тесты
 }
 
 // Open подключается к БД. Схему создаёт Migrate; без неё Open сразу создавать организацию не станет:
