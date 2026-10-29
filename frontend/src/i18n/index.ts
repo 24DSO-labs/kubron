@@ -67,7 +67,14 @@ export const i18n = createI18n({
  * Перевод вне компонентов (composables, resources/*.ts, тосты). Функции композера не зависят от
  * `this`, поэтому их можно деструктурировать. Вызов внутри computed/render реактивен к смене языка.
  */
-export const { t, te, n, d } = i18n.global
+export const { t, n, d } = i18n.global
+
+/**
+ * `te` с упрощённой сигнатурой: родной дженерик vue-i18n выводит PickupKeys по схеме сообщений,
+ * а при Record<string, any> (см. тип Messages) это уходит в бесконечную рекурсию — TS2589.
+ * Полнота ключей проверяется скриптом i18n-check, а не типами.
+ */
+export const te = i18n.global.te as (key: string, locale?: string) => boolean
 
 /** Текущий язык (реактивный) */
 export const locale = i18n.global.locale
