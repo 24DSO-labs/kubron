@@ -36,6 +36,9 @@ func (a *App) initAuthWith(st store.Store) {
 	if ap, ok := st.(interface{ Access() auth.Access }); ok {
 		svc.SetAccess(ap.Access())
 	}
+	if dp, ok := st.(interface{ Directory() auth.Directory }); ok {
+		a.dir = dp.Directory()
+	}
 	// При выходе из учётной записи ничего из сессии не должно продолжать работать.
 	svc.SetOnLogout(a.endSessionResources)
 	a.auth = svc
@@ -142,6 +145,58 @@ func (a *App) authz(p auth.Permission, kv ...any) error {
 // Чужой и несуществующий кластер дают одну и ту же ошибку auth.ErrClusterNotFound.
 func (a *App) authzCluster(p auth.Permission, clusterID string, kv ...any) error {
 	return a.authzAt(p, clusterID, kv, 1)
+}
+
+// authzTeam — authz для действия над командой (состав, кластеры). Без сервисного режима команд нет, и teamID
+// пуст: действует глобальная роль, как в десктопе.
+func (a *App) authzTeam(p auth.Permission, teamID string, kv ...any) error {
+	if a.auth == nil {
+		return a.authUnavailable()
+	}
+	actor, err := a.auth.CheckTeam(p, teamID)
+	switch {
+	case err == nil:
+		if auditedPermissions[p] {
+			a.auditCall(actor, audit.ResultOK, p, kv, 0)
+		}
+	case errors.Is(err, auth.ErrForbidden):
+		a.auditCall(actor, audit.ResultDenied, p, kv, 0)
+	}
+	return err
+}
+
+// authzAny — authz, который проходит при любом из двух прав (например, «читаю свои команды» или «администрирую организацию»).
+// Отказ записывается только по последнему праву.
+func (a *App) authzAny(first, second auth.Permission, kv ...any) error {
+	if a.auth != nil {
+		if err := a.authzAt(first, "", nil, 0); err == nil {
+			return nil
+		} else if !errors.Is(err, auth.ErrForbidden) {
+			return err
+		}
+	}
+	return a.authzAt(second, "", kv, 1)
+}
+
+// defaultTeam — команда по умолчанию в сервисном режиме, иначе пусто.
+func (a *App) defaultTeam() string {
+	if a.dir == nil {
+		return ""
+	}
+	return a.dir.DefaultTeam()
+}
+
+// checkKubeconfigSource не пускает через источник kubeconfig туда, куда пользователя не пускает авторизация:
+// путь к файлу сервера — только там, где ядро читает локальные файлы (десктоп), а сохранённый кластер — только
+// тот, которым пользователь может управлять.
+func (a *App) checkKubeconfigSource(src k8s.KubeconfigSource) error {
+	if src.Path != "" && !a.platform.Capabilities().LocalKubeconfig {
+		return errors.New("reading a kubeconfig from a file path is available only on desktop")
+	}
+	if src.ClusterID != "" {
+		return a.authzCluster(auth.PermClusterManage, src.ClusterID, "source", "cluster")
+	}
+	return nil
 }
 
 // authzAt — общая часть; depth — число служебных кадров между ней и методом App (для журнала).

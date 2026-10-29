@@ -116,3 +116,88 @@ func (s *Service) CanSeeCluster(clusterID string) bool {
 	_, ok = s.access.TeamRole(u.ID, team)
 	return ok
 }
+
+// ErrTeamNotFound — команды нет или пользователь не имеет к ней отношения (как и для кластера, ответ один).
+var ErrTeamNotFound = errors.New("team not found")
+
+// CheckTeam — проверка права p над командой teamID (управление её участниками и кластерами).
+// Право действует, если его даёт роль пользователя в этой команде; PermUsersManage дополнительно даёт администратор
+// организации (он управляет составом команд, но не читает данные кластеров). Не член и не админ организации
+// получает ErrTeamNotFound. Без Access (десктоп) команд нет: действует глобальная роль.
+func (s *Service) CheckTeam(p Permission, teamID string) (Actor, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.access == nil {
+		return s.checkLocked(p, "")
+	}
+	u := s.sessionUserLocked()
+	if u == nil {
+		return Actor{Source: s.source}, ErrNotAuthenticated
+	}
+	actor := Actor{Username: u.Username, Role: u.Role, Source: s.source}
+	if u.MustChangePassword {
+		return actor, ErrPasswordChangeRequired
+	}
+	role, member := s.access.TeamRole(u.ID, teamID)
+	if member {
+		actor.Role = role
+	}
+	switch {
+	case member && role.Has(p):
+		return actor, nil
+	case p == PermUsersManage && s.access.IsOrgAdmin(u.ID):
+		return actor, nil
+	case !member && !s.access.IsOrgAdmin(u.ID):
+		return actor, ErrTeamNotFound
+	}
+	return actor, ErrForbidden
+}
+
+// AuthorizeTeam — CheckTeam без возврата пользователя.
+func (s *Service) AuthorizeTeam(p Permission, teamID string) error {
+	_, err := s.CheckTeam(p, teamID)
+	return err
+}
+
+// Team — команда в списках.
+type Team struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Members  int    `json:"members"`
+	Clusters int    `json:"clusters"`
+}
+
+// Member — участник команды.
+type Member struct {
+	UserID   string `json:"userId"`
+	Username string `json:"username"`
+	Role     Role   `json:"role"`
+}
+
+// Directory — управление командами и их составом (задача 3.3). Права проверяет вызывающий (App); реализация
+// только хранит. Есть только в сервисном режиме.
+type Directory interface {
+	// DefaultTeam — команда для кластеров, у которых владелец не указан.
+	DefaultTeam() string
+	Teams() ([]Team, error)
+	CreateTeam(name string) (*Team, error)
+	RenameTeam(id, name string) error
+	// DeleteTeam удаляет пустую команду (без кластеров); участники исключаются.
+	DeleteTeam(id string) error
+	Members(teamID string) ([]Member, error)
+	// SetMember добавляет участника или меняет его роль.
+	SetMember(teamID, userID string, role Role) error
+	RemoveMember(teamID, userID string) error
+	// MoveCluster передаёт кластер другой команде.
+	MoveCluster(clusterID, teamID string) error
+}
+
+// Actor возвращает действующего пользователя сессии без проверки прав (для записи в журнал уже разрешённых действий).
+func (s *Service) Actor() Actor {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if u := s.sessionUserLocked(); u != nil {
+		return Actor{Username: u.Username, Role: u.Role, Source: s.source}
+	}
+	return Actor{Source: s.source}
+}

@@ -86,6 +86,13 @@
     "SuspendArgoAutoSync": "Argo CD: отключение автосинхронизации",
     "ResumeArgoAutoSync": "Argo CD: включение автосинхронизации",
     "DeleteArgoApplication": "Argo CD: удаление приложения",
-    "GetHelmReleaseContent": "Helm: просмотр values / манифеста релиза"
+    "GetHelmReleaseContent": "Helm: просмотр values / манифеста релиза",
+    "CreateTeam": "Создание команды",
+    "RenameTeam": "Переименование команды",
+    "DeleteTeam": "Удаление команды",
+    "SetTeamMember": "Участник команды: добавление / смена роли",
+    "RemoveTeamMember": "Исключение из команды",
+    "AddClusterToTeam": "Кластер добавлен в команду",
+    "MoveCluster": "Кластер передан другой команде"
   }
 }

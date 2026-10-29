@@ -470,5 +470,12 @@
   "clusterIsNotSet": "cluster is not set",
   "readUsers": "read users: {p0}",
   "readClusters": "read clusters: {p0}",
-  "readAuditLog": "read audit log: {p0}"
+  "readAuditLog": "read audit log: {p0}",
+  "readingAKubeconfigFromAFilePathIsAvailableOnlyOnDesktop": "reading a kubeconfig from a file path is available only on desktop",
+  "teamsAreAvailableOnlyInServiceMode": "teams are available only in service mode",
+  "teamNotFound": "team not found",
+  "teamNameMustBe1To64Characters": "team name must be 1 to 64 characters",
+  "teamP1": "{p0}: team {p1}",
+  "theTeamStillHasClustersMoveOrDeleteThemFirst": "the team still has clusters: move or delete them first",
+  "theDefaultTeamCannotBeDeleted": "the default team cannot be deleted"
 }
