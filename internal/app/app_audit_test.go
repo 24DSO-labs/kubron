@@ -7,6 +7,7 @@ import (
 	"errors"
 	"github.com/VadimIl224/kubron/internal/audit"
 	"github.com/VadimIl224/kubron/internal/auth"
+	"github.com/VadimIl224/kubron/internal/k8s"
 	"testing"
 )
 
@@ -23,7 +24,10 @@ func newAuditedApp(t *testing.T) *App {
 	t.Helper()
 	dir := t.TempDir()
 	a := &App{}
-	a.initAuth(dir) // k8sMgr/pfMgr не нужны, пока не вызывается выход из сессии с хуком
+	// authz для кластерных прав читает активный контекст через k8sMgr (этап 3); без него nil-паника.
+	// Конструктор лёгкий: пул подключений и менеджер терминалов, без сетевых соединений.
+	a.k8sMgr = k8s.NewManager()
+	a.initAuth(dir) // pfMgr не нужен, пока не вызывается выход из сессии с хуком
 	if a.authErr != nil {
 		t.Fatal(a.authErr)
 	}
