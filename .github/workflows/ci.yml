@@ -34,6 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - run: python3 scripts/license-headers.py
+      - run: node scripts/changelog.mjs check
 
   licenses:
     name: Dependency licenses

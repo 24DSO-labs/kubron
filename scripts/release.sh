@@ -58,6 +58,7 @@ if git rev-parse -q --verify "refs/tags/$tag" >/dev/null || git ls-remote --exit
 fi
 git merge-base --is-ancestor "$remote/master" HEAD || die "в $remote/master есть коммиты, которых нет в dev: сначала git merge $remote/master в dev"
 scripts/check-dco.sh "$remote/master" HEAD || die "есть неподписанные коммиты (см. выше)"
+node scripts/changelog.mjs check || die "CHANGELOG.md составлен неверно (см. выше)"
 info "окружение, ветка и подписи в порядке"
 
 already_rolled=0
@@ -137,6 +138,25 @@ if git merge --ff-only "$remote/master" >/dev/null 2>&1 && git push "$remote" de
 else
   info "dev не выровнена автоматически: выполните git merge $remote/master && git push $remote dev"
 fi
+
+# Релизный коммит и слияние PR появляются только в dev/master. Рабочие ветки (по умолчанию refactor)
+# продвигаем до master, иначе их [Unreleased] разойдётся с CHANGELOG из master и будет конфликт.
+# Другие ветки: RELEASE_SYNC_BRANCHES="refactor feature-x"; отключить: RELEASE_SYNC_BRANCHES=" ".
+step "Выравниваем рабочие ветки по master"
+for b in ${RELEASE_SYNC_BRANCHES-refactor}; do
+  git ls-remote --exit-code --heads "$remote" "$b" >/dev/null 2>&1 || { info "$b: на $remote такой ветки нет, пропускаем"; continue; }
+  if git merge-base --is-ancestor "$remote/$b" "$remote/master"; then
+    git push --quiet "$remote" "$remote/master:refs/heads/$b"
+    info "$b на $remote продвинута до master"
+    if git fetch --quiet "$remote" "master:$b" 2>/dev/null; then
+      info "$b локально обновлена"
+    else
+      info "$b локально обновите сами: git checkout $b && git pull"
+    fi
+  else
+    info "в $b есть коммиты, которых нет в master: git checkout $b && git merge $remote/master"
+  fi
+done
 
 echo
 echo "Тег $tag отправлен. Релизный workflow: https://github.com/$slug/actions/workflows/release.yml"

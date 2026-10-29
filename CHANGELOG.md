@@ -19,8 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0] - 2026-10-29
 
-## [0.2.0] - 2026-10-29
-
 ### Added
 
 - Helm: upgrade a release to another chart version ("Chart version" tab). Choose the repository
