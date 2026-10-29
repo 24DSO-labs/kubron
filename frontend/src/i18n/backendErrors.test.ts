@@ -86,7 +86,7 @@ describe('Go-ошибки и таблица перевода', () => {
     const en = JSON.parse(readFileSync(join(repoRoot, 'frontend/src/i18n/locales/en/backend.json'), 'utf8')) as Record<string, string>
     const known = new Set(Object.values(en).map((v) => v.replace(/\{'(.)'\}/g, '$1')))
     // Сообщение целиком из чужого текста: переводить нечего
-    const passthrough = new Set(['{p0}'])
+    const passthrough = new Set(['{p0}', '{p0}: {p1}', '{p0} {p1}: {p2}', '{p0}: HTTP {p1}', '{p0}: {p1}_{p2}'])
     const missing: string[] = []
     for (const file of goFiles(join(repoRoot, 'internal'))) {
       const text = readFileSync(file, 'utf8')

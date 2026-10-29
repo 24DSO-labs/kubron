@@ -216,7 +216,7 @@ func TestClusterEventsGoToEveryViewHoldingCluster(t *testing.T) {
 	v1.emitCluster(EventClusterChanged, "a")
 	mu.Lock()
 	if len(got["v1"]) != 1 || len(got["v2"]) != 1 || len(got["v3"]) != 0 {
-		t.Errorf("получатели: %v", got)
+		t.Errorf("receivers: %v", got)
 	}
 	mu.Unlock()
 
@@ -226,7 +226,7 @@ func TestClusterEventsGoToEveryViewHoldingCluster(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 	if len(got["v1"]) != 2 || len(got["v2"]) != 1 {
-		t.Errorf("после Detach: %v", got)
+		t.Errorf("after Detach: %v", got)
 	}
 }
 
@@ -250,7 +250,7 @@ func TestSlowBuildDoesNotBlockOtherClusters(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(2 * time.Second):
-		t.Fatal("построение медленного кластера заблокировало другой")
+		t.Fatal("building a slow cluster blocked another one")
 	}
 	close(release)
 }
@@ -268,7 +268,7 @@ func TestSingleflightSharesErrorAndAllowsRetry(t *testing.T) {
 			_, errs[i] = p.getOrCreate("a", func() (*ClusterConnection, error) {
 				builds.Add(1)
 				<-gate
-				return nil, errors.New("oidc недоступен")
+				return nil, errors.New("oidc unavailable")
 			})
 		}(i)
 	}
@@ -277,25 +277,25 @@ func TestSingleflightSharesErrorAndAllowsRetry(t *testing.T) {
 	wg.Wait()
 	for _, err := range errs {
 		if err == nil {
-			t.Fatal("все ожидающие должны получить ошибку построения")
+			t.Fatal("all waiters must receive the build error")
 		}
 	}
 	if builds.Load() > 3 { // допускаем запоздавших, но не лавину
-		t.Errorf("построений %d", builds.Load())
+		t.Errorf("%d builds", builds.Load())
 	}
 	// Ошибка не кешируется: следующая попытка строит заново.
 	if _, err := p.getOrCreate("a", func() (*ClusterConnection, error) { return &ClusterConnection{Name: "a"}, nil }); err != nil {
-		t.Fatalf("повтор после ошибки: %v", err)
+		t.Fatalf("retry after an error: %v", err)
 	}
 }
 
 func TestBuildPanicBecomesError(t *testing.T) {
 	p := newConnPool()
 	if _, err := p.getOrCreate("a", func() (*ClusterConnection, error) { panic("boom") }); err == nil {
-		t.Fatal("паника построения должна стать ошибкой")
+		t.Fatal("a build panic must become an error")
 	}
 	if len(p.flights) != 0 {
-		t.Error("незавершённое построение осталось в реестре")
+		t.Error("an unfinished build stayed in the registry")
 	}
 }
 
@@ -306,17 +306,17 @@ func TestIdleTTLDefersInformersShutdown(t *testing.T) {
 	mustActivate(t, v, "a")
 	v.Detach()
 	if closes["a"].Load() != 0 {
-		t.Fatal("informers остановлены до истечения TTL")
+		t.Fatal("informers were stopped before the TTL expired")
 	}
 	// Возврат в пределах TTL отменяет остановку.
 	mustActivate(t, v, "a")
 	time.Sleep(200 * time.Millisecond)
 	if closes["a"].Load() != 0 {
-		t.Fatal("кластер снова активен, остановки быть не должно")
+		t.Fatal("the cluster is active again, there must be no stop")
 	}
 	v.Detach()
 	time.Sleep(250 * time.Millisecond)
 	if closes["a"].Load() != 1 {
-		t.Fatalf("после TTL ждали ровно одну остановку, получили %d", closes["a"].Load())
+		t.Fatalf("after the TTL exactly one stop was expected, got %d", closes["a"].Load())
 	}
 }

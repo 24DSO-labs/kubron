@@ -1,17 +1,11 @@
 // Copyright 2026 The Kubron Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import { ref, getCurrentInstance } from 'vue'
+import { ref } from 'vue'
+import { t, te } from '../i18n'
 import { onEvent } from '../platform/events'
 import { callApp } from '../resources/wails'
-
-function t(key: string, params?: Record<string, unknown>): string {
-  const instance = getCurrentInstance()
-  if (instance?.appContext?.config?.globalProperties?.$t) {
-    return (instance.appContext.config.globalProperties.$t as any)(key, params)
-  }
-  return key
-}
+import { errorText } from './errorText'
 
 /** Событие бэкенда с прогрессом Helm-операции (internal/k8s/helm_progress.go) */
 const HELM_PROGRESS = 'helm:progress'
@@ -39,11 +33,13 @@ export interface HelmOp {
 /** Растёт при каждом завершении операции: страница журнала перечитывает историю */
 export const helmJournalTick = ref(0)
 
-export const HELM_OP_LABEL: Record<string, string> = {
-  install: t('helm.ops_panel.install'),
-  upgrade: t('helm.ops_panel.upgrade'),
-  rollback: t('helm.ops_panel.rollback'),
-  uninstall: t('helm.ops_panel.uninstall'),
+/** Виды операций Helm в порядке показа в фильтрах */
+export const HELM_OPS = ['install', 'upgrade', 'rollback', 'uninstall'] as const
+
+/** Подпись операции на языке интерфейса. Считается при вызове (в рендере), а не при загрузке модуля */
+export function helmOpLabel(op: string): string {
+  const key = `helm.ops_panel.${op}`
+  return te(key) ? t(key) : op
 }
 
 /** Активные и недавно завершённые операции (завершённые без ошибки скрываются сами) */
@@ -143,7 +139,7 @@ export async function runHelmOp<T>(meta: RunMeta, fn: (opId: string) => Promise<
     return r
   } catch (e: any) {
     const o = find(opId)
-    if (o && !o.done) { o.done = true; o.error = e?.message || String(e) }
+    if (o && !o.done) { o.done = true; o.error = errorText(e) }
     helmJournalTick.value++
     throw e
   }

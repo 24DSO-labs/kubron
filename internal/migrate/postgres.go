@@ -73,7 +73,7 @@ func (p Postgres) Apply(ctx context.Context, m Migration, up bool) error {
 		body = m.Up
 	}
 	if _, err := tx.ExecContext(ctx, body); err != nil {
-		return fmt.Errorf("выполнение: %w", err)
+		return fmt.Errorf("execute: %w", err)
 	}
 	if up {
 		_, err = tx.ExecContext(ctx, sqlRecord, m.Version, m.Name, m.Checksum)
@@ -81,7 +81,7 @@ func (p Postgres) Apply(ctx context.Context, m Migration, up bool) error {
 		_, err = tx.ExecContext(ctx, sqlForget, m.Version)
 	}
 	if err != nil {
-		return fmt.Errorf("журнал: %w", err)
+		return fmt.Errorf("journal: %w", err)
 	}
 	return tx.Commit()
 }

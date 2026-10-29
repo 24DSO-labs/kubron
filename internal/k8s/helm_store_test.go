@@ -63,7 +63,7 @@ func TestListHelmStoredReadsBothStorages(t *testing.T) {
 	// фильтр по имени релиза
 	items, err = listHelmStored(context.Background(), c, "prod", helmReleaseSelector("nope"))
 	if err != nil || len(items) != 0 {
-		t.Errorf("чужое имя: %+v %v", items, err)
+		t.Errorf("another name: %+v %v", items, err)
 	}
 }
 
@@ -74,21 +74,21 @@ func TestListHelmStoredToleratesForbiddenOnOneSide(t *testing.T) {
 	cs.PrependReactor("list", "configmaps", forbidden("configmaps"))
 	items, err := listHelmStored(ctx, cs, "", helmReleaseSelector(""))
 	if err != nil || len(items) != 1 || items[0].Storage != helmStorageSecret {
-		t.Errorf("нет доступа к configmaps: %+v %v", items, err)
+		t.Errorf("no access to configmaps: %+v %v", items, err)
 	}
 
 	cs = fake.NewSimpleClientset(helmSecretObj(t, 1, "deployed", nil), helmConfigMapObj(t, 2, "deployed", nil))
 	cs.PrependReactor("list", "secrets", forbidden("secrets"))
 	items, err = listHelmStored(ctx, cs, "", helmReleaseSelector(""))
 	if err != nil || len(items) != 1 || items[0].Storage != helmStorageConfigMap {
-		t.Errorf("нет доступа к secrets: %+v %v", items, err)
+		t.Errorf("no access to secrets: %+v %v", items, err)
 	}
 
 	cs = fake.NewSimpleClientset()
 	cs.PrependReactor("list", "secrets", forbidden("secrets"))
 	cs.PrependReactor("list", "configmaps", forbidden("configmaps"))
 	if _, err := listHelmStored(ctx, cs, "", helmReleaseSelector("")); err == nil {
-		t.Error("нет доступа ни к чему — должна быть ошибка")
+		t.Error("no access to anything must be an error")
 	}
 
 	// не-Forbidden ошибка нельзя глотать: список был бы неполным
@@ -97,7 +97,7 @@ func TestListHelmStoredToleratesForbiddenOnOneSide(t *testing.T) {
 		return true, nil, apierrors.NewInternalError(context.DeadlineExceeded)
 	})
 	if _, err := listHelmStored(ctx, cs, "", helmReleaseSelector("")); err == nil {
-		t.Error("внутренняя ошибка API должна возвращаться")
+		t.Error("an internal API error must be returned")
 	}
 }
 
@@ -114,14 +114,14 @@ func TestLatestHelmPayloads(t *testing.T) {
 	c = fake.NewSimpleClientset(helmSecretObj(t, 3, "deployed", nil), helmConfigMapObj(t, 3, "deployed", nil))
 	items, _ = listHelmStored(context.Background(), c, "", helmReleaseSelector(""))
 	if got := latestHelmPayloads(items); len(got) != 1 || got[0].Storage != helmStorageSecret {
-		t.Errorf("ничья: %+v", got)
+		t.Errorf("tie: %+v", got)
 	}
 
 	// единственная ревизия superseded не показывается; битый объект пропускается
 	bad := helmStored{Name: "x", Namespace: "prod", Storage: helmStorageConfigMap, Raw: []byte("not-base64!")}
 	one := []helmStored{bad}
 	if got := latestHelmPayloads(one); len(got) != 0 {
-		t.Errorf("битый объект: %+v", got)
+		t.Errorf("broken object: %+v", got)
 	}
 }
 
@@ -129,10 +129,10 @@ func TestPickHelmStorage(t *testing.T) {
 	c := fake.NewSimpleClientset(helmSecretObj(t, 1, "superseded", nil), helmConfigMapObj(t, 2, "deployed", nil))
 	items, _ := listHelmStored(context.Background(), c, "prod", helmReleaseSelector("web"))
 	if got := pickHelmStorage(items); got != helmStorageConfigMap {
-		t.Errorf("последняя ревизия в configmap, получено %q", got)
+		t.Errorf("the latest revision is in the configmap, got %q", got)
 	}
 	if got := pickHelmStorage(nil); got != "" {
-		t.Errorf("релиза нет: %q", got)
+		t.Errorf("no release: %q", got)
 	}
 }
 
@@ -144,12 +144,12 @@ func TestGetHelmStoredFallsBackToConfigMap(t *testing.T) {
 		t.Fatalf("%+v %v", it, err)
 	}
 	if _, err := getHelmStored(ctx, c, "prod", "web", 7); !apierrors.IsNotFound(err) {
-		t.Errorf("ожидалась NotFound: %v", err)
+		t.Errorf("expected NotFound: %v", err)
 	}
 	// секрет приоритетнее
 	c = fake.NewSimpleClientset(helmSecretObj(t, 1, "deployed", nil), helmConfigMapObj(t, 1, "deployed", nil))
 	if it, err := getHelmStored(ctx, c, "prod", "web", 1); err != nil || it.Storage != helmStorageSecret {
-		t.Errorf("приоритет secret: %+v %v", it, err)
+		t.Errorf("secret takes priority: %+v %v", it, err)
 	}
 }
 
@@ -176,7 +176,7 @@ func TestHelmDetailAndContentAcrossStorages(t *testing.T) {
 	}
 	// в манифесте значения Secret скрываются и для ConfigMap-хранилища
 	if strings.Contains(content.Manifest, "UzNDUkVU") {
-		t.Error("значение Secret не должно попадать в манифест")
+		t.Error("a Secret value must not end up in the manifest")
 	}
 }
 
@@ -188,7 +188,7 @@ func TestHelmDriverName(t *testing.T) {
 	}
 	for _, bad := range []string{"sql", "memory", "ConfigMap", "secrets "} {
 		if _, err := helmDriverName(bad); err == nil {
-			t.Errorf("%q должно отклоняться", bad)
+			t.Errorf("%q must be rejected", bad)
 		}
 	}
 }
@@ -201,6 +201,6 @@ func TestInstallRequestValidatesStorage(t *testing.T) {
 	}
 	r.Storage = "sql"
 	if err := validateHelmInstallRequest(&r); err == nil {
-		t.Error("неизвестное хранилище должно отклоняться")
+		t.Error("an unknown storage must be rejected")
 	}
 }

@@ -20,52 +20,52 @@ type item struct{ ns, name string }
 func nsOfItem(i item) string { return i.ns }
 
 func TestParseScope(t *testing.T) {
-	t.Run("пусто и пустые имена — все", func(t *testing.T) {
+	t.Run("empty and blank names mean all", func(t *testing.T) {
 		for _, in := range [][]string{nil, {}, {""}, {"  "}, {"a", ""}} {
 			s, err := parseScope(in)
 			if err != nil || !s.all() {
-				t.Errorf("%q: ожидалось «все», получили %v, %v", in, s.names, err)
+				t.Errorf("%q: expected 'all', got %v, %v", in, s.names, err)
 			}
 		}
 		// невалидное имя отклоняется, даже если рядом есть пустое («все»)
 		if _, err := parseScope([]string{"", "bad name"}); err == nil {
-			t.Error("невалидное имя должно давать ошибку независимо от пустого")
+			t.Error("an invalid name must produce an error regardless of an empty one")
 		}
 	})
 
-	t.Run("дубли убираются, порядок сортируется", func(t *testing.T) {
+	t.Run("duplicates are removed, order is sorted", func(t *testing.T) {
 		s, err := parseScope([]string{" b ", "a", "b", "c"})
 		if err != nil || !reflect.DeepEqual(s.names, []string{"a", "b", "c"}) {
 			t.Fatalf("%v %v", s.names, err)
 		}
 	})
 
-	t.Run("невалидные имена отклоняются", func(t *testing.T) {
+	t.Run("invalid names are rejected", func(t *testing.T) {
 		for _, bad := range []string{"Upper", "a_b", "a b", "-a", "a-", "a/b", "a\"b", "a.b", strings.Repeat("x", 64)} {
 			if _, err := parseScope([]string{"ok", bad}); err == nil {
-				t.Errorf("%q должно быть отклонено", bad)
+				t.Errorf("%q must be rejected", bad)
 			}
 		}
 	})
 
-	t.Run("предел размера", func(t *testing.T) {
+	t.Run("size limit", func(t *testing.T) {
 		var in []string
 		for i := 0; i < maxScopeNamespaces; i++ {
 			in = append(in, fmt.Sprintf("ns-%d", i))
 		}
 		if _, err := parseScope(in); err != nil {
-			t.Fatalf("ровно на пределе должно проходить: %v", err)
+			t.Fatalf("exactly at the limit must pass: %v", err)
 		}
 		if _, err := parseScope(append(in, "one-more")); err == nil {
-			t.Error("сверх предела — ошибка")
+			t.Error("over the limit is an error")
 		}
 		// дубли не раздувают набор
 		if _, err := parseScope(append(append([]string{}, in...), in...)); err != nil {
-			t.Errorf("дубли не должны считаться: %v", err)
+			t.Errorf("duplicates must not be counted: %v", err)
 		}
 	})
 
-	t.Run("текст ошибки ограничен по длине", func(t *testing.T) {
+	t.Run("error text is length-limited", func(t *testing.T) {
 		_, err := parseScope([]string{strings.Repeat("Я", 500)})
 		if err == nil || len([]rune(err.Error())) > 200 {
 			t.Errorf("%v", err)
@@ -144,7 +144,7 @@ func TestListScopedPartialFailure(t *testing.T) {
 
 	items, fails, err := listScoped(context.Background(), nsScope{names: []string{"a", "b", "c"}}, false, list, nsOfItem)
 	if err != nil {
-		t.Fatalf("частичный отказ не должен быть ошибкой: %v", err)
+		t.Fatalf("a partial denial must not be an error: %v", err)
 	}
 	if len(items) != 2 || len(fails) != 1 || fails[0].Namespace != "b" || !strings.Contains(fails[0].Error, "forbidden") {
 		t.Errorf("items=%v fails=%v", items, fails)
@@ -161,7 +161,7 @@ func TestListScopedEmptyResultIsNotNil(t *testing.T) {
 	list := func(context.Context, string) ([]item, error) { return nil, nil }
 	items, _, err := listScoped(context.Background(), nsScope{names: []string{"a", "b"}}, false, list, nsOfItem)
 	if err != nil || items == nil || len(items) != 0 {
-		t.Errorf("должен быть пустой, но не nil срез (JSON [] вместо null): %#v %v", items, err)
+		t.Errorf("must be an empty but non-nil slice (JSON [] instead of null): %#v %v", items, err)
 	}
 }
 
@@ -188,10 +188,10 @@ func TestListScopedBoundsConcurrency(t *testing.T) {
 		t.Fatalf("%d %v", len(items), err)
 	}
 	if peak.Load() > scopeConcurrency {
-		t.Errorf("одновременно %d запросов, предел %d", peak.Load(), scopeConcurrency)
+		t.Errorf("%d concurrent requests, limit %d", peak.Load(), scopeConcurrency)
 	}
 	if peak.Load() < 2 {
-		t.Errorf("запросы должны идти параллельно, пик %d", peak.Load())
+		t.Errorf("requests must run in parallel, peak %d", peak.Load())
 	}
 }
 
@@ -220,7 +220,7 @@ func TestListScopedCancel(t *testing.T) {
 			t.Errorf("err = %v", err)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("вызов не завершился после отмены контекста")
+		t.Fatal("the call did not finish after the context was canceled")
 	}
 }
 
@@ -231,7 +231,7 @@ func TestListScopedListAllStrategy(t *testing.T) {
 	}
 	six := nsScope{names: []string{"a", "b", "c", "d", "e", "f"}}
 
-	t.Run("большой набор и право на list-all — один запрос с фильтром", func(t *testing.T) {
+	t.Run("a large set and the list-all permission: a single filtered request", func(t *testing.T) {
 		var calls []string
 		var mu sync.Mutex
 		items, _, err := listScoped(context.Background(), six, true, fakeList(data, &calls, &mu), nsOfItem)
@@ -240,12 +240,12 @@ func TestListScopedListAllStrategy(t *testing.T) {
 		}
 		for _, it := range items {
 			if it.ns == "g" {
-				t.Error("namespace вне набора не должен попасть в ответ")
+				t.Error("a namespace outside the set must not appear in the response")
 			}
 		}
 	})
 
-	t.Run("набор не больше порога — по одному namespace", func(t *testing.T) {
+	t.Run("a set not above the threshold: one request per namespace", func(t *testing.T) {
 		var calls []string
 		var mu sync.Mutex
 		five := nsScope{names: six.names[:scopeListAllThreshold]}
@@ -257,7 +257,7 @@ func TestListScopedListAllStrategy(t *testing.T) {
 		}
 	})
 
-	t.Run("нет права на общий запрос — запасной путь по namespace", func(t *testing.T) {
+	t.Run("no permission for the cluster-wide request: per-namespace fallback", func(t *testing.T) {
 		var calls []string
 		var mu sync.Mutex
 		inner := fakeList(data, &calls, &mu)

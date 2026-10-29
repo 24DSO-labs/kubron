@@ -59,7 +59,7 @@ func sessionID(k [sha256.Size]byte) string { return hex.EncodeToString(k[:8]) }
 func randomToken() string {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
-		panic("server: нет источника случайности: " + err.Error())
+		panic("server: crypto/rand is unavailable: " + err.Error())
 	}
 	return base64.RawURLEncoding.EncodeToString(b)
 }

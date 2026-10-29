@@ -1,0 +1,6 @@
+{
+  "noConnection": "нет связи с сервером Kubron",
+  "httpStatus": "сервер ответил HTTP {status}",
+  "terminalConnect": "не удалось подключиться к терминалу",
+  "fileTooLarge": "файл больше {kb} КБ"
+}

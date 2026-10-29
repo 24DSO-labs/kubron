@@ -32,7 +32,7 @@ func (s *static) Kind() ext.Kind { return ext.KindPassword }
 
 func (s *static) Authenticate(_ context.Context, username, password string) (*ext.Identity, error) {
 	if want, ok := s.users[username]; !ok || want != password {
-		return nil, errors.New("неверный логин или пароль")
+		return nil, errors.New("invalid username or password")
 	}
 	return &ext.Identity{Subject: username, Username: username, Groups: []string{"example"}}, nil
 }

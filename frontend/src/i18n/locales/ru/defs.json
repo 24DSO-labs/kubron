@@ -194,7 +194,8 @@
     "unsetDefault": "Снять по умолчанию",
     "openInBrowser": "Открыть в браузере",
     "stop": "Остановить",
-    "browseResources": "Просмотр ресурсов"
+    "browseResources": "Просмотр ресурсов",
+    "uninstall": "Удалить релиз"
   },
   "values": {
     "true": "Да",
@@ -250,5 +251,10 @@
   },
   "runtimeClass": {
     "overhead": "Накладные расходы"
+  },
+  "helmRelease": {
+    "uninstallConfirm": "Удалить релиз {namespace}/{name}? Все ресурсы, созданные релизом, будут удалены из кластера.",
+    "uninstalled": "Релиз {name} удалён",
+    "uninstallError": "Удаление релиза: {message}"
   }
 }

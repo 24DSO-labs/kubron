@@ -26,24 +26,24 @@
         autocomplete="new-password" />
       <input v-if="isOci" v-model.trim="form.charts" class="form-input hr-charts" :placeholder="$t('helm.repos.ociChartsPlaceholder')" :aria-label="$t('helm.repos.ociChartsAria')" />
       <label v-if="!isOci" class="hr-check">
-        <input v-model="form.insecureTLS" type="checkbox" /> $t('helm.repos.noTLS')
+        <input v-model="form.insecureTLS" type="checkbox" /> {{ $t('helm.repos.noTLS') }}
       </label>
       <p v-if="isOci" class="hr-note">
-        $t('helm.repos.ociNote')
+        {{ $t('helm.repos.ociNote') }}
       </p>
-      <p class="hr-note">$t('helm.repos.passNote')</p>
+      <p class="hr-note">{{ $t('helm.repos.passNote') }}</p>
       <div class="hr-form-actions">
         <button class="btn" type="submit" :disabled="adding">{{ adding ? $t('helm.repos.checking') : $t('helm.repos.adding') }}</button>
       </div>
     </form>
 
     <p v-if="error" class="form-error">{{ error }}</p>
-    <p v-if="loading && !loaded" class="hr-empty">$t('common.loading')</p>
-    <p v-else-if="loaded && !repos.length" class="hr-empty">$t('helm.repos.noRepos')</p>
+    <p v-if="loading && !loaded" class="hr-empty">{{ $t('common.loading') }}</p>
+    <p v-else-if="loaded && !repos.length" class="hr-empty">{{ $t('helm.repos.noRepos') }}</p>
 
     <table v-if="repos.length" class="hr-table">
       <thead>
-        <tr><th>$t('helm.repos.title')</th><th>URL</th><th>$t('helm.repos.charts')</th><th>$t('helm.repos.updated')</th><th>$t('helm.repos.state')</th><th></th></tr>
+        <tr><th>{{ $t('helm.repos.title') }}</th><th>URL</th><th>{{ $t('helm.repos.charts') }}</th><th>{{ $t('helm.repos.updated') }}</th><th>{{ $t('helm.repos.state') }}</th><th></th></tr>
       </thead>
       <tbody>
         <tr v-for="r in repos" :key="r.name">
@@ -61,10 +61,10 @@
           </td>
           <td>{{ r.updated ? r.charts : $t('common.dash') }}</td>
           <td class="hr-muted" :title="r.updated">{{ formatTime(r.updated) }}</td>
-          <td><span v-if="r.error" class="hr-bad" :title="r.error">{{ r.error }}</span><span v-else class="hr-ok">$t('helm.repos.ok')</span></td>
+          <td><span v-if="r.error" class="hr-bad" :title="r.error">{{ r.error }}</span><span v-else class="hr-ok">{{ $t('helm.repos.ok') }}</span></td>
           <td class="hr-actions">
-            <button v-if="canManage" class="btn" type="button" :disabled="!!busy" @click="update(r.name)">{{ busy === r.name ? '…' : 'Update' }}</button>
-            <button v-if="canManage" class="btn hr-danger" type="button" :disabled="!!busy" @click="remove(r.name)">Remove</button>
+            <button v-if="canManage" class="btn" type="button" :disabled="!!busy" @click="update(r.name)">{{ busy === r.name ? '…' : $t('helm.repos.update') }}</button>
+            <button v-if="canManage" class="btn hr-danger" type="button" :disabled="!!busy" @click="remove(r.name)">{{ $t('helm.repos.remove') }}</button>
           </td>
         </tr>
       </tbody>
@@ -80,6 +80,8 @@ import { can } from '../../composables/useAuth'
 import { useNotifications } from '../../composables/useNotifications'
 import { useI18n } from 'vue-i18n'
 import { Perm } from '../../types/auth'
+import { errorText } from '../../composables/errorText'
+import { formatDateTime } from '../../i18n/format'
 
 const { t } = useI18n()
 
@@ -105,8 +107,7 @@ const isOci = computed(() => form.url.trim().toLowerCase().startsWith('oci://'))
 
 function formatTime(iso: string) {
   if (!iso) return t('common.dash')
-  const d = new Date(iso)
-  return isNaN(d.getTime()) ? iso : d.toLocaleString()
+  return formatDateTime(iso) || iso
 }
 
 async function load() {
@@ -116,7 +117,7 @@ async function load() {
     repos.value = ((await callApp('ListHelmRepos')) as RepoInfo[]) ?? []
     loaded.value = true
   } catch (e: any) {
-    error.value = e?.message || String(e)
+    error.value = errorText(e)
   } finally {
     loading.value = false
   }
@@ -132,12 +133,12 @@ async function add() {
     } else {
       await callApp('AddHelmRepo', form.name, form.url, form.username, form.password, form.insecureTLS)
     }
-    notifications.notifySuccess(`t('helm.repos.added', { name: form.name })`)
+    notifications.notifySuccess(t('helm.repos.added', { name: form.name }))
     Object.assign(form, { name: '', url: '', username: '', password: '', insecureTLS: false, charts: '' })
     showForm.value = false
     await load()
   } catch (e: any) {
-    error.value = e?.message || String(e)
+    error.value = errorText(e)
   } finally {
     form.password = '' // пароль не держим в памяти формы дольше необходимого
     adding.value = false
@@ -158,7 +159,7 @@ async function runUpdate(name: string, key: string) {
   try {
     report(((await callApp('UpdateHelmRepos', name)) as UpdateResult[]) ?? [])
   } catch (e: any) {
-    notifications.notifyError(`t('helm.repos.updateError', { message: ${e?.message || e}`)
+    notifications.notifyError(t('helm.repos.updateError', { message: errorText(e) }))
   } finally {
     busy.value = ''
     await load()
@@ -175,7 +176,7 @@ async function addChart(repo: string) {
     await callApp('AddHelmOCIChart', repo, chart)
     newChart[repo] = ''
   } catch (e: any) {
-    notifications.notifyError(t('helm.repos.addChartError', { message: e?.message || e }))
+    notifications.notifyError(t('helm.repos.addChartError', { message: errorText(e) }))
   } finally {
     busy.value = ''
     await load()
@@ -187,7 +188,7 @@ async function removeChart(repo: string, chart: string) {
   try {
     await callApp('RemoveHelmOCIChart', repo, chart)
   } catch (e: any) {
-    notifications.notifyError(t('helm.repos.removeChartError', { message: e?.message || e }))
+    notifications.notifyError(t('helm.repos.removeChartError', { message: errorText(e) }))
   } finally {
     busy.value = ''
     await load()
@@ -201,7 +202,7 @@ async function remove(name: string) {
     await callApp('RemoveHelmRepo', name)
     notifications.notifySuccess(t('helm.repos.removed', { name }))
   } catch (e: any) {
-    notifications.notifyError(t('helm.repos.removeError', { message: e?.message || e }))
+    notifications.notifyError(t('helm.repos.removeError', { message: errorText(e) }))
   } finally {
     busy.value = ''
     await load()

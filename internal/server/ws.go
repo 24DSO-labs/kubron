@@ -30,7 +30,7 @@ func WSHandler(g *Guard) http.Handler {
 		token := g.token(r)
 		sess, ok := g.Sessions.Get(token)
 		if !ok {
-			writeError(w, http.StatusUnauthorized, "unauthenticated", "требуется вход в систему")
+			writeError(w, http.StatusUnauthorized, "unauthenticated", "authentication required")
 			return
 		}
 		ws, err := up.Upgrade(w, r, nil)
@@ -86,7 +86,7 @@ func serveConn(ws *websocket.Conn, c *Conn, alive func() bool) {
 		case frame := <-c.Out():
 			_ = ws.SetWriteDeadline(time.Now().Add(wsWriteWait))
 			if err := ws.WriteMessage(websocket.TextMessage, frame); err != nil {
-				log.Printf("ws: запись: %v", err)
+				log.Printf("ws: failed to write: %v", err)
 				return
 			}
 		case <-tick.C:

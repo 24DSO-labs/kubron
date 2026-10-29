@@ -83,7 +83,7 @@ func (m *Manager) beginHelmOp(ctx context.Context, opID, op, ns, rel string, can
 		return ctx, nil, nil
 	}
 	if !helmOpIDRe.MatchString(opID) {
-		return ctx, nil, errors.New("некорректный идентификатор операции")
+		return ctx, nil, errors.New("invalid operation ID")
 	}
 	t := &helmTracker{m: m, opID: opID, op: op, ns: ns, rel: rel, started: time.Now(), stop: make(chan struct{})}
 	if conn, err := m.GetActiveConnection(); err == nil {
@@ -99,7 +99,7 @@ func (m *Manager) beginHelmOp(ctx context.Context, opID, op, ns, rel string, can
 		if t.cancel != nil {
 			t.cancel()
 		}
-		return ctx, nil, errors.New("операция с таким идентификатором уже выполняется")
+		return ctx, nil, errors.New("an operation with this ID is already running")
 	}
 	activeHelmOps.ops[opID] = t
 	activeHelmOps.mu.Unlock()
@@ -115,12 +115,12 @@ func (m *Manager) CancelHelmOperation(opID string) error {
 	activeHelmOps.mu.Unlock()
 	// Чужую операцию (другой сессии) отменить нельзя; для неё она «не найдена», как и несуществующая.
 	if t == nil || t.m != m {
-		return errors.New("операция не найдена или уже завершена")
+		return errors.New("operation not found or already finished")
 	}
 	if t.cancel == nil {
-		return errors.New("эту операцию нельзя отменить")
+		return errors.New("this operation cannot be canceled")
 	}
-	t.setPhase("Отмена…")
+	t.setPhase("Canceling…")
 	t.cancel()
 	return nil
 }
@@ -259,7 +259,7 @@ func (t *helmTracker) record(err error) HelmOperationRecord {
 	if err != nil {
 		status, msg = "failed", err.Error()
 		if errors.Is(err, context.Canceled) {
-			status, msg = "canceled", "операция отменена"
+			status, msg = "canceled", "operation canceled"
 		}
 	}
 	now := time.Now()

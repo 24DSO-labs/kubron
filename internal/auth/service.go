@@ -179,7 +179,7 @@ func (s *Service) endUserSessionsLocked(userID string, except *Service, action s
 		if v == except || v.sessionID != userID {
 			continue
 		}
-		s.recordFrom(v.source, s.st.findByID(userID), "SessionEnd", audit.ResultOK, "причина: "+action)
+		s.recordFrom(v.source, s.st.findByID(userID), "SessionEnd", audit.ResultOK, "reason: "+action)
 		v.sessionID = ""
 		if v.onLogout != nil {
 			hooks = append(hooks, v.onLogout)
@@ -692,7 +692,7 @@ func (s *Service) ChangePassword(oldPassword, newPassword string) error {
 	s.touchLocked()
 	s.record(rec, "ChangePassword", audit.ResultOK, "")
 	// Остальные сессии этого пользователя (другие браузеры) завершаются: пароль мог быть скомпрометирован
-	hooks = s.endUserSessionsLocked(id, s, "смена пароля")
+	hooks = s.endUserSessionsLocked(id, s, "ChangePassword")
 	return nil
 }
 

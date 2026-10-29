@@ -371,12 +371,6 @@ func UpdateClusterSettings(id string, settings ClusterSettings, replace Kubeconf
 		}
 	}
 
-	if newData != nil {
-		if err := writeFileAtomic(kcPath, newData, 0600); err != nil {
-			return nil, fmt.Errorf("failed to save kubeconfig: %w", err)
-		}
-	}
-
 	changed := newData != nil || contextName != meta.ContextName
 	meta.DisplayName = settings.DisplayName
 	meta.Icon = settings.Icon

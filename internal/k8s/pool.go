@@ -113,7 +113,7 @@ func (p *connPool) getOrCreate(id string, build func() (*ClusterConnection, erro
 func safeBuild(build func() (*ClusterConnection, error)) (conn *ClusterConnection, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			conn, err = nil, fmt.Errorf("подключение к кластеру: %v", r)
+			conn, err = nil, fmt.Errorf("cluster connection: %v", r)
 		}
 	}()
 	return build()

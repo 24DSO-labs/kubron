@@ -225,7 +225,7 @@ func (pfm *PortForwardManager) start(id, namespace, pod, service string, service
 	}
 	if max := pfm.k8sMgr.Limits().PortForwards; max > 0 && len(pfm.sessions) >= max {
 		pfm.mu.Unlock()
-		return nil, fmt.Errorf("слишком много port-forward (максимум %d)", max)
+		return nil, fmt.Errorf("too many port-forwards (maximum %d)", max)
 	}
 	pfm.sessions[id] = session
 	pfm.mu.Unlock()

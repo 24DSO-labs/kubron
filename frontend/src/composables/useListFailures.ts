@@ -1,17 +1,10 @@
 // Copyright 2026 The Kubron Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import { ref, getCurrentInstance } from 'vue'
+import { ref } from 'vue'
+import { t } from '../i18n'
 import { onEvent } from '../platform/events'
 import { useNotifications } from './useNotifications'
-
-function t(key: string, params?: Record<string, unknown>): string {
-  const instance = getCurrentInstance()
-  if (instance?.appContext?.config?.globalProperties?.$t) {
-    return (instance.appContext.config.globalProperties.$t as any)(key, params)
-  }
-  return key
-}
 
 /** Событие бэкенда list:partial: часть namespace набора прочитать не удалось. */
 export interface PartialListPayload {
