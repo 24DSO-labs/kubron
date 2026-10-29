@@ -17,6 +17,11 @@ git commit -s -m "feat: ..."
 Забыли? Для последнего коммита — `git commit --amend -s --no-edit`; для нескольких —
 `git rebase --signoff <база>`. CI проверяет подписи в pull request (`scripts/check-dco.sh`).
 
+Проверяются коммиты, созданные начиная с 30.10.2026 (`DCO_SINCE` в `scripts/check-dco.sh`);
+более ранние, сделанные до введения проверки, не переписываем.
+Чтобы не думать о `-s`, включите подпись в IDE: VS Code — `"git.alwaysSignOff": true`,
+JetBrains — галочка «Sign-off commit» в окне коммита.
+
 Отдельное соглашение (CLA) не требуется.
 
 ## Заголовки в исходниках
@@ -50,3 +55,9 @@ gofmt -l .
 go vet ./... && go test ./...
 cd frontend && npm test && npm run i18n:check
 ```
+
+## Релизы
+
+Релиз выпускается одной командой `scripts/release.sh X.Y.Z` из ветки `dev`.
+Порядок работы, настройка GitHub и что делать при сбоях: [docs/releasing.md](docs/releasing.md).
+Изменения, заметные пользователю, добавляйте в `CHANGELOG.md` в раздел `[Unreleased]`.
