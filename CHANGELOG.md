@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Helm:** Chart upgrade preview now includes the new chart's notes and a diff of old vs new chart default values.
+
+### Fixed
+
+- Helm: fixed issues #37 and #38.
+
+## [0.2.0] - 2026-10-29
+
 ## [0.2.0] - 2026-10-29
 
 ### Added
