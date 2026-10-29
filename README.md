@@ -120,6 +120,9 @@ The Kubron core is open source under [Apache-2.0](LICENSE).
 
 Paid subscription features are planned. The first one — **SSO/OIDC login for organizations** — will ship as a separate commercial module. The open core will always include local users, roles, audit log and emergency admin access.
 
+## Contributors
+- [VadimIl224](https://github.com/VadimIl224)
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) (DCO sign-off required). Please follow the
