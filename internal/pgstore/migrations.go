@@ -1,8 +1,11 @@
 // Copyright 2026 The Kubron Authors
 // SPDX-License-Identifier: Apache-2.0
 
-// Package pgstore — хранилище сервиса на PostgreSQL (ADR-0007). Сейчас здесь схема и миграции (задача 3.1a);
-// реализация Store поверх pgx появится в задаче 3.1b.
+// Package pgstore — хранилище сервиса на PostgreSQL (ADR-0007): схема и миграции (3.1a), пользователи,
+// журнал аудита, токены Argo CD и кластеры (3.1b). Секреты шифруются пакетом secretbox (3.1c).
+//
+// Пакет не зависит от internal/k8s и internal/app: кластеры отдаются собственными типами, к k8s.ClusterStore
+// их приводит тонкий адаптер в internal/store.
 package pgstore
 
 import (

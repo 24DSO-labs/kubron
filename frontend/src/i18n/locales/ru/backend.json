@@ -37,6 +37,7 @@
   "passwordChangeRequired": "требуется сменить пароль",
   "aUserWithThisUsernameAlready": "пользователь с таким логином уже существует",
   "userNotFound": "пользователь не найден",
+  "unknownRoleP0": "неизвестная роль {p0}",
   "unknownRole": "неизвестная роль",
   "cannotRemoveAccessFromTheLast": "нельзя лишить доступа последнего администратора",
   "thisActionCannotBePerformedOn": "это действие нельзя выполнить над собственной учётной записью",
@@ -137,6 +138,7 @@
   "kubeconfigHasNoContexts": "в kubeconfig нет ни одного контекста",
   "contextNotFoundInKubeconfig": "контекст {p0} не найден в kubeconfig",
   "noPermissionToReadNamespacesSome": "нет права на чтение namespaces: часть данных может быть недоступна",
+  "clusterNotFoundPlain": "кластер не найден",
   "clusterNotFound": "кластер не найден: {p0}",
   "kubeconfigCanOnlyBeReplacedWith": "заменять kubeconfig можно только файлом или текстом",
   "failedToSaveKubeconfig": "не удалось сохранить kubeconfig: {p0}",
@@ -455,5 +457,15 @@
   "unsupportedEncoding": "неподдерживаемая кодировка",
   "invalidEncryptionKeyId": "некорректный идентификатор ключа шифрования",
   "duplicateEncryptionKeyId": "повтор идентификатора ключа шифрования {p0}",
-  "randomSourceUnavailable": "источник случайных чисел недоступен: {p0}"
+  "randomSourceUnavailable": "источник случайных чисел недоступен: {p0}",
+  "invalidClusterDate": "некорректная дата кластера: {p0}",
+  "clusterP1": "{p0}: кластер {p1}",
+  "invalidClusterData": "некорректные данные кластера: {p0}",
+  "connectToTheDatabase": "подключение к базе данных: {p0}",
+  "databaseStoreIsNotInitialized": "хранилище в базе данных не инициализировано",
+  "aRecordWithThisNameAlreadyExists": "запись с таким именем уже существует",
+  "securitySettingsAreCorrupted": "настройки безопасности повреждены: {p0}",
+  "userP1": "{p0}: пользователь {p1}",
+  "kubronSecretKeyIsRequiredWhenADatabaseIsUsed": "при использовании базы данных нужен KUBRON_SECRET_KEY",
+  "clusterIsNotSet": "кластер не задан"
 }

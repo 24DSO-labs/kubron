@@ -21,8 +21,11 @@ import (
 	"github.com/VadimIl224/kubron/frontend"
 	"github.com/VadimIl224/kubron/internal/app"
 	"github.com/VadimIl224/kubron/internal/k8s"
+	"github.com/VadimIl224/kubron/internal/pgstore"
 	webplatform "github.com/VadimIl224/kubron/internal/platform/web"
+	"github.com/VadimIl224/kubron/internal/secretbox"
 	"github.com/VadimIl224/kubron/internal/server"
+	"github.com/VadimIl224/kubron/internal/store"
 )
 
 func main() {
@@ -53,6 +56,14 @@ func main() {
 	platform.SetEmitter(hub.Emit)
 	platform.SetSessionEmitter(hub.EmitTo)
 	core := app.NewApp(platform)
+	if cfg.DatabaseURL != "" {
+		pg, err := openPostgres(ctx, cfg)
+		if err != nil {
+			log.Fatalf("database: %v", err)
+		}
+		defer pg.Close()
+		app.SetStore(core, store.FromPostgres(pg))
+	}
 	app.OnStartup(core)(ctx)
 	defer app.OnShutdown(core)(context.Background())
 
@@ -91,4 +102,32 @@ func main() {
 	if err := server.Run(ctx, cfg, server.NewHandler(dispatcher, dist, guard)); err != nil {
 		log.Fatalf("server: %v", err)
 	}
+}
+
+// openPostgres подключается к БД, применяет миграции и готовит организацию по умолчанию.
+func openPostgres(ctx context.Context, cfg server.Config) (*pgstore.Store, error) {
+	keys, err := secretbox.ParseKeyring(cfg.SecretKey, cfg.PreviousSecretKeys...)
+	if err != nil {
+		return nil, err
+	}
+	pg, err := pgstore.Open(ctx, cfg.DatabaseURL, keys)
+	if err != nil {
+		return nil, err
+	}
+	res, err := pg.Migrate(ctx)
+	if err != nil {
+		pg.Close()
+		return nil, err
+	}
+	if len(res.Applied) > 0 {
+		log.Printf("database: applied migrations %v", res.Applied)
+	}
+	if len(res.Ahead) > 0 {
+		log.Printf("database: the schema is newer than this build (versions %v); running in compatibility mode", res.Ahead)
+	}
+	if err := pg.Init(ctx); err != nil {
+		pg.Close()
+		return nil, err
+	}
+	return pg, nil
 }

@@ -130,6 +130,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - run: scripts/check-migrations.sh
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Integration tests of the PostgreSQL store
+        env:
+          KUBRON_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/kubron_test?sslmode=disable
+        run: |
+          psql -c 'CREATE DATABASE kubron_test'
+          go test -race -count=1 ./internal/pgstore/ ./internal/migrate/ ./internal/secretbox/
 
   lint:
     name: Go (golangci-lint)

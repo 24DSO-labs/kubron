@@ -10,6 +10,7 @@ import (
 	"github.com/VadimIl224/kubron/internal/audit"
 	"github.com/VadimIl224/kubron/internal/auth"
 	"github.com/VadimIl224/kubron/internal/k8s"
+	"github.com/VadimIl224/kubron/internal/store"
 	"github.com/VadimIl224/kubron/internal/termbuf"
 	"net"
 	"strings"
@@ -23,9 +24,14 @@ type App struct {
 	audit    *audit.Logger
 	auth     *auth.Service // nil, если хранилище пользователей не открылось (см. authErr)
 	authErr  error
+	store    store.Store // nil — файловое хранилище десктопа (SetStore подменяет, например, на PostgreSQL)
 	// sessionID — веб-сессия владельца вида (пусто у корневого экземпляра и в десктопе).
 	sessionID string
 }
+
+// SetStore задаёт хранилище вместо файлового; вызывается до OnStartup. Это функция пакета, а не метод App:
+// она не должна попадать в привязки Wails и RPC.
+func SetStore(a *App, st store.Store) { a.store = st }
 
 // NewApp создаёт ядро приложения. p — возможности оболочки (Wails или HTTP-сервер);
 // nil допустим (все операции платформы тогда не делают ничего).
@@ -52,7 +58,11 @@ func (a *App) startup(ctx context.Context) {
 	if err := k8s.InitKubronDir(); err != nil {
 		println("Error:", err.Error())
 	}
-	a.initAuth(k8s.GetKubronDir())
+	if a.store != nil {
+		a.initAuthWith(a.store)
+	} else {
+		a.initAuth(k8s.GetKubronDir())
+	}
 	if a.auth != nil {
 		go a.auth.RunIdleWatcher(ctx, 10*time.Second)
 	}
