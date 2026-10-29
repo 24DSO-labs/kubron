@@ -174,7 +174,9 @@
     "notes": "Notes",
     "manifest": "Manifest",
     "resources": "Resources",
-    "history": "History"
+    "history": "History",
+    "editValues": "Edit values",
+    "upgradeChart": "Chart version"
   },
   "menu": {
     "attach": "Attach",

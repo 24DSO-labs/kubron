@@ -711,6 +711,32 @@ func (a *App) UpgradeHelmRelease(namespace, name, valuesYAML, opID string) (int,
 	return a.k8sMgr.UpgradeHelmRelease(namespace, name, valuesYAML, opID)
 }
 
+// GetHelmUpgradeSources — репозитории, из которых можно обновить чарт релиза, и их версии (локальные индексы).
+func (a *App) GetHelmUpgradeSources(namespace, name string) (*k8s.HelmUpgradeSources, error) {
+	if err := a.authz(auth.PermRead, "namespace", namespace, "name", name); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.GetHelmUpgradeSources(namespace, name)
+}
+
+// PreviewHelmChartUpgrade — dry-run апгрейда релиза на другую версию чарта; в ответе манифесты
+// (Secret скрыты) и values, нужен secrets.read.
+func (a *App) PreviewHelmChartUpgrade(req k8s.HelmChartUpgradeRequest) (*k8s.HelmChartUpgradePreview, error) {
+	if err := a.authz(auth.PermSecretsRead, "namespace", req.Namespace, "name", req.Name, "repo", req.Repo, "version", req.Version); err != nil {
+		return nil, err
+	}
+	return a.k8sMgr.PreviewHelmChartUpgrade(req)
+}
+
+// UpgradeHelmChart переводит релиз на другую версию чарта; возвращает номер новой ревизии.
+// В authz не передаём Values: там могут быть пароли, а аргументы попадают в журнал аудита.
+func (a *App) UpgradeHelmChart(req k8s.HelmChartUpgradeRequest) (int, error) {
+	if err := a.authz(auth.PermWrite, "namespace", req.Namespace, "name", req.Name, "repo", req.Repo, "version", req.Version); err != nil {
+		return 0, err
+	}
+	return a.k8sMgr.UpgradeHelmChart(req)
+}
+
 // ВАЖНО: в authz не передаём URL и пароль. Адрес, введённый пользователем, может содержать
 // логин:пароль, а аргументы попадают в журнал аудита. Только имя репозитория.
 

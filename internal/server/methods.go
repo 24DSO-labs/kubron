@@ -74,6 +74,7 @@ var allowedMethods = []string{
 	"GetHelmReleaseContent",
 	"GetHelmReleaseDetail",
 	"GetHelmReleases",
+	"GetHelmUpgradeSources",
 	"GetHelmRevisionDiff",
 	"GetHelmOperation",
 	"GetIngressClasses",
@@ -127,6 +128,7 @@ var allowedMethods = []string{
 	"Login",
 	"Logout",
 	"OpenTerminal",
+	"PreviewHelmChartUpgrade",
 	"PreviewHelmInstall",
 	"PreviewHelmUpgrade",
 	"QueryPrometheus",
@@ -173,6 +175,7 @@ var allowedMethods = []string{
 	"UpdateHelmRepos",
 	"UpdateSecret",
 	"UpdateUserRole",
+	"UpgradeHelmChart",
 	"UpgradeHelmRelease",
 }
 
