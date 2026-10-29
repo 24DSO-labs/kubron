@@ -13,7 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Helm: upgrade a release to another chart version ("Chart version" tab). Choose the repository
   and version, keep or edit the current values, preview the manifest diff, then apply with live
-  progress and cancel. Downgrades and deprecated versions are flagged.
+  progress and cancel. Downgrades and deprecated versions are flagged. The preview also shows the
+  new chart's notes and a diff of the old and new chart default values.
+- Helm: audit-log labels for install, upgrade, rollback, uninstall and preview actions.
 - Multilingual UI (English base + Russian) on vue-i18n v11: language switcher
 
 
@@ -22,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Helm: the "Edit values" tab showed a raw translation key instead of its title.
 - Helm: the "Add" button on the repositories page showed a stray "≥" instead of "+".
 - Helm: repository badges (`oci`, `auth`, `no TLS verify`) and `deprecated` in the catalog are now translated.
+- Helm: the "release changed" warning and the empty operations list showed literal `{{ ... }}`
+  placeholders; untranslated Russian strings in the Helm section.
+- Helm: OCI chart versions with build metadata (`1.0.0+build`) were listed with `_` and could not
+  be selected.
 - Docs: the 0.1.0 notes said cancel is available for rollback and uninstall; it is available for
   install and upgrade only (the Helm SDK takes no context for the other two).
 - Web mode: idle sessions are now cleaned up in the background; per-user resource limits are
