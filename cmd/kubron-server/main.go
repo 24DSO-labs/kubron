@@ -29,6 +29,15 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 && adminCommands[os.Args[1]] {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		err := runAdmin(ctx, os.Args[1], os.Args[2:], os.Stdout)
+		stop()
+		if err != nil {
+			log.Fatalf("%s: %v", os.Args[1], err)
+		}
+		return
+	}
 	cfg, err := server.LoadConfig(os.Args[1:], os.Getenv, os.Stderr)
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {

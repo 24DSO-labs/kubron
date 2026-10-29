@@ -357,3 +357,42 @@ func TestKeyRotationAcrossStores(t *testing.T) {
 		t.Errorf("%v", err)
 	}
 }
+
+func TestRekeyAndCounts(t *testing.T) {
+	oldK, newK := keyString("2026-01"), keyString("2026-07")
+	s := newTestStore(t, oldK)
+	saveCluster(t, s, "a", "A", []byte("kc-a"))
+	saveCluster(t, s, "b", "B", []byte("kc-b"))
+	_ = s.ArgoTokens().Put("a", "tok-a")
+	c, err := s.Counts(context.Background())
+	if err != nil || c.Clusters != 2 || c.Users != 0 || c.AuditEvents != 0 {
+		t.Fatalf("%+v %v", c, err)
+	}
+
+	keys, _ := secretbox.ParseKeyring(newK, oldK)
+	n, err := Open(context.Background(), os.Getenv("KUBRON_TEST_DATABASE_URL"), keys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer n.Close()
+	rep, err := n.Rekey(context.Background())
+	if err != nil || rep.Clusters != 2 || rep.Tokens != 1 {
+		t.Fatalf("%+v %v", rep, err)
+	}
+	if again, _ := n.Rekey(context.Background()); again != (RekeyReport{}) {
+		t.Errorf("повторный Rekey ничего не должен менять: %+v", again)
+	}
+	// После перешифрования старый ключ больше не нужен.
+	only, _ := secretbox.ParseKeyring(newK)
+	m, err := Open(context.Background(), os.Getenv("KUBRON_TEST_DATABASE_URL"), only)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.Close()
+	if b, err := m.Clusters().Kubeconfig("b"); err != nil || string(b) != "kc-b" {
+		t.Errorf("%q %v", b, err)
+	}
+	if v, err := m.ArgoTokens().Get("a"); err != nil || v != "tok-a" {
+		t.Errorf("%q %v", v, err)
+	}
+}
