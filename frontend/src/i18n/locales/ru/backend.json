@@ -467,5 +467,8 @@
   "securitySettingsAreCorrupted": "настройки безопасности повреждены: {p0}",
   "userP1": "{p0}: пользователь {p1}",
   "kubronSecretKeyIsRequiredWhenADatabaseIsUsed": "при использовании базы данных нужен KUBRON_SECRET_KEY",
-  "clusterIsNotSet": "кластер не задан"
+  "clusterIsNotSet": "кластер не задан",
+  "readUsers": "чтение пользователей: {p0}",
+  "readClusters": "чтение кластеров: {p0}",
+  "readAuditLog": "чтение журнала аудита: {p0}"
 }

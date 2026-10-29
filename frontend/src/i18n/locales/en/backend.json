@@ -467,5 +467,8 @@
   "securitySettingsAreCorrupted": "security settings are corrupted: {p0}",
   "userP1": "{p0}: user {p1}",
   "kubronSecretKeyIsRequiredWhenADatabaseIsUsed": "KUBRON_SECRET_KEY is required when a database is used",
-  "clusterIsNotSet": "cluster is not set"
+  "clusterIsNotSet": "cluster is not set",
+  "readUsers": "read users: {p0}",
+  "readClusters": "read clusters: {p0}",
+  "readAuditLog": "read audit log: {p0}"
 }
