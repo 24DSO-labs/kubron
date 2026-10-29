@@ -7,6 +7,13 @@
 
  ## [Unreleased]
 
+ ### Fixed
+
+ - Helm: the "Add" button on the repositories page showed a stray "≥" instead of "+".
+ - Helm: repository badges (`oci`, `auth`, `no TLS verify`) and `deprecated` in the catalog are now translated.
+ - Docs: the 0.1.0 notes said cancel is available for rollback and uninstall; it is available for
+   install and upgrade only (the Helm SDK takes no context for the other two).
+
  ## [0.1.0] - 2026-10-28
 
  First public release.

@@ -50,7 +50,7 @@ A lightweight, open-source Kubernetes desktop IDE built with **Go** and **Wails*
 
 ### Helm
 - **Releases** — list, inspect values/manifest/notes, view history, diff revisions, roll back, uninstall
-- **Chart catalog** — manage repositories (including basic auth and custom TLS settings), search charts and browse versions
+- **Chart catalog** — manage repositories (including basic auth and an option to skip TLS verification), search charts and browse versions
 - **Install & upgrade** — dry-run preview before installing; upgrade releases to a newer chart version
 - **Update hints** — see which installed releases have a newer chart available
 
