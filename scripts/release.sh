@@ -51,7 +51,7 @@ step "Проверки"
 gh auth status >/dev/null 2>&1 || die "gh не авторизован: выполните gh auth login"
 [ "$(git rev-parse --abbrev-ref HEAD)" = "dev" ] || die "релиз выпускается из ветки dev (сейчас: $(git rev-parse --abbrev-ref HEAD))"
 [ -z "$(git status --porcelain)" ] || die "есть незакоммиченные изменения: закоммитьте или уберите их"
-git fetch --quiet --tags "$remote"
+git fetch --quiet --tags "$remote" || die "git fetch $remote не удался. Частая причина — локальный тег расходится с тегом на GitHub: сравните (git ls-remote --tags $remote), удалите локальный тег (git tag -d vX.Y.Z) и запустите снова"
 [ "$(git rev-parse HEAD)" = "$(git rev-parse "$remote/dev")" ] || die "локальная dev не совпадает с $remote/dev: сделайте pull/push"
 if git rev-parse -q --verify "refs/tags/$tag" >/dev/null || git ls-remote --exit-code --tags "$remote" "refs/tags/$tag" >/dev/null 2>&1; then
   die "тег $tag уже существует"
