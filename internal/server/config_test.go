@@ -128,3 +128,27 @@ func TestLoadConfigResourceLimits(t *testing.T) {
 		t.Error("a negative limit must be rejected")
 	}
 }
+
+func TestLoadConfigDatabase(t *testing.T) {
+	env := map[string]string{
+		"KUBRON_DATABASE_URL":        "postgres://u:p@db/kubron",
+		"KUBRON_SECRET_KEY":          " k2:abc ",
+		"KUBRON_SECRET_KEY_PREVIOUS": "k1:xyz, ,k0:qqq",
+	}
+	cfg, err := LoadConfig(nil, func(k string) string { return env[k] }, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.DatabaseURL != env["KUBRON_DATABASE_URL"] || cfg.SecretKey != "k2:abc" ||
+		len(cfg.PreviousSecretKeys) != 2 || cfg.PreviousSecretKeys[1] != "k0:qqq" {
+		t.Errorf("%+v", cfg)
+	}
+	// Флаг переопределяет окружение; без ключа с БД работать нельзя.
+	if _, err := LoadConfig([]string{"--database-url", "postgres://x/y"}, func(string) string { return "" }, io.Discard); err == nil {
+		t.Error("база без KUBRON_SECRET_KEY должна отклоняться")
+	}
+	// Без БД ключ не нужен (файловое хранилище).
+	if _, err := LoadConfig(nil, func(string) string { return "" }, io.Discard); err != nil {
+		t.Error(err)
+	}
+}

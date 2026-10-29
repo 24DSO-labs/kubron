@@ -37,6 +37,7 @@
   "passwordChangeRequired": "password change required",
   "aUserWithThisUsernameAlready": "a user with this username already exists",
   "userNotFound": "user not found",
+  "unknownRoleP0": "unknown role {p0}",
   "unknownRole": "unknown role",
   "cannotRemoveAccessFromTheLast": "cannot remove access from the last administrator",
   "thisActionCannotBePerformedOn": "this action cannot be performed on your own account",
@@ -137,6 +138,7 @@
   "kubeconfigHasNoContexts": "kubeconfig has no contexts",
   "contextNotFoundInKubeconfig": "context {p0} not found in kubeconfig",
   "noPermissionToReadNamespacesSome": "no permission to read namespaces: some data may be unavailable",
+  "clusterNotFoundPlain": "cluster not found",
   "clusterNotFound": "cluster not found: {p0}",
   "kubeconfigCanOnlyBeReplacedWith": "kubeconfig can only be replaced with a file or text",
   "failedToSaveKubeconfig": "failed to save kubeconfig: {p0}",
@@ -455,5 +457,15 @@
   "unsupportedEncoding": "unsupported encoding",
   "invalidEncryptionKeyId": "invalid encryption key id",
   "duplicateEncryptionKeyId": "duplicate encryption key id {p0}",
-  "randomSourceUnavailable": "random source unavailable: {p0}"
+  "randomSourceUnavailable": "random source unavailable: {p0}",
+  "invalidClusterDate": "invalid cluster date: {p0}",
+  "clusterP1": "{p0}: cluster {p1}",
+  "invalidClusterData": "invalid cluster data: {p0}",
+  "connectToTheDatabase": "connect to the database: {p0}",
+  "databaseStoreIsNotInitialized": "database store is not initialized",
+  "aRecordWithThisNameAlreadyExists": "a record with this name already exists",
+  "securitySettingsAreCorrupted": "security settings are corrupted: {p0}",
+  "userP1": "{p0}: user {p1}",
+  "kubronSecretKeyIsRequiredWhenADatabaseIsUsed": "KUBRON_SECRET_KEY is required when a database is used",
+  "clusterIsNotSet": "cluster is not set"
 }

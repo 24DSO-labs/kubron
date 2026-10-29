@@ -75,6 +75,13 @@
   `internal/migrate` (мигратор без зависимостей: проверка контрольных сумм, дыр в журнале, блокировка `pg_advisory_lock`, откат; обновление
   реплик по очереди не блокируется более новой схемой), `scripts/check-migrations.sh` и job `migrations` в CI (service-контейнер `postgres:16`).
   Переходное поле `users.role` удаляется в 3.2. Go-драйвер (`pgx/v5`) подключается в 3.1b вместе с интеграционными тестами на PostgreSQL.
+- **3.1b:** `internal/pgstore` на `pgx/v5`: `Open/Migrate/Init`, пользователи (`ext.UserBackend`; `Save` заменяет набор целиком под advisory-блокировкой),
+  журнал аудита (`ext.AuditBackend`, только добавление, обход от новых к старым курсором), токены Argo CD и кластеры с шифрованием через `secretbox`
+  (AAD `cluster/<id>/kubeconfig`, `argo-token/<id>`; `key_id` хранится рядом, ротация по `KUBRON_SECRET_KEY_PREVIOUS`). Пакет не зависит от `k8s`/`app`:
+  адаптер `internal/store/pg.go` приводит его к `k8s.ClusterStore`. Сервер: `KUBRON_DATABASE_URL`/`--database-url` + обязательный `KUBRON_SECRET_KEY`
+  (флага нет — ключ не должен попадать в список процессов); `app.SetStore` подменяет файловое хранилище. Организация и команда «Default» создаются при `Init`.
+  10 интеграционных тестов на PostgreSQL 16 (`KUBRON_TEST_DATABASE_URL`, база обязана содержать «test»), job `migrations` в CI гоняет их с `-race`.
+  Не сделано (по плану): `secret_enc` (пароль oidc-password) — 3.7; членство и `users.role` — 3.2; перенос данных десктопа — 3.1d; Helm для БД-кластеров (свой `RESTClientGetter`).
 
 ## Требования i18n для всех задач этапа 3
 

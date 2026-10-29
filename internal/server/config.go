@@ -24,6 +24,13 @@ type Config struct {
 	// DataDir — каталог данных (пользователи, кластеры, журнал); пусто — ~/.kubron
 	// (--data-dir или KUBRON_DATA_DIR). Читается только сервером: десктоп переменную игнорирует.
 	DataDir string
+	// DatabaseURL — строка подключения к PostgreSQL (KUBRON_DATABASE_URL или --database-url). Пусто — файловое
+	// хранилище в каталоге данных. Пароль лучше передавать через переменную окружения: аргументы видны в списке процессов.
+	DatabaseURL string
+	// SecretKey — ключ шифрования секретов в БД «id:base64» (только KUBRON_SECRET_KEY; флага нет).
+	// PreviousSecretKeys — прежние ключи для чтения после ротации (KUBRON_SECRET_KEY_PREVIOUS, через запятую).
+	SecretKey          string
+	PreviousSecretKeys []string
 	// TrustProxy — доверять X-Forwarded-Proto от обратного прокси: тогда cookie помечается
 	// Secure (KUBRON_TRUST_PROXY=1). Включайте, только если сервер доступен лишь через прокси.
 	TrustProxy bool
@@ -54,6 +61,13 @@ func LoadConfig(args []string, getenv func(string) string, out io.Writer) (Confi
 	cfg.AllowRemote = truthy(getenv("KUBRON_ALLOW_REMOTE"))
 	cfg.DataDir = getenv("KUBRON_DATA_DIR")
 	cfg.TrustProxy = truthy(getenv("KUBRON_TRUST_PROXY"))
+	cfg.DatabaseURL = getenv("KUBRON_DATABASE_URL")
+	cfg.SecretKey = strings.TrimSpace(getenv("KUBRON_SECRET_KEY"))
+	for _, k := range strings.Split(getenv("KUBRON_SECRET_KEY_PREVIOUS"), ",") {
+		if k = strings.TrimSpace(k); k != "" {
+			cfg.PreviousSecretKeys = append(cfg.PreviousSecretKeys, k)
+		}
+	}
 	if v := getenv("KUBRON_SESSION_TTL"); v != "" {
 		d, err := time.ParseDuration(v)
 		if err != nil {
@@ -85,6 +99,8 @@ func LoadConfig(args []string, getenv func(string) string, out io.Writer) (Confi
 	fs.BoolVar(&cfg.AllowRemote, "allow-remote", cfg.AllowRemote,
 		"allow a non-loopback address; unsafe without a TLS proxy (env KUBRON_ALLOW_REMOTE)")
 	fs.StringVar(&cfg.DataDir, "data-dir", cfg.DataDir, "data directory, defaults to ~/.kubron (env KUBRON_DATA_DIR)")
+	fs.StringVar(&cfg.DatabaseURL, "database-url", cfg.DatabaseURL,
+		"PostgreSQL URL; empty means file storage in the data directory (env KUBRON_DATABASE_URL, preferred: arguments are visible in the process list)")
 	fs.BoolVar(&cfg.TrustProxy, "trust-proxy", cfg.TrustProxy,
 		"trust X-Forwarded-Proto from a reverse proxy, set Secure on cookies (env KUBRON_TRUST_PROXY)")
 	fs.DurationVar(&cfg.SessionTTL, "session-ttl", cfg.SessionTTL, "web session lifetime (env KUBRON_SESSION_TTL)")
@@ -112,6 +128,9 @@ func (c Config) Validate() error {
 	}
 	if c.MaxTerminals < 0 || c.MaxLogStreams < 0 || c.MaxPortForwards < 0 {
 		return errors.New("resource limits cannot be negative (0 means unlimited)")
+	}
+	if c.DatabaseURL != "" && c.SecretKey == "" {
+		return errors.New("KUBRON_SECRET_KEY is required when a database is used")
 	}
 	host, _, err := net.SplitHostPort(c.Listen)
 	if err != nil {
