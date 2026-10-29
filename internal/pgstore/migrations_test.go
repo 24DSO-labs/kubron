@@ -14,11 +14,11 @@ func TestEmbeddedMigrationsAreValid(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(ms) == 0 {
-		t.Fatal("нет миграций")
+		t.Fatal("no migrations")
 	}
 	for _, m := range ms {
 		if strings.TrimSpace(m.Up) == "" || strings.TrimSpace(m.Down) == "" {
-			t.Errorf("%04d_%s: пустой up или down", m.Version, m.Name)
+			t.Errorf("%04d_%s: empty up or down", m.Version, m.Name)
 		}
 	}
 }

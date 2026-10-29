@@ -17,15 +17,15 @@ func TestSetKubronDirOverridesDefault(t *testing.T) {
 	t.Setenv("KUBRON_DATA_DIR", t.TempDir())
 	want := filepath.Join(home, ".kubron")
 	if got := GetKubronDir(); got != want {
-		t.Fatalf("по умолчанию: %q, ждали %q", got, want)
+		t.Fatalf("default: %q, expected %q", got, want)
 	}
 	custom := t.TempDir()
 	SetKubronDir(custom)
 	if got := GetKubronDir(); got != custom {
-		t.Errorf("после SetKubronDir: %q, ждали %q", got, custom)
+		t.Errorf("after SetKubronDir: %q, expected %q", got, custom)
 	}
 	SetKubronDir("")
 	if got := GetKubronDir(); got != want {
-		t.Errorf("после сброса: %q, ждали %q", got, want)
+		t.Errorf("after reset: %q, expected %q", got, want)
 	}
 }

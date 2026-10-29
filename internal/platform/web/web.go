@@ -13,7 +13,7 @@ import (
 )
 
 // ErrNotSupported — операция есть только в десктопе.
-var ErrNotSupported = errors.New("недоступно в веб-режиме")
+var ErrNotSupported = errors.New("unavailable in web mode")
 
 // Platform: события уходят подписчикам через эмиттер (WebSocket-хаб, задача 1.5);
 // пока эмиттер не задан, события отбрасываются.

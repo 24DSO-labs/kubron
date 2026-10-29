@@ -63,7 +63,7 @@ func (h *Hub) deliver(session string, addressed bool, event string, data []any) 
 			}
 			if frame, err = json.Marshal(eventFrame{Event: event, Data: data}); err != nil {
 				h.mu.RUnlock()
-				log.Printf("hub: событие %s не сериализуется: %v", event, err)
+				log.Printf("hub: event %s cannot be serialized: %v", event, err)
 				return
 			}
 		}
@@ -202,12 +202,12 @@ type clientMsg struct {
 func (c *Conn) Handle(raw []byte) []byte {
 	var m clientMsg
 	if err := json.Unmarshal(raw, &m); err != nil {
-		return mustJSON(map[string]any{"op": "error", "message": "ожидается JSON"})
+		return mustJSON(map[string]any{"op": "error", "message": "expected JSON"})
 	}
 	switch m.Op {
 	case "sub":
 		if !c.Subscribe(m.Events) {
-			return mustJSON(map[string]any{"op": "error", "message": "слишком много подписок"})
+			return mustJSON(map[string]any{"op": "error", "message": "too many subscriptions"})
 		}
 		return mustJSON(map[string]any{"op": "sub_ok", "events": m.Events})
 	case "unsub":
@@ -216,7 +216,7 @@ func (c *Conn) Handle(raw []byte) []byte {
 	case "ping":
 		return mustJSON(map[string]any{"op": "pong"})
 	default:
-		return mustJSON(map[string]any{"op": "error", "message": "неизвестная операция"})
+		return mustJSON(map[string]any{"op": "error", "message": "unknown operation"})
 	}
 }
 

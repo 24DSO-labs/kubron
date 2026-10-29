@@ -1307,7 +1307,7 @@ func (a *App) OpenTerminal(namespace, pod, container, shell string, cols, rows u
 	}
 	host, ok := a.platform.(terminalHost)
 	if !ok {
-		return "", errors.New("веб-терминал недоступен в этой оболочке")
+		return "", errors.New("web terminal is unavailable in this shell")
 	}
 	reg := host.Terminals()
 	id := termbuf.NewID()

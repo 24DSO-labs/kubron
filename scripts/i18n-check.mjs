@@ -130,7 +130,6 @@ const lineOf = (text, index) => text.slice(0, index).split('\n').length
 const sources = walk(src, (f) => /\.(vue|ts)$/.test(f) && !/\.test\.ts$/.test(f) && !f.includes(`${join('i18n', 'locales')}`))
   .filter((f) => !f.endsWith('languages.ts')) // там названия языков на их языках
   .filter((f) => !f.endsWith('vite-env.d.ts'))
-  .filter((f) => !f.includes(`${join('platform')}`)) // низкоуровневые файлы — не проверяем на кириллицу
 
 const KEY = /^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_-]+)+$/
 const usedKeys = new Set()

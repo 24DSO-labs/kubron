@@ -100,6 +100,7 @@ import { callApp } from '../../resources/wails'
 import { cancelHelmOp, helmOps, runHelmOp } from '../../composables/useHelmOps'
 import { useK8s } from '../../composables/useK8s'
 import { useNotifications } from '../../composables/useNotifications'
+import { errorText } from '../../composables/errorText'
 
 interface InstallResult { releaseName: string; namespace: string; revision: number; status: string; manifest: string; notes: string }
 
@@ -151,7 +152,7 @@ async function doPreview() {
     previewTab.value = 'manifest'
     step.value = 'preview'
   } catch (e: any) {
-    error.value = e?.message || String(e)
+    error.value = errorText(e)
   } finally {
     busy.value = false
   }
@@ -170,7 +171,7 @@ async function doInstall() {
     emit('installed', r)
     emit('close')
   } catch (e: any) {
-    error.value = e?.message || String(e)
+    error.value = errorText(e)
     step.value = 'form' // можно поправить имя или values и повторить
   } finally {
     busy.value = false

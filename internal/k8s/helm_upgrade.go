@@ -34,14 +34,14 @@ type HelmUpgradePreview struct {
 // parseHelmValues разбирает YAML values из UI. Пустой ввод = пустой map.
 func parseHelmValues(src string) (map[string]interface{}, error) {
 	if len(src) > helmValuesMaxBytes {
-		return nil, fmt.Errorf("values больше %d КиБ", helmValuesMaxBytes>>10)
+		return nil, fmt.Errorf("values are larger than %d KiB", helmValuesMaxBytes>>10)
 	}
 	if strings.TrimSpace(src) == "" {
 		return map[string]interface{}{}, nil
 	}
 	var out map[string]interface{}
 	if err := yaml.Unmarshal([]byte(src), &out); err != nil {
-		return nil, fmt.Errorf("некорректный YAML: %w", err)
+		return nil, fmt.Errorf("invalid YAML: %w", err)
 	}
 	if out == nil {
 		out = map[string]interface{}{}
@@ -71,7 +71,7 @@ func (m *Manager) helmUpgradeValues(ctx context.Context, namespace, name string,
 	}
 	curRel, err := action.NewGet(cfg).Run(name)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("релиз %s/%s не найден: %w", namespace, name, err)
+		return nil, nil, nil, fmt.Errorf("release %s/%s not found: %w", namespace, name, err)
 	}
 	if cur, err = helmrelease.NewAccessor(curRel); err != nil {
 		return nil, nil, nil, err
@@ -114,7 +114,7 @@ func (m *Manager) PreviewHelmUpgrade(namespace, name, valuesYAML string) (*HelmU
 
 	cur, next, curVals, err := m.helmUpgradeValues(ctx, namespace, name, vals, true, nil)
 	if err != nil {
-		return nil, fmt.Errorf("предпросмотр %s/%s: %w", namespace, name, err)
+		return nil, fmt.Errorf("preview %s/%s: %w", namespace, name, err)
 	}
 	curY, err := marshalHelmValues(curVals)
 	if err != nil {
@@ -150,14 +150,14 @@ func (m *Manager) UpgradeHelmRelease(namespace, name, valuesYAML, opID string) (
 	ctx, cancel := context.WithTimeout(ctx, helmUpgradeTimeout+30*time.Second)
 	defer cancel()
 
-	tr.note("изменение values")
-	tr.setPhase("Применение изменений и ожидание готовности…")
+	tr.note("values change")
+	tr.setPhase("Applying changes and waiting for readiness…")
 	_, next, _, err := m.helmUpgradeValues(ctx, namespace, name, vals, false, tr.handler())
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return 0, fmt.Errorf("апгрейд %s/%s не завершился за %s", namespace, name, helmUpgradeTimeout)
+			return 0, fmt.Errorf("upgrade of %s/%s did not finish within %s", namespace, name, helmUpgradeTimeout)
 		}
-		return 0, fmt.Errorf("апгрейд %s/%s: %w", namespace, name, err)
+		return 0, fmt.Errorf("upgrade %s/%s: %w", namespace, name, err)
 	}
 	tr.setRevision(next.Version())
 	return next.Version(), nil

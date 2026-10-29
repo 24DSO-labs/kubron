@@ -66,7 +66,7 @@ func journalLoadLocked() ([]HelmOperationRecord, error) {
 	}
 	var recs []HelmOperationRecord
 	if err := json.Unmarshal(b, &recs); err != nil {
-		return nil, fmt.Errorf("журнал операций повреждён: %w", err)
+		return nil, fmt.Errorf("operation journal is corrupted: %w", err)
 	}
 	return recs, nil
 }
@@ -117,10 +117,10 @@ func matchesJournal(r *HelmOperationRecord, q *HelmOperationQuery, search string
 // ListHelmOperations возвращает записи без журнала Helm (он тяжёлый и запрашивается отдельно).
 func (m *Manager) ListHelmOperations(q HelmOperationQuery) ([]HelmOperationRecord, error) {
 	if q.Op != "" && !helmJournalOps[q.Op] {
-		return nil, fmt.Errorf("неизвестная операция %q", q.Op)
+		return nil, fmt.Errorf("unknown operation %q", q.Op)
 	}
 	if q.Status != "" && !helmJournalState[q.Status] {
-		return nil, fmt.Errorf("неизвестный статус %q", q.Status)
+		return nil, fmt.Errorf("unknown status %q", q.Status)
 	}
 	limit := q.Limit
 	switch {
@@ -155,7 +155,7 @@ func (m *Manager) ListHelmOperations(q HelmOperationQuery) ([]HelmOperationRecor
 // GetHelmOperation возвращает запись целиком, вместе с журналом Helm.
 func (m *Manager) GetHelmOperation(id string) (*HelmOperationRecord, error) {
 	if !helmOpIDRe.MatchString(id) {
-		return nil, errors.New("некорректный идентификатор операции")
+		return nil, errors.New("invalid operation ID")
 	}
 	helmJournalMu.Lock()
 	recs, err := journalLoadLocked()
@@ -169,7 +169,7 @@ func (m *Manager) GetHelmOperation(id string) (*HelmOperationRecord, error) {
 			return &r, nil
 		}
 	}
-	return nil, errors.New("запись не найдена (журнал хранит последние операции)")
+	return nil, errors.New("entry not found (the journal keeps only recent operations)")
 }
 
 // ClearHelmOperations стирает историю операций.

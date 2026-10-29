@@ -50,13 +50,13 @@ func validateHelmInstallRequest(r *HelmInstallRequest) error {
 		return err
 	}
 	if r.Chart == "" || len(r.Chart) > 253 || strings.ContainsAny(r.Chart, "\r\n") {
-		return errors.New("не указан чарт")
+		return errors.New("chart is not specified")
 	}
 	if err := chartutil.ValidateReleaseName(r.ReleaseName); err != nil {
-		return fmt.Errorf("имя релиза %q: %w", r.ReleaseName, err)
+		return fmt.Errorf("release name %q: %w", r.ReleaseName, err)
 	}
 	if r.Namespace == "" || len(validation.IsDNS1123Label(r.Namespace)) > 0 {
-		return fmt.Errorf("некорректный namespace %q", r.Namespace)
+		return fmt.Errorf("invalid namespace %q", r.Namespace)
 	}
 	if _, err := helmDriverName(r.Storage); err != nil {
 		return err
@@ -86,7 +86,7 @@ func (m *Manager) helmInstall(ctx context.Context, req HelmInstallRequest, dryRu
 	}
 
 	tr.note(fmt.Sprintf("%s/%s %s", req.Repo, req.Chart, req.Version))
-	tr.setPhase("Загрузка чарта…")
+	tr.setPhase("Loading chart…")
 	chrt, err := loadHelmChart(ctx, req.Repo, req.Chart, req.Version)
 	if err != nil {
 		return nil, err
@@ -97,11 +97,11 @@ func (m *Manager) helmInstall(ctx context.Context, req HelmInstallRequest, dryRu
 		return nil, err
 	}
 	if ac.IsLibraryChart() {
-		return nil, errors.New("library-чарт нельзя установить как релиз")
+		return nil, errors.New("a library chart cannot be installed as a release")
 	}
 	if deps := ac.MetaDependencies(); len(deps) > 0 {
 		if err := action.CheckDependencies(chrt, deps); err != nil {
-			return nil, fmt.Errorf("в архиве чарта нет зависимостей: %w", err)
+			return nil, fmt.Errorf("chart dependencies are missing: %w", err)
 		}
 	}
 
@@ -109,9 +109,9 @@ func (m *Manager) helmInstall(ctx context.Context, req HelmInstallRequest, dryRu
 		// Helm проверяет занятость имени только в выбранном хранилище: без этой проверки релиз с тем же
 		// именем мог бы появиться одновременно в Secret и в ConfigMap.
 		if st, err := m.helmStorageOf(ctx, req.Namespace, req.ReleaseName); err != nil {
-			return nil, fmt.Errorf("не удалось проверить имя релиза: %w", err)
+			return nil, fmt.Errorf("failed to check release name: %w", err)
 		} else if st != "" {
-			return nil, fmt.Errorf("релиз %s/%s уже существует (хранилище: %s)", req.Namespace, req.ReleaseName, st)
+			return nil, fmt.Errorf("release %s/%s already exists (storage: %s)", req.Namespace, req.ReleaseName, st)
 		}
 	}
 	cfg, err := m.helmConfigDriver(req.Namespace, tr.handler(), req.Storage)
@@ -136,13 +136,13 @@ func (m *Manager) helmInstall(ctx context.Context, req HelmInstallRequest, dryRu
 	ctx, cancel := context.WithTimeout(ctx, helmInstallTimeout+30*time.Second)
 	defer cancel()
 
-	tr.setPhase("Установка и ожидание готовности…")
+	tr.setPhase("Installing and waiting for readiness…")
 	rel, err := in.RunWithContext(ctx, chrt, vals)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return nil, fmt.Errorf("установка %s/%s не завершилась за %s", req.Namespace, req.ReleaseName, helmInstallTimeout)
+			return nil, fmt.Errorf("install of %s/%s did not finish within %s", req.Namespace, req.ReleaseName, helmInstallTimeout)
 		}
-		return nil, fmt.Errorf("установка %s/%s: %w", req.Namespace, req.ReleaseName, err)
+		return nil, fmt.Errorf("install %s/%s: %w", req.Namespace, req.ReleaseName, err)
 	}
 	acc, err := helmrelease.NewAccessor(rel)
 	if err != nil {

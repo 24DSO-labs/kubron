@@ -51,7 +51,7 @@ func (s *memClusterStore) Kubeconfig(id string) ([]byte, error) {
 	defer s.mu.Unlock()
 	b, ok := s.kc[id]
 	if !ok {
-		return nil, errors.New("kubeconfig не найден для кластера " + id)
+		return nil, errors.New("kubeconfig not found for cluster " + id)
 	}
 	return append([]byte(nil), b...), nil
 }
@@ -78,13 +78,13 @@ func (s *memClusterStore) Delete(id string) error {
 func clusterStoreContract(t *testing.T, s ClusterStore) {
 	t.Helper()
 	if list, err := s.List(); err != nil || len(list) != 0 {
-		t.Fatalf("пустое хранилище: %v %v", list, err)
+		t.Fatalf("empty store: %v %v", list, err)
 	}
 	if _, err := s.Get("nope"); err == nil {
-		t.Error("Get несуществующего кластера должен давать ошибку")
+		t.Error("Get of a nonexistent cluster must return an error")
 	}
 	if _, err := s.Kubeconfig("nope"); err == nil {
-		t.Error("Kubeconfig несуществующего кластера должен давать ошибку")
+		t.Error("Kubeconfig of a nonexistent cluster must return an error")
 	}
 
 	meta := &ClusterMeta{ID: "c1", DisplayName: "One", KubeconfigFile: "c1.kubeconfig", ContextName: "dev"}
@@ -105,10 +105,10 @@ func clusterStoreContract(t *testing.T, s ClusterStore) {
 		t.Fatal(err)
 	}
 	if kc, _ := s.Kubeconfig("c1"); string(kc) != "kc-1" {
-		t.Errorf("kubeconfig изменился при сохранении метаданных: %q", kc)
+		t.Errorf("kubeconfig changed while saving metadata: %q", kc)
 	}
 	if got, _ := s.Get("c1"); got.DisplayName != "Uno" {
-		t.Errorf("метаданные не обновились: %+v", got)
+		t.Errorf("metadata was not updated: %+v", got)
 	}
 
 	// Замена kubeconfig.
@@ -116,7 +116,7 @@ func clusterStoreContract(t *testing.T, s ClusterStore) {
 		t.Fatal(err)
 	}
 	if kc, _ := s.Kubeconfig("c1"); string(kc) != "kc-2" {
-		t.Errorf("kubeconfig не заменён: %q", kc)
+		t.Errorf("kubeconfig was not replaced: %q", kc)
 	}
 
 	if list, _ := s.List(); len(list) != 1 || list[0].ID != "c1" {
@@ -127,10 +127,10 @@ func clusterStoreContract(t *testing.T, s ClusterStore) {
 		t.Fatal(err)
 	}
 	if err := s.Delete("c1"); err != nil {
-		t.Errorf("повторное удаление не должно быть ошибкой: %v", err)
+		t.Errorf("deleting again must not be an error: %v", err)
 	}
 	if list, _ := s.List(); len(list) != 0 {
-		t.Errorf("после удаления: %+v", list)
+		t.Errorf("after deletion: %+v", list)
 	}
 }
 
@@ -161,7 +161,7 @@ func TestClusterLifecycleOnNonFileStore(t *testing.T) {
 		t.Fatal(err)
 	}
 	if p := GetClusterKubeconfigPath(meta.ID); p != "" {
-		t.Errorf("у хранилища без файлов пути нет, получили %q", p)
+		t.Errorf("a store without files has no path, got %q", p)
 	}
 	if list, _ := ListClusters(); len(list) != 1 || list[0].ID != meta.ID {
 		t.Fatalf("ListClusters: %+v", list)
@@ -181,13 +181,13 @@ func TestClusterLifecycleOnNonFileStore(t *testing.T) {
 		t.Fatal(err)
 	}
 	if conn.Config.Host != "https://10.0.0.1:6443" { // контекст dev → кластер c1
-		t.Errorf("host %q: контекст из метаданных не применён", conn.Config.Host)
+		t.Errorf("host %q: the context from metadata was not applied", conn.Config.Host)
 	}
 
 	if err := DeleteCluster(meta.ID); err != nil {
 		t.Fatal(err)
 	}
 	if list, _ := ListClusters(); len(list) != 0 {
-		t.Errorf("после удаления: %+v", list)
+		t.Errorf("after deletion: %+v", list)
 	}
 }

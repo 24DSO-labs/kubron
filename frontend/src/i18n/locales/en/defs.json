@@ -194,7 +194,8 @@
     "unsetDefault": "Unset default",
     "openInBrowser": "Open in browser",
     "stop": "Stop",
-    "browseResources": "Browse resources"
+    "browseResources": "Browse resources",
+    "uninstall": "Uninstall"
   },
   "values": {
     "true": "True",
@@ -250,5 +251,10 @@
   },
   "runtimeClass": {
     "overhead": "Overhead"
+  },
+  "helmRelease": {
+    "uninstallConfirm": "Uninstall release {namespace}/{name}? All resources created by the release will be deleted from the cluster.",
+    "uninstalled": "Release {name} uninstalled",
+    "uninstallError": "Uninstall: {message}"
   }
 }

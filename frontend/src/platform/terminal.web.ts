@@ -3,6 +3,7 @@
 
 import { callApp } from './api'
 import type { TerminalHandle, TerminalHandlers, TerminalParams } from './terminal'
+import { t } from '../i18n'
 
 /**
  * Веб-терминал: RPC OpenTerminal (сервер выдаёт неугадываемый id и копит вывод) и бинарный
@@ -17,8 +18,8 @@ export async function openWebTerminal(p: TerminalParams, h: TerminalHandlers): P
 
   await new Promise<void>((resolve, reject) => {
     ws.onopen = () => resolve()
-    ws.onerror = () => reject(new Error('не удалось подключиться к терминалу'))
-    ws.onclose = () => reject(new Error('не удалось подключиться к терминалу'))
+    ws.onerror = () => reject(new Error(t('platform.terminalConnect')))
+    ws.onclose = () => reject(new Error(t('platform.terminalConnect')))
   })
 
   let closedByUs = false
