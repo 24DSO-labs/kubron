@@ -40,7 +40,8 @@ func runAdmin(ctx context.Context, cmd string, args []string, out io.Writer) err
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(out, "re-encrypted with key %q: %d kubeconfigs, %d Argo CD tokens\n", cfg.SecretKey[:idLen(cfg.SecretKey)], rep.Clusters, rep.Tokens)
+		_, err = fmt.Fprintf(out, "re-encrypted with key %q: %d kubeconfigs, %d Argo CD tokens\n", cfg.SecretKey[:idLen(cfg.SecretKey)], rep.Clusters, rep.Tokens)
+		return err
 	case "import-files":
 		fs := flag.NewFlagSet("import-files", flag.ContinueOnError)
 		fs.SetOutput(out)
@@ -54,12 +55,18 @@ func runAdmin(ctx context.Context, cmd string, args []string, out io.Writer) err
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(out, "imported from %s: %d users, %d clusters, %d Argo CD tokens, %d audit events\n",
-			k8s.GetKubronDir(), rep.Users, rep.Clusters, rep.Tokens, rep.AuditEvents)
-		for _, n := range rep.Notes {
-			fmt.Fprintln(out, "note:", n)
+		if _, err = fmt.Fprintf(out, "imported from %s: %d users, %d clusters, %d Argo CD tokens, %d audit events\n",
+			k8s.GetKubronDir(), rep.Users, rep.Clusters, rep.Tokens, rep.AuditEvents); err != nil {
+			return err
 		}
-		fmt.Fprintln(out, "source files are untouched and can serve as a backup")
+		for _, n := range rep.Notes {
+			if _, err = fmt.Fprintln(out, "note:", n); err != nil {
+				return err
+			}
+		}
+		if _, err = fmt.Fprintln(out, "source files are untouched and can serve as a backup"); err != nil {
+			return err
+		}
 	}
 	return nil
 }
