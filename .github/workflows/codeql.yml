@@ -1,0 +1,70 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [master, dev, refactor]
+    paths-ignore: ["**.md", "docs/**", ".github/ISSUE_TEMPLATE/**"]
+  pull_request:
+    paths-ignore: ["**.md", "docs/**", ".github/ISSUE_TEMPLATE/**"]
+  schedule:
+    - cron: "23 6 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze ${{ matrix.language }}
+    timeout-minutes: 30
+    runs-on: ubuntu-24.04
+    env:
+      GOFLAGS: -tags=webkit2_41
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: go
+            build-mode: autobuild
+          - language: javascript-typescript
+            build-mode: none
+          # Анализ самих workflow: ловит инъекции выражений в run:
+          - language: actions
+            build-mode: none
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        if: matrix.language == 'go'
+        with:
+          go-version-file: go.mod
+
+      - uses: ./.github/actions/linux-build-deps
+        if: matrix.language == 'go'
+
+      - name: Stub frontend/dist
+        if: matrix.language == 'go'
+        run: mkdir -p frontend/dist && touch frontend/dist/.keep
+
+      - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-and-quality
+          config: |
+            paths-ignore:
+              - frontend/wailsjs/**
+              - frontend/dist/**
+              - frontend/node_modules/**
+              - build/**
+
+      - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          category: "/language:${{ matrix.language }}"
