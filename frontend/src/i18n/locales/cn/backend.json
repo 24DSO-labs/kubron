@@ -402,8 +402,8 @@
   "opensABrowserOnTheServer": "在服务器机器上打开浏览器；在 Web 模式下浏览器自行打开链接",
   "aPortOnTheServerMachine": "服务器机器上的端口对浏览器无用；在 Web 模式下端口转发仅通过代理进行 HTTP（阶段 5）",
   "theSessionIdIsChosenBy": "会话 ID 由客户端选择；在 Web 模式下服务器自行签发不可猜测的 ID（OpenTerminal）",
-  "terminalInputGoesOverWebsocketApi": "终端输入通过 WebSocket /api/terminal/{id} 传输",
-  "terminalSizeIsSentAsA": "终端大小作为控制帧通过 WebSocket /api/terminal/{id} 发送",
+  "terminalInputGoesOverWebsocketApi": "终端输入通过 WebSocket /api/terminal/{'{'{'}'}id{'{'}{'}'} 传输",
+  "terminalSizeIsSentAsA": "终端大小作为控制帧通过 WebSocket /api/terminal/{'{'{'}'}id{'{'}{'}'} 发送",
   "startsPortForwardAndOpensA": "启动端口转发并在服务器上打开浏览器；在 Web 模式下为 HTTP 代理（阶段 5）",
   "unknownMethod": "未知 method",
   "methodIsUnavailableInWebMode": "method 不可用 in web mode",
@@ -499,5 +499,11 @@
   "connSignInDamaged": "存储的登录设置已损坏",
   "connNotOidcLogin": "此 kubeconfig 未使用带 password 授权的 oidc-login",
   "oidcUnsupportedGrant": "不支持的 oidc-login 授权类型",
+  "netpolicyInvalidAllowEntry": "allow 列表中包含无效的 CIDR 或地址 {p0}",
+  "netpolicyUnknownProfile": "未知的网络策略配置文件 {p0}",
+  "netpolicyInvalidUrl": "无效的 URL",
+  "netpolicyUnsupportedScheme": "不支持的 URL 方案 {p0}",
+  "netpolicyNoHost": "URL 没有主机",
+  "netpolicyRedirects": "10 次重定向后停止",
   "oidcGrantOnlyPassword": "{p0} {p1}：Web 模式仅支持 password"
 }
