@@ -17,7 +17,7 @@ const clusterError = ref('')
 
 async function loadClusters() {
   try {
-    clusters.value = await callApp('GetClusterStatuses') || []
+    clusters.value = ((await callApp('GetClusterStatuses')) as ClusterStatus[]) || []
   } catch (e: any) {
     clusters.value = []
   }

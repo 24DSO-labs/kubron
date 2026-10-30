@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -222,8 +223,8 @@ func TestParseOIDCLoginExec(t *testing.T) {
 		t.Fatalf("p=%+v ok=%v err=%v", p, ok, err)
 	}
 	// authcode по умолчанию — не поддерживается
-	if _, ok, err := ParseOIDCLoginExec("kubectl", []string{"oidc-login", "get-token", "--oidc-issuer-url=https://i", "--oidc-client-id=c"}); !ok || err == nil {
-		t.Errorf("authcode must give an error, ok=%v err=%v", ok, err)
+	if _, ok, err := ParseOIDCLoginExec("kubectl", []string{"oidc-login", "get-token", "--oidc-issuer-url=https://i", "--oidc-client-id=c"}); !ok || !errors.Is(err, ErrUnsupportedGrant) {
+		t.Errorf("authcode must give ErrUnsupportedGrant, ok=%v err=%v", ok, err)
 	}
 	// другой exec — не наш
 	if _, ok, err := ParseOIDCLoginExec("aws", []string{"eks", "get-token"}); ok || err != nil {

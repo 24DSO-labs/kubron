@@ -1,5 +1,5 @@
 {
-  "overview": "Обзор",
+  "overview": "Overview",
   "settings": "Настройки",
   "users": "Пользователи",
   "audit": "Аудит",
@@ -10,17 +10,20 @@
   "definitions": "Определения",
   "filterKinds": "Фильтр по kind…",
   "groups": {
-    "workloads": "Рабочие нагрузки",
-    "config": "Конфигурация",
-    "network": "Сеть",
-    "storage": "Хранилище",
+    "workloads": "Workloads",
+    "config": "Config",
+    "network": "Network",
+    "storage": "Storage",
     "helm": "Helm",
-    "access": "Контроль доступа",
+    "access": "Access",
     "argocd": "Argo CD",
     "argocdSettings": "Настройки"
   },
   "views": {
-    "argoDashboard": "Дашборд"
+    "argoDashboard": "Dashboard",
+    "helmRepos": "Репозитории",
+    "helmCatalog": "Каталог",
+    "helmOps": "Операции"
   },
   "teams": "Команды"
 }

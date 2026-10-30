@@ -151,6 +151,22 @@ func (s *Sessions) Reap(alive func(view any) bool) int {
 	return len(ended)
 }
 
+// Views возвращает виды живых сессий. Фоновые проверки обходят их вне блокировки реестра: проверка прав
+// и закрытие ресурсов сессии не должны задерживать вход и выход остальных.
+func (s *Sessions) Views() []any {
+	s.mu.Lock()
+	ended := s.sweepLocked()
+	out := make([]any, 0, len(s.items))
+	for _, it := range s.items {
+		if it.View != nil {
+			out = append(out, it.View)
+		}
+	}
+	s.mu.Unlock()
+	s.notify(ended)
+	return out
+}
+
 // Len — число живых сессий (для тестов и метрик).
 func (s *Sessions) Len() int {
 	s.mu.Lock()

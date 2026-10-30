@@ -20,7 +20,10 @@
     "argocdSettings": "Settings"
   },
   "views": {
-    "argoDashboard": "Dashboard"
+    "argoDashboard": "Dashboard",
+    "helmRepos": "Repositories",
+    "helmCatalog": "Catalog",
+    "helmOps": "Operations"
   },
   "teams": "Teams"
 }

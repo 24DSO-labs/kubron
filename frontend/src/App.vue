@@ -101,6 +101,7 @@
 import { computed, onMounted, onUnmounted, watch, provide } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { listenListFailures } from './composables/useListFailures'
+import { listenClusterEvents } from './composables/useClusterEvents'
 import { errorText } from './composables/errorText'
 import { tl } from './i18n'
 import { useK8s } from './composables/useK8s'
@@ -154,7 +155,7 @@ const {
 
 const {
   clusters, activeClusterId,
-  loadClusters, connectToCluster, pickKubeconfigFile, addClusterFromFile, addClusterFromText,
+  loadClusters, connectToCluster, pickKubeconfigFile, addClusterFromFile, addClusterFromText, addInCluster,
   deleteCluster, updateCluster, autoConnect,
 } = clustersApi
 
@@ -172,6 +173,7 @@ const clusterConn = useClusterConnection({
   pickKubeconfigFile,
   addClusterFromFile,
   addClusterFromText,
+  addInCluster,
   deleteCluster,
   updateCluster,
   autoConnect,
@@ -333,6 +335,14 @@ onMounted(() => auth.init())
 // Бэкенд сообщает, если часть namespace набора прочитать не удалось (RBAC и т.п.)
 const stopListFailures = listenListFailures()
 onUnmounted(stopListFailures)
+
+// Состояние соединения кластеров и потеря доступа к активному кластеру (сервисный режим)
+const stopClusterEvents = listenClusterEvents({
+  clusters, activeClusterId, loadClusters,
+  disconnect: clusterConn.disconnect,
+  notifyError: notifications.notifyError,
+})
+onUnmounted(stopClusterEvents)
 </script>
 
 <style src="./assets/style.css"></style>

@@ -13,6 +13,7 @@ import (
 type RekeyReport struct {
 	Clusters int // kubeconfig'и кластеров, перешифрованные текущим ключом
 	Tokens   int // токены Argo CD
+	Secrets  int // секреты подключения кластеров (пароль oidc-password)
 }
 
 // Rekey перешифровывает текущим ключом все секреты, зашифрованные другим ключом (ротация, задача 3.1c).
@@ -62,6 +63,27 @@ func (s *Store) Rekey(ctx context.Context) (RekeyReport, error) {
 			return rep, err
 		}
 		rep.Clusters += int(tag.RowsAffected())
+	}
+
+	sec, err := load(`SELECT id, secret_enc, secret_key_id FROM clusters WHERE secret_enc IS NOT NULL AND secret_key_id <> $1`)
+	if err != nil {
+		return rep, err
+	}
+	for _, r := range sec {
+		plain, err := s.keys.Open(r.ct, r.keyID, secretAAD(r.id))
+		if err != nil {
+			return rep, err
+		}
+		ct, keyID, err := s.keys.Seal(plain, secretAAD(r.id))
+		if err != nil {
+			return rep, err
+		}
+		tag, err := s.pool.Exec(ctx, `UPDATE clusters SET secret_enc=$2, secret_key_id=$3 WHERE id=$1 AND secret_key_id=$4 AND secret_enc=$5`,
+			r.id, ct, keyID, r.keyID, r.ct)
+		if err != nil {
+			return rep, err
+		}
+		rep.Secrets += int(tag.RowsAffected())
 	}
 
 	tk, err := load(`SELECT cluster_id, token_enc, key_id FROM argo_tokens WHERE key_id <> $1`)

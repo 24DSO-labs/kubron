@@ -4,7 +4,9 @@ name: Deploy (image and Helm chart)
 # параллельно. Образ собирается, но не публикуется (push в реестр — отдельная задача релиза).
 on:
   push:
-    branches: [main, master, dev, refactor]
+
+    branches: [master, dev, refactor]
+
     paths: &paths
       - Dockerfile
       - .dockerignore

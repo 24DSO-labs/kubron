@@ -46,7 +46,15 @@
     "sectionTeam": "Owner",
     "team": "Team",
     "teamHint": "The cluster belongs to this team; its members get access according to their roles.",
-    "noAdminTeams": "You are not an administrator of any team, so you cannot add clusters. Ask an organization administrator."
+    "noAdminTeams": "You are not an administrator of any team, so you cannot add clusters. Ask an organization administrator.",
+    "methodInCluster": "This server's cluster",
+    "inClusterHint": "Adds the cluster the Kubron server itself runs in. Access uses the server's ServiceAccount, so everyone with a role in the team gets its permissions.",
+    "oidcHint": "This kubeconfig signs in through oidc-login. The server cannot run it, so it will sign in to the identity provider itself with the login and password below and renew the token on its own.",
+    "oidcUser": "Login",
+    "oidcPassword": "Password",
+    "oidcStored": "The password is stored encrypted and is never shown again. You can change it later in the cluster settings.",
+    "authCodeUnsupported": "This kubeconfig signs in through a browser (oidc-login, authcode). That cannot work on the server. Use a kubeconfig with the password grant, a token or a client certificate.",
+    "execForbidden": "This kubeconfig runs an external command to get credentials (exec). That is not allowed on the server. Use a token or a client certificate."
   },
   "edit": {
     "kubeconfig": "Kubeconfig",
@@ -58,7 +66,11 @@
     "stateDirty": "Edited manually. Saved when you click “Save”",
     "stateText": "Editing text: no changes yet",
     "stateKeep": "Stored in Kubron",
-    "deleteCluster": "Delete cluster"
+    "deleteCluster": "Delete cluster",
+    "oidcTitle": "Sign-in to the identity provider",
+    "oidcHint": "The server signs in to the identity provider with this login and password. If the password was changed there, enter the new one: it is checked before saving.",
+    "oidcUpdate": "Update login and password",
+    "oidcUpdated": "Login and password updated."
   },
   "appearance": {
     "environment": "Environment",
@@ -79,5 +91,13 @@
     "test": "Test connection",
     "reachable": "Reachable · {version} · {latency} ms",
     "failed": "Could not connect"
+  },
+  "accessRevoked": "You no longer have access to cluster \"{name}\". Its terminals, log streams and port-forwards were closed.",
+  "health": {
+    "ok": "Available",
+    "unreachable": "Unreachable",
+    "unauthorized": "Credentials rejected",
+    "misconfigured": "Misconfigured",
+    "unknown": "Not checked"
   }
 }

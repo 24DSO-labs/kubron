@@ -116,15 +116,18 @@ var exactPermission = map[string]Permission{
 	"AddHelmOCIChart":         PermClusterManage,
 	"RemoveHelmOCIChart":      PermClusterManage,
 	// Команды (этап 3): состав — администратор команды или организации (users.manage), кластеры — clusters.manage.
-	"ListTeams":        PermRead,
-	"CreateTeam":       PermUsersManage,
-	"RenameTeam":       PermUsersManage,
-	"DeleteTeam":       PermUsersManage,
-	"ListTeamMembers":  PermUsersManage,
-	"SetTeamMember":    PermUsersManage,
-	"RemoveTeamMember": PermUsersManage,
-	"AddClusterToTeam": PermClusterManage,
-	"MoveCluster":      PermClusterManage,
+	"ListTeams":                 PermRead,
+	"CreateTeam":                PermUsersManage,
+	"RenameTeam":                PermUsersManage,
+	"DeleteTeam":                PermUsersManage,
+	"ListTeamMembers":           PermUsersManage,
+	"SetTeamMember":             PermUsersManage,
+	"RemoveTeamMember":          PermUsersManage,
+	"AddClusterToTeam":          PermClusterManage,
+	"AddOIDCClusterToTeam":      PermClusterManage,
+	"AddInClusterToTeam":        PermClusterManage,
+	"SetClusterOIDCCredentials": PermClusterManage,
+	"MoveCluster":               PermClusterManage,
 }
 
 // Глаголы, по которым метод считается изменяющим: слабое право чтения для них недопустимо.

@@ -276,6 +276,21 @@ func TestReapEndsSessionsWithDeadViewsAndReleasesThem(t *testing.T) {
 	_ = sLive
 }
 
+func TestViewsListsLiveViewsOnly(t *testing.T) {
+	ss := NewSessions(time.Hour, false)
+	a, b := &struct{ n int }{1}, &struct{ n int }{2}
+	_, _ = ss.Create("a", a)
+	tokB, _ := ss.Create("b", b)
+	_, _ = ss.Create("c", nil) // без вида
+	if v := ss.Views(); len(v) != 2 {
+		t.Fatalf("got %d views, expected 2", len(v))
+	}
+	ss.Delete(tokB)
+	if v := ss.Views(); len(v) != 1 || v[0] != any(a) {
+		t.Fatalf("got %v", v)
+	}
+}
+
 func TestReapAlsoSweepsExpired(t *testing.T) {
 	ss := NewSessions(time.Hour, false)
 	now := time.Now()
