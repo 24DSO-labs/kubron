@@ -1,76 +1,77 @@
-# Участие в разработке Kubron
+# Contributing to Kubron
 
-Спасибо, что помогаете проекту. Кратко о правилах.
+Thank you for helping the project. Brief rules below.
 
-## Лицензия и DCO
+## License and DCO
 
-Ядро Kubron распространяется по лицензии [Apache-2.0](LICENSE). Отправляя изменение, вы
-подтверждаете, что имеете право его передать и согласны на лицензирование по Apache-2.0
-в соответствии с [Developer Certificate of Origin](https://developercertificate.org/).
+Kubron's core is licensed under [Apache-2.0](LICENSE). By submitting a change you
+confirm that you have the right to contribute it and agree to license it under Apache-2.0
+in accordance with the [Developer Certificate of Origin](https://developercertificate.org/).
 
-Подтверждение — строка `Signed-off-by` в каждом коммите. Git добавляет её сам:
+Confirmation is a `Signed-off-by` line in every commit. Git adds it automatically:
 
 ```
 git commit -s -m "feat: ..."
 ```
 
-Забыли? Для последнего коммита — `git commit --amend -s --no-edit`; для нескольких —
-`git rebase --signoff <база>`. CI проверяет подписи в pull request (`scripts/check-dco.sh`).
+Forgot? For the last commit use `git commit --amend -s --no-edit`; for several commits
+use `git rebase --signoff <base>`. CI checks signatures in pull requests (`scripts/check-dco.sh`).
 
-Проверяются коммиты, созданные начиная с 30.10.2026 (`DCO_SINCE` в `scripts/check-dco.sh`);
-более ранние, сделанные до введения проверки, не переписываем.
-Чтобы не думать о `-s`, включите подпись в IDE: VS Code — `"git.alwaysSignOff": true`,
-JetBrains — галочка «Sign-off commit» в окне коммита.
+Commits created since 2026-10-30 (`DCO_SINCE` in `scripts/check-dco.sh`) are checked;
+earlier ones made before the check was introduced are not rewritten.
+To avoid typing `-s`, enable sign-off in your IDE: VS Code — `"git.alwaysSignOff": true`,
+JetBrains — check "Sign-off commit" in the commit dialog.
 
-Отдельное соглашение (CLA) не требуется.
+No separate CLA is required.
 
-## Заголовки в исходниках
+## Source file headers
 
-В каждом `.go`, `.ts` и `.vue` файле первой строкой идёт заголовок:
+Every `.go`, `.ts` and `.vue` file must start with the following header:
 
 ```
 // Copyright 2026 The Kubron Authors
 // SPDX-License-Identifier: Apache-2.0
 ```
 
-Добавить автоматически: `python3 scripts/license-headers.py --fix`. CI без заголовка падает.
+Add automatically: `python3 scripts/license-headers.py --fix`. CI fails without headers.
 
-## Тексты интерфейса и локализация
+## UI text and localization
 
-Kubron многоязычный: приложение «говорит» по-английски, перевод на выбранный язык делает
-фронтенд. Полные правила и разбор типичных ошибок — [docs/i18n.md](docs/i18n.md), решение —
-[ADR-0014](docs/adr/0014-i18n.md). Коротко, что обязательно в каждом изменении:
+Kubron is multilingual: the app speaks English, and the frontend translates to the selected language.
+Full rules and common mistakes are in [docs/i18n.md](docs/i18n.md), architectural decision —
+[ADR-0014](docs/adr/0014-i18n.md). Short checklist for every change:
 
-1. **Текст для пользователя не пишется в коде.** Ни в `<template>`, ни в `.ts`, ни в тостах и
-   `confirm`: ключ в `frontend/src/i18n/locales/en/<раздел>.json` и `t('раздел.ключ')`.
-2. **Ключ добавляется сразу во все языки** (`en`, `ru`, …) с теми же плейсхолдерами. Английский —
-   источник; кириллица в коде вне `locales/` запрещена (в комментариях допустима).
-3. **Go возвращает только английский текст.** Новая `errors.New`/`fmt.Errorf` в `internal/` или
-   `pkg/` — одновременно шаблон в `backend.json` каждого языка. Язык бэкенд не знает, строки
-   «под язык» не форматирует; данные отдаёт идентификаторами, подписи — на фронтенде.
-4. **Ошибки бэкенда показываем через `errorText(e)`**, решения по тексту ошибки не принимаем.
-5. **Даты и числа — через `i18n/format.ts`**, а не `toLocaleString('ru-RU')` и не ручной формат.
-6. **`t()` не вызывается на верхнем уровне модуля** — только в функциях, `computed`, рендере.
-7. **Не переводим** имена Kubernetes-объектов, поля YAML, статусы из API, названия брендов.
-8. **Тесты не привязываем к русскому тексту.** Юнит-тесты работают с английским (язык по
-   умолчанию), e2e задаёт язык явно; проверять лучше роль/`data-testid`, чем строку.
-9. **`v-html` с переводом запрещён**; разметка внутри текста — `<i18n-t>`.
-10. Меняя поведение, которое видно в интерфейсе, смотрите на обе стороны: что увидит
-    пользователь с русским и с английским интерфейсом (длина строк, плюрализация).
+1. **Never hardcode user-facing text.** Not in `<template>`, `.ts`, toasts or
+   `confirm`: use a key in `frontend/src/i18n/locales/en/<section>.json` and call `t('section.key')`.
+2. **Add keys to all languages** (`en`, `ru`, …) with the same placeholders. English is the source;
+   Cyrillic in code outside `locales/` is forbidden (allowed in comments).
+3. **Go returns only English text.** A new `errors.New`/`fmt.Errorf` in `internal/` or
+   `pkg/` must have a corresponding template in `backend.json` of every language. The backend
+   knows nothing about languages and does not format strings per locale; it returns identifiers,
+   labels are resolved on the frontend.
+4. **Display backend errors via `errorText(e)`**; do not make decisions based on error text.
+5. **Dates and numbers through `i18n/format.ts`**, not `toLocaleString('ru-RU')` or manual formatting.
+6. **Do not call `t()` at module top level** — only inside functions, `computed`, or render.
+7. **Do not translate** Kubernetes object names, YAML fields, API statuses, brand names.
+8. **Tests must not depend on Russian text.** Unit tests work with English (the default locale),
+   e2e sets the locale explicitly; verify roles / `data-testid` rather than strings.
+9. **`v-html` with translations is forbidden**; use `<i18n-t>` for markup within text.
+10. When changing visible behavior, consider both sides: what a user with Russian and with
+    English interface will see (string length, pluralization).
 
-Проверка: `npm run i18n:check` в `frontend/` (она же шаг в CI) — полнота ключей, плейсхолдеры,
-ссылки на несуществующие ключи, кириллица в коде, необъявленные Go-ошибки.
+Check: `npm run i18n:check` in `frontend/` (also a CI step) — key completeness, placeholders,
+references to non-existent keys, Cyrillic in code, undeclared Go errors.
 
-Pull request, который добавляет или меняет видимый текст, считается готовым, только если
-в нём есть переводы на все поддерживаемые языки.
+A pull request that adds or changes visible text is considered ready only if it includes
+translations for all supported languages.
 
-## Зависимости
+## Dependencies
 
-CI проверяет лицензии зависимостей: Go — `go-licenses`, фронтенд — `license-checker`.
-Допустимы Apache-2.0, MIT, BSD-2/3-Clause, ISC (для Go ещё MPL-2.0). Зависимость с другой
-лицензией (в том числе GPL/AGPL/SSPL) без обсуждения не добавляется.
+CI checks dependency licenses: Go — `go-licenses`, frontend — `license-checker`.
+Apache-2.0, MIT, BSD-2/3-Clause, ISC are allowed (for Go also MPL-2.0). A dependency with a
+different license (including GPL/AGPL/SSPL) cannot be added without discussion.
 
-## Проверки перед pull request
+## Checks before pull request
 
 ```
 gofmt -l .
@@ -78,8 +79,8 @@ go vet ./... && go test ./...
 cd frontend && npm test && npm run i18n:check
 ```
 
-## Релизы
+## Releases
 
-Релиз выпускается одной командой `scripts/release.sh X.Y.Z` из ветки `dev`.
-Порядок работы, настройка GitHub и что делать при сбоях: [docs/releasing.md](docs/releasing.md).
-Изменения, заметные пользователю, добавляйте в `CHANGELOG.md` в раздел `[Unreleased]`.
+A release is cut by running `scripts/release.sh X.Y.Z` from the `dev` branch.
+Workflow, GitHub setup and troubleshooting: [docs/releasing.md](docs/releasing.md).
+User-visible changes should be added to `CHANGELOG.md` under `[Unreleased]`.
