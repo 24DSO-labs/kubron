@@ -6,7 +6,7 @@
   "namespace": "Namespace",
   "allNamespaces": "Все namespaces",
   "resizeSidebar": "Изменить ширину меню",
-  "customResources": "Пользовательские ресурсы",
+  "customResources": "CRD",
   "definitions": "Определения",
   "filterKinds": "Фильтр по kind…",
   "groups": {

@@ -6,7 +6,7 @@
   "namespace": "命名空间",
   "allNamespaces": "所有命名空间",
   "resizeSidebar": "调整侧边栏大小",
-  "customResources": "自定义资源",
+  "customResources": "CRD",
   "definitions": "定义",
   "filterKinds": "筛选类型…",
   "groups": {
