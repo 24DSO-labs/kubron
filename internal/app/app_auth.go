@@ -135,7 +135,7 @@ var quietMethods = map[string]bool{
 func (a *App) authz(p auth.Permission, kv ...any) error {
 	// Права кластера определяются по активному кластеру вида: сигнатуры методов не меняются (этап 3, решение 1).
 	id := ""
-	if auth.ClusterScoped(p) {
+	if auth.ClusterScoped(p) && a.k8sMgr != nil {
 		id = a.k8sMgr.GetActiveContext()
 	}
 	return a.authzAt(p, id, kv, 1)
@@ -236,6 +236,7 @@ func (a *App) auditCall(actor auth.Actor, result string, p auth.Permission, kv [
 	a.audit.Record(audit.Event{
 		User: actor.Username, Role: string(actor.Role),
 		Action: action, Result: result, Detail: strings.Join(parts, " "), Source: actor.Source,
+		TeamID: actor.TeamID, ClusterID: actor.ClusterID,
 	})
 }
 
@@ -374,12 +375,43 @@ func (a *App) DeleteUser(id string) error {
 
 // ─── Журнал аудита (audit.read) ────────────────────────────
 
+// auditScope готовит фильтр журнала для текущего пользователя: администратор организации видит всё, администратор
+// команды — только события своих команд. Ограничение задаётся здесь, а не приходит от клиента.
+func (a *App) auditScope(f audit.Filter) audit.Filter {
+	f.Scoped, f.Scope = false, nil
+	if a.auth.Authorize(auth.PermAuditRead) != nil {
+		f.Scoped, f.Scope = true, a.auth.TeamsWith(auth.PermClusterManage)
+	}
+	return f
+}
+
 // GetAuditLog возвращает записи журнала от новых к старым с учётом фильтра.
 func (a *App) GetAuditLog(filter audit.Filter) (*audit.Page, error) {
-	if err := a.authz(auth.PermAuditRead); err != nil {
+	if err := a.authzAny(auth.PermAuditRead, auth.PermClusterManage); err != nil {
 		return nil, err
 	}
-	return a.audit.Query(filter)
+	return a.audit.Query(a.auditScope(filter))
+}
+
+// AuditExport — выгрузка журнала: содержимое файла и число записей.
+type AuditExport struct {
+	Data      string `json:"data"`
+	Count     int    `json:"count"`
+	Truncated bool   `json:"truncated"`
+}
+
+// ExportAuditLog выгружает записи журнала по фильтру в CSV или JSON (до audit.ExportLimit записей).
+// Сама выгрузка тоже попадает в журнал.
+func (a *App) ExportAuditLog(filter audit.Filter, format string) (*AuditExport, error) {
+	if err := a.authzAny(auth.PermAuditRead, auth.PermClusterManage); err != nil {
+		return nil, err
+	}
+	data, n, truncated, err := a.audit.Export(a.auditScope(filter), format)
+	if err != nil {
+		return nil, err
+	}
+	a.recordTeam("ExportAuditLog", audit.ResultOK, "", fmt.Sprintf("format=%s rows=%d", format, n))
+	return &AuditExport{Data: string(data), Count: n, Truncated: truncated}, nil
 }
 
 // SetIdleTimeout задаёт время автовыхода по бездействию в минутах (0 — выключить).

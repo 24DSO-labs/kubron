@@ -477,5 +477,6 @@
   "teamNameMustBe1To64Characters": "team name must be 1 to 64 characters",
   "teamP1": "{p0}: team {p1}",
   "theTeamStillHasClustersMoveOrDeleteThemFirst": "the team still has clusters: move or delete them first",
-  "theDefaultTeamCannotBeDeleted": "the default team cannot be deleted"
+  "theDefaultTeamCannotBeDeleted": "the default team cannot be deleted",
+  "unknownExportFormatUseCsvOrJson": "unknown export format: use csv or json"
 }

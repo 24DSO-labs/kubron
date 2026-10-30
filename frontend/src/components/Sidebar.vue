@@ -39,6 +39,10 @@
       <div :class="['nav-item', { active: currentView === 'settings' }]" @click="emit('navigate', 'settings')">
         <span class="nav-icon">⚙️</span> {{ $t('nav.settings') }}
       </div>
+      <div v-if="capabilities.teams" :class="['nav-item', { active: currentView === 'teams' }]"
+        @click="emit('navigate', 'teams')">
+        <span class="nav-icon">🧩</span> {{ $t('nav.teams') }}
+      </div>
       <div v-if="can(Perm.UsersManage)" :class="['nav-item', { active: currentView === 'users' }]"
         @click="emit('navigate', 'users')">
         <span class="nav-icon">👥</span> {{ $t('nav.users') }}
@@ -84,11 +88,13 @@ import NamespaceSelect from './NamespaceSelect.vue'
 import { useListFailures } from '../composables/useListFailures'
 import { useArgo } from '../composables/useArgo'
 import { can } from '../composables/useAuth'
+import { useCapabilities } from '../composables/useCapabilities'
 import { Perm } from '../types/auth'
 import CustomResourcesNav from './nav/CustomResourcesNav.vue'
 import { SIDEBAR_DEFAULT_WIDTH, useSidebarWidth } from '../composables/useSidebarWidth'
 
 const { width, setWidth } = useSidebarWidth()
+const { capabilities } = useCapabilities()
 
 let dragStartX = 0
 let dragStartWidth = 0

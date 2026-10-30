@@ -585,3 +585,27 @@ func TestDirectory(t *testing.T) {
 		t.Errorf("повторное удаление: %v", err)
 	}
 }
+
+func TestAuditKeepsTeamAndClusterContext(t *testing.T) {
+	s := newTestStore(t, keyString("k1"))
+	a := s.Audit()
+	if err := a.Append([]byte(`{"time":"2026-10-30T01:00:00Z","user":"u","action":"DeletePod","result":"ok","teamId":"t1","clusterId":"c1","source":"10.0.0.7"}`)); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.Append([]byte(`{"time":"2026-10-30T02:00:00Z","user":"u","action":"Login","result":"ok"}`)); err != nil {
+		t.Fatal(err)
+	}
+	var got []map[string]any
+	_ = a.ScanNewestFirst(func(line []byte) bool {
+		var m map[string]any
+		_ = json.Unmarshal(line, &m)
+		got = append(got, m)
+		return true
+	})
+	if len(got) != 2 || got[0]["action"] != "Login" || got[0]["teamId"] != nil {
+		t.Fatalf("%+v", got)
+	}
+	if got[1]["teamId"] != "t1" || got[1]["clusterId"] != "c1" || got[1]["source"] != "10.0.0.7" {
+		t.Errorf("контекст потерян: %+v", got[1])
+	}
+}

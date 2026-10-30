@@ -1,0 +1,39 @@
+{
+  "title": "Teams",
+  "subtitle": "Teams own clusters; a user's access to a cluster is defined by their role in its team",
+  "add": "➕ Add team",
+  "empty": "You are not a member of any team yet. Ask an administrator to add you.",
+  "notMember": "Not a member",
+  "members": "Members",
+  "rename": "Rename",
+  "delete": "Delete",
+  "columns": {
+    "name": "Team",
+    "myRole": "Role",
+    "clusters": "Clusters",
+    "members": "Members",
+    "actions": "Actions",
+    "cluster": "Cluster",
+    "team": "Team"
+  },
+  "create": {
+    "title": "New team",
+    "name": "Team name",
+    "submit": "Create"
+  },
+  "confirmDelete": "Delete team “{name}”? Members will lose access given by this team.",
+  "clustersTitle": "Clusters by team",
+  "moveTo": "Move to team…",
+  "confirmMove": "Move cluster “{cluster}” to team “{team}”? Members of the current team will lose access to it.",
+  "membersTitle": "Members of “{name}”",
+  "noMembers": "No members yet",
+  "removeMember": "Remove",
+  "addMember": "Add",
+  "chooseUser": "Choose a user…",
+  "toast": {
+    "created": "Team “{name}” created",
+    "renamed": "Team renamed to “{name}”",
+    "deleted": "Team “{name}” deleted",
+    "moved": "Cluster “{cluster}” moved to “{team}”"
+  }
+}

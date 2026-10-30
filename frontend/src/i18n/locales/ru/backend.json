@@ -477,5 +477,6 @@
   "teamNameMustBe1To64Characters": "название команды должно содержать от 1 до 64 символов",
   "teamP1": "{p0}: команда {p1}",
   "theTeamStillHasClustersMoveOrDeleteThemFirst": "в команде остались кластеры: сначала передайте или удалите их",
-  "theDefaultTeamCannotBeDeleted": "команду по умолчанию удалить нельзя"
+  "theDefaultTeamCannotBeDeleted": "команду по умолчанию удалить нельзя",
+  "unknownExportFormatUseCsvOrJson": "неизвестный формат выгрузки: используйте csv или json"
 }

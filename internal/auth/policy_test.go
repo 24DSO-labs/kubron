@@ -87,6 +87,7 @@ var exactPermission = map[string]Permission{
 	"RestartDaemonSet":        PermOperate,
 	"RetryJob":                PermOperate,
 	"GetAuditLog":             PermAuditRead,
+	"ExportAuditLog":          PermAuditRead,
 	"SetIdleTimeout":          PermUsersManage,
 	"CordonNode":              PermOperate,
 	"DrainNode":               PermWrite,

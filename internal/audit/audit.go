@@ -35,6 +35,8 @@ const (
 
 	DefaultLimit = 200
 	MaxLimit     = 1000
+	// ExportLimit — предел числа записей в выгрузке.
+	ExportLimit = 10000
 )
 
 // Event — запись журнала.
@@ -46,6 +48,9 @@ type Event struct {
 	Result string    `json:"result"`           // ok | failed | denied
 	Detail string    `json:"detail,omitempty"` // цель и параметры: namespace=default name=nginx
 	Source string    `json:"source,omitempty"` // адрес клиента веб-сессии; пусто в десктопе
+	// Контекст сервисного режима (этап 3): команда и кластер, к которым относится действие.
+	TeamID    string `json:"teamId,omitempty"`
+	ClusterID string `json:"clusterId,omitempty"`
 }
 
 // Filter — условия выборки. Пустое поле не ограничивает выборку.
@@ -57,6 +62,14 @@ type Filter struct {
 	Since  string `json:"since"`  // RFC3339, включительно
 	Until  string `json:"until"`  // RFC3339, не включая
 	Limit  int    `json:"limit"`  // по умолчанию DefaultLimit, максимум MaxLimit
+
+	Team    string `json:"team"`    // точный идентификатор команды
+	Cluster string `json:"cluster"` // точный идентификатор кластера
+
+	// Scope ограничивает выборку командами: события вне них (в том числе без команды) не видны. Задаёт только
+	// доверенный код (не JSON): администратор команды видит события своих команд, а не всей организации.
+	Scoped bool     `json:"-"`
+	Scope  []string `json:"-"`
 }
 
 // Page — результат выборки: записи от новых к старым.
@@ -148,6 +161,33 @@ func contains(haystack, needle string) bool {
 
 // Query возвращает записи, подходящие под фильтр, от новых к старым.
 func (l *Logger) Query(f Filter) (*Page, error) {
+	limit := f.Limit
+	if limit <= 0 {
+		limit = DefaultLimit
+	}
+	if limit > MaxLimit {
+		limit = MaxLimit
+	}
+	return l.query(f, limit)
+}
+
+// inScope сообщает, входит ли команда события в ограничение фильтра.
+func (f Filter) inScope(team string) bool {
+	if !f.Scoped {
+		return true
+	}
+	if team == "" {
+		return false
+	}
+	for _, t := range f.Scope {
+		if t == team {
+			return true
+		}
+	}
+	return false
+}
+
+func (l *Logger) query(f Filter, limit int) (*Page, error) {
 	since, err := parseTime(f.Since, "since")
 	if err != nil {
 		return nil, err
@@ -155,13 +195,6 @@ func (l *Logger) Query(f Filter) (*Page, error) {
 	until, err := parseTime(f.Until, "until")
 	if err != nil {
 		return nil, err
-	}
-	limit := f.Limit
-	if limit <= 0 {
-		limit = DefaultLimit
-	}
-	if limit > MaxLimit {
-		limit = MaxLimit
 	}
 	user, action, text := strings.ToLower(strings.TrimSpace(f.User)), strings.ToLower(strings.TrimSpace(f.Action)), strings.ToLower(strings.TrimSpace(f.Text))
 
@@ -174,10 +207,16 @@ func (l *Logger) Query(f Filter) (*Page, error) {
 		if json.Unmarshal(line, &e) != nil {
 			return true // повреждённая строка (например, обрыв записи) не должна скрывать остальные
 		}
+		if !f.inScope(e.TeamID) {
+			return true
+		}
 		if (!since.IsZero() && e.Time.Before(since)) || (!until.IsZero() && !e.Time.Before(until)) {
 			return true
 		}
 		if f.Result != "" && e.Result != f.Result {
+			return true
+		}
+		if (f.Team != "" && e.TeamID != f.Team) || (f.Cluster != "" && e.ClusterID != f.Cluster) {
 			return true
 		}
 		if (user != "" && !contains(e.User, user)) || (action != "" && !contains(e.Action, action)) || (text != "" && !contains(e.Detail, text)) {

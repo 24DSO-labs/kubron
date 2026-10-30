@@ -219,3 +219,26 @@ func TestCheckTeamWithoutAccessUsesGlobalRole(t *testing.T) {
 		t.Errorf("десктоп, роль user: %v", err)
 	}
 }
+
+func TestActorContextAndTeamsWith(t *testing.T) {
+	_, bob, eve, _ := accessFixture(t)
+	a, err := bob.CheckCluster(PermRead, "c1")
+	if err != nil || a.ClusterID != "c1" || a.TeamID != "red" {
+		t.Errorf("контекст для журнала: %+v %v", a, err)
+	}
+	// Отказ в чужой команде не раскрывает её в журнале как «свою» (команда неизвестна — кластер не найден).
+	a, _ = bob.CheckCluster(PermRead, "c3")
+	if a.TeamID != "" {
+		t.Errorf("чужая команда в контексте: %+v", a)
+	}
+	a, _ = eve.CheckTeam(PermUsersManage, "blue")
+	if a.TeamID != "blue" {
+		t.Errorf("%+v", a)
+	}
+	if got := eve.TeamsWith(PermClusterManage); len(got) != 1 || got[0] != "blue" {
+		t.Errorf("команды, где eve админ: %v", got)
+	}
+	if got := bob.TeamsWith(PermClusterManage); len(got) != 0 {
+		t.Errorf("оператор не админ: %v", got)
+	}
+}

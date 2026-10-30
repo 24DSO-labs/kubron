@@ -42,7 +42,11 @@
     "kubeconfigText": "Kubeconfig text",
     "textHint": "The contents will be stored in the Kubron directory, readable only by you.",
     "submit": "Add cluster",
-    "uploadFromFile": "Upload from file…"
+    "uploadFromFile": "Upload from file…",
+    "sectionTeam": "Owner",
+    "team": "Team",
+    "teamHint": "The cluster belongs to this team; its members get access according to their roles.",
+    "noAdminTeams": "You are not an administrator of any team, so you cannot add clusters. Ask an organization administrator."
   },
   "edit": {
     "kubeconfig": "Kubeconfig",

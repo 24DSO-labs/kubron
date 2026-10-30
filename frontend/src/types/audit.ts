@@ -14,6 +14,11 @@ export interface AuditEvent {
   action: string
   result: AuditResult | string
   detail?: string
+  /** адрес клиента веб-сессии */
+  source?: string
+  /** сервисный режим: команда и кластер, к которым относится действие */
+  teamId?: string
+  clusterId?: string
 }
 
 /** Условия выборки (internal/audit.Filter) */
@@ -25,6 +30,9 @@ export interface AuditFilter {
   since: string
   until: string
   limit: number
+  /** идентификатор команды / кластера (сервисный режим); '' — любые */
+  team: string
+  cluster: string
 }
 
 /** Ответ GetAuditLog (internal/audit.Page) */

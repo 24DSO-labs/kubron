@@ -1,0 +1,40 @@
+# Сборка .deb: nfpm package --config build/linux/nfpm.yaml --packager deb --target <файл>
+# VERSION задаёт release.yml (SemVer-суффикс предрелиза уже заменён на '~',
+# поэтому 0.3.0~rc.1 в dpkg меньше 0.3.0).
+name: kubron
+arch: amd64
+platform: linux
+version: ${VERSION}
+version_schema: none
+section: devel
+priority: optional
+maintainer: Vadim
+description: |
+  Kubron: desktop Kubernetes manager.
+  Wails + Go + Vue application for working with clusters.
+homepage: https://github.com/VadimIl224/kubron
+license: Apache-2.0
+depends:
+  - libgtk-3-0
+  - libwebkit2gtk-4.1-0
+contents:
+  - src: build/bin/Kubron
+    dst: /usr/bin/kubron
+    file_info:
+      mode: 0755
+  - src: build/linux/kubron.desktop
+    dst: /usr/share/applications/kubron.desktop
+    file_info:
+      mode: 0644
+  - src: build/appicon.png
+    dst: /usr/share/icons/hicolor/512x512/apps/kubron.png
+    file_info:
+      mode: 0644
+  - src: LICENSE
+    dst: /usr/share/doc/kubron/LICENSE
+    file_info:
+      mode: 0644
+  - src: NOTICE
+    dst: /usr/share/doc/kubron/NOTICE
+    file_info:
+      mode: 0644

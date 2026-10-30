@@ -7,7 +7,17 @@
         <h2>{{ $t('audit.title') }}</h2>
         <p class="audit-sub">{{ $t('audit.subtitle') }}</p>
       </div>
-      <button class="btn" type="button" :disabled="loading" @click="load">{{ $t('audit.refresh') }}</button>
+      <div class="audit-actions">
+        <template v-if="capabilities.teams">
+          <button class="btn btn-secondary" type="button" :disabled="loading || exporting" @click="exportLog('csv')">
+            {{ $t('audit.export.csv') }}
+          </button>
+          <button class="btn btn-secondary" type="button" :disabled="loading || exporting" @click="exportLog('json')">
+            {{ $t('audit.export.json') }}
+          </button>
+        </template>
+        <button class="btn" type="button" :disabled="loading" @click="load">{{ $t('audit.refresh') }}</button>
+      </div>
     </header>
 
     <p v-if="page?.writeError" class="audit-warn">
@@ -26,6 +36,16 @@
         <option value="">{{ $t('audit.filters.anyResult') }}</option>
         <option v-for="id in RESULT_IDS" :key="id" :value="id">{{ resultLabel(id) }}</option>
       </select>
+      <template v-if="capabilities.teams">
+        <select v-model="filter.team" class="form-input" :aria-label="$t('audit.filters.team')">
+          <option value="">{{ $t('audit.filters.anyTeam') }}</option>
+          <option v-for="tm in teams" :key="tm.id" :value="tm.id">{{ tm.name }}</option>
+        </select>
+        <select v-model="filter.cluster" class="form-input" :aria-label="$t('audit.filters.cluster')">
+          <option value="">{{ $t('audit.filters.anyCluster') }}</option>
+          <option v-for="c in clusterOptions" :key="c.id" :value="c.id">{{ c.displayName }}</option>
+        </select>
+      </template>
       <select v-model="period" class="form-input" 
         :aria-label="$t('audit.filters.period')">
         <option v-for="p in PERIODS" :key="p.id" :value="p.id">{{ $t(`audit.periods.${p.id}`) }}</option>
@@ -48,6 +68,7 @@
           <th>{{ $t('audit.columns.user') }}</th>
           <th>{{ $t('audit.columns.action') }}</th>
           <th>{{ $t('audit.columns.result') }}</th>
+          <th v-if="capabilities.teams">{{ $t('audit.columns.scope') }}</th>
           <th>{{ $t('audit.columns.detail') }}</th>
         </tr>
       </thead>
@@ -65,6 +86,13 @@
           <td>
             <span :class="['badge', `badge-${e.result}`]">{{ resultLabel(e.result) }}</span>
           </td>
+          <td v-if="capabilities.teams" class="nowrap">
+            <template v-if="e.teamId || e.clusterId">
+              {{ teamName(e.teamId) }}<span v-if="e.clusterId" class="muted"> / {{ clusterName(e.clusterId) }}</span>
+            </template>
+            <span v-else class="muted">{{ $t('common.dash') }}</span>
+            <div v-if="e.source" class="muted src">{{ e.source }}</div>
+          </td>
           <td class="detail">{{ e.detail }}</td>
         </tr>
       </tbody>
@@ -77,9 +105,14 @@
 </template>
 
 <script lang="ts" setup>
-import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { callApp } from '../../resources/wails'
 import { errorText } from '../../composables/errorText'
+import { useCapabilities } from '../../composables/useCapabilities'
+import { useTeams } from '../../composables/useTeams'
+import { useClusters } from '../../composables/useClusters'
+import { useNotifications } from '../../composables/useNotifications'
+import { downloadTextFile } from '../../platform/files'
 import { formatDateTime } from '../../i18n/format'
 import { te, t } from '../../i18n'
 import { RESULT_IDS, resultLabel, actionLabel, type AuditFilter, type AuditPage } from '../../types/audit'
@@ -94,7 +127,19 @@ const PERIODS = [
 ]
 const LIMITS = [200, 500, 1000]
 
-const filter = reactive({ user: '', action: '', text: '', result: '', limit: LIMITS[0] })
+const { capabilities } = useCapabilities()
+const { teams, loadTeams } = useTeams()
+const { clusters, loadClusters } = useClusters()
+const notifications = useNotifications()
+
+const filter = reactive({ user: '', action: '', text: '', result: '', limit: LIMITS[0], team: '', cluster: '' })
+const exporting = ref(false)
+
+// Имена вместо идентификаторов; удалённые команды и кластеры остаются в журнале, поэтому запасной вариант — идентификатор
+const teamName = (id?: string) => (id ? teams.value.find(x => x.id === id)?.name ?? id : t('common.dash'))
+const clusterName = (id: string) => clusters.value.find(c => c.id === id)?.displayName ?? id
+// При выбранной команде в списке кластеров — только её кластеры
+const clusterOptions = computed(() => clusters.value.filter(c => !filter.team || c.teamId === filter.team))
 const period = ref('all')
 const page = ref<AuditPage | null>(null)
 const loading = ref(false)
@@ -116,12 +161,7 @@ async function load() {
   const my = ++seq
   loading.value = true
   loadError.value = ''
-  const ms = PERIODS.find(p => p.id === period.value)?.ms ?? 0
-  const request: AuditFilter = {
-    ...filter,
-    since: ms ? new Date(Date.now() - ms).toISOString() : '',
-    until: '',
-  }
+  const request = requestFilter()
   try {
     const result = (await callApp('GetAuditLog', request)) as AuditPage
     if (my !== seq) return
@@ -143,9 +183,36 @@ watch(
     timer = setTimeout(load, 300)
   },
 )
-watch(() => [filter.result, filter.limit, period.value], load)
+watch(() => [filter.result, filter.limit, period.value, filter.team, filter.cluster], load)
+// Кластер другой команды не может остаться выбранным после смены команды
+watch(() => filter.team, () => {
+  if (filter.cluster && !clusterOptions.value.some(c => c.id === filter.cluster)) filter.cluster = ''
+})
 
-onMounted(load)
+function requestFilter(): AuditFilter {
+  const ms = PERIODS.find(p => p.id === period.value)?.ms ?? 0
+  return { ...filter, since: ms ? new Date(Date.now() - ms).toISOString() : '', until: '' }
+}
+
+/** Выгрузка записей по текущему фильтру (до 10 000), файл скачивает браузер */
+async function exportLog(format: 'csv' | 'json') {
+  exporting.value = true
+  try {
+    const res = (await callApp('ExportAuditLog', requestFilter(), format)) as { data: string; count: number; truncated: boolean }
+    const day = new Date().toISOString().slice(0, 10)
+    downloadTextFile(`kubron-audit-${day}.${format}`, res.data, format === 'csv' ? 'text/csv' : 'application/json')
+    notifications.notifySuccess(t(res.truncated ? 'audit.export.doneTruncated' : 'audit.export.done', { n: res.count }))
+  } catch (e) {
+    notifications.notifyError(errorText(e))
+  } finally {
+    exporting.value = false
+  }
+}
+
+onMounted(() => {
+  load()
+  if (capabilities.value.teams) { loadTeams(); loadClusters() }
+})
 onBeforeUnmount(() => clearTimeout(timer))
 </script>
 
@@ -163,6 +230,9 @@ onBeforeUnmount(() => clearTimeout(timer))
 
 .audit-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 18px; }
 .audit-filters .form-input { width: 100%; box-sizing: border-box; padding: 8px 10px; }
+
+.audit-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.src { font-size: 11px; }
 
 .audit-empty, .audit-more { color: #6c7086; font-size: 13px; margin: 16px 0; }
 

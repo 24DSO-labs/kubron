@@ -28,7 +28,7 @@ export function useClusterConnection(deps: {
   loadClusters: () => Promise<void>
   pickKubeconfigFile: () => Promise<string>
   addClusterFromFile: (path: string, settings: ClusterSettings) => Promise<Outcome<ClusterMeta>>
-  addClusterFromText: (text: string, settings: ClusterSettings) => Promise<Outcome<ClusterMeta>>
+  addClusterFromText: (text: string, settings: ClusterSettings, teamId?: string) => Promise<Outcome<ClusterMeta>>
   deleteCluster: (id: string) => Promise<void>
   updateCluster: (id: string, settings: ClusterSettings, kubeconfig: KubeconfigSource) => Promise<Outcome<ClusterUpdateResult>>
   autoConnect: () => Promise<boolean>
@@ -89,7 +89,7 @@ export function useClusterConnection(deps: {
   async function addCluster(payload: AddClusterPayload): Promise<string | null> {
     const result = payload.kind === 'file'
       ? await addClusterFromFile(payload.path, payload.settings)
-      : await addClusterFromText(payload.text, payload.settings)
+      : await addClusterFromText(payload.text, payload.settings, payload.teamId)
     if (!result.ok) return result.error
     showAddCluster.value = false
     await selectCluster(result.value.id)
