@@ -14,7 +14,10 @@ const settings = { displayName: 'prod' } as ClusterSettings
 describe('добавление кластера в сервисном режиме', () => {
   beforeEach(() => {
     vi.mocked(callApp).mockReset()
-    vi.mocked(callApp).mockImplementation(async (method: string) => (method === 'GetClusterStatuses' ? [] : { id: 'prod' }) as never)
+    vi.mocked(callApp).mockImplementation(async (...args: unknown[]) => {
+      const method = args[0] as string
+      return method === 'GetClusterStatuses' ? [] : { id: 'prod' }
+    })
   })
 
   it('без команды — прежний метод десктопа', async () => {
