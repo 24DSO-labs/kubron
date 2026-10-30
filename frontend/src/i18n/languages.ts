@@ -5,11 +5,13 @@
  * Реестр языков интерфейса.
  *
  * Чтобы добавить язык:
- *  1. скопировать каталог locales/en в locales/<код> и перевести значения (ключи не менять);
- *  2. добавить запись в LANGUAGES ниже (для языков со сложными формами множественного числа —
- *     ещё и pluralRule);
- *  3. запустить `npm run i18n:check` — проверит, что ключи и плейсхолдеры совпадают с en.
+ *  1. создать папку locales/<код>/ с JSON-файлами;
+ *  2. добавить запись в locales/registry.ts (название, pluralRule и т.д.).
+ *
+ * languages.ts автоматически сканирует папку locales/ + читает registry.ts.
  */
+
+import { LANGUAGE_REGISTRY } from './locales/registry'
 
 /** Правило выбора формы множественного числа: возвращает индекс варианта в «a | b | c» */
 export type PluralRule = (choice: number, choicesLength: number) => number
@@ -23,22 +25,32 @@ export interface LanguageDef {
   pluralRule?: PluralRule
 }
 
-/** Русский: три формы «один | несколько | много» (1 под | 2 пода | 5 подов) */
-const russianPlural: PluralRule = (choice) => {
-  const n = Math.abs(choice) % 100
-  const last = n % 10
-  if (n > 10 && n < 20) return 2
-  if (last === 1) return 0
-  if (last >= 2 && last <= 4) return 1
-  return 2
-}
-
 export const DEFAULT_LOCALE = 'en'
 
-export const LANGUAGES: readonly LanguageDef[] = [
-  { code: 'en', name: 'English' },
-  { code: 'ru', name: 'Русский', pluralRule: russianPlural },
-]
+/** Сканирует папку locales/ и возвращает список кодов языковых папок */
+function scanLocales(): string[] {
+  // VITE_LOCALES — строка вида "en,ru,cn", задаётся Vite-плагином при сборке
+  const raw = import.meta.env.VITE_LOCALES
+  if (raw) {
+    return raw.split(',').map((s: string) => s.trim()).filter(Boolean)
+  }
+  // Fallback для IDE / ручных проверок — берём ключи из registry
+  return Object.keys(LANGUAGE_REGISTRY).sort()
+}
+
+/** Построить LANGUAGES из обнаруженных папок + registry */
+export const LANGUAGES: readonly LanguageDef[] = (() => {
+  const codes = scanLocales()
+  const out: LanguageDef[] = []
+
+  for (const code of codes) {
+    const def = LANGUAGE_REGISTRY[code]
+    if (!def) continue
+    out.push({ code, name: def.name, ...(def.pluralRule ? { pluralRule: def.pluralRule } : {}) })
+  }
+
+  return Object.freeze(out.map((l) => Object.freeze(l)))
+})()
 
 const isKnown = (code: string) => LANGUAGES.some((l) => l.code === code)
 
