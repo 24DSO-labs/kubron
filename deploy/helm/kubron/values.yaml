@@ -1,0 +1,290 @@
+# Значения по умолчанию для чарта kubron. Запуск и подготовка: docs/deploy.md.
+#
+# Минимум для установки: существующий Secret с ключом шифрования и строкой подключения к
+# PostgreSQL (secrets.existingSecret). Чарт НЕ генерирует ключ: потеря ключа означает потерю всех
+# сохранённых секретов (kubeconfig, токены Argo CD), см. ADR-0008.
+
+# ── Реплики ──────────────────────────────────────────────────────────────────
+# Только 1. Веб-сессии и хаб событий пока живут в памяти процесса, поэтому вторая реплика не видит
+# сессий первой, а события и потоки (терминал, логи) доходят не туда.
+# TODO(этап 4, HA): сессии и события в PostgreSQL, /readyz; тогда по умолчанию станет 2.
+# При replicaCount > 1 чарт отрисуется, но NOTES.txt выведет предупреждение.
+replicaCount: 1
+
+image:
+  # TODO: публикация образа в реестр ещё не настроена (release.yml); укажите свой реестр.
+  repository: ghcr.io/vadimil224/kubron
+  # Пусто — appVersion чарта
+  tag: ""
+  # Если задан, имеет приоритет над tag: repository@sha256:...
+  digest: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# ── Секреты ──────────────────────────────────────────────────────────────────
+secrets:
+  # Имя СУЩЕСТВУЮЩЕГО Secret в этом же namespace. Обязательно, если не задано create: true.
+  # Создание и хранение ключа: docs/deploy.md, раздел «Ключ шифрования».
+  existingSecret: ""
+  # Имена ключей внутри Secret
+  keys:
+    # KUBRON_SECRET_KEY: формат «id:base64», 32 байта (id — буквы, цифры, _ . -, до 32 символов)
+    secretKey: KUBRON_SECRET_KEY
+    # KUBRON_DATABASE_URL: postgres://user:password@host:5432/kubron?sslmode=verify-full
+    databaseUrl: KUBRON_DATABASE_URL
+    # KUBRON_SECRET_KEY_PREVIOUS: прежние ключи через запятую, нужны на время ротации. Пусто — не используется.
+    previousSecretKey: ""
+  # ТОЛЬКО ДЛЯ РАЗРАБОТКИ. Чарт создаст Secret из значений ниже. Ключ в values попадает в историю релиза
+  # Helm, в CI-логи и в репозиторий, поэтому в production не используйте. Ключ не генерируется:
+  # создайте его сами и сохраните вне кластера.
+  create: false
+  values:
+    secretKey: ""
+    databaseUrl: ""
+
+# ── Настройки сервера (ConfigMap → переменные окружения, config.go) ──────────
+kubron:
+  # Доверять X-Forwarded-Proto обратного прокси: cookie получает Secure (KUBRON_TRUST_PROXY).
+  # null — автоматически: включается, если включён ingress с TLS. true/false — явно (например,
+  # если TLS завершает балансировщик перед Service без ingress). Включайте только когда под
+  # доступен лишь через прокси (см. networkPolicy.ingress).
+  trustProxy: null
+  # Абсолютный срок веб-сессии (KUBRON_SESSION_TTL), например 12h. Пусто — по умолчанию сервера.
+  sessionTTL: ""
+  # Лимиты на одного пользователя (0 — без ограничения); пусто — по умолчанию сервера
+  maxTerminals: null
+  maxLogStreams: null
+  maxPortForwards: null
+  # Дополнительные переменные окружения (список как в container.env)
+  extraEnv: []
+
+# Порт, на котором слушает сервер в контейнере (KUBRON_LISTEN=0.0.0.0:<port>)
+containerPort: 8080
+
+service:
+  type: ClusterIP
+  port: 80
+  annotations: {}
+
+# ── Ingress ──────────────────────────────────────────────────────────────────
+# WebSocket (/api/ws, /api/terminal/*) не требует отдельной настройки у большинства контроллеров,
+# но у ingress-nginx нужны большие таймауты: иначе терминал и события рвутся через 60 секунд.
+ingress:
+  enabled: false
+  className: ""
+  # Пример для ingress-nginx (WebSocket + привязка по cookie для будущего HA; с одной репликой
+  # привязка не нужна, но безвредна):
+  #   annotations:
+  #     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+  #     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  #     nginx.ingress.kubernetes.io/proxy-body-size: 5m
+  #     nginx.ingress.kubernetes.io/affinity: cookie
+  #     nginx.ingress.kubernetes.io/session-cookie-name: kubron-affinity
+  #     nginx.ingress.kubernetes.io/session-cookie-samesite: Lax
+  #     nginx.ingress.kubernetes.io/session-cookie-secure: "true"
+  #     nginx.ingress.kubernetes.io/session-cookie-max-age: "43200"
+  # Размер тела: сервер принимает RPC до 4 МиБ (манифесты), по умолчанию ingress-nginx пропускает 1 МиБ.
+  annotations: {}
+  hosts:
+    - host: kubron.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  # Без tls cookie сессии уходит открытым текстом: в сети используйте только с TLS
+  tls: []
+  #  - secretName: kubron-tls
+  #    hosts:
+  #      - kubron.example.com
+
+# ── Режим in-cluster ─────────────────────────────────────────────────────────
+# Kubron ходит в тот кластер, где сам запущен, под ServiceAccount пода. Включает монтирование токена
+# (по умолчанию automountServiceAccountToken: false). Без этого режима токен в поде не нужен.
+inCluster:
+  enabled: false
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+rbac:
+  # Создать ClusterRole только на чтение и привязать к ServiceAccount. Требует inCluster.enabled.
+  # TODO(тикет 3.7): полный набор прав появится вместе с режимом in-cluster; сейчас это заготовка.
+  create: false
+  # Правила ClusterRole. По умолчанию только get/list/watch, без secrets, без pods/exec и без
+  # каких-либо прав на запись. Секреты намеренно исключены: токен общий для всех пользователей.
+  rules:
+    - apiGroups: [""]
+      resources:
+        - namespaces
+        - nodes
+        - pods
+        - pods/log
+        - services
+        - endpoints
+        - configmaps
+        - events
+        - persistentvolumes
+        - persistentvolumeclaims
+        - serviceaccounts
+        - resourcequotas
+        - limitranges
+      verbs: [get, list, watch]
+    - apiGroups: [apps]
+      resources: [deployments, replicasets, statefulsets, daemonsets]
+      verbs: [get, list, watch]
+    - apiGroups: [batch]
+      resources: [jobs, cronjobs]
+      verbs: [get, list, watch]
+    - apiGroups: [networking.k8s.io]
+      resources: [ingresses, ingressclasses, networkpolicies]
+      verbs: [get, list, watch]
+    - apiGroups: [discovery.k8s.io]
+      resources: [endpointslices]
+      verbs: [get, list, watch]
+    - apiGroups: [storage.k8s.io]
+      resources: [storageclasses]
+      verbs: [get, list, watch]
+    - apiGroups: [autoscaling]
+      resources: [horizontalpodautoscalers]
+      verbs: [get, list, watch]
+    - apiGroups: [policy]
+      resources: [poddisruptionbudgets]
+      verbs: [get, list, watch]
+    - apiGroups: [metrics.k8s.io]
+      resources: [pods, nodes]
+      verbs: [get, list]
+  # Дополнительные правила поверх rules
+  extraRules: []
+
+# ── Безопасность пода ────────────────────────────────────────────────────────
+# Образ distroless nonroot (uid/gid 65532). Менять только осознанно.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  capabilities:
+    drop: [ALL]
+
+# Helm и клиентские библиотеки Kubernetes пишут кэш и конфигурацию в HOME/XDG_*, временные файлы —
+# в TMPDIR. Корневая ФС только для чтения, поэтому оба каталога — emptyDir. Содержимое HOME теряется
+# при пересоздании пода: общий каталог Helm (репозитории, кэш чартов) станет постоянным позже, этап 5.
+writableDirs:
+  home:
+    sizeLimit: 512Mi
+  tmp:
+    sizeLimit: 256Mi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi
+
+# ── Пробы ────────────────────────────────────────────────────────────────────
+# Сейчас у сервера есть только /healthz (процесс жив, порт слушается). Он же служит readiness.
+# TODO(/readyz): отдельная задача добавит /readyz с проверкой БД; тогда readinessProbe.path → /readyz.
+# Миграции БД идут до открытия порта, поэтому нужен startupProbe: пока он не прошёл, liveness
+# не убьёт под, застрявший на долгой миграции.
+startupProbe:
+  path: /healthz
+  periodSeconds: 2
+  failureThreshold: 90
+  timeoutSeconds: 2
+livenessProbe:
+  path: /healthz
+  periodSeconds: 10
+  failureThreshold: 3
+  timeoutSeconds: 2
+readinessProbe:
+  path: /healthz
+  periodSeconds: 5
+  failureThreshold: 3
+  timeoutSeconds: 2
+
+# Сервер завершает соединения за 10 секунд (graceful shutdown)
+terminationGracePeriodSeconds: 30
+
+# ── Обновление ───────────────────────────────────────────────────────────────
+# Одна реплика + миграции под advisory-lock: RollingUpdate с maxUnavailable: 0 держит старый под,
+# пока новый не пройдёт readiness. Миграции применяет тот, кто первым взял блокировку, а прежняя
+# версия работает с более новой схемой в режиме совместимости. Веб-сессии в памяти при переключении
+# теряются в любом случае (потребуется повторный вход). Recreate выбирайте, если схема меняется
+# несовместимо (в примечаниях к релизу).
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+# ── PodDisruptionBudget ──────────────────────────────────────────────────────
+# Создаётся только при replicaCount > 1: с одной репликой minAvailable: 1 заблокировал бы drain узла.
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+  maxUnavailable: null
+  # Неготовый под не блокирует drain узла (AlwaysAllow). Пусто — поле не задаётся (поведение по умолчанию).
+  unhealthyPodEvictionPolicy: AlwaysAllow
+
+# ── NetworkPolicy ────────────────────────────────────────────────────────────
+# Требует CNI с поддержкой NetworkPolicy; без неё манифест принимается, но не действует.
+networkPolicy:
+  enabled: true
+  ingress:
+    # Откуда разрешён входящий трафик на порт сервера. По умолчанию — namespace ingress-nginx.
+    # Пустой список разрешит доступ отовсюду (всем источникам кластера). Для проверок kubelet
+    # правила не нужны.
+    from:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: ingress-nginx
+  egress:
+    dns:
+      # Адресаты DNS. Пустой список — порт 53 куда угодно (если DNS нестандартный, например NodeLocal).
+      to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+    postgres:
+      # Адресаты PostgreSQL. Пустой список — порт из ports куда угодно: сузьте до своего сервера БД
+      # (ipBlock или namespaceSelector/podSelector).
+      to: []
+      ports: [5432]
+    clusterApi:
+      # API-серверы подключаемых кластеров и провайдеры OIDC (oidc-password).
+      # По умолчанию открыто: адреса кластеров добавляют пользователи, а проверка адреса API-сервера
+      # по политике сети (SSRF, раздел 8 плана) ещё не реализована в самом приложении.
+      # TODO(SSRF-политика): после её появления сузьте `to` до доверенных CIDR, исключив метаданные
+      # облака (169.254.169.254) и служебные сети кластера.
+      to: []
+      ports: [443, 6443]
+    # Любые дополнительные правила egress в формате NetworkPolicy (например, Helm-репозитории, 443)
+    extra: []
+
+# ── Планировщик ──────────────────────────────────────────────────────────────
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []
+priorityClassName: ""
+
+# Дополнительные тома и точки монтирования (например, корневые сертификаты для PostgreSQL/OIDC)
+extraVolumes: []
+extraVolumeMounts: []

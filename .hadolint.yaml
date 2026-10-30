@@ -1,0 +1,10 @@
+# Настройки hadolint для Dockerfile в корне (job `docker` в .github/workflows/deploy.yml).
+failure-threshold: warning
+ignored:
+  # Версии apt-пакетов не пинуются: libgtk-3-dev и libwebkit2gtk-4.1-dev нужны только builder-стадии
+  # (она в образ не попадает), а закреплённая версия исчезает из репозитория Debian при обновлении
+  # и ломает сборку. Воспроизводимость обеспечивает тег базового образа.
+  - DL3008
+trustedRegistries:
+  - docker.io
+  - gcr.io
