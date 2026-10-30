@@ -4,6 +4,9 @@
 package audit
 
 import (
+	"bytes"
+	"encoding/csv"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -181,3 +184,76 @@ func TestNilLoggerIsSafe(t *testing.T) {
 
 // fb — файловое хранилище журнала, созданное Open.
 func fb(l *Logger) *fileBackend { return l.backend.(*fileBackend) }
+
+func TestContextFilterAndScope(t *testing.T) {
+	l := New(NewFileBackend(t.TempDir()))
+	l.Record(Event{User: "a", Action: "DeletePod", Result: ResultOK, TeamID: "red", ClusterID: "c1"})
+	l.Record(Event{User: "b", Action: "DeletePod", Result: ResultOK, TeamID: "blue", ClusterID: "c3"})
+	l.Record(Event{User: "c", Action: "Login", Result: ResultOK}) // без команды
+
+	got := func(f Filter) []string {
+		p, err := l.Query(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var users []string
+		for _, e := range p.Events {
+			users = append(users, e.User)
+		}
+		return users
+	}
+	if n := len(got(Filter{})); n != 3 {
+		t.Errorf("без фильтра: %d", n)
+	}
+	if u := got(Filter{Team: "red"}); len(u) != 1 || u[0] != "a" {
+		t.Errorf("по команде: %v", u)
+	}
+	if u := got(Filter{Cluster: "c3"}); len(u) != 1 || u[0] != "b" {
+		t.Errorf("по кластеру: %v", u)
+	}
+	// Ограничение доверенного кода: администратор команды не видит чужие события и события без команды,
+	// а запросить чужую команду фильтром не может.
+	if u := got(Filter{Scoped: true, Scope: []string{"red"}}); len(u) != 1 || u[0] != "a" {
+		t.Errorf("scope: %v", u)
+	}
+	if u := got(Filter{Scoped: true, Scope: []string{"red"}, Team: "blue"}); len(u) != 0 {
+		t.Errorf("чужая команда через фильтр: %v", u)
+	}
+	if u := got(Filter{Scoped: true}); len(u) != 0 {
+		t.Errorf("пустой scope не видит ничего: %v", u)
+	}
+}
+
+func TestExportFormatsAndFormulaInjection(t *testing.T) {
+	l := New(NewFileBackend(t.TempDir()))
+	l.Record(Event{User: "=HYPERLINK(\"http://evil\")", Action: "Login", Result: ResultFailed, Detail: "x, \"y\"\nz", TeamID: "red"})
+	l.Record(Event{User: "ok", Action: "Logout", Result: ResultOK})
+
+	data, n, trunc, err := l.Export(Filter{}, FormatCSV)
+	if err != nil || n != 2 || trunc {
+		t.Fatalf("%d %v %v", n, trunc, err)
+	}
+	r := csv.NewReader(bytes.NewReader(bytes.TrimPrefix(data, []byte("\xEF\xBB\xBF"))))
+	rows, err := r.ReadAll()
+	if err != nil || len(rows) != 3 || rows[0][0] != "time" {
+		t.Fatalf("%v %v", rows, err)
+	}
+	var evil []string
+	for _, row := range rows[1:] {
+		if strings.Contains(row[1], "HYPERLINK") {
+			evil = row
+		}
+	}
+	if evil == nil || !strings.HasPrefix(evil[1], "'=") || evil[5] != "x, \"y\" z" || evil[7] != "red" {
+		t.Errorf("формулы должны экранироваться, остальное — без искажений: %q", evil)
+	}
+
+	data, n, _, err = l.Export(Filter{Team: "red"}, FormatJSON)
+	var back []Event
+	if err != nil || n != 1 || json.Unmarshal(data, &back) != nil || len(back) != 1 || back[0].TeamID != "red" {
+		t.Errorf("json: %s %d %v", data, n, err)
+	}
+	if _, _, _, err := l.Export(Filter{}, "xml"); err == nil {
+		t.Error("неизвестный формат")
+	}
+}

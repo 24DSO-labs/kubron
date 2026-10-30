@@ -99,6 +99,9 @@ type Actor struct {
 	Username string
 	Role     Role
 	Source   string // адрес клиента сессии (веб); пусто в десктопе
+	// Контекст проверки в сервисном режиме: кластер и команда, к которым относится действие (для журнала).
+	ClusterID string
+	TeamID    string
 }
 
 // shared — состояние, общее для всех сессий: хранилище пользователей, счётчики неудачных входов,
@@ -424,14 +427,16 @@ func (s *Service) checkLocked(p Permission, clusterID string) (Actor, error) {
 		return Actor{Source: s.source}, err
 	}
 	role := u.Role
+	team := ""
 	if s.access != nil && clusterID != "" {
-		if team, ok := s.access.ClusterTeam(clusterID); ok {
-			if r, ok := s.access.TeamRole(u.ID, team); ok {
-				role = r
+		if tm, ok := s.access.ClusterTeam(clusterID); ok {
+			// Команда попадает в контекст только если пользователь её член: чужая остаётся «не найдена».
+			if r, ok := s.access.TeamRole(u.ID, tm); ok {
+				role, team = r, tm
 			}
 		}
 	}
-	return Actor{Username: u.Username, Role: role, Source: s.source}, err
+	return Actor{Username: u.Username, Role: role, Source: s.source, ClusterID: clusterID, TeamID: team}, err
 }
 
 // Authorize проверяет, что есть вошедший пользователь и у него есть право p.

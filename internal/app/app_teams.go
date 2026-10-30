@@ -25,12 +25,12 @@ type TeamView struct {
 }
 
 // recordTeam записывает в журнал результат уже разрешённого действия над командами.
-func (a *App) recordTeam(action, result, detail string) {
+func (a *App) recordTeam(action, result, teamID, detail string) {
 	if a.audit == nil || a.auth == nil {
 		return
 	}
 	act := a.auth.Actor()
-	a.audit.Record(audit.Event{User: act.Username, Role: string(act.Role), Action: action, Result: result, Detail: detail, Source: act.Source})
+	a.audit.Record(audit.Event{User: act.Username, Role: string(act.Role), Action: action, Result: result, Detail: detail, Source: act.Source, TeamID: teamID})
 }
 
 func resultOf(err error) string {
@@ -80,7 +80,11 @@ func (a *App) CreateTeam(name string) (*auth.Team, error) {
 		return nil, errNoTeams
 	}
 	t, err := a.dir.CreateTeam(name)
-	a.recordTeam("CreateTeam", resultOf(err), "name="+strings.TrimSpace(name))
+	id := ""
+	if t != nil {
+		id = t.ID
+	}
+	a.recordTeam("CreateTeam", resultOf(err), id, "name="+strings.TrimSpace(name))
 	return t, err
 }
 
@@ -93,7 +97,7 @@ func (a *App) RenameTeam(teamID, name string) error {
 		return errNoTeams
 	}
 	err := a.dir.RenameTeam(teamID, name)
-	a.recordTeam("RenameTeam", resultOf(err), fmt.Sprintf("team=%s name=%s", teamID, strings.TrimSpace(name)))
+	a.recordTeam("RenameTeam", resultOf(err), teamID, "name="+strings.TrimSpace(name))
 	return err
 }
 
@@ -106,7 +110,7 @@ func (a *App) DeleteTeam(teamID string) error {
 		return errNoTeams
 	}
 	err := a.dir.DeleteTeam(teamID)
-	a.recordTeam("DeleteTeam", resultOf(err), "team="+teamID)
+	a.recordTeam("DeleteTeam", resultOf(err), teamID, "")
 	return err
 }
 
@@ -130,7 +134,7 @@ func (a *App) SetTeamMember(teamID, userID, role string) error {
 		return errNoTeams
 	}
 	err := a.dir.SetMember(teamID, userID, auth.Role(strings.TrimSpace(role)))
-	a.recordTeam("SetTeamMember", resultOf(err), fmt.Sprintf("team=%s user=%s role=%s", teamID, userID, role))
+	a.recordTeam("SetTeamMember", resultOf(err), teamID, fmt.Sprintf("user=%s role=%s", userID, role))
 	return err
 }
 
@@ -143,7 +147,7 @@ func (a *App) RemoveTeamMember(teamID, userID string) error {
 		return errNoTeams
 	}
 	err := a.dir.RemoveMember(teamID, userID)
-	a.recordTeam("RemoveTeamMember", resultOf(err), fmt.Sprintf("team=%s user=%s", teamID, userID))
+	a.recordTeam("RemoveTeamMember", resultOf(err), teamID, "user="+userID)
 	return err
 }
 

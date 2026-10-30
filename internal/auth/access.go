@@ -3,7 +3,10 @@
 
 package auth
 
-import "errors"
+import (
+	"errors"
+	"sort"
+)
 
 // ErrClusterNotFound — кластера нет или он принадлежит чужой команде. Намеренно один и тот же ответ:
 // пользователь не должен узнавать, что чужие кластеры существуют (этап 3, решение 2).
@@ -134,7 +137,7 @@ func (s *Service) CheckTeam(p Permission, teamID string) (Actor, error) {
 	if u == nil {
 		return Actor{Source: s.source}, ErrNotAuthenticated
 	}
-	actor := Actor{Username: u.Username, Role: u.Role, Source: s.source}
+	actor := Actor{Username: u.Username, Role: u.Role, Source: s.source, TeamID: teamID}
 	if u.MustChangePassword {
 		return actor, ErrPasswordChangeRequired
 	}
@@ -219,5 +222,23 @@ func (s *Service) UserBriefs() []UserBrief {
 			out = append(out, UserBrief{ID: u.ID, Username: u.Username})
 		}
 	}
+	return out
+}
+
+// TeamsWith возвращает команды, в которых роль пользователя даёт право p (без Access — пусто).
+func (s *Service) TeamsWith(p Permission) []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	u := s.sessionUserLocked()
+	if u == nil || s.access == nil {
+		return nil
+	}
+	var out []string
+	for team, role := range s.access.TeamRoles(u.ID) {
+		if role.Has(p) {
+			out = append(out, team)
+		}
+	}
+	sort.Strings(out)
 	return out
 }
