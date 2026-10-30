@@ -11,6 +11,9 @@ package server
 var allowedMethods = []string{
 	"ExportAuditLog",
 	"AddClusterToTeam",
+	"AddOIDCClusterToTeam",
+	"AddInClusterToTeam",
+	"SetClusterOIDCCredentials",
 	"CreateTeam",
 	"DeleteTeam",
 	"ListTeamMembers",

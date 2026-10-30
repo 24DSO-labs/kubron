@@ -705,3 +705,104 @@ func TestLeaderLockDropsWithTheConnection(t *testing.T) {
 	}
 	lb.Release()
 }
+
+func TestClusterSecretIsEncryptedSeparatelyAndSurvivesUpdates(t *testing.T) {
+	s := newTestStore(t, keyString("k1"))
+	ctx := context.Background()
+	c := s.Clusters()
+	cl := &Cluster{ID: "oidc", DisplayName: "OIDC", Mode: "oidc-password"}
+	secret := []byte(`{"username":"vasya","password":"s3cret-pass-word"}`)
+	if err := c.SaveWithSecret(cl, []byte("kubeconfig-body"), secret); err != nil {
+		t.Fatal(err)
+	}
+
+	var raw []byte
+	if err := s.pool.QueryRow(ctx, `SELECT secret_enc FROM clusters WHERE id='oidc'`).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(raw, []byte("s3cret-pass-word")) || bytes.Contains(raw, []byte("vasya")) {
+		t.Fatal("the secret is stored in plain text")
+	}
+	if got, err := c.Secret("oidc"); err != nil || !bytes.Equal(got, secret) {
+		t.Fatalf("got %q, %v", got, err)
+	}
+
+	// Обновление настроек и замена kubeconfig не трогают секрет
+	if err := c.Save(&Cluster{ID: "oidc", DisplayName: "Renamed", Mode: "oidc-password"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Save(&Cluster{ID: "oidc", DisplayName: "Renamed", Mode: "oidc-password"}, []byte("kubeconfig-2")); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := c.Secret("oidc"); !bytes.Equal(got, secret) {
+		t.Fatalf("the secret changed after a plain update: %q", got)
+	}
+	// Явная замена секрета
+	if err := c.SaveWithSecret(&Cluster{ID: "oidc", DisplayName: "Renamed", Mode: "oidc-password"}, nil, []byte("new")); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := c.Secret("oidc"); string(got) != "new" {
+		t.Fatalf("got %q", got)
+	}
+	if b, _ := c.Kubeconfig("oidc"); string(b) != "kubeconfig-2" {
+		t.Fatalf("kubeconfig must stay: %q", b)
+	}
+
+	// Подмена шифротекста секрета другим кластером не расшифровывается (AAD привязан к id)
+	saveCluster(t, s, "other", "Other", []byte("kc"))
+	if _, err := s.pool.Exec(ctx, `UPDATE clusters SET secret_enc=(SELECT secret_enc FROM clusters WHERE id='oidc'),
+		secret_key_id=(SELECT secret_key_id FROM clusters WHERE id='oidc') WHERE id='other'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Secret("other"); err == nil {
+		t.Fatal("a secret copied to another cluster must not decrypt")
+	}
+	if _, err := c.Secret("missing"); !errors.Is(err, ErrClusterNotFound) {
+		t.Fatalf("got %v", err)
+	}
+	if got, err := s.Clusters().Secret("oidc"); err != nil || got == nil {
+		t.Fatal(err)
+	}
+}
+
+func TestInClusterModeWithoutKubeconfigAndSecretRekey(t *testing.T) {
+	oldK := keyString("old")
+	s := newTestStore(t, oldK)
+	ctx := context.Background()
+	if err := s.Clusters().SaveWithSecret(&Cluster{ID: "o", DisplayName: "O", Mode: "oidc-password"}, []byte("kc"), []byte("pw")); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Clusters().Save(&Cluster{ID: "self", DisplayName: "Self", Mode: "in-cluster"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if sec, err := s.Clusters().Secret("self"); err != nil || sec != nil {
+		t.Fatalf("a cluster without a secret returns nil, got %q %v", sec, err)
+	}
+
+	n, err := Open(ctx, os.Getenv("KUBRON_TEST_DATABASE_URL"), mustKeyring(t, keyString("new"), oldK))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(n.Close)
+	n.orgID, n.teamID = s.orgID, s.teamID
+	rep, err := n.Rekey(ctx)
+	if err != nil || rep.Secrets != 1 || rep.Clusters != 1 {
+		t.Fatalf("%+v %v", rep, err)
+	}
+	if got, err := n.Clusters().Secret("o"); err != nil || string(got) != "pw" {
+		t.Fatalf("got %q %v", got, err)
+	}
+	var kid string
+	if err := n.pool.QueryRow(ctx, `SELECT secret_key_id FROM clusters WHERE id='o'`).Scan(&kid); err != nil || kid != "new" {
+		t.Fatalf("secret must move to the current key: %q %v", kid, err)
+	}
+}
+
+func mustKeyring(t *testing.T, cur string, prev ...string) *secretbox.Keyring {
+	t.Helper()
+	k, err := secretbox.ParseKeyring(cur, prev...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return k
+}

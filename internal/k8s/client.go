@@ -343,9 +343,27 @@ func buildClusterConnection(clusterID string) (*ClusterConnection, error) {
 		return nil, fmt.Errorf("cluster metadata not found: %w", err)
 	}
 
+	// in-cluster и oidc-password строят подключение сами (без exec-плагина и без файлов сервера).
+	if config, ok, err := buildModeConfig(clusterID, meta); ok {
+		if err != nil {
+			return nil, err
+		}
+		config.QPS = 50
+		config.Burst = 100
+		return buildConnection(clusterID, config)
+	}
+
 	overrides := &clientcmd.ConfigOverrides{}
 	if meta.ContextName != "" {
 		overrides.CurrentContext = meta.ContextName
+	}
+
+	// Политика соединений действует и при подключении, не только при добавлении: так не пройдут ни кластеры,
+	// импортированные из файлов десктопа, ни kubeconfig, сохранённый до включения запретов.
+	if p := currentPolicy(); !p.AllowExec || !p.AllowLocalFiles {
+		if err := checkStoredPolicy(clusterID, meta); err != nil {
+			return nil, err
+		}
 	}
 
 	var config *rest.Config

@@ -162,6 +162,48 @@ func (a *App) AddClusterToTeam(teamID, kubeconfigText string, settings k8s.Clust
 	return k8s.AddClusterFromTextToTeam(kubeconfigText, settings, teamID)
 }
 
+// AddOIDCClusterToTeam добавляет кластер, kubeconfig которого использует oidc-login с паролем (grant password):
+// сервер сам получает и обновляет токен, а логин и пароль хранит зашифрованными. Пароль в журнал не попадает.
+func (a *App) AddOIDCClusterToTeam(teamID, kubeconfigText string, settings k8s.ClusterSettings, cred k8s.OIDCCredentials) (*k8s.ClusterMeta, error) {
+	if err := a.authzTeam(auth.PermClusterManage, teamID, "team", teamID, "displayName", settings.DisplayName, "mode", k8s.ModeOIDCPassword); err != nil {
+		return nil, err
+	}
+	if a.dir == nil {
+		return nil, errNoTeams
+	}
+	return k8s.AddClusterOIDCToTeam(kubeconfigText, settings, teamID, cred)
+}
+
+// AddInClusterToTeam добавляет кластер, в котором работает сам сервер (под его ServiceAccount). Это доступ с правами
+// пода, поэтому, кроме администратора команды, нужен администратор организации.
+func (a *App) AddInClusterToTeam(teamID string, settings k8s.ClusterSettings) (*k8s.ClusterMeta, error) {
+	if err := a.authzTeam(auth.PermClusterManage, teamID, "team", teamID, "displayName", settings.DisplayName, "mode", k8s.ModeInCluster); err != nil {
+		return nil, err
+	}
+	if a.dir == nil {
+		return nil, errNoTeams
+	}
+	if !a.isOrgAdmin() {
+		return nil, auth.ErrForbidden
+	}
+	return k8s.AddInClusterToTeam(settings, teamID)
+}
+
+// SetClusterOIDCCredentials меняет логин и пароль кластера в режиме oidc-password (например, сменился пароль в
+// провайдере входа). Вход проверяется до сохранения; открытое подключение пересоздаётся при следующем обращении.
+func (a *App) SetClusterOIDCCredentials(clusterID string, cred k8s.OIDCCredentials) error {
+	if err := a.authzCluster(auth.PermClusterManage, clusterID, "id", clusterID, "mode", k8s.ModeOIDCPassword); err != nil {
+		return err
+	}
+	if err := k8s.SetClusterOIDCCredentials(clusterID, cred); err != nil {
+		return err
+	}
+	if a.k8sMgr.RemoveConnection(clusterID) {
+		a.pfMgr.StopAll()
+	}
+	return nil
+}
+
 // MoveCluster передаёт кластер другой команде. Нужны права администратора и у текущей, и у новой команды.
 func (a *App) MoveCluster(clusterID, teamID string) error {
 	if err := a.authzCluster(auth.PermClusterManage, clusterID, "id", clusterID, "team", teamID); err != nil {

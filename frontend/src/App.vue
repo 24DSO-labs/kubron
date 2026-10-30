@@ -155,7 +155,7 @@ const {
 
 const {
   clusters, activeClusterId,
-  loadClusters, connectToCluster, pickKubeconfigFile, addClusterFromFile, addClusterFromText,
+  loadClusters, connectToCluster, pickKubeconfigFile, addClusterFromFile, addClusterFromText, addInCluster,
   deleteCluster, updateCluster, autoConnect,
 } = clustersApi
 
@@ -173,6 +173,7 @@ const clusterConn = useClusterConnection({
   pickKubeconfigFile,
   addClusterFromFile,
   addClusterFromText,
+  addInCluster,
   deleteCluster,
   updateCluster,
   autoConnect,

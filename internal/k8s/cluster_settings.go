@@ -215,6 +215,9 @@ type KubeconfigContextInfo struct {
 	User      string `json:"user"`
 	Namespace string `json:"namespace"`
 	Server    string `json:"server"`
+	// Auth — как контекст получает учётные данные (AuthKind): по нему диалог просит логин и пароль для oidc-login
+	// или сразу объясняет, что в вебе этот kubeconfig не подойдёт.
+	Auth string `json:"auth"`
 }
 
 // KubeconfigInfo — краткое содержимое kubeconfig для интерфейса.
@@ -240,7 +243,8 @@ func InspectKubeconfig(src KubeconfigSource) (*KubeconfigInfo, error) {
 	info := &KubeconfigInfo{CurrentContext: current}
 	for _, name := range sortedContextNames(cfg) {
 		c := cfg.Contexts[name]
-		item := KubeconfigContextInfo{Name: name, Cluster: c.Cluster, User: c.AuthInfo, Namespace: c.Namespace}
+		kind, _ := ClassifyAuth(cfg, name)
+		item := KubeconfigContextInfo{Name: name, Cluster: c.Cluster, User: c.AuthInfo, Namespace: c.Namespace, Auth: string(kind)}
 		if cl := cfg.Clusters[c.Cluster]; cl != nil {
 			item.Server = cl.Server
 		}
@@ -273,6 +277,11 @@ func CheckKubeconfig(src KubeconfigSource, contextName string) (*ConnectionCheck
 	ctxName, err := pickContext(cfg, strings.TrimSpace(contextName))
 	if err != nil {
 		return nil, err
+	}
+
+	// Пробное подключение не должно запускать exec-плагин и читать файлы сервера там, где это запрещено.
+	if err := CheckKubeconfigPolicy(cfg, ctxName, false); err != nil {
+		return &ConnectionCheck{Error: err.Error()}, nil
 	}
 
 	restCfg, err := clientcmd.NewNonInteractiveClientConfig(*cfg, ctxName, &clientcmd.ConfigOverrides{}, nil).ClientConfig()
@@ -351,6 +360,9 @@ func UpdateClusterSettings(id string, settings ClusterSettings, replace Kubeconf
 			return nil, err
 		}
 		if contextName, err = resolveContext(cfg, settings.ContextName, meta.ContextName); err != nil {
+			return nil, err
+		}
+		if err := CheckKubeconfigPolicy(cfg, contextName, meta.Mode == ModeOIDCPassword); err != nil {
 			return nil, err
 		}
 	case readErr == nil:

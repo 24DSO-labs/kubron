@@ -71,6 +71,24 @@
             :checking="probe.checking.value" :can-test="canTest" @test="runTest" />
         </section>
 
+        <!-- oidc-password: сервер входит в провайдер входа сам; сменился пароль — введите новый -->
+        <section v-if="cluster.mode === 'oidc-password'" class="cl-section" data-testid="oidc-update">
+          <h3 class="cl-section-title">{{ $t('cluster.edit.oidcTitle') }}</h3>
+          <div class="cl-field">
+            <p class="cl-hint">{{ $t('cluster.edit.oidcHint') }}</p>
+            <label :for="`${uid}-oidc-user`" class="cl-label">{{ $t('cluster.dialog.oidcUser') }}</label>
+            <input :id="`${uid}-oidc-user`" v-model="oidcUser" class="cl-input" autocomplete="off" spellcheck="false" />
+            <label :for="`${uid}-oidc-pass`" class="cl-label">{{ $t('cluster.dialog.oidcPassword') }}</label>
+            <input :id="`${uid}-oidc-pass`" v-model="oidcPassword" type="password" class="cl-input" autocomplete="new-password" />
+            <div class="cl-pick">
+              <button type="button" class="cl-btn" :disabled="!oidcReady || oidcBusy" @click="updateOidc">
+                {{ $t('cluster.edit.oidcUpdate') }}
+              </button>
+            </div>
+            <p v-if="oidcMessage" class="cl-hint" :class="{ 'is-error': oidcFailed }" role="status">{{ oidcMessage }}</p>
+          </div>
+        </section>
+
         <div v-if="error" class="cl-error" role="alert">{{ error }}</div>
       </div>
 
@@ -144,6 +162,31 @@ const kcMode = ref<KubeconfigMode>('keep')
 const kcPath = ref('')
 const kcText = ref('')
 const kcOriginalText = ref('')
+
+// Смена логина и пароля oidc-password: действие отдельное от «Сохранить», пароль в форме не задерживается
+const oidcUser = ref('')
+const oidcPassword = ref('')
+const oidcBusy = ref(false)
+const oidcMessage = ref('')
+const oidcFailed = ref(false)
+const oidcReady = computed(() => oidcUser.value.trim().length > 0 && oidcPassword.value.length > 0)
+
+async function updateOidc() {
+  if (!oidcReady.value || oidcBusy.value) return
+  oidcBusy.value = true
+  oidcMessage.value = ''
+  try {
+    await callApp('SetClusterOIDCCredentials', props.cluster.id, { username: oidcUser.value.trim(), password: oidcPassword.value })
+    oidcFailed.value = false
+    oidcMessage.value = t('cluster.edit.oidcUpdated')
+    oidcPassword.value = ''
+  } catch (e) {
+    oidcFailed.value = true
+    oidcMessage.value = errorText(e)
+  } finally {
+    oidcBusy.value = false
+  }
+}
 
 const saving = ref(false)
 const error = ref('')

@@ -4,9 +4,13 @@
 package oidcpassword
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
+
+// ErrUnsupportedGrant — oidc-login с grant'ом, который веб-версия не умеет (authcode и др.): он требует браузера.
+var ErrUnsupportedGrant = errors.New("unsupported oidc-login grant type")
 
 // ExecParams — то, что можно вынуть из блока exec kubeconfig'а с `kubectl oidc-login get-token`.
 type ExecParams struct {
@@ -52,7 +56,7 @@ func ParseOIDCLoginExec(command string, args []string) (p ExecParams, ok bool, e
 		}
 	}
 	if grant != "password" {
-		return p, true, fmt.Errorf("grant-type %q is not supported: only password is available in web mode", grant)
+		return p, true, fmt.Errorf("%w %q: only password is available in web mode", ErrUnsupportedGrant, grant)
 	}
 	if p.IssuerURL == "" || p.ClientID == "" {
 		return p, true, fmt.Errorf("exec block has no --oidc-issuer-url or --oidc-client-id")

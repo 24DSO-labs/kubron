@@ -61,6 +61,8 @@ func main() {
 
 	// Каталог данных задаётся до запуска ядра: хранилища открываются в OnStartup
 	k8s.SetKubronDir(cfg.DataDir)
+	// Веб-сервер не запускает команды из kubeconfig и не читает по ним файлы сервера (задача 3.7).
+	k8s.SetConnectionPolicy(k8s.ConnectionPolicy{AllowExec: false, AllowLocalFiles: false})
 
 	hub := server.NewHub()
 	platform := &webplatform.Platform{}

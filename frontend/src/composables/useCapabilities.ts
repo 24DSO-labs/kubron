@@ -20,6 +20,8 @@ export interface Capabilities {
   localKubeconfig: boolean
   /** вход через SSO/OIDC (платный модуль) */
   sso: boolean
+  /** сервер работает внутри Kubernetes: можно добавить его собственный кластер (in-cluster) */
+  inCluster: boolean
   /** команды и кластеры по командам (сервисный режим) */
   teams: boolean
 }
@@ -34,6 +36,7 @@ export const DEFAULT_CAPABILITIES: Readonly<Capabilities> = Object.freeze({
   nodeShell: true,
   localKubeconfig: true,
   sso: false,
+  inCluster: false,
   teams: false,
 })
 
