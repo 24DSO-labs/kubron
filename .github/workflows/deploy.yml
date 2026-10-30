@@ -87,9 +87,14 @@ jobs:
 
       - name: Build the image (no push)
         run: |
-          docker build --progress=plain \
+          set -o pipefail
+          if ! docker build --progress=plain \
             --build-arg VERSION=ci --build-arg REVISION="${GITHUB_SHA}" \
-            -t kubron:ci .
+            -t kubron:ci . 2>&1 | tee "$RUNNER_TEMP/build.log"; then
+            # хвост лога — в аннотацию: виден в интерфейсе проверки без скачивания логов
+            echo "::error title=docker build failed::$(tail -n 25 "$RUNNER_TEMP/build.log" | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}' | cut -c1-3500)"
+            exit 1
+          fi
           docker image ls kubron:ci
 
       - name: Image is non-root
