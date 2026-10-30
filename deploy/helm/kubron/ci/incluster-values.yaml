@@ -1,0 +1,9 @@
+# Режим in-cluster: токен ServiceAccount + ClusterRole только на чтение
+secrets:
+  existingSecret: kubron-secrets
+  keys:
+    previousSecretKey: KUBRON_SECRET_KEY_PREVIOUS
+inCluster:
+  enabled: true
+rbac:
+  create: true

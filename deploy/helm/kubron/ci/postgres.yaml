@@ -1,0 +1,43 @@
+# Тестовый PostgreSQL для job `kind` (.github/workflows/deploy.yml). Только для CI, не для production:
+# без постоянного хранилища, пароль известен.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16
+          env:
+            - name: POSTGRES_USER
+              value: kubron
+            - name: POSTGRES_PASSWORD
+              value: kubron
+            - name: POSTGRES_DB
+              value: kubron
+          ports:
+            - containerPort: 5432
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "kubron", "-d", "kubron"]
+            periodSeconds: 3

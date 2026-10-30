@@ -46,6 +46,8 @@ func main() {
 		log.Fatalf("configuration: %v", err)
 	}
 
+	log.Printf("kubron-server %s", version)
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
