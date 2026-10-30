@@ -499,5 +499,11 @@
   "connSignInDamaged": "stored sign-in settings are damaged",
   "connNotOidcLogin": "the kubeconfig does not use oidc-login with a password grant",
   "oidcUnsupportedGrant": "unsupported oidc-login grant type",
-  "oidcGrantOnlyPassword": "{p0} {p1}: only password is available in web mode"
+  "oidcGrantOnlyPassword": "{p0} {p1}: only password is available in web mode",
+  "netpolicyInvalidAllowEntry": "invalid CIDR or address {p0} in the allow list",
+  "netpolicyUnknownProfile": "unknown network policy profile {p0}",
+  "netpolicyInvalidUrl": "invalid URL",
+  "netpolicyUnsupportedScheme": "unsupported URL scheme {p0}",
+  "netpolicyNoHost": "URL has no host",
+  "netpolicyRedirects": "stopped after 10 redirects"
 }

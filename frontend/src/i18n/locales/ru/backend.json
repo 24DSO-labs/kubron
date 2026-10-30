@@ -499,5 +499,11 @@
   "connSignInDamaged": "Сохранённые настройки входа повреждены",
   "connNotOidcLogin": "kubeconfig не использует oidc-login с паролем",
   "oidcUnsupportedGrant": "Неподдерживаемый тип входа oidc-login",
-  "oidcGrantOnlyPassword": "{p0} {p1}: в веб-режиме доступен только password"
+  "oidcGrantOnlyPassword": "{p0} {p1}: в веб-режиме доступен только password",
+  "netpolicyInvalidAllowEntry": "Неверный CIDR или адрес {p0} в списке исключений",
+  "netpolicyUnknownProfile": "Неизвестный профиль сетевой политики {p0}",
+  "netpolicyInvalidUrl": "Неверный URL",
+  "netpolicyUnsupportedScheme": "Неподдерживаемая схема URL {p0}",
+  "netpolicyNoHost": "В URL нет хоста",
+  "netpolicyRedirects": "Остановлено после 10 перенаправлений"
 }
