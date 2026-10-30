@@ -14,7 +14,7 @@ export type AuthRequirement = 'none' | 'credentials' | 'authcode' | 'exec'
  * Требование к kubeconfig по способу получения учётных данных. В десктопе (webMode = false) kubectl-плагины
  * работают как обычно и ничего не требуется.
  */
-export function authRequirement(auth: KubeconfigAuth | undefined, webMode: boolean): AuthRequirement {
+export function authRequirement(auth: string | undefined, webMode: boolean): AuthRequirement {
   if (!webMode) return 'none'
   switch (auth) {
     case 'oidc-password': return 'credentials'

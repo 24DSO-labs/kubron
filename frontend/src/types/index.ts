@@ -59,7 +59,7 @@ export interface KubeconfigContextInfo {
   namespace: string
   server: string
   /** Как контекст получает учётные данные (k8s.AuthKind); у старых ответов поля нет */
-  auth?: KubeconfigAuth
+  auth?: KubeconfigAuth | string
 }
 
 /** static — токен, сертификат; oidc-password — oidc-login с паролем; oidc-authcode — oidc-login через браузер; exec — другой плагин */
