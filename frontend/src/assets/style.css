@@ -576,6 +576,8 @@ body {
 }
 .dot-green { background: #a6e3a1; }
 .dot-gray { background: #585b70; }
+.dot-red { background: #f38ba8; }
+.cluster-icon-wrap.unhealthy .cluster-pill { background: #f38ba8; }
 
 /* Context Menu */
 .cluster-context-menu {

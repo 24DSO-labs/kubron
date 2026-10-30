@@ -223,8 +223,8 @@ onBeforeUnmount(() => {
 .ns-search:focus { outline: none; border-color: #89b4fa; }
 .ns-list { list-style: none; margin: 0; padding: 0 4px; max-height: 260px; overflow-y: auto; }
 .ns-option {
-  display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 4px;
-  font-size: 12px; color: #cdd6f4; cursor: pointer; user-select: none;
+  display: flex; align-items: center; justify-content: flex-start; gap: 6px; padding: 5px 8px; border-radius: 4px;
+  font-size: 12px; color: #cdd6f4; cursor: pointer; user-select: none; text-align: left;
 }
 .ns-option.active { background: rgba(137, 180, 250, 0.12); }
 .ns-option.selected .ns-check { color: #89b4fa; }

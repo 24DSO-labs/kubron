@@ -18,6 +18,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
+
+	"github.com/VadimIl224/kubron/internal/clusterhealth"
 )
 
 type ContextInfo struct {
@@ -76,7 +78,8 @@ func (c *ClusterConnection) Close() {
 // логи и уведомления. Десктоп использует один вид (NewManager); веб-сервер создаёт
 // по виду на сессию через ForSession, все они делят один connPool.
 type Manager struct {
-	pool *connPool // общий для всех видов
+	pool   *connPool            // общий для всех видов
+	health *clusterhealth.Board // состояние соединения кластеров; общее для всех видов
 
 	viewMu           sync.RWMutex // защищает activeCtx и rawConfig этого вида
 	activeCtx        string
@@ -136,6 +139,9 @@ func (m *Manager) emitCluster(event, clusterName string) {
 	}
 }
 
+// Notify отправляет событие владельцу вида (веб-сессии или окну десктопа).
+func (m *Manager) Notify(event string, data ...any) { m.emit(event, data...) }
+
 func (m *Manager) emit(event string, data ...any) {
 	m.notifyMu.RLock()
 	f := m.notifier
@@ -166,6 +172,7 @@ func (m *Manager) activateLocked(clusterID string) error {
 func NewManager() *Manager {
 	return &Manager{
 		pool:             newConnPool(),
+		health:           clusterhealth.NewBoard(),
 		terminalSessions: NewTerminalSessionManager(),
 		limits:           Limits{LogStreams: logMaxStreams}, // десктоп: прежний предел логов
 	}
@@ -176,6 +183,7 @@ func NewManager() *Manager {
 func (m *Manager) ForSession() *Manager {
 	return &Manager{
 		pool:             m.pool,
+		health:           m.health,
 		terminalSessions: NewTerminalSessionManager(),
 		limits:           m.Limits(),
 	}
@@ -335,9 +343,27 @@ func buildClusterConnection(clusterID string) (*ClusterConnection, error) {
 		return nil, fmt.Errorf("cluster metadata not found: %w", err)
 	}
 
+	// in-cluster и oidc-password строят подключение сами (без exec-плагина и без файлов сервера).
+	if config, ok, err := buildModeConfig(clusterID, meta); ok {
+		if err != nil {
+			return nil, err
+		}
+		config.QPS = 50
+		config.Burst = 100
+		return buildConnection(clusterID, config)
+	}
+
 	overrides := &clientcmd.ConfigOverrides{}
 	if meta.ContextName != "" {
 		overrides.CurrentContext = meta.ContextName
+	}
+
+	// Политика соединений действует и при подключении, не только при добавлении: так не пройдут ни кластеры,
+	// импортированные из файлов десктопа, ни kubeconfig, сохранённый до включения запретов.
+	if p := currentPolicy(); !p.AllowExec || !p.AllowLocalFiles {
+		if err := checkStoredPolicy(clusterID, meta); err != nil {
+			return nil, err
+		}
 	}
 
 	var config *rest.Config
@@ -389,6 +415,15 @@ func (m *Manager) GetClusterStatuses() []ClusterStatus {
 		}
 		if active == cluster.ID {
 			status.Active = true
+		}
+		if m.health != nil {
+			if h, ok := m.health.Get(cluster.ID); ok {
+				hc := h
+				status.Health = &hc
+				if h.State != clusterhealth.OK && h.State != clusterhealth.Unknown {
+					status.Error = h.Message
+				}
+			}
 		}
 
 		statuses = append(statuses, status)

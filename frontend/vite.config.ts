@@ -5,6 +5,32 @@
 import {defineConfig} from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
+import {readdirSync} from 'node:fs'
+
+/** Vite-плагин: сканирует locales/ и подставляет список языков в import.meta.env.VITE_LOCALES */
+function i18nAutoDiscover(): ReturnType<typeof vue> {
+  return {
+    name: 'i18n-auto-discover',
+    config() {
+      const localesDir = path.resolve(import.meta.dirname, 'src', 'i18n', 'locales')
+      let codes: string[] = []
+      try {
+        codes = readdirSync(localesDir, {withFileTypes: true})
+          .filter((e) => e.isDirectory())
+          .map((e) => e.name)
+          .sort()
+          .join(',')
+      } catch {
+        // Папки нет — оставим пустым, languages.ts сделает fallback
+      }
+      return {
+        define: {
+          'import.meta.env.VITE_LOCALES': JSON.stringify(codes),
+        },
+      }
+    },
+  }
+}
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -16,6 +42,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [
+      i18nAutoDiscover(),
       vue(),
       ...(isWeb ? [{
         // Метка веб-сборки: kubron-server отказывается раздавать десктопный frontend/dist

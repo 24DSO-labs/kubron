@@ -1,0 +1,35 @@
+{{- if .Values.rbac.create }}
+{{- if not .Values.inCluster.enabled }}
+{{- fail "rbac.create requires inCluster.enabled=true: without the mounted ServiceAccount token the role would be unused" }}
+{{- end }}
+{{- if not .Values.serviceAccount.create }}
+{{- fail "rbac.create requires serviceAccount.create=true (the ClusterRoleBinding targets the chart's ServiceAccount)" }}
+{{- end }}
+{{- /* TODO(тикет 3.7): заготовка только на чтение; полный набор прав — вместе с режимом in-cluster */ -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "kubron.clusterRoleName" . }}
+  labels:
+    {{- include "kubron.labels" . | nindent 4 }}
+rules:
+  {{- toYaml .Values.rbac.rules | nindent 2 }}
+  {{- with .Values.rbac.extraRules }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "kubron.clusterRoleName" . }}
+  labels:
+    {{- include "kubron.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "kubron.clusterRoleName" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "kubron.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

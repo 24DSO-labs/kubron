@@ -1,0 +1,37 @@
+{
+  "columns": {
+    "title": "列",
+    "settings": "列设置",
+    "moveUp": "上移",
+    "moveDown": "下移",
+    "reset": "重置列"
+  },
+  "table": {
+    "selectAll": "全选",
+    "resetWidth": "双击重置宽度",
+    "deleteSelected": "删除选中项（{n}）",
+    "selectToDelete": "使用复选框选择要删除的行"
+  },
+  "list": {
+    "empty": "没有 {title}",
+    "create": "创建 {kind}"
+  },
+  "menu": {
+    "showDetails": "显示详情",
+    "viewYaml": "查看 YAML"
+  },
+  "detail": {
+    "labels": "标签",
+    "annotations": "注解"
+  },
+  "events": {
+    "empty": "无事件"
+  },
+  "host": {
+    "unknownType": "未知资源类型：{id}",
+    "notFound": "未找到 {kind} \"{name}\""
+  },
+  "props": {
+    "apiVersion": "API 版本"
+  }
+}

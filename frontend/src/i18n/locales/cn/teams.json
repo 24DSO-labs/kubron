@@ -1,0 +1,39 @@
+{
+  "title": "团队",
+  "subtitle": "团队拥有集群；用户对集群的访问权限由其在团队中的角色决定",
+  "add": "➕ 添加团队",
+  "empty": "您尚未加入任何团队。请联系管理员将您添加进去。",
+  "notMember": "非成员",
+  "members": "成员",
+  "rename": "重命名",
+  "delete": "删除",
+  "columns": {
+    "name": "团队",
+    "myRole": "角色",
+    "clusters": "集群",
+    "members": "成员",
+    "actions": "操作",
+    "cluster": "集群",
+    "team": "团队"
+  },
+  "create": {
+    "title": "新建团队",
+    "name": "团队名称",
+    "submit": "创建"
+  },
+  "confirmDelete": "删除团队 “{name}”？成员将失去该团队授予的访问权限。",
+  "clustersTitle": "按团队划分的集群",
+  "moveTo": "移动到团队…",
+  "confirmMove": "将集群 “{cluster}” 移动到团队 “{team}”？当前团队的成员将失去对该集群的访问权限。",
+  "membersTitle": "“{name}” 的成员",
+  "noMembers": "暂无成员",
+  "removeMember": "移除",
+  "addMember": "添加",
+  "chooseUser": "选择用户…",
+  "toast": {
+    "created": "团队 “{name}” 已创建",
+    "renamed": "团队已重命名为 “{name}”",
+    "deleted": "团队 “{name}” 已删除",
+    "moved": "集群 “{cluster}” 已移动到 “{team}”"
+  }
+}

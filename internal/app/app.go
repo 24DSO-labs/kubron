@@ -76,6 +76,7 @@ func (a *App) startup(ctx context.Context) {
 func (a *App) GetCapabilities() Capabilities {
 	c := a.platform.Capabilities()
 	c.Teams = a.dir != nil // команды есть там, где хранилище умеет их хранить, а не в оболочке
+	c.InCluster = c.Teams && k8s.InClusterAvailable()
 	return c
 }
 

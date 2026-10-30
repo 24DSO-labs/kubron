@@ -1,0 +1,6 @@
+{
+  "noConnection": "无法连接到 Kubron 服务器",
+  "httpStatus": "服务器返回 HTTP {status}",
+  "terminalConnect": "无法连接到终端",
+  "fileTooLarge": "文件大于 {kb} KB"
+}

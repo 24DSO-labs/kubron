@@ -1,0 +1,66 @@
+{
+  "status": {
+    "active": "运行中",
+    "notInstalled": "未安装",
+    "degraded": "异常",
+    "installing": "安装中…",
+    "unknown": "未知"
+  },
+  "chart": {
+    "current": "当前",
+    "noData": "暂无数据"
+  },
+  "ranges": {
+    "h1": "1小时",
+    "h6": "6小时",
+    "h24": "24小时",
+    "d7": "7天"
+  },
+  "units": {
+    "cores": "核"
+  },
+  "tabs": {
+    "cpu": "CPU",
+    "memory": "内存",
+    "network": "网络",
+    "disk": "磁盘",
+    "diskIo": "磁盘 I/O",
+    "duration": "时长"
+  },
+  "cpu": "CPU",
+  "memory": "内存",
+  "disk": "磁盘",
+  "cpuUsage": "CPU 使用量",
+  "cpuRequests": "CPU 请求",
+  "cpuLimits": "CPU 限制",
+  "cpuAllocatable": "可分配 CPU 容量",
+  "cpuCapacity": "CPU 容量",
+  "memoryUsage": "内存使用量",
+  "workloadMemoryUsage": "工作负载内存使用量",
+  "memoryRequests": "内存请求",
+  "memoryLimits": "内存限制",
+  "memoryAllocatable": "可分配内存容量",
+  "memoryCapacity": "内存容量",
+  "networkTraffic": "网络流量",
+  "packetErrors": "数据包错误与丢弃（每秒）",
+  "receive": "接收",
+  "transmit": "发送",
+  "receiveErrors": "接收错误",
+  "transmitErrors": "发送错误",
+  "receiveDrops": "接收丢弃",
+  "transmitDrops": "发送丢弃",
+  "diskUsage": "磁盘使用量",
+  "diskSize": "磁盘大小",
+  "diskCapacity": "磁盘容量",
+  "diskAvailable": "磁盘可用",
+  "diskIo": "磁盘 I/O",
+  "fsUsage": "文件系统使用量",
+  "fsWrites": "文件系统写入",
+  "fsReads": "文件系统读取",
+  "volumeUsage": "卷使用量",
+  "bytesSent2xx": "已发送字节（状态码 2xx）",
+  "bytesSent5xx": "已发送字节（状态码 5xx）",
+  "request": "请求",
+  "response": "响应",
+  "ingressHint": "Ingress-nginx 指标：控制器必须被 Kubron Prometheus 抓取。"
+}

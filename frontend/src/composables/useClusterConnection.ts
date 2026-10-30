@@ -11,7 +11,7 @@ import { t } from '../i18n'
 import { loadCustomResources, resetCustomResources } from '../resources/customResources'
 import type {
   AddClusterPayload, ClusterMeta, ClusterSettings, ClusterStatus, ClusterUpdateResult,
-  KubeconfigSource, NamespaceInfo, Outcome,
+  KubeconfigSource, NamespaceInfo, OIDCCredentials, Outcome,
 } from '../types'
 
 
@@ -28,7 +28,8 @@ export function useClusterConnection(deps: {
   loadClusters: () => Promise<void>
   pickKubeconfigFile: () => Promise<string>
   addClusterFromFile: (path: string, settings: ClusterSettings) => Promise<Outcome<ClusterMeta>>
-  addClusterFromText: (text: string, settings: ClusterSettings, teamId?: string) => Promise<Outcome<ClusterMeta>>
+  addClusterFromText: (text: string, settings: ClusterSettings, teamId?: string, oidc?: OIDCCredentials) => Promise<Outcome<ClusterMeta>>
+  addInCluster: (settings: ClusterSettings, teamId: string) => Promise<Outcome<ClusterMeta>>
   deleteCluster: (id: string) => Promise<void>
   updateCluster: (id: string, settings: ClusterSettings, kubeconfig: KubeconfigSource) => Promise<Outcome<ClusterUpdateResult>>
   autoConnect: () => Promise<boolean>
@@ -38,7 +39,7 @@ export function useClusterConnection(deps: {
     namespaces, currentView,
     connectToCluster, loadNamespaces, restoreNamespaces, refreshData,
     k8sDisconnect, loadClusters,
-    pickKubeconfigFile, addClusterFromFile, addClusterFromText,
+    pickKubeconfigFile, addClusterFromFile, addClusterFromText, addInCluster,
     deleteCluster, updateCluster, autoConnect,
   } = deps
 
@@ -87,9 +88,10 @@ export function useClusterConnection(deps: {
 
   /** Добавляет кластер и подключается к нему. Возвращает текст ошибки или null */
   async function addCluster(payload: AddClusterPayload): Promise<string | null> {
-    const result = payload.kind === 'file'
-      ? await addClusterFromFile(payload.path, payload.settings)
-      : await addClusterFromText(payload.text, payload.settings, payload.teamId)
+    let result: Outcome<ClusterMeta>
+    if (payload.kind === 'file') result = await addClusterFromFile(payload.path, payload.settings)
+    else if (payload.kind === 'in-cluster') result = await addInCluster(payload.settings, payload.teamId)
+    else result = await addClusterFromText(payload.text, payload.settings, payload.teamId, payload.oidc)
     if (!result.ok) return result.error
     showAddCluster.value = false
     await selectCluster(result.value.id)

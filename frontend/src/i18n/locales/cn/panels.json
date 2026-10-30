@@ -1,0 +1,23 @@
+{
+  "detail": {
+    "resize": "调整详情面板大小",
+    "expand": "展开面板",
+    "restoreWidth": "恢复面板宽度",
+    "deleteResource": "删除资源",
+    "copyName": "复制名称",
+    "name": "名称：",
+    "namespace": "命名空间：",
+    "age": "存活时间：",
+    "properties": "属性",
+    "events": "事件"
+  },
+  "scale": {
+    "title": "扩缩 {kind}",
+    "current": "当前副本数：",
+    "desired": "期望副本数：",
+    "decrease": "减少",
+    "increase": "增加",
+    "scaling": "⏳ 扩缩中...",
+    "submit": "▶ 扩缩"
+  }
+}

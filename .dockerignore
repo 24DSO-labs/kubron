@@ -1,0 +1,40 @@
+# Контекст сборки образа сервера (Dockerfile в корне). Всё, что не нужно ни одной стадии,
+# исключено: меньше контекст, стабильнее кэш слоёв, в образ не попадают чужие артефакты.
+
+# VCS и CI
+.git
+.github
+.gitattributes
+.gitignore
+.editorconfig
+.golangci.yml
+
+# Документация, примеры, служебные скрипты
+docs
+examples
+scripts
+deploy
+*.md
+!LICENSE
+!NOTICE
+
+# Артефакты сборки и зависимости: их соберёт сам образ.
+# frontend/wailsjs генерирует стадия bindings; локальная копия не должна подменять её результат.
+**/node_modules
+frontend/dist
+frontend/wailsjs
+frontend/test-results
+frontend/playwright-report
+**/*.tsbuildinfo
+kubron-server
+*.exe
+
+# Локальные данные и инструменты разработчика
+.vscode
+.idea
+.cline
+.clinerules
+jira
+nul
+Dockerfile
+.dockerignore

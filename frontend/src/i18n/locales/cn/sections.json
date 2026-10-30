@@ -1,0 +1,221 @@
+{
+  "shared": {
+    "address": "地址",
+    "zone": "区域",
+    "host": "主机",
+    "path": "路径",
+    "secret": "密钥",
+    "resource": "资源",
+    "min": "最小",
+    "max": "最大",
+    "noLimits": "未定义限制",
+    "all": "全部",
+    "keySaved": "密钥 \"{key}\" 已保存",
+    "saveFailed": "保存错误"
+  },
+  "binding": {
+    "role": "角色：",
+    "subjects": "主体："
+  },
+  "codeBlock": {
+    "rules": "{n} 条规则 | {n} 条规则"
+  },
+  "connection": {
+    "clusterIps": "集群 IP",
+    "ipFamilies": "IP 族",
+    "ipFamilyPolicy": "IP 族策略",
+    "externalIps": "外部 IP"
+  },
+  "endpointSliceEntries": {
+    "serving": "服务中",
+    "terminating": "终止中",
+    "empty": "无端点"
+  },
+  "endpointSubsets": {
+    "hostname": "主机名",
+    "state": "状态",
+    "ready": "就绪",
+    "notReady": "未就绪",
+    "subsets": "子集"
+  },
+  "endpoints": {
+    "count": "{n} 个端点 | {n} 个端点"
+  },
+  "endpointsTab": {
+    "empty": "无 Endpoints"
+  },
+  "hpaMetrics": {
+    "empty": "未配置指标"
+  },
+  "images": {
+    "title": "镜像"
+  },
+  "ingressClassUsedBy": {
+    "implicit": "（默认）"
+  },
+  "ingressRules": {
+    "defaultBackend": "默认后端",
+    "backend": "后端",
+    "empty": "无规则"
+  },
+  "jobStats": {
+    "parallelism": "并行度",
+    "backoffLimit": "退避限制"
+  },
+  "limitRange": {
+    "defaultRequest": "默认请求",
+    "maxRatio": "最大 limit/request 比率"
+  },
+  "networkPolicyRules": {
+    "from": "来源",
+    "to": "目标",
+    "notApplied": "此策略未应用",
+    "deniedIngress": "无规则：拒绝所有入站流量",
+    "deniedEgress": "无规则：拒绝所有出站流量"
+  },
+  "nodeAffinity": {
+    "title": "节点亲和性"
+  },
+  "nodeConditions": {
+    "cordoned": "节点已封锁"
+  },
+  "nodePods": {
+    "empty": "此节点上没有 Pod",
+    "cpuNoMetrics": "CPU：无指标",
+    "cpuTip": "CPU：{value}（节点的 {pct}%）",
+    "memNoMetrics": "内存：无指标",
+    "memTip": "内存：{value}（节点的 {pct}%）"
+  },
+  "nodeUsage": {
+    "cores": "{label}：{pct}，{used} / {total} 核",
+    "bytes": "{label}：{pct}，{used} / {total}"
+  },
+  "pvcSelector": {
+    "matchLabels": "匹配标签",
+    "matchExpressions": "匹配表达式"
+  },
+  "pvClaim": {
+    "empty": "卷未绑定到声明"
+  },
+  "pvProvider": {
+    "sourceProvider": "来源提供商",
+    "empty": "无提供商数据"
+  },
+  "podAntiAffinity": {
+    "title": "Pod 反亲和性"
+  },
+  "podVolumes": {
+    "groups": "{n} 组 | {n} 组",
+    "title": "卷"
+  },
+  "podsByClass": {
+    "empty": "没有 Pod 使用此类"
+  },
+  "podsTab": {
+    "empty": "无可用 Pod"
+  },
+  "quotaUsage": {
+    "scopes": "作用域",
+    "quotas": "配额",
+    "used": "已用",
+    "limit": "限制",
+    "usage": "使用量"
+  },
+  "rules": {
+    "apiGroups": "API 组",
+    "verbs": "动词"
+  },
+  "serviceNetworkPolicies": {
+    "empty": "没有网络策略选择此服务的 Pod"
+  },
+  "servicePorts": {
+    "count": "{n} 个端口 | {n} 个端口"
+  },
+  "storageClassParameters": {
+    "empty": "无参数"
+  },
+  "storageClassVolumes": {
+    "empty": "无持久卷"
+  },
+  "tolerations": {
+    "title": "容忍度",
+    "key": "键",
+    "operator": "运算符",
+    "effect": "效果",
+    "seconds": "秒"
+  },
+  "webhooks": {
+    "empty": "未定义 Webhook",
+    "client": "客户端",
+    "failurePolicy": "失败策略",
+    "matchPolicy": "匹配策略",
+    "sideEffects": "副作用",
+    "timeout": "超时",
+    "reinvocationPolicy": "重新调用策略",
+    "reviewVersions": "审查版本",
+    "namespaceSelector": "命名空间选择器",
+    "objectSelector": "对象选择器",
+    "caBundle": "CA 证书包",
+    "set": "已设置",
+    "notSet": "未设置",
+    "matchConditions": "匹配条件",
+    "noRules": "无规则",
+    "operations": "操作",
+    "apiVersions": "API 版本"
+  },
+  "revisions": {
+    "rollback": "回滚",
+    "empty": "无可用修订",
+    "loadError": "修订：{error}",
+    "rollbackConfirm": "将 {name} 回滚到修订 {revision}？",
+    "rollbackStarted": "{name}：开始回滚到修订 {revision}",
+    "rollbackError": "回滚：{error}"
+  },
+  "configMapData": {
+    "noTarget": "无法确定命名空间或 ConfigMap 名称"
+  },
+  "secretData": {
+    "hide": "隐藏（显示编码）",
+    "reveal": "显示（解码）",
+    "decoded": "已解码",
+    "encoded": "Base64 编码"
+  },
+  "containers": {
+    "image": "镜像",
+    "environment": "环境变量",
+    "envCount": "{n} 个环境变量 | {n} 个环境变量",
+    "emptyValue": "（空）",
+    "hide": "隐藏",
+    "reveal": "显示",
+    "mounts": "挂载",
+    "mountsCount": "{n} 个挂载 | {n} 个挂载",
+    "mountFrom": "来自 {name}",
+    "requests": "请求",
+    "stateReady": "{state}，就绪"
+  },
+  "cronJobHistory": {
+    "job": "Job",
+    "duration": "时长",
+    "empty": "无作业历史"
+  },
+  "endpointSlices": {
+    "empty": "无 EndpointSlice",
+    "noEditPermission": "权限不足，无法编辑",
+    "noDeletePermission": "权限不足，无法删除",
+    "deleteConfirm": "删除 EndpointSlice \"{name}\"？",
+    "deleted": "EndpointSlice \"{name}\" 已删除",
+    "deleteFailed": "删除失败：{error}"
+  },
+  "portForward": {
+    "forward": "转发…",
+    "title": "为 {type} {name} 进行端口转发",
+    "localPort": "本地转发端口：",
+    "random": "随机",
+    "openInBrowser": "在浏览器中打开",
+    "start": "开始",
+    "started": "端口转发：localhost:{port} → {target}",
+    "startError": "端口转发：{error}",
+    "stopped": "端口转发已停止",
+    "stopError": "停止端口转发失败：{error}"
+  }
+}

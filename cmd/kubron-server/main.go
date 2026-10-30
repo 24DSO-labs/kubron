@@ -46,6 +46,8 @@ func main() {
 		log.Fatalf("configuration: %v", err)
 	}
 
+	log.Printf("kubron-server %s", version)
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -59,6 +61,8 @@ func main() {
 
 	// Каталог данных задаётся до запуска ядра: хранилища открываются в OnStartup
 	k8s.SetKubronDir(cfg.DataDir)
+	// Веб-сервер не запускает команды из kubeconfig и не читает по ним файлы сервера (задача 3.7).
+	k8s.SetConnectionPolicy(k8s.ConnectionPolicy{AllowExec: false, AllowLocalFiles: false})
 
 	hub := server.NewHub()
 	platform := &webplatform.Platform{}
@@ -92,6 +96,7 @@ func main() {
 	sessions.Release = func(v any) { app.ReleaseView(v.(*app.App)) }
 	sessions.OnEnd = guard.CloseSession // закрытая сессия закрывает и свои WebSocket
 	go terminals.Run(ctx.Done(), 5*time.Second)
+	app.StartHealthMonitor(ctx, core, cfg.ClusterCheckInterval)
 	// Фоновая уборка веб-сессий: закрывает те, у которых ядро уже завершило пользовательскую сессию
 	// (простой, отключение пользователя) или истёк срок, и освобождает их ресурсы и ссылки пула.
 	go func() {
@@ -103,6 +108,11 @@ func main() {
 				return
 			case <-t.C:
 				sessions.Reap(func(v any) bool { return app.ViewActive(v.(*app.App)) })
+				// Права могли измениться (перенос кластера, исключение из команды): закрываем то, что
+				// осталось открытым у потерявших доступ. Вне блокировки реестра сессий.
+				for _, v := range sessions.Views() {
+					app.EnforceAccess(v.(*app.App))
+				}
 			}
 		}
 	}()
