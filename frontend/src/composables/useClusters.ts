@@ -3,7 +3,7 @@
 
 import { ref } from 'vue'
 import type {
-  ClusterMeta, ClusterSettings, ClusterStatus, ClusterUpdateResult, KubeconfigSource, OIDCCredentials, Outcome,
+  ClusterMeta, ClusterSettings, ClusterStatus, ClusterUpdateResult, KubeconfigSource, Outcome,
 } from '../types'
 import { askConfirm } from '../resources/confirm'
 import { errorText } from './errorText'
@@ -17,7 +17,7 @@ const clusterError = ref('')
 
 async function loadClusters() {
   try {
-    clusters.value = await callApp('GetClusterStatuses') || []
+    clusters.value = ((await callApp('GetClusterStatuses')) as ClusterStatus[]) || []
   } catch (e: any) {
     clusters.value = []
   }
@@ -57,29 +57,13 @@ async function addClusterFromFile(path: string, settings: ClusterSettings): Prom
   }
 }
 
-async function addClusterFromText(
-  text: string, settings: ClusterSettings, teamId?: string, oidc?: OIDCCredentials,
-): Promise<Outcome<ClusterMeta>> {
+async function addClusterFromText(text: string, settings: ClusterSettings, teamId?: string): Promise<Outcome<ClusterMeta>> {
   try {
     clusterError.value = ''
-    // В сервисном режиме кластер добавляется в выбранную команду; с логином и паролем — в режиме oidc-password
-    let cluster: ClusterMeta
-    if (teamId && oidc) cluster = await callApp('AddOIDCClusterToTeam', teamId, text, settings, oidc)
-    else if (teamId) cluster = await callApp('AddClusterToTeam', teamId, text, settings)
-    else cluster = await callApp('AddClusterFromText', text, settings)
-    await loadClusters()
-    return { ok: true, value: cluster }
-  } catch (e) {
-    clusterError.value = errorText(e)
-    return { ok: false, error: clusterError.value }
-  }
-}
-
-/** Кластер, в котором работает сам сервер (режим in-cluster) */
-async function addInCluster(settings: ClusterSettings, teamId: string): Promise<Outcome<ClusterMeta>> {
-  try {
-    clusterError.value = ''
-    const cluster = await callApp('AddInClusterToTeam', teamId, settings)
+    // В сервисном режиме кластер добавляется в выбранную команду
+    const cluster = teamId
+      ? await callApp('AddClusterToTeam', teamId, text, settings)
+      : await callApp('AddClusterFromText', text, settings)
     await loadClusters()
     return { ok: true, value: cluster }
   } catch (e) {
@@ -141,7 +125,7 @@ export function useClusters() {
     connectToCluster,
     pickKubeconfigFile,
     addClusterFromFile,
-    addClusterFromText, addInCluster,
+    addClusterFromText,
     deleteCluster,
     updateCluster,
     autoConnect,
