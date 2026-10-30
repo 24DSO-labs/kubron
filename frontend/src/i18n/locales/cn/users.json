@@ -1,0 +1,60 @@
+{
+  "title": "用户",
+  "subtitle": "本地账户及其角色",
+  "add": "➕ 添加用户",
+  "idle": {
+    "title": "闲置自动退出",
+    "description": "用户未移动鼠标或按键时会话将结束。正在运行的终端和端口转发将被关闭。适用于所有账户。",
+    "off": "关闭",
+    "oneHour": "1 小时",
+    "twoHours": "2 小时",
+    "minutes": "{n} 分钟",
+    "saved": "闲置自动退出：{value}"
+  },
+  "columns": {
+    "login": "登录名",
+    "role": "角色",
+    "status": "状态",
+    "lastLogin": "上次登录",
+    "actions": "操作"
+  },
+  "you": "你",
+  "cannotChangeOwnRole": "不能修改自己的角色",
+  "status": {
+    "disabled": "已禁用",
+    "tempPassword": "临时密码",
+    "tempPasswordHint": "用户尚未修改临时密码",
+    "active": "活跃"
+  },
+  "neverSignedIn": "从未登录",
+  "resetPassword": "重置密码",
+  "ownPasswordHint": "自己的密码通过用户菜单修改",
+  "enable": "启用",
+  "disable": "禁用",
+  "delete": "删除",
+  "empty": "没有用户",
+  "create": {
+    "title": "新建用户",
+    "login": "登录名",
+    "tempPassword": "临时密码",
+    "passwordHint": "至少 {n} 个字符。用户首次登录时将设置自己的密码。",
+    "role": "角色",
+    "submit": "创建",
+    "submitting": "创建中…"
+  },
+  "reset": {
+    "title": "重置密码：{name}",
+    "newPassword": "新临时密码",
+    "passwordHint": "至少 {n} 个字符。用户登录时必须修改。",
+    "submitting": "保存中…"
+  },
+  "toast": {
+    "roleChanged": "“{name}” 的角色已更改",
+    "enabled": "“{name}” 已启用",
+    "disabled": "“{name}” 已禁用",
+    "deleted": "用户 “{name}” 已删除",
+    "created": "用户 “{name}” 已创建",
+    "passwordReset": "“{name}” 的密码已重置"
+  },
+  "confirmDelete": "删除用户 “{name}”？此操作无法撤销。"
+}

@@ -1,0 +1,29 @@
+{
+  "overview": "概览",
+  "settings": "设置",
+  "users": "用户",
+  "audit": "审计",
+  "namespace": "命名空间",
+  "allNamespaces": "所有命名空间",
+  "resizeSidebar": "调整侧边栏大小",
+  "customResources": "自定义资源",
+  "definitions": "定义",
+  "filterKinds": "筛选类型…",
+  "groups": {
+    "workloads": "工作负载",
+    "config": "配置",
+    "network": "网络",
+    "storage": "存储",
+    "helm": "Helm",
+    "access": "访问控制",
+    "argocd": "Argo CD",
+    "argocdSettings": "设置"
+  },
+  "views": {
+    "argoDashboard": "仪表盘",
+    "helmRepos": "仓库",
+    "helmCatalog": "目录",
+    "helmOps": "操作"
+  },
+  "teams": "团队"
+}

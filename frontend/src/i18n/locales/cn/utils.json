@@ -1,0 +1,50 @@
+{
+  "tab": {
+    "terminalTitle": "终端：{target}",
+    "attachTitle": "附加：{target}",
+    "newTitle": "新建 {kind}",
+    "noTabs": "没有打开的标签页"
+  },
+  "confirm": {
+    "deleteTitle": "删除 {type} \"{name}\"？"
+  },
+  "logs": {
+    "pods": "Pod",
+    "allPods": "所有 Pod",
+    "containers": "容器",
+    "allContainers": "所有容器",
+    "lines": "行数",
+    "searchPlaceholder": "在日志中搜索",
+    "live": "实时",
+    "toEnd": "到末尾",
+    "waiting": "等待日志…",
+    "noLogs": "无日志",
+    "noPods": "未找到 Pod",
+    "streamClosed": "[{pod}流已关闭{reason}]",
+    "error": "错误：{message}"
+  },
+  "terminal": {
+    "shell": "终端",
+    "attach": "附加",
+    "sessionEnded": "[会话已结束]"
+  },
+  "yaml": {
+    "newKind": "新建 {kind}",
+    "inNamespace": "在 {namespace}",
+    "unsaved": "有未保存的更改",
+    "reviewChanges": "审查更改",
+    "createHint": "编辑清单并创建对象",
+    "createTitle": "在集群中创建对象 (Ctrl+S)",
+    "creating": "创建中…",
+    "backToEditing": "返回编辑",
+    "applying": "应用中…",
+    "reloadTitle": "从集群重新加载清单",
+    "reload": "重新加载",
+    "readOnly": "只读",
+    "readOnlyTitle": "修改资源需要管理员权限",
+    "reviewSaveTitle": "审查更改并应用 (Ctrl+S)",
+    "reviewSave": "审查并保存",
+    "discardConfirm": "放弃未保存的更改并从集群重新加载 YAML？",
+    "reloadError": "重新加载 YAML 失败：{message}"
+  }
+}
