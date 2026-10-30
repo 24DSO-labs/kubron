@@ -24,4 +24,5 @@ type Capabilities struct {
 	NodeShell       bool `json:"nodeShell"`       // оболочка на узле
 	LocalKubeconfig bool `json:"localKubeconfig"` // чтение kubeconfig с диска машины, где запущено ядро
 	SSO             bool `json:"sso"`             // вход через SSO/OIDC (платный модуль, этап 6)
+	Teams           bool `json:"teams"`           // команды и кластеры по командам (сервисный режим; выставляет ядро по хранилищу)
 }

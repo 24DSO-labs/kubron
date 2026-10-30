@@ -21,5 +21,6 @@
   },
   "views": {
     "argoDashboard": "Dashboard"
-  }
+  },
+  "teams": "Teams"
 }

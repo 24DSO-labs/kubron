@@ -27,6 +27,19 @@
           </div>
         </section>
 
+        <section v-if="capabilities.teams" class="cl-section">
+          <h3 class="cl-section-title">{{ $t('cluster.dialog.sectionTeam') }}</h3>
+          <div class="cl-field">
+            <label :for="`${uid}-team`" class="cl-label">{{ $t('cluster.dialog.team') }}</label>
+            <select :id="`${uid}-team`" v-model="teamId" class="cl-input">
+              <option v-for="tm in adminTeams" :key="tm.id" :value="tm.id">{{ tm.name }}</option>
+            </select>
+            <p class="cl-hint" :class="{ 'is-error': !adminTeams.length }">
+              {{ adminTeams.length ? $t('cluster.dialog.teamHint') : $t('cluster.dialog.noAdminTeams') }}
+            </p>
+          </div>
+        </section>
+
         <section class="cl-section">
           <h3 class="cl-section-title">{{ $t('cluster.dialog.sectionConnection') }}</h3>
 
@@ -91,6 +104,7 @@ import { useI18n } from 'vue-i18n'
 import type { AddClusterPayload, ClusterSettings, KubeconfigSource } from '../types'
 import { NO_KUBECONFIG_SOURCE, pickContextName, useKubeconfigProbe } from '../composables/useKubeconfigProbe'
 import { useCapabilities } from '../composables/useCapabilities'
+import { useTeams } from '../composables/useTeams'
 import { pickTextFile } from '../platform/files'
 import { errorText } from '../composables/errorText'
 import ClusterAvatar from './cluster/ClusterAvatar.vue'
@@ -119,6 +133,15 @@ const contextName = ref('')
 
 // Без нативного диалога (веб) kubeconfig передаётся текстом: вставкой или загрузкой файла браузером
 const { capabilities } = useCapabilities()
+
+// Сервисный режим: кластер принадлежит команде; выбирать можно только команды, где пользователь администратор
+const { adminTeams, loadTeams } = useTeams()
+const teamId = ref('')
+onMounted(async () => {
+  if (!capabilities.value.teams) return
+  await loadTeams()
+  if (!teamId.value && adminTeams.value.length) teamId.value = adminTeams.value[0].id
+})
 const method = ref<'file' | 'text'>(capabilities.value.fileDialog ? 'file' : 'text')
 const filePath = ref('')
 const text = ref('')
@@ -137,7 +160,7 @@ const source = computed<KubeconfigSource>(() =>
 
 const namespaceValid = computed(() => isValidNamespace(namespace.value))
 const canSubmit = computed(() =>
-  !saving.value && name.value.trim().length > 0 && namespaceValid.value && hasSource.value &&
+  !saving.value && (!capabilities.value.teams || !!teamId.value) && name.value.trim().length > 0 && namespaceValid.value && hasSource.value &&
   !probe.inspecting.value && !probe.inspectError.value && !!probe.info.value,
 )
 
@@ -213,7 +236,7 @@ async function submit() {
   }
   const payload: AddClusterPayload = method.value === 'file'
     ? { kind: 'file', path: filePath.value, settings }
-    : { kind: 'text', text: text.value, settings }
+    : { kind: 'text', text: text.value, settings, teamId: capabilities.value.teams ? teamId.value : undefined }
   const err = await props.submit(payload)
   saving.value = false
   if (err) error.value = err

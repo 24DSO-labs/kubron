@@ -201,3 +201,23 @@ func (s *Service) Actor() Actor {
 	}
 	return Actor{Source: s.source}
 }
+
+// UserBrief — пользователь для выбора в составе команды: без ролей, хешей и времени входа.
+type UserBrief struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+}
+
+// UserBriefs возвращает активных пользователей организации. Права проверяет вызывающий: имена нужны
+// администратору команды, чтобы добавлять участников.
+func (s *Service) UserBriefs() []UserBrief {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]UserBrief, 0, len(s.st.users))
+	for _, u := range s.st.users {
+		if !u.Disabled {
+			out = append(out, UserBrief{ID: u.ID, Username: u.Username})
+		}
+	}
+	return out
+}

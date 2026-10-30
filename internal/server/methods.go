@@ -13,6 +13,7 @@ var allowedMethods = []string{
 	"CreateTeam",
 	"DeleteTeam",
 	"ListTeamMembers",
+	"ListTeamUsers",
 	"ListTeams",
 	"MoveCluster",
 	"RemoveTeamMember",

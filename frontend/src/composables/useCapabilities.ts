@@ -20,6 +20,8 @@ export interface Capabilities {
   localKubeconfig: boolean
   /** вход через SSO/OIDC (платный модуль) */
   sso: boolean
+  /** команды и кластеры по командам (сервисный режим) */
+  teams: boolean
 }
 
 /**
@@ -32,6 +34,7 @@ export const DEFAULT_CAPABILITIES: Readonly<Capabilities> = Object.freeze({
   nodeShell: true,
   localKubeconfig: true,
   sso: false,
+  teams: false,
 })
 
 /** Берёт из ответа только известные булевы флаги; остальное — значения по умолчанию. */

@@ -74,7 +74,9 @@ func (a *App) startup(ctx context.Context) {
 // GetCapabilities — что доступно в текущей оболочке. Вызывается до входа в систему
 // (экран входа зависит от флагов), поэтому authz не требует: см. publicMethods в policy_test.
 func (a *App) GetCapabilities() Capabilities {
-	return a.platform.Capabilities()
+	c := a.platform.Capabilities()
+	c.Teams = a.dir != nil // команды есть там, где хранилище умеет их хранить, а не в оболочке
+	return c
 }
 
 // === Kubron Cluster Management ===

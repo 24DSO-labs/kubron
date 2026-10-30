@@ -13,6 +13,8 @@ export interface ClusterMeta {
   contextName: string
   /** dev | test | stage | prod; '' — не задано */
   environment: string
+  /** Команда-владелец (только сервисный режим) */
+  teamId?: string
 }
 
 export interface ClusterStatus extends ClusterMeta {
@@ -69,7 +71,7 @@ export interface ClusterUpdateResult {
 /** Что отправляет диалог добавления кластера */
 export type AddClusterPayload =
   | { kind: 'file'; path: string; settings: ClusterSettings }
-  | { kind: 'text'; text: string; settings: ClusterSettings }
+  | { kind: 'text'; text: string; settings: ClusterSettings; /** команда-владелец (сервисный режим) */ teamId?: string }
 
 /** Итог операции, которая может завершиться понятной пользователю ошибкой */
 export type Outcome<T> = { ok: true; value: T } | { ok: false; error: string }
@@ -762,4 +764,27 @@ export interface ClusterRoleBinding {
     name: string
     namespace?: string
   }>
+}
+
+/** Команда (Go: auth.Team + роль текущего пользователя, app.TeamView) */
+export interface Team {
+  id: string
+  name: string
+  members: number
+  clusters: number
+  /** Роль текущего пользователя в команде; '' — не член (администратор организации видит все команды) */
+  myRole: string
+}
+
+/** Участник команды (Go: auth.Member) */
+export interface TeamMember {
+  userId: string
+  username: string
+  role: string
+}
+
+/** Пользователь для добавления в команду (Go: auth.UserBrief) */
+export interface UserBrief {
+  id: string
+  username: string
 }

@@ -176,3 +176,15 @@ func (a *App) MoveCluster(clusterID, teamID string) error {
 	// у владельца этого вида кластер остаётся активным только если он всё ещё видит его.
 	return nil
 }
+
+// ListTeamUsers — пользователи, которых можно добавить в команду (только имена): для администратора команды,
+// у которого нет права users.manage на всю организацию.
+func (a *App) ListTeamUsers(teamID string) ([]auth.UserBrief, error) {
+	if err := a.authzTeam(auth.PermUsersManage, teamID); err != nil {
+		return nil, err
+	}
+	if a.dir == nil {
+		return nil, errNoTeams
+	}
+	return a.auth.UserBriefs(), nil
+}
