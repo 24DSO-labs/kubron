@@ -135,7 +135,7 @@ var quietMethods = map[string]bool{
 func (a *App) authz(p auth.Permission, kv ...any) error {
 	// Права кластера определяются по активному кластеру вида: сигнатуры методов не меняются (этап 3, решение 1).
 	id := ""
-	if auth.ClusterScoped(p) {
+	if auth.ClusterScoped(p) && a.k8sMgr != nil {
 		id = a.k8sMgr.GetActiveContext()
 	}
 	return a.authzAt(p, id, kv, 1)
