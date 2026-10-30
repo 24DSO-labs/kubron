@@ -1,0 +1,176 @@
+name: Deploy (image and Helm chart)
+
+# Образ сервера и Helm-чарт (docs/deploy.md). Отдельный workflow: ci.yml разработчики этапа 3 правят
+# параллельно. Образ собирается, но не публикуется (push в реестр — отдельная задача релиза).
+on:
+  push:
+    branches: [main, master, dev, refactor]
+    paths: &paths
+      - Dockerfile
+      - .dockerignore
+      - .hadolint.yaml
+      - deploy/**
+      - scripts/check-chart.sh
+      - .github/workflows/deploy.yml
+      - go.mod
+      - go.sum
+      - cmd/kubron-server/**
+      - frontend/package.json
+      - frontend/package-lock.json
+      - frontend/vite.config.ts
+  pull_request:
+    paths: *paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Новый push в PR отменяет прежний прогон; прогоны веток не отменяются
+concurrency:
+  group: deploy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Версии и контрольные суммы инструментов, которых нет на runner'е: скачанный бинарник проверяется по SHA-256
+  HADOLINT_VERSION: v2.12.0
+  HADOLINT_SHA256: 56de6d5e5ec427e17b74fa48d51271c7fc0d61244bf5c90e828aab8362d55010
+  KUBECONFORM_VERSION: v0.6.7
+  KUBECONFORM_SHA256: 95f14e87aa28c09d5941f11bd024c1d02fdc0303ccaa23f61cef67bc92619d73
+  # Версия Kubernetes, по схемам которой kubeconform проверяет манифесты чарта
+  K8S_SCHEMA_VERSION: 1.31.0
+
+jobs:
+  hadolint:
+    name: Dockerfile (hadolint)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Install hadolint
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/hadolint" "https://github.com/hadolint/hadolint/releases/download/${HADOLINT_VERSION}/hadolint-Linux-x86_64"
+          echo "${HADOLINT_SHA256}  $RUNNER_TEMP/hadolint" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/hadolint"
+      - run: '"$RUNNER_TEMP/hadolint" --config .hadolint.yaml Dockerfile'
+
+  # helm lint, helm template по всем наборам values из ci/, схемы Kubernetes и смысловые проверки
+  chart:
+    name: Helm chart (lint, template, kubeconform)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Install kubeconform
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/kubeconform.tgz" "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          echo "${KUBECONFORM_SHA256}  $RUNNER_TEMP/kubeconform.tgz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "$RUNNER_TEMP/kubeconform.tgz" -C "$RUNNER_TEMP/bin" kubeconform
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - run: helm version
+      - run: scripts/check-chart.sh
+
+  # Сборка образа без push, проверка под non-root с read-only rootfs, затем установка чарта в kind
+  # с внешним PostgreSQL и существующим Secret.
+  kind:
+    name: Image build and kind install
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Build the image (no push)
+        run: |
+          set -o pipefail
+          if ! docker build --progress=plain \
+            --build-arg VERSION=ci --build-arg REVISION="${GITHUB_SHA}" \
+            -t kubron:ci . 2>&1 | tee "$RUNNER_TEMP/build.log"; then
+            # хвост лога — в аннотацию: виден в интерфейсе проверки без скачивания логов
+            echo "::error title=docker build failed::$(tail -n 25 "$RUNNER_TEMP/build.log" | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}' | cut -c1-3500)"
+            exit 1
+          fi
+          docker image ls kubron:ci
+
+      - name: Image is non-root
+        run: |
+          user="$(docker image inspect kubron:ci --format '{{.Config.User}}')"
+          echo "user=$user"
+          test "$user" = "65532:65532"
+          docker image inspect kubron:ci --format '{{json .Config.Entrypoint}} {{json .Config.ExposedPorts}}'
+
+      # Без кластера и БД: файловое хранилище в HOME. Корневая ФС только для чтения, HOME и /tmp — tmpfs.
+      # Первичная настройка пишет в каталог данных, то есть проверяет, что writable-каталоги достаточны.
+      - name: Run read-only as non-root
+        run: |
+          docker run -d --name kubron-smoke --read-only \
+            --tmpfs /home/nonroot:uid=65532,gid=65532 --tmpfs /tmp \
+            --cap-drop ALL --security-opt no-new-privileges \
+            -e KUBRON_ALLOW_REMOTE=1 -p 127.0.0.1:18080:8080 kubron:ci
+          ok=
+          for i in $(seq 1 30); do
+            if curl -fs http://127.0.0.1:18080/healthz | grep -qx ok; then ok=1; break; fi
+            sleep 1
+          done
+          test -n "$ok" || { docker logs kubron-smoke; exit 1; }
+          # встроена именно веб-сборка фронтенда
+          curl -fs http://127.0.0.1:18080/ | grep -q 'name="kubron-target" content="web"'
+          curl -fs -X POST -H 'Content-Type: application/json' -d '["smoke-admin","smoke-password-1"]' \
+            http://127.0.0.1:18080/api/rpc/SetupAdmin | grep -q smoke-admin
+          docker logs kubron-smoke
+          docker rm -f kubron-smoke
+
+      - name: kind cluster
+        uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1
+        with:
+          cluster_name: kubron-deploy
+
+      - name: Load the image into kind
+        run: kind load docker-image kubron:ci --name kubron-deploy
+
+      - name: PostgreSQL and the Secret
+        run: |
+          kubectl apply -f deploy/helm/kubron/ci/postgres.yaml
+          kubectl rollout status deploy/postgres --timeout=180s
+          # Одноразовый ключ только для этого прогона. В реальной установке ключ создаёт и хранит человек (docs/deploy.md)
+          key="ci1:$(openssl rand -base64 32)"
+          echo "::add-mask::$key"
+          echo "KUBRON_CI_KEY=$key" >> "$GITHUB_ENV"
+          kubectl create secret generic kubron-secrets \
+            --from-literal=KUBRON_SECRET_KEY="$key" \
+            --from-literal=KUBRON_DATABASE_URL='postgres://kubron:kubron@postgres:5432/kubron?sslmode=disable'
+
+      - name: helm install
+        run: |
+          helm install kubron deploy/helm/kubron \
+            -f deploy/helm/kubron/ci/minimal-values.yaml \
+            --set image.repository=kubron --set image.tag=ci --set image.pullPolicy=Never \
+            --wait --timeout 5m
+
+      - name: Check the release
+        run: |
+          kubectl port-forward svc/kubron 18081:80 >"$RUNNER_TEMP/pf.log" 2>&1 &
+          sleep 3
+          curl -fs http://127.0.0.1:18081/healthz | grep -qx ok
+          # Вход создаёт запись в PostgreSQL (миграции применены, БД доступна), а не в файлах пода
+          curl -fs -X POST -H 'Content-Type: application/json' -d '["kind-admin","kind-password-1"]' \
+            http://127.0.0.1:18081/api/rpc/SetupAdmin | grep -q kind-admin
+          kubectl logs deploy/kubron | tee "$RUNNER_TEMP/kubron.log"
+          grep -q 'applied migrations' "$RUNNER_TEMP/kubron.log"
+          # Ключ шифрования не попадает в логи
+          ! grep -qF "${KUBRON_CI_KEY#*:}" "$RUNNER_TEMP/kubron.log"
+          # Токен ServiceAccount не смонтирован (режим in-cluster выключен)
+          test "$(kubectl get pod -l app.kubernetes.io/name=kubron -o jsonpath='{.items[0].spec.automountServiceAccountToken}')" = "false"
+
+      - name: Diagnostics
+        if: failure()
+        run: |
+          kubectl get all,networkpolicy,secret -o wide || true
+          kubectl describe pod -l app.kubernetes.io/name=kubron || true
+          kubectl logs deploy/kubron --all-containers --tail=200 || true
+          kubectl logs deploy/postgres --tail=50 || true
