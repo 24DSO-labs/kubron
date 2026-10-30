@@ -22,6 +22,10 @@ A lightweight, open-source Kubernetes desktop IDE built with **Go** and **Wails*
 
 ## Features
 
+### Internationalization
+- **Multi-language UI** — the interface supports multiple languages with automatic detection; switch languages in Settings at any time
+- **Localized dates and numbers** — formatting follows the selected locale, not the system or hardcoded values
+
 ### Clusters
 - **Multi-cluster management** — add clusters from a kubeconfig, switch between them from a single window, and give each one a name, color, icon and environment tag (`dev` / `test` / `stage` / `prod`)
 - **Namespace scoping** — pick one, several or all namespaces; works with restricted RBAC (no cluster-wide `list` required) and reports partial failures instead of hiding them
