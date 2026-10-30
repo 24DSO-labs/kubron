@@ -7,7 +7,7 @@
         v-for="cluster in clusters"
         :key="cluster.id"
         class="cluster-icon-wrap"
-        :class="{ active: cluster.active, connected: cluster.connected }"
+        :class="{ active: cluster.active, connected: cluster.connected, unhealthy: healthLevel(cluster.health) === 'bad' }"
         role="button"
         tabindex="0"
         :title="tooltip(cluster)"
@@ -21,7 +21,7 @@
         <span class="cluster-pill"></span>
         <ClusterAvatar :name="cluster.displayName" :icon="cluster.icon" :color="cluster.color"
           :environment="cluster.environment" :size="40" show-env />
-        <span class="cluster-dot" :class="cluster.connected ? 'dot-green' : 'dot-gray'"></span>
+        <span class="cluster-dot" :class="dotClass(cluster)"></span>
       </div>
     </div>
 
@@ -50,6 +50,7 @@ import type { ClusterStatus } from '../types'
 import { tl } from '../i18n'
 import { can } from '../composables/useAuth'
 import { Perm } from '../types/auth'
+import { clusterTitle, healthLevel } from '../composables/clusterHealth'
 import { findEnvironment } from './cluster/clusterStyle'
 import ClusterAvatar from './cluster/ClusterAvatar.vue'
 
@@ -69,7 +70,13 @@ const contextMenu = ref<{ x: number; y: number; cluster: ClusterStatus } | null>
 
 function tooltip(cluster: ClusterStatus): string {
   const env = findEnvironment(cluster.environment)
-  return env ? `${cluster.displayName} · ${tl(env.label)}` : cluster.displayName
+  return clusterTitle(env ? `${cluster.displayName} · ${tl(env.label)}` : cluster.displayName, cluster)
+}
+
+// Красная точка — проверка не прошла (причина в подсказке); зелёная — кластер подключён; серая — нет.
+function dotClass(cluster: ClusterStatus): string {
+  if (healthLevel(cluster.health) === 'bad') return 'dot-red'
+  return cluster.connected ? 'dot-green' : 'dot-gray'
 }
 
 function onRightClick(e: MouseEvent, cluster: ClusterStatus) {

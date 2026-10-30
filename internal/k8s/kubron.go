@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"sync/atomic"
 	"time"
+
+	"github.com/VadimIl224/kubron/internal/clusterhealth"
 )
 
 type KubronConfig struct {
@@ -35,9 +37,13 @@ type ClusterMeta struct {
 
 type ClusterStatus struct {
 	ClusterMeta
-	Connected bool   `json:"connected"`
-	Active    bool   `json:"active"`
-	Error     string `json:"error"`
+	Connected bool `json:"connected"`
+	Active    bool `json:"active"`
+	// Error — причина недоступности (пусто, пока кластер в порядке или не проверялся).
+	Error string `json:"error"`
+	// Health — результат фоновой проверки соединения (3.6); nil, пока проверки не было
+	// (десктоп монитор не запускает).
+	Health *clusterhealth.Health `json:"health,omitempty"`
 }
 
 // dataDirOverride — каталог данных, заданный явно (kubron-server: --data-dir / KUBRON_DATA_DIR).

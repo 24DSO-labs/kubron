@@ -97,6 +97,26 @@ func TestLoadConfigSessionAndProxy(t *testing.T) {
 	}
 }
 
+func TestLoadConfigClusterCheckInterval(t *testing.T) {
+	cfg, err := LoadConfig(nil, env(nil), io.Discard)
+	if err != nil || cfg.ClusterCheckInterval != DefaultClusterCheckInterval {
+		t.Fatalf("default: %+v %v", cfg, err)
+	}
+	cfg, err = LoadConfig(nil, env(map[string]string{"KUBRON_CLUSTER_CHECK_INTERVAL": "1m"}), io.Discard)
+	if err != nil || cfg.ClusterCheckInterval != time.Minute {
+		t.Fatalf("env: %+v %v", cfg, err)
+	}
+	cfg, err = LoadConfig([]string{"--cluster-check-interval", "0"}, env(map[string]string{"KUBRON_CLUSTER_CHECK_INTERVAL": "1m"}), io.Discard)
+	if err != nil || cfg.ClusterCheckInterval != 0 {
+		t.Fatalf("0 turns the check off: %+v %v", cfg, err)
+	}
+	for _, bad := range []string{"often", "-5s", "1s"} {
+		if _, err := LoadConfig(nil, env(map[string]string{"KUBRON_CLUSTER_CHECK_INTERVAL": bad}), io.Discard); err == nil {
+			t.Errorf("%q: expected an error", bad)
+		}
+	}
+}
+
 func TestLoadConfigDataDir(t *testing.T) {
 	cfg, err := LoadConfig(nil, env(map[string]string{"KUBRON_DATA_DIR": "/srv/kubron"}), io.Discard)
 	if err != nil || cfg.DataDir != "/srv/kubron" {

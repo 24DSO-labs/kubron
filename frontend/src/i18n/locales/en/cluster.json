@@ -79,5 +79,13 @@
     "test": "Test connection",
     "reachable": "Reachable · {version} · {latency} ms",
     "failed": "Could not connect"
+  },
+  "accessRevoked": "You no longer have access to cluster \"{name}\". Its terminals, log streams and port-forwards were closed.",
+  "health": {
+    "ok": "Available",
+    "unreachable": "Unreachable",
+    "unauthorized": "Credentials rejected",
+    "misconfigured": "Misconfigured",
+    "unknown": "Not checked"
   }
 }

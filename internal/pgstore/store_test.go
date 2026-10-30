@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/VadimIl224/kubron/internal/auth"
+	"github.com/VadimIl224/kubron/internal/clusterhealth"
 	"github.com/VadimIl224/kubron/internal/secretbox"
 	"github.com/VadimIl224/kubron/pkg/ext"
 )
@@ -608,4 +609,99 @@ func TestAuditKeepsTeamAndClusterContext(t *testing.T) {
 	if got[1]["teamId"] != "t1" || got[1]["clusterId"] != "c1" || got[1]["source"] != "10.0.0.7" {
 		t.Errorf("контекст потерян: %+v", got[1])
 	}
+}
+
+func TestHealthSaveLoadAndCascade(t *testing.T) {
+	s := newTestStore(t, keyString("k1"))
+	ctx := context.Background()
+	saveCluster(t, s, "c1", "One", []byte("kc"))
+	h := s.Health()
+
+	at := time.Now().UTC().Truncate(time.Millisecond)
+	if err := h.Save(ctx, "c1", clusterhealth.Health{State: clusterhealth.Unreachable, Message: "i/o timeout", LatencyMs: 12, CheckedAt: at}); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.Save(ctx, "c1", clusterhealth.Health{State: clusterhealth.OK, LatencyMs: 3, CheckedAt: at}); err != nil { // обновление той же записи
+		t.Fatal(err)
+	}
+	// проверка удалённого или неизвестного кластера не создаёт строку и не падает
+	if err := h.Save(ctx, "ghost", clusterhealth.Health{State: clusterhealth.OK}); err != nil {
+		t.Fatalf("a check that finished after the cluster was deleted is not an error: %v", err)
+	}
+	if err := h.Save(ctx, "c1", clusterhealth.Health{State: "bogus"}); err == nil {
+		t.Fatal("unknown state must be rejected by the schema")
+	}
+
+	all, err := h.Load(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all) != 1 || all["c1"].State != clusterhealth.OK || all["c1"].Message != "" || all["c1"].LatencyMs != 3 || !all["c1"].CheckedAt.Equal(at) {
+		t.Fatalf("got %+v", all)
+	}
+
+	if err := s.Clusters().Delete("c1"); err != nil {
+		t.Fatal(err)
+	}
+	if all, _ := h.Load(ctx); len(all) != 0 {
+		t.Fatalf("health must disappear with the cluster: %+v", all)
+	}
+}
+
+func TestLeaderIsExclusiveAndFailsOver(t *testing.T) {
+	a := newTestStore(t, keyString("k1"))
+	// вторая «реплика»: свой пул к той же БД
+	b, err := Open(context.Background(), os.Getenv("KUBRON_TEST_DATABASE_URL"), a.keys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(b.Close)
+	ctx := context.Background()
+	la, lb := a.Leader(LeaderKey), b.Leader(LeaderKey)
+
+	if !la.Acquire(ctx) {
+		t.Fatal("the first replica must become the leader")
+	}
+	if !la.Acquire(ctx) {
+		t.Fatal("the leader stays the leader on the next tick")
+	}
+	if lb.Acquire(ctx) {
+		t.Fatal("two leaders at the same time")
+	}
+	la.Release()
+	la.Release() // повторный вызов безопасен
+	if !lb.Acquire(ctx) {
+		t.Fatal("after release the other replica must take over")
+	}
+	lb.Release()
+}
+
+func TestLeaderLockDropsWithTheConnection(t *testing.T) {
+	a := newTestStore(t, keyString("k1"))
+	b, err := Open(context.Background(), os.Getenv("KUBRON_TEST_DATABASE_URL"), a.keys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(b.Close)
+	ctx := context.Background()
+	la, lb := a.Leader(LeaderKey), b.Leader(LeaderKey)
+	if !la.Acquire(ctx) {
+		t.Fatal("no leadership")
+	}
+	// реплика упала: её соединение закрыто, блокировку снимает сервер
+	la.mu.Lock()
+	_ = la.conn.Conn().Close(ctx)
+	la.mu.Unlock()
+	deadline := time.Now().Add(5 * time.Second)
+	for !lb.Acquire(ctx) {
+		if time.Now().After(deadline) {
+			t.Fatal("the lock was not released after the leader connection died")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	// упавший лидер сам замечает потерю и не считает себя лидером
+	if la.Acquire(ctx) {
+		t.Fatal("the old leader must not reclaim a lock held by another replica")
+	}
+	lb.Release()
 }

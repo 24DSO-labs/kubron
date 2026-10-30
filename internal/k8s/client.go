@@ -18,6 +18,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
+
+	"github.com/VadimIl224/kubron/internal/clusterhealth"
 )
 
 type ContextInfo struct {
@@ -76,7 +78,8 @@ func (c *ClusterConnection) Close() {
 // логи и уведомления. Десктоп использует один вид (NewManager); веб-сервер создаёт
 // по виду на сессию через ForSession, все они делят один connPool.
 type Manager struct {
-	pool *connPool // общий для всех видов
+	pool   *connPool            // общий для всех видов
+	health *clusterhealth.Board // состояние соединения кластеров; общее для всех видов
 
 	viewMu           sync.RWMutex // защищает activeCtx и rawConfig этого вида
 	activeCtx        string
@@ -136,6 +139,9 @@ func (m *Manager) emitCluster(event, clusterName string) {
 	}
 }
 
+// Notify отправляет событие владельцу вида (веб-сессии или окну десктопа).
+func (m *Manager) Notify(event string, data ...any) { m.emit(event, data...) }
+
 func (m *Manager) emit(event string, data ...any) {
 	m.notifyMu.RLock()
 	f := m.notifier
@@ -166,6 +172,7 @@ func (m *Manager) activateLocked(clusterID string) error {
 func NewManager() *Manager {
 	return &Manager{
 		pool:             newConnPool(),
+		health:           clusterhealth.NewBoard(),
 		terminalSessions: NewTerminalSessionManager(),
 		limits:           Limits{LogStreams: logMaxStreams}, // десктоп: прежний предел логов
 	}
@@ -176,6 +183,7 @@ func NewManager() *Manager {
 func (m *Manager) ForSession() *Manager {
 	return &Manager{
 		pool:             m.pool,
+		health:           m.health,
 		terminalSessions: NewTerminalSessionManager(),
 		limits:           m.Limits(),
 	}
@@ -389,6 +397,15 @@ func (m *Manager) GetClusterStatuses() []ClusterStatus {
 		}
 		if active == cluster.ID {
 			status.Active = true
+		}
+		if m.health != nil {
+			if h, ok := m.health.Get(cluster.ID); ok {
+				hc := h
+				status.Health = &hc
+				if h.State != clusterhealth.OK && h.State != clusterhealth.Unknown {
+					status.Error = h.Message
+				}
+			}
 		}
 
 		statuses = append(statuses, status)

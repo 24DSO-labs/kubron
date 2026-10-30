@@ -92,6 +92,7 @@ func main() {
 	sessions.Release = func(v any) { app.ReleaseView(v.(*app.App)) }
 	sessions.OnEnd = guard.CloseSession // закрытая сессия закрывает и свои WebSocket
 	go terminals.Run(ctx.Done(), 5*time.Second)
+	app.StartHealthMonitor(ctx, core, cfg.ClusterCheckInterval)
 	// Фоновая уборка веб-сессий: закрывает те, у которых ядро уже завершило пользовательскую сессию
 	// (простой, отключение пользователя) или истёк срок, и освобождает их ресурсы и ссылки пула.
 	go func() {
@@ -103,6 +104,11 @@ func main() {
 				return
 			case <-t.C:
 				sessions.Reap(func(v any) bool { return app.ViewActive(v.(*app.App)) })
+				// Права могли измениться (перенос кластера, исключение из команды): закрываем то, что
+				// осталось открытым у потерявших доступ. Вне блокировки реестра сессий.
+				for _, v := range sessions.Views() {
+					app.EnforceAccess(v.(*app.App))
+				}
 			}
 		}
 	}()

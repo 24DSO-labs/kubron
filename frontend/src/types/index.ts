@@ -17,10 +17,20 @@ export interface ClusterMeta {
   teamId?: string
 }
 
+/** Результат фоновой проверки соединения с кластером (сервисный режим; в десктопе поля нет) */
+export interface ClusterHealth {
+  state: 'ok' | 'unreachable' | 'unauthorized' | 'misconfigured' | 'unknown'
+  /** Причина как её вернул клиент Kubernetes (по-английски, без секретов) */
+  message?: string
+  latencyMs?: number
+  checkedAt: string
+}
+
 export interface ClusterStatus extends ClusterMeta {
   connected: boolean
   active: boolean
   error: string
+  health?: ClusterHealth
 }
 
 /** Свойства кластера, которые пользователь задаёт при добавлении и правке (зеркало k8s.ClusterSettings) */

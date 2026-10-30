@@ -478,5 +478,7 @@
   "teamP1": "{p0}: team {p1}",
   "theTeamStillHasClustersMoveOrDeleteThemFirst": "the team still has clusters: move or delete them first",
   "theDefaultTeamCannotBeDeleted": "the default team cannot be deleted",
-  "unknownExportFormatUseCsvOrJson": "unknown export format: use csv or json"
+  "unknownExportFormatUseCsvOrJson": "unknown export format: use csv or json",
+  "kubronClusterCheckInterval": "KUBRON_CLUSTER_CHECK_INTERVAL {p0}: {p1}",
+  "clusterCheckIntervalMustBe0": "cluster check interval must be 0 (off) or at least 5s"
 }
