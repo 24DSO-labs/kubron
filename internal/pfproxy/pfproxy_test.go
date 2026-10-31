@@ -540,9 +540,13 @@ func TestConcurrencyAndBodyLimits(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		if resp, err := get("/slow", ""); err == nil {
-			resp.Body.Close()
+		resp, err := get("/slow", "")
+		if err != nil {
+			t.Logf("slow request error: %v", err)
+			return
 		}
+		t.Logf("slow request status: %d", resp.StatusCode)
+		resp.Body.Close()
 	}()
 	deadline := time.Now().Add(3 * time.Second)
 	for {
