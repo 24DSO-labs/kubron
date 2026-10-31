@@ -80,7 +80,7 @@ test('экран входа, интерфейс и диалог добавлен
   const found = await collectViolations(page)
 
   await page.goto('/')
-  await expect(page.locator('#app')).not.toBeEmpty() // скрипты приложения выполнились
+  await expect(page.locator('#app[data-v-app]')).not.toBeEmpty() // скрипты приложения выполнились
   await signIn(page)
 
   // Диалог добавления кластера: форма, поля ввода, кнопки (стили Vue через CSSOM, шрифты)
@@ -93,7 +93,7 @@ test('экран входа, интерфейс и диалог добавлен
 
   // Выход и повторная загрузка: те же страницы после перезагрузки
   await page.reload()
-  await expect(page.locator('#app')).not.toBeEmpty()
+  await expect(page.locator('#app[data-v-app]')).not.toBeEmpty()
 
   expect(await pageViolations(page, found), 'нарушения CSP').toEqual([])
 })
@@ -123,6 +123,7 @@ test('кластер: интерфейс и редактор открывают�
   // Кластер e2e-kind добавлен smoke.spec.ts; открываем список подов через интерфейс
   const cluster = page.getByText('e2e-kind').first()
   if (await cluster.isVisible().catch(() => false)) await cluster.click()
-  await page.waitForLoadState('networkidle')
+  // networkidle не наступает при открытом WebSocket событий: даём интерфейсу время загрузить данные кластера
+  await page.waitForTimeout(3000)
   expect(await pageViolations(page, found), 'нарушения CSP').toEqual([])
 })
