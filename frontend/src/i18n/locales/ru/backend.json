@@ -510,5 +510,7 @@
   "kubronTrustedProxies": "KUBRON_TRUSTED_PROXIES {p0}: {p1}",
   "trustedProxyHopsCannotBeNegative": "число доверенных прокси не может быть отрицательным",
   "trustedProxiesAndHopsAreUsed": "доверенные прокси и их число действуют только вместе с trust-proxy (KUBRON_TRUST_PROXY=1)",
-  "tooManyRequestsTryAgainIn": "слишком много запросов, повторите через {p0} с"
+  "tooManyRequestsTryAgainIn": "слишком много запросов, повторите через {p0} с",
+  "webSessionNotFound": "веб-сессия не найдена",
+  "sessionStoreIsUnavailable": "хранилище сессий недоступно"
 }

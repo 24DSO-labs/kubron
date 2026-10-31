@@ -510,5 +510,7 @@
   "kubronTrustedProxies": "KUBRON_TRUSTED_PROXIES {p0}: {p1}",
   "trustedProxyHopsCannotBeNegative": "可信代理数量不能为负数",
   "trustedProxiesAndHopsAreUsed": "可信代理及其数量仅与 trust-proxy 一起生效 (KUBRON_TRUST_PROXY=1)",
-  "tooManyRequestsTryAgainIn": "请求过多，请在 {p0} 秒后重试"
+  "tooManyRequestsTryAgainIn": "请求过多，请在 {p0} 秒后重试",
+  "webSessionNotFound": "未找到 Web 会话",
+  "sessionStoreIsUnavailable": "会话存储不可用"
 }

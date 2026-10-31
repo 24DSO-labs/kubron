@@ -26,6 +26,7 @@ import (
 	"github.com/VadimIl224/kubron/internal/secretbox"
 	"github.com/VadimIl224/kubron/internal/server"
 	"github.com/VadimIl224/kubron/internal/store"
+	"github.com/VadimIl224/kubron/internal/websession"
 )
 
 func main() {
@@ -69,13 +70,20 @@ func main() {
 	platform.SetEmitter(hub.Emit)
 	platform.SetSessionEmitter(hub.EmitTo)
 	core := app.NewApp(platform)
+	// Общее хранилище веб-сессий: с PostgreSQL сессия, выданная одной репликой, действует на всех (ADR-0016).
+	// Файловое хранилище его не имеет, сессии остаются в памяти процесса.
+	var sessionBackend websession.Backend
 	if cfg.DatabaseURL != "" {
 		pg, err := openPostgres(ctx, cfg)
 		if err != nil {
 			log.Fatalf("database: %v", err)
 		}
 		defer pg.Close()
-		app.SetStore(core, store.FromPostgres(pg))
+		st := store.FromPostgres(pg)
+		app.SetStore(core, st)
+		if p, ok := st.(websession.Provider); ok {
+			sessionBackend = p.Sessions()
+		}
 	}
 	app.OnStartup(core)(ctx)
 	defer app.OnShutdown(core)(context.Background())
@@ -87,6 +95,18 @@ func main() {
 	// У каждой веб-сессии свой вид ядра (пользователь, права, кластер, терминалы, логи, события):
 	// одновременно могут работать несколько пользователей.
 	sessions := server.NewSessions(cfg.SessionTTL, false)
+	sessions.Backend, sessions.ReplicaID = sessionBackend, replicaID
+	// Сессия открыта на другой реплике: вид строится заново (пользователь без пароля, кластер — при первом запросе).
+	sessions.Restore = func(rec websession.Record) (any, error) {
+		v := app.NewSessionView(core, rec.Source)
+		if err := app.ResumeView(v, rec.UserID, rec.LastActive); err != nil {
+			app.ReleaseView(v)
+			return nil, err
+		}
+		app.BindView(v, rec.ID)
+		return v, nil
+	}
+	sessions.Sync = func(view any, rec websession.Record) { app.SyncViewActivity(view.(*app.App), rec.LastActive) }
 	terminals := platform.Terminals()
 	guard := &server.Guard{Sessions: sessions, TrustProxy: cfg.TrustProxy, Hub: hub, Terminals: terminals,
 		TrustedProxyHops: cfg.TrustedProxyHops, TrustedProxies: cfg.TrustedProxies,
@@ -95,6 +115,8 @@ func main() {
 	app.SetClusterIdleTTL(core, 2*time.Minute)
 	guard.NewView = func(src string) any { return app.NewSessionView(core, src) }
 	guard.Bind = func(v any, id string) { app.BindView(v.(*app.App), id) }
+	guard.ActiveCluster = func(v any) string { return app.ViewActiveCluster(v.(*app.App)) }
+	guard.RestoreCluster = func(v any, id string) error { return app.RestoreActiveCluster(v.(*app.App), id) }
 	sessions.Release = func(v any) { app.ReleaseView(v.(*app.App)) }
 	sessions.OnEnd = guard.CloseSession // закрытая сессия закрывает и свои WebSocket
 	go terminals.Run(ctx.Done(), 5*time.Second)
@@ -109,6 +131,7 @@ func main() {
 			case <-ctx.Done():
 				return
 			case <-t.C:
+				sessions.Revalidate()
 				sessions.Reap(func(v any) bool { return app.ViewActive(v.(*app.App)) })
 				// Права могли измениться (перенос кластера, исключение из команды): закрываем то, что
 				// осталось открытым у потерявших доступ. Вне блокировки реестра сессий.

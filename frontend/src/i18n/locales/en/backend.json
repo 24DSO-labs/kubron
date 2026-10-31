@@ -510,5 +510,7 @@
   "kubronTrustedProxies": "KUBRON_TRUSTED_PROXIES {p0}: {p1}",
   "trustedProxyHopsCannotBeNegative": "trusted proxy hops cannot be negative",
   "trustedProxiesAndHopsAreUsed": "trusted proxies and hops are used only together with trust-proxy (KUBRON_TRUST_PROXY=1)",
-  "tooManyRequestsTryAgainIn": "too many requests, try again in {p0} s"
+  "tooManyRequestsTryAgainIn": "too many requests, try again in {p0} s",
+  "webSessionNotFound": "web session not found",
+  "sessionStoreIsUnavailable": "session store is unavailable"
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/VadimIl224/kubron/internal/clusterhealth"
 	"github.com/VadimIl224/kubron/internal/k8s"
 	"github.com/VadimIl224/kubron/internal/pgstore"
+	"github.com/VadimIl224/kubron/internal/websession"
 )
 
 // FromPostgres адаптирует хранилище сервиса на PostgreSQL (internal/pgstore) к Store.
@@ -28,6 +29,9 @@ func (p pgBackend) Access() auth.Access { return p.s.Access() }
 // HealthSink и HealthLeader — общее хранилище состояний кластеров и выбор реплики-проверяющего (3.6).
 func (p pgBackend) HealthSink() clusterhealth.Sink     { return p.s.Health() }
 func (p pgBackend) HealthLeader() clusterhealth.Leader { return p.s.Leader(pgstore.LeaderKey) }
+
+// Sessions — общее хранилище веб-сессий (ADR-0016): сессия, выданная одной репликой, действует на всех.
+func (p pgBackend) Sessions() websession.Backend { return p.s.Sessions() }
 
 // Directory — команды и участники (задача 3.3).
 func (p pgBackend) Directory() auth.Directory  { return p.s.Directory() }

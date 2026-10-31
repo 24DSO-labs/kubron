@@ -89,6 +89,43 @@ func SetResourceLimits(root *App, l k8s.Limits) { root.k8sMgr.SetLimits(l) }
 // SetClusterIdleTTL задаёт задержку остановки informers кластера после ухода последнего пользователя.
 func SetClusterIdleTTL(root *App, d time.Duration) { root.k8sMgr.SetIdleTTL(d) }
 
+// ResumeView открывает сессию пользователя на виде, построенном заново для уже существующей веб-сессии
+// (другая реплика, перезапуск): пароль не нужен, веб-сессию проверило общее хранилище сессий.
+func ResumeView(v *App, userID string, lastActive time.Time) error {
+	if v == nil || v.auth == nil {
+		return auth.ErrNotAuthenticated
+	}
+	return v.auth.Resume(userID, lastActive)
+}
+
+// SyncViewActivity переносит в вид время последнего действия пользователя, записанное другой репликой.
+func SyncViewActivity(v *App, at time.Time) {
+	if v != nil && v.auth != nil {
+		v.auth.SyncActivity(at)
+	}
+}
+
+// ViewActiveCluster — идентификатор активного кластера вида ("" — не выбран). Без проверки прав: сервер
+// только запоминает его в веб-сессии, чтобы другая реплика подключила кластер заново.
+func ViewActiveCluster(v *App) string {
+	if v == nil || v.k8sMgr == nil {
+		return ""
+	}
+	return v.k8sMgr.GetActiveContext()
+}
+
+// RestoreActiveCluster подключает вид к кластеру, который был активен в веб-сессии на другой реплике.
+// Права проверяются как при обычном подключении: доступ мог измениться.
+func RestoreActiveCluster(v *App, clusterID string) error {
+	if v == nil || v.k8sMgr == nil || clusterID == "" {
+		return nil
+	}
+	if err := v.authzCluster(auth.PermRead, clusterID); err != nil {
+		return err
+	}
+	return v.k8sMgr.ConnectToCluster(clusterID)
+}
+
 // ViewActive — у вида есть действующая сессия пользователя. Сервер закрывает веб-сессии, чьи виды её потеряли.
 func ViewActive(v *App) bool { return v != nil && v.auth != nil && v.auth.Active() }
 
