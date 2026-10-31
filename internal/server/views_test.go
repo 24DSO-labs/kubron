@@ -115,14 +115,14 @@ func TestLoginSourceUsesRemoteAddrOrTrustedProxy(t *testing.T) {
 	f := newViewFixture(t, false)
 	req := httptest.NewRequest(http.MethodPost, "/api/rpc/Login", nil)
 	req.RemoteAddr = "10.1.2.3:5555"
-	if got := clientIP(req, false); got != "10.1.2.3" {
+	if got := (&Guard{}).clientIP(req); got != "10.1.2.3" {
 		t.Errorf("RemoteAddr: %q", got)
 	}
 	req.Header.Set("X-Forwarded-For", "6.6.6.6, 203.0.113.9")
-	if got := clientIP(req, true); got != "203.0.113.9" {
+	if got := (&Guard{TrustProxy: true}).clientIP(req); got != "203.0.113.9" {
 		t.Errorf("trusted proxy: %q", got)
 	}
-	if got := clientIP(req, false); got != "10.1.2.3" {
+	if got := (&Guard{}).clientIP(req); got != "10.1.2.3" {
 		t.Errorf("XFF is ignored without trust: %q", got)
 	}
 	login(t, f.h, "ann") // httptest: RemoteAddr 192.0.2.1:1234

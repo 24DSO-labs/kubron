@@ -20,9 +20,20 @@ export default defineConfig({
     baseURL: process.env.E2E_BASE_URL ?? 'http://127.0.0.1:8080',
     // Тесты ищут элементы по русским надписям: язык интерфейса берётся из браузера (docs/i18n.md)
     locale: 'ru-RU',
-    // E2E_CHROMIUM — путь к уже установленному Chromium (если `playwright install` недоступен)
-    launchOptions: process.env.E2E_CHROMIUM ? { executablePath: process.env.E2E_CHROMIUM } : {},
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
+  projects: [
+    {
+      name: 'chromium',
+      // E2E_CHROMIUM — путь к уже установленному Chromium (если `playwright install` недоступен)
+      use: { browserName: 'chromium', launchOptions: process.env.E2E_CHROMIUM ? { executablePath: process.env.E2E_CHROMIUM } : {} },
+    },
+    // Firefox — только проверка CSP (web-csp.spec.ts) и только при E2E_FIREFOX=1: ci.yml ставит один
+    // Chromium, Firefox гоняет workflow e2e-firefox.yml. Проект идёт после chromium: администратор и
+    // кластер уже созданы его тестами.
+    ...(process.env.E2E_FIREFOX
+      ? [{ name: 'firefox', testMatch: /web-csp\.spec\.ts/, use: { browserName: 'firefox' as const } }]
+      : []),
+  ],
 })

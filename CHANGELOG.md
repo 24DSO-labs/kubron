@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `deploy/helm/kubron` (Deployment, Service, Ingress, NetworkPolicy, PodDisruptionBudget, optional
   read-only RBAC for in-cluster mode). Guide: `docs/deploy.md`. Single replica only until HA.
 
+### Security
+
+- **HTTP:** `kubron-server` now sends `Content-Security-Policy` (scripts `'self'`, no `unsafe-inline`/`unsafe-eval`),
+  `Strict-Transport-Security` (secure non-loopback requests only), `Permissions-Policy`, COOP and CORP.
+  `KUBRON_CSP_REPORT_ONLY=1` switches the policy to report-only. See `docs/http-security.md`.
+- **Rate limit:** the client address behind a proxy is read from the right of `X-Forwarded-For`
+  (`KUBRON_TRUSTED_PROXY_HOPS`, `KUBRON_TRUSTED_PROXIES`); IPv6 is keyed by /64; a flood of unique logins or
+  addresses no longer wipes active lockouts; `ChangePassword` guessing is limited; anonymous RPC calls get a
+  per-address token bucket (`429` with `Retry-After`).
+
 ## [0.3.0] - 2026-10-29
 
 ### Added
