@@ -4,6 +4,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/VadimIl224/kubron/internal/audit"
@@ -90,6 +91,16 @@ func SetResourceLimits(root *App, l k8s.Limits) { root.k8sMgr.SetLimits(l) }
 
 // SetClusterIdleTTL задаёт задержку остановки informers кластера после ухода последнего пользователя.
 func SetClusterIdleTTL(root *App, d time.Duration) { root.k8sMgr.SetIdleTTL(d) }
+
+// StartUserRefresh запускает фоновое перечитывание пользователей, если они лежат в общем хранилище (PostgreSQL,
+// несколько реплик): роль, блокировка и новые пользователи, изменённые на другой реплике, видны здесь не позже
+// чем через every. Для файлового хранилища ничего не делает.
+func StartUserRefresh(ctx context.Context, root *App, every time.Duration) {
+	if root == nil || root.auth == nil || !root.auth.Shared() {
+		return
+	}
+	go root.auth.RunRefresher(ctx, every)
+}
 
 // ResumeView открывает сессию пользователя на виде, построенном заново для уже существующей веб-сессии
 // (другая реплика, перезапуск): пароль не нужен, веб-сессию проверило общее хранилище сессий.
