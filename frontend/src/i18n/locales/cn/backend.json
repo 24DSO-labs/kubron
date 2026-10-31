@@ -510,5 +510,9 @@
   "kubronTrustedProxies": "KUBRON_TRUSTED_PROXIES {p0}: {p1}",
   "trustedProxyHopsCannotBeNegative": "可信代理数量不能为负数",
   "trustedProxiesAndHopsAreUsed": "可信代理及其数量仅与 trust-proxy 一起生效 (KUBRON_TRUST_PROXY=1)",
-  "tooManyRequestsTryAgainIn": "请求过多，请在 {p0} 秒后重试"
+  "tooManyRequestsTryAgainIn": "请求过多，请在 {p0} 秒后重试",
+  "kubronDrainDelay": "KUBRON_DRAIN_DELAY {p0}: {p1}",
+  "drainDelayMustBeBetween0And": "排空延迟必须在 0 到 60 秒之间",
+  "replicaIdMustBe1To63": "副本标识长度必须为 1 到 63 个字符",
+  "replicaIdMayContainOnlyLetters": "副本标识只能包含字母、数字、“-”和“_”"
 }
