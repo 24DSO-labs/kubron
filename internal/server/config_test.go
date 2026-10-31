@@ -172,3 +172,36 @@ func TestLoadConfigDatabase(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestLoadConfigProxyTrustAndCSP(t *testing.T) {
+	cfg, err := LoadConfig(nil, env(nil), io.Discard)
+	if err != nil || cfg.TrustedProxyHops != 1 || len(cfg.TrustedProxies) != 0 || cfg.CSPReportOnly {
+		t.Fatalf("defaults: %+v %v", cfg, err)
+	}
+	cfg, err = LoadConfig(nil, env(map[string]string{
+		"KUBRON_TRUST_PROXY": "1", "KUBRON_TRUSTED_PROXIES": "10.0.0.0/8, 192.168.0.1", "KUBRON_CSP_REPORT_ONLY": "1",
+	}), io.Discard)
+	if err != nil || len(cfg.TrustedProxies) != 2 || cfg.TrustedProxies[1].String() != "192.168.0.1/32" || !cfg.CSPReportOnly {
+		t.Fatalf("env: %+v %v", cfg, err)
+	}
+	cfg, err = LoadConfig([]string{"--trusted-proxy-hops", "2", "--csp-report-only"}, env(map[string]string{"KUBRON_TRUST_PROXY": "1"}), io.Discard)
+	if err != nil || cfg.TrustedProxyHops != 2 || !cfg.CSPReportOnly {
+		t.Fatalf("flags: %+v %v", cfg, err)
+	}
+	cfg, err = LoadConfig(nil, env(map[string]string{"KUBRON_TRUST_PROXY": "1", "KUBRON_TRUSTED_PROXY_HOPS": "3"}), io.Discard)
+	if err != nil || cfg.TrustedProxyHops != 3 {
+		t.Fatalf("hops from env: %+v %v", cfg, err)
+	}
+	for name, bad := range map[string]map[string]string{
+		"proxies without trust-proxy": {"KUBRON_TRUSTED_PROXIES": "10.0.0.0/8"},
+		"hops without trust-proxy":    {"KUBRON_TRUSTED_PROXY_HOPS": "2"},
+		"malformed CIDR":              {"KUBRON_TRUST_PROXY": "1", "KUBRON_TRUSTED_PROXIES": "10.0.0.0/99"},
+		"not an address":              {"KUBRON_TRUST_PROXY": "1", "KUBRON_TRUSTED_PROXIES": "proxy.example.com"},
+		"hops not a number":           {"KUBRON_TRUST_PROXY": "1", "KUBRON_TRUSTED_PROXY_HOPS": "many"},
+		"negative hops":               {"KUBRON_TRUST_PROXY": "1", "KUBRON_TRUSTED_PROXY_HOPS": "-1"},
+	} {
+		if _, err := LoadConfig(nil, env(bad), io.Discard); err == nil {
+			t.Errorf("%s: expected an error", name)
+		}
+	}
+}
