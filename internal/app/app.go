@@ -29,7 +29,7 @@ type App struct {
 	store    store.Store    // nil — файловое хранилище десктопа (SetStore подменяет, например, на PostgreSQL)
 	// sessionID — веб-сессия владельца вида (пусто у корневого экземпляра и в десктопе).
 	sessionID string
-	// Port-forward в вебе (ADR-0016): режим и прокси; задаются до создания видов (SetPortForwardMode/Proxy).
+	// Port-forward в вебе (ADR-0017): режим и прокси; задаются до создания видов (SetPortForwardMode/Proxy).
 	pfMode    string
 	pfService *pfproxy.Service
 }

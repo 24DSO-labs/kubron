@@ -64,7 +64,7 @@ type Config struct {
 	MaxTerminals    int
 	MaxLogStreams   int
 	MaxPortForwards int
-	// PFBaseDomain — домен потоков port-forward: браузер открывает {id}.pf.<домен> (KUBRON_PF_BASE_DOMAIN, ADR-0016).
+	// PFBaseDomain — домен потоков port-forward: браузер открывает {id}.pf.<домен> (KUBRON_PF_BASE_DOMAIN, ADR-0017).
 	// Нужны DNS и сертификат на *.pf.<домен>. Пусто: на сервере с БД или не-loopback адресом port-forward выключен,
 	// в режиме одного пользователя на loopback остаётся localhost-порт.
 	PFBaseDomain string

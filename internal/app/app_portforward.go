@@ -19,7 +19,7 @@ const (
 	auditPortForwardStop  = "portforward.stop"
 )
 
-// SetPortForwardProxy включает режим proxy для видов, создаваемых после вызова (ADR-0016). Функция пакета,
+// SetPortForwardProxy включает режим proxy для видов, создаваемых после вызова (ADR-0017). Функция пакета,
 // а не метод App: в привязки Wails и RPC она не попадает.
 func SetPortForwardProxy(root *App, svc *pfproxy.Service) { root.pfService = svc }
 

@@ -12,7 +12,7 @@ import (
 	"github.com/VadimIl224/kubron/internal/server"
 )
 
-// setupPortForward выбирает режим port-forward (ADR-0016) и при необходимости поднимает прокси потоков:
+// setupPortForward выбирает режим port-forward (ADR-0017) и при необходимости поднимает прокси потоков:
 //   - задан KUBRON_PF_BASE_DOMAIN — режим proxy, порты на хосте не открываются;
 //   - режим одного пользователя на loopback — как раньше, localhost-порт;
 //   - сервер для нескольких пользователей без домена — port-forward выключен: браузер не достучится до порта

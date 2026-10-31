@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-// Значения по умолчанию (ADR-0016, п. 6).
+// Значения по умолчанию (ADR-0017, п. 6).
 const (
 	DefaultIdleTimeout   = 15 * time.Minute
 	DefaultMaxDuration   = 8 * time.Hour
@@ -238,7 +238,7 @@ func (s *Service) proxyFor(t Target) *streamProxy {
 			sp.mu.Unlock()
 			return tc, nil
 		},
-		// Сертификат пода не проверяется: канал до пода защищён аутентифицированным туннелем к apiserver (ADR-0016).
+		// Сертификат пода не проверяется: канал до пода защищён аутентифицированным туннелем к apiserver (ADR-0017).
 		TLSClientConfig:       &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}, //nolint:gosec
 		MaxIdleConns:          8,
 		MaxIdleConnsPerHost:   8,

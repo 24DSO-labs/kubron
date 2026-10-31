@@ -1,7 +1,7 @@
 // Copyright 2026 The Kubron Authors
 // SPDX-License-Identifier: Apache-2.0
 
-// Package pfproxy — HTTP port-forward для веб-режима (ADR-0016).
+// Package pfproxy — HTTP port-forward для веб-режима (ADR-0017).
 //
 // Браузер открывает поток по адресу https://{id}.pf.<base-domain>/: у каждого потока свой origin, поэтому
 // проксируемое приложение не получает ни cookie сессии Kubron, ни его CSRF-токен. Доступ выдаётся одноразовым

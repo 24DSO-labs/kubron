@@ -32,7 +32,7 @@ const (
 	PortForwardError    = "error"
 )
 
-// Режимы port-forward (capability portForwardMode, ADR-0016).
+// Режимы port-forward (capability portForwardMode, ADR-0017).
 const (
 	// PortForwardModeLocal — порт слушается на 127.0.0.1 той же машины (десктоп, режим одного пользователя).
 	PortForwardModeLocal = "local"

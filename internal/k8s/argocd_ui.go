@@ -57,7 +57,7 @@ func (pfm *PortForwardManager) findArgoTarget(ctx context.Context, conn *Cluster
 
 // OpenArgoUI открывает доступ к argocd-server и возвращает адрес для браузера. Повторный вызов переиспользует
 // активную сессию, а не плодит туннели. В режиме local — localhost-порт, в режиме proxy — адрес прокси на
-// отдельном origin (ADR-0016), порты на хосте не открываются.
+// отдельном origin (ADR-0017), порты на хосте не открываются.
 func (pfm *PortForwardManager) OpenArgoUI() (*ArgoUIInfo, error) {
 	switch pfm.Mode() {
 	case PortForwardModeOff:
