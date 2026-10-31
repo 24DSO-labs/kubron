@@ -505,5 +505,10 @@
   "netpolicyUnsupportedScheme": "不支持的 URL 方案 {p0}",
   "netpolicyNoHost": "URL 没有主机",
   "netpolicyRedirects": "10 次重定向后停止",
-  "oidcGrantOnlyPassword": "{p0} {p1}：Web 模式仅支持 password"
+  "oidcGrantOnlyPassword": "{p0} {p1}：Web 模式仅支持 password",
+  "kubronTrustedProxyHops": "KUBRON_TRUSTED_PROXY_HOPS {p0}: {p1}",
+  "kubronTrustedProxies": "KUBRON_TRUSTED_PROXIES {p0}: {p1}",
+  "trustedProxyHopsCannotBeNegative": "可信代理数量不能为负数",
+  "trustedProxiesAndHopsAreUsed": "可信代理及其数量仅与 trust-proxy 一起生效 (KUBRON_TRUST_PROXY=1)",
+  "tooManyRequestsTryAgainIn": "请求过多，请在 {p0} 秒后重试"
 }
