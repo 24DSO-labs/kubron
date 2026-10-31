@@ -8,6 +8,7 @@ import (
 
 	"github.com/VadimIl224/kubron/internal/audit"
 	"github.com/VadimIl224/kubron/internal/auth"
+	"github.com/VadimIl224/kubron/internal/clusterhealth"
 	"github.com/VadimIl224/kubron/internal/k8s"
 	"github.com/VadimIl224/kubron/internal/pgstore"
 )
@@ -22,7 +23,14 @@ func (p pgBackend) Audit() audit.Backend       { return p.s.Audit() }
 func (p pgBackend) ArgoTokens() k8s.TokenStore { return p.s.ArgoTokens() }
 
 // Access — права по членству в командах (задача 3.2); app подключает их к сервису аутентификации.
-func (p pgBackend) Access() auth.Access        { return p.s.Access() }
+func (p pgBackend) Access() auth.Access { return p.s.Access() }
+
+// HealthSink и HealthLeader — общее хранилище состояний кластеров и выбор реплики-проверяющего (3.6).
+func (p pgBackend) HealthSink() clusterhealth.Sink     { return p.s.Health() }
+func (p pgBackend) HealthLeader() clusterhealth.Leader { return p.s.Leader(pgstore.LeaderKey) }
+
+// Directory — команды и участники (задача 3.3).
+func (p pgBackend) Directory() auth.Directory  { return p.s.Directory() }
 func (p pgBackend) Clusters() k8s.ClusterStore { return pgClusters{p.s.Clusters()} }
 
 // pgClusters приводит pgstore.Clusters к k8s.ClusterStore. Файла kubeconfig у кластера в БД нет
@@ -56,10 +64,25 @@ func (p pgClusters) Save(m *k8s.ClusterMeta, kubeconfig []byte) error {
 	if m == nil {
 		return errors.New("cluster is not set")
 	}
-	return p.c.Save(&pgstore.Cluster{
+	return p.c.Save(toPG(m), kubeconfig)
+}
+
+// SaveWithSecret и Secret — режимы in-cluster и oidc-password (задача 3.7): секрет шифруется хранилищем.
+func (p pgClusters) SaveWithSecret(m *k8s.ClusterMeta, kubeconfig, secret []byte) error {
+	if m == nil {
+		return errors.New("cluster is not set")
+	}
+	return p.c.SaveWithSecret(toPG(m), kubeconfig, secret)
+}
+
+func (p pgClusters) Secret(id string) ([]byte, error) { return p.c.Secret(id) }
+
+func toPG(m *k8s.ClusterMeta) *pgstore.Cluster {
+	return &pgstore.Cluster{
 		ID: m.ID, DisplayName: m.DisplayName, Icon: m.Icon, Color: m.Color, Environment: m.Environment,
-		DefaultNamespace: m.DefaultNamespace, ContextName: m.ContextName, AddedAt: m.AddedAt,
-	}, kubeconfig)
+		DefaultNamespace: m.DefaultNamespace, ContextName: m.ContextName, AddedAt: m.AddedAt, TeamID: m.TeamID,
+		Mode: m.Mode,
+	}
 }
 
 func (p pgClusters) Delete(id string) error { return p.c.Delete(id) }
@@ -67,6 +90,7 @@ func (p pgClusters) Delete(id string) error { return p.c.Delete(id) }
 func toMeta(c *pgstore.Cluster) k8s.ClusterMeta {
 	return k8s.ClusterMeta{
 		ID: c.ID, DisplayName: c.DisplayName, Icon: c.Icon, Color: c.Color, Environment: c.Environment,
-		DefaultNamespace: c.DefaultNamespace, ContextName: c.ContextName, AddedAt: c.AddedAt,
+		DefaultNamespace: c.DefaultNamespace, ContextName: c.ContextName, AddedAt: c.AddedAt, TeamID: c.TeamID,
+		Mode: c.Mode,
 	}
 }

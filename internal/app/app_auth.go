@@ -36,6 +36,9 @@ func (a *App) initAuthWith(st store.Store) {
 	if ap, ok := st.(interface{ Access() auth.Access }); ok {
 		svc.SetAccess(ap.Access())
 	}
+	if dp, ok := st.(interface{ Directory() auth.Directory }); ok {
+		a.dir = dp.Directory()
+	}
 	// При выходе из учётной записи ничего из сессии не должно продолжать работать.
 	svc.SetOnLogout(a.endSessionResources)
 	a.auth = svc
@@ -132,7 +135,7 @@ var quietMethods = map[string]bool{
 func (a *App) authz(p auth.Permission, kv ...any) error {
 	// Права кластера определяются по активному кластеру вида: сигнатуры методов не меняются (этап 3, решение 1).
 	id := ""
-	if auth.ClusterScoped(p) {
+	if auth.ClusterScoped(p) && a.k8sMgr != nil {
 		id = a.k8sMgr.GetActiveContext()
 	}
 	return a.authzAt(p, id, kv, 1)
@@ -142,6 +145,58 @@ func (a *App) authz(p auth.Permission, kv ...any) error {
 // Чужой и несуществующий кластер дают одну и ту же ошибку auth.ErrClusterNotFound.
 func (a *App) authzCluster(p auth.Permission, clusterID string, kv ...any) error {
 	return a.authzAt(p, clusterID, kv, 1)
+}
+
+// authzTeam — authz для действия над командой (состав, кластеры). Без сервисного режима команд нет, и teamID
+// пуст: действует глобальная роль, как в десктопе.
+func (a *App) authzTeam(p auth.Permission, teamID string, kv ...any) error {
+	if a.auth == nil {
+		return a.authUnavailable()
+	}
+	actor, err := a.auth.CheckTeam(p, teamID)
+	switch {
+	case err == nil:
+		if auditedPermissions[p] {
+			a.auditCall(actor, audit.ResultOK, p, kv, 0)
+		}
+	case errors.Is(err, auth.ErrForbidden):
+		a.auditCall(actor, audit.ResultDenied, p, kv, 0)
+	}
+	return err
+}
+
+// authzAny — authz, который проходит при любом из двух прав (например, «читаю свои команды» или «администрирую организацию»).
+// Отказ записывается только по последнему праву.
+func (a *App) authzAny(first, second auth.Permission, kv ...any) error {
+	if a.auth != nil {
+		if err := a.authzAt(first, "", nil, 0); err == nil {
+			return nil
+		} else if !errors.Is(err, auth.ErrForbidden) {
+			return err
+		}
+	}
+	return a.authzAt(second, "", kv, 1)
+}
+
+// defaultTeam — команда по умолчанию в сервисном режиме, иначе пусто.
+func (a *App) defaultTeam() string {
+	if a.dir == nil {
+		return ""
+	}
+	return a.dir.DefaultTeam()
+}
+
+// checkKubeconfigSource не пускает через источник kubeconfig туда, куда пользователя не пускает авторизация:
+// путь к файлу сервера — только там, где ядро читает локальные файлы (десктоп), а сохранённый кластер — только
+// тот, которым пользователь может управлять.
+func (a *App) checkKubeconfigSource(src k8s.KubeconfigSource) error {
+	if src.Path != "" && !a.platform.Capabilities().LocalKubeconfig {
+		return errors.New("reading a kubeconfig from a file path is available only on desktop")
+	}
+	if src.ClusterID != "" {
+		return a.authzCluster(auth.PermClusterManage, src.ClusterID, "source", "cluster")
+	}
+	return nil
 }
 
 // authzAt — общая часть; depth — число служебных кадров между ней и методом App (для журнала).
@@ -181,6 +236,7 @@ func (a *App) auditCall(actor auth.Actor, result string, p auth.Permission, kv [
 	a.audit.Record(audit.Event{
 		User: actor.Username, Role: string(actor.Role),
 		Action: action, Result: result, Detail: strings.Join(parts, " "), Source: actor.Source,
+		TeamID: actor.TeamID, ClusterID: actor.ClusterID,
 	})
 }
 
@@ -319,12 +375,43 @@ func (a *App) DeleteUser(id string) error {
 
 // ─── Журнал аудита (audit.read) ────────────────────────────
 
+// auditScope готовит фильтр журнала для текущего пользователя: администратор организации видит всё, администратор
+// команды — только события своих команд. Ограничение задаётся здесь, а не приходит от клиента.
+func (a *App) auditScope(f audit.Filter) audit.Filter {
+	f.Scoped, f.Scope = false, nil
+	if a.auth.Authorize(auth.PermAuditRead) != nil {
+		f.Scoped, f.Scope = true, a.auth.TeamsWith(auth.PermClusterManage)
+	}
+	return f
+}
+
 // GetAuditLog возвращает записи журнала от новых к старым с учётом фильтра.
 func (a *App) GetAuditLog(filter audit.Filter) (*audit.Page, error) {
-	if err := a.authz(auth.PermAuditRead); err != nil {
+	if err := a.authzAny(auth.PermAuditRead, auth.PermClusterManage); err != nil {
 		return nil, err
 	}
-	return a.audit.Query(filter)
+	return a.audit.Query(a.auditScope(filter))
+}
+
+// AuditExport — выгрузка журнала: содержимое файла и число записей.
+type AuditExport struct {
+	Data      string `json:"data"`
+	Count     int    `json:"count"`
+	Truncated bool   `json:"truncated"`
+}
+
+// ExportAuditLog выгружает записи журнала по фильтру в CSV или JSON (до audit.ExportLimit записей).
+// Сама выгрузка тоже попадает в журнал.
+func (a *App) ExportAuditLog(filter audit.Filter, format string) (*AuditExport, error) {
+	if err := a.authzAny(auth.PermAuditRead, auth.PermClusterManage); err != nil {
+		return nil, err
+	}
+	data, n, truncated, err := a.audit.Export(a.auditScope(filter), format)
+	if err != nil {
+		return nil, err
+	}
+	a.recordTeam("ExportAuditLog", audit.ResultOK, "", fmt.Sprintf("format=%s rows=%d", format, n))
+	return &AuditExport{Data: string(data), Count: n, Truncated: truncated}, nil
 }
 
 // SetIdleTimeout задаёт время автовыхода по бездействию в минутах (0 — выключить).

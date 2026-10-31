@@ -1,0 +1,63 @@
+Kubron {{ include "kubron.image" . }} установлен в namespace {{ .Release.Namespace }}.
+
+{{- if .Values.ingress.enabled }}
+
+Адрес:
+{{- range .Values.ingress.hosts }}
+  {{ if $.Values.ingress.tls }}https{{ else }}http{{ end }}://{{ .host }}
+{{- end }}
+{{- else }}
+
+Ingress выключен. Для проверки пробросьте порт:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "kubron.fullname" . }} 8080:{{ .Values.service.port }}
+  открыть http://127.0.0.1:8080
+Для доступа по сети включите ingress (ingress.enabled) с TLS: без TLS cookie сессии идёт открытым текстом.
+{{- end }}
+
+Первый вход: откройте адрес и создайте администратора (экран «Добро пожаловать»).
+
+{{- if and .Values.ingress.enabled (not .Values.ingress.tls) }}
+
+ВНИМАНИЕ: ingress включён без TLS (ingress.tls пуст). Cookie сессии не получит флаг Secure и пойдёт
+открытым текстом. Включите TLS или завершайте его на балансировщике и задайте kubron.trustProxy=true.
+{{- end }}
+
+{{- if gt (int .Values.replicaCount) 1 }}
+
+ВНИМАНИЕ: replicaCount={{ .Values.replicaCount }}. Несколько реплик пока НЕ поддерживаются: веб-сессии, события и
+счётчики блокировок входа хранятся в памяти каждого процесса. Пользователь, попавший на другую реплику,
+потеряет сессию, а события и потоки (терминал, логи) будут приходить не туда. Поддержка появится вместе
+с HA (этап 4 плана). Верните replicaCount=1.
+{{- end }}
+
+{{- if .Values.secrets.create }}
+
+ВНИМАНИЕ: secrets.create=true — Secret создан из values (режим для разработки). Ключ шифрования теперь
+хранится в истории релиза Helm и, скорее всего, в вашем репозитории или CI-логах. Чарт ключ не генерирует
+и не хранит копию вне кластера. Для production создайте Secret отдельно и задайте secrets.existingSecret.
+Secret помечен helm.sh/resource-policy: keep и переживёт `helm uninstall`.
+{{- end }}
+
+Ключ шифрования ({{ .Values.secrets.keys.secretKey }}) нужен всегда: БЕЗ НЕГО секреты в БД (kubeconfig, токены Argo CD)
+прочитать невозможно. Храните копию ключа отдельно от резервных копий БД (docs/deploy.md).
+{{- if not .Values.secrets.create }}
+Секреты читаются из Secret «{{ .Values.secrets.existingSecret }}»; после смены его содержимого перезапустите Deployment:
+  kubectl -n {{ .Release.Namespace }} rollout restart deploy/{{ include "kubron.fullname" . }}
+{{- end }}
+
+{{- if .Values.inCluster.enabled }}
+
+Режим in-cluster: токен ServiceAccount «{{ include "kubron.serviceAccountName" . }}» смонтирован в под.
+{{- if .Values.rbac.create }}
+Создан ClusterRole «{{ include "kubron.clusterRoleName" . }}» только на чтение (без secrets и без записи); это заготовка (тикет 3.7).
+{{- else }}
+RBAC не создан (rbac.create=false): права ServiceAccount нужно выдать самостоятельно.
+{{- end }}
+{{- end }}
+
+{{- if .Values.networkPolicy.enabled }}
+
+NetworkPolicy включена: входящий трафик — из {{ if .Values.networkPolicy.ingress.from }}заданных источников (networkPolicy.ingress.from){{ else }}любых источников{{ end }}.
+Egress: DNS, PostgreSQL и API-серверы кластеров (порты 443/6443 по умолчанию). Если БД или кластеры
+на других портах или адресах, задайте networkPolicy.egress.*, иначе подключения будут отклонены.
+{{- end }}

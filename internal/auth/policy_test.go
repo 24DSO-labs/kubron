@@ -87,6 +87,7 @@ var exactPermission = map[string]Permission{
 	"RestartDaemonSet":        PermOperate,
 	"RetryJob":                PermOperate,
 	"GetAuditLog":             PermAuditRead,
+	"ExportAuditLog":          PermAuditRead,
 	"SetIdleTimeout":          PermUsersManage,
 	"CordonNode":              PermOperate,
 	"DrainNode":               PermWrite,
@@ -114,6 +115,19 @@ var exactPermission = map[string]Permission{
 	"AddHelmOCIRepo":          PermClusterManage,
 	"AddHelmOCIChart":         PermClusterManage,
 	"RemoveHelmOCIChart":      PermClusterManage,
+	// Команды (этап 3): состав — администратор команды или организации (users.manage), кластеры — clusters.manage.
+	"ListTeams":                 PermRead,
+	"CreateTeam":                PermUsersManage,
+	"RenameTeam":                PermUsersManage,
+	"DeleteTeam":                PermUsersManage,
+	"ListTeamMembers":           PermUsersManage,
+	"SetTeamMember":             PermUsersManage,
+	"RemoveTeamMember":          PermUsersManage,
+	"AddClusterToTeam":          PermClusterManage,
+	"AddOIDCClusterToTeam":      PermClusterManage,
+	"AddInClusterToTeam":        PermClusterManage,
+	"SetClusterOIDCCredentials": PermClusterManage,
+	"MoveCluster":               PermClusterManage,
 }
 
 // Глаголы, по которым метод считается изменяющим: слабое право чтения для них недопустимо.
@@ -125,6 +139,7 @@ var mutatingPrefixes = []string{
 	"Cordon", "Drain",
 	"Sync", "Refresh", "Terminate", "Generate",
 	"Suspend", "Resume",
+	"Set", "Remove", "Move", "Rename",
 }
 
 // Изменяющие по имени методы, которым чтения достаточно (с обоснованием).
@@ -208,7 +223,7 @@ func firstStmtPermission(stmt ast.Stmt, t *testing.T, method string) (Permission
 				return true
 			}
 			sel, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok || (sel.Sel.Name != "authz" && sel.Sel.Name != "authzCluster") || len(call.Args) < 1 {
+			if !ok || (sel.Sel.Name != "authz" && sel.Sel.Name != "authzCluster" && sel.Sel.Name != "authzTeam" && sel.Sel.Name != "authzAny") || len(call.Args) < 1 {
 				return true
 			}
 			arg, ok := call.Args[0].(*ast.SelectorExpr)
@@ -287,7 +302,7 @@ func TestDestructiveMethodsRequireWrite(t *testing.T) {
 		}
 
 		destructive := strings.HasPrefix(m.name, "Delete") || strings.HasPrefix(m.name, "Evict") || strings.HasPrefix(m.name, "Drain") || m.name == "ApplyYAML" || m.name == "CreateResourceYAML"
-		if !destructive || m.name == "DeleteCluster" || m.name == "DeleteUser" {
+		if !destructive || m.name == "DeleteCluster" || m.name == "DeleteUser" || m.name == "DeleteTeam" {
 			continue // у этих особые права из exactPermission
 		}
 		if m.perm != PermWrite {

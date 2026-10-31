@@ -60,7 +60,9 @@ const (
 	sourceWindow       = 15 * time.Minute
 	baseLockout        = 15 * time.Second
 	maxLockout         = 5 * time.Minute
-	maxTracked         = 1024
+	// maxTracked — сколько записей о неудачах хранится отдельно для логинов и отдельно для адресов:
+	// переполнение одного вида не вытесняет записи другого (см. makeRoomLocked).
+	maxTracked = 1024
 )
 
 // UserInfo — безопасное представление пользователя для интерфейса (без хеша пароля).
@@ -99,6 +101,9 @@ type Actor struct {
 	Username string
 	Role     Role
 	Source   string // адрес клиента сессии (веб); пусто в десктопе
+	// Контекст проверки в сервисном режиме: кластер и команда, к которым относится действие (для журнала).
+	ClusterID string
+	TeamID    string
 }
 
 // shared — состояние, общее для всех сессий: хранилище пользователей, счётчики неудачных входов,
@@ -424,14 +429,16 @@ func (s *Service) checkLocked(p Permission, clusterID string) (Actor, error) {
 		return Actor{Source: s.source}, err
 	}
 	role := u.Role
+	team := ""
 	if s.access != nil && clusterID != "" {
-		if team, ok := s.access.ClusterTeam(clusterID); ok {
-			if r, ok := s.access.TeamRole(u.ID, team); ok {
-				role = r
+		if tm, ok := s.access.ClusterTeam(clusterID); ok {
+			// Команда попадает в контекст только если пользователь её член: чужая остаётся «не найдена».
+			if r, ok := s.access.TeamRole(u.ID, tm); ok {
+				role, team = r, tm
 			}
 		}
 	}
-	return Actor{Username: u.Username, Role: role, Source: s.source}, err
+	return Actor{Username: u.Username, Role: role, Source: s.source, ClusterID: clusterID, TeamID: team}, err
 }
 
 // Authorize проверяет, что есть вошедший пользователь и у него есть право p.
@@ -620,7 +627,7 @@ func (s *Service) ipKey() string {
 	if s.source == "" {
 		return ""
 	}
-	return "ip:" + s.source
+	return "ip:" + NormalizeSource(s.source)
 }
 
 // recordSourceFailureLocked считает неудачу по адресу клиента: порог выше, чем по логину
@@ -636,16 +643,8 @@ func (s *Service) recordSourceFailureLocked(key string) {
 }
 
 func (s *Service) recordFailureLocked(key string, free int) {
-	if len(s.failures) >= maxTracked {
-		now := s.now()
-		for k, f := range s.failures {
-			if f.lockedUntil.Before(now) {
-				delete(s.failures, k)
-			}
-		}
-		if len(s.failures) >= maxTracked { // всё ещё переполнено — сбрасываем всё, это защита от раздувания памяти
-			s.failures = map[string]*failure{}
-		}
+	if s.failures[key] == nil && !s.makeRoomLocked(key) {
+		return // все места заняты действующими блокировками: новый ключ не отслеживается, чужие блокировки целы
 	}
 	f := s.failures[key]
 	if f == nil {
@@ -667,6 +666,45 @@ func (s *Service) recordFailureLocked(key string, free int) {
 	}
 }
 
+// makeRoomLocked освобождает место под новый ключ, не трогая действующие блокировки. Лимит считается
+// отдельно для адресов («ip:») и для логинов, поэтому подбор множества логинов не стирает записи об
+// адресах и наоборот. Порядок вытеснения: сначала записи без блокировки, давно не обновлявшиеся
+// (sourceWindow), затем самая старая из остальных незаблокированных. Если все записи этого вида —
+// действующие блокировки, место не освобождается (false): новый ключ не отслеживается, зато ни одна
+// блокировка не сбрасывается. Обход всей карты выполняется только при заполнении.
+func (s *Service) makeRoomLocked(key string) bool {
+	isIP := strings.HasPrefix(key, "ip:")
+	now := s.now()
+	n := 0
+	var oldestKey string
+	var oldest time.Time
+	for k, f := range s.failures {
+		if strings.HasPrefix(k, "ip:") != isIP {
+			continue
+		}
+		n++
+		if f.lockedUntil.After(now) {
+			continue
+		}
+		if now.Sub(f.last) > sourceWindow {
+			delete(s.failures, k) // истёкшая запись
+			n--
+			continue
+		}
+		if oldestKey == "" || f.last.Before(oldest) {
+			oldestKey, oldest = k, f.last
+		}
+	}
+	if n < maxTracked {
+		return true
+	}
+	if oldestKey == "" {
+		return false
+	}
+	delete(s.failures, oldestKey)
+	return true
+}
+
 // ChangePassword меняет пароль текущего пользователя.
 func (s *Service) ChangePassword(oldPassword, newPassword string) error {
 	s.mu.Lock()
@@ -676,6 +714,13 @@ func (s *Service) ChangePassword(oldPassword, newPassword string) error {
 		return ErrNotAuthenticated
 	}
 	id, username, oldHash := u.ID, u.Username, u.PasswordHash
+	// Подбор старого пароля (украденная сессия) ограничивается так же, как вход: по логину и по адресу
+	pwKey, ipKey := "pw:"+normalizeUsername(username), s.ipKey()
+	if remaining := max(s.lockRemainingLocked(pwKey), s.lockRemainingLocked(ipKey)); remaining > 0 {
+		s.record(u, "ChangePassword", audit.ResultDenied, "password change temporarily blocked after failed attempts")
+		s.mu.Unlock()
+		return &LockedError{RetryAfter: remaining}
+	}
 	s.mu.Unlock()
 
 	if err := validateCredentialsPassword(username, newPassword); err != nil {
@@ -683,6 +728,8 @@ func (s *Service) ChangePassword(oldPassword, newPassword string) error {
 	}
 	if ok, _ := verifyPassword(oldPassword, oldHash); !ok {
 		s.mu.Lock()
+		s.recordFailureLocked(pwKey, freeAttempts)
+		s.recordSourceFailureLocked(ipKey)
 		s.record(s.st.findByID(id), "ChangePassword", audit.ResultFailed, ErrWrongPassword.Error())
 		s.mu.Unlock()
 		return ErrWrongPassword
@@ -711,6 +758,7 @@ func (s *Service) ChangePassword(oldPassword, newPassword string) error {
 		*rec = prev
 		return fmt.Errorf("failed to save password: %w", err)
 	}
+	delete(s.failures, pwKey)
 	s.touchLocked()
 	s.record(rec, "ChangePassword", audit.ResultOK, "")
 	// Остальные сессии этого пользователя (другие браузеры) завершаются: пароль мог быть скомпрометирован

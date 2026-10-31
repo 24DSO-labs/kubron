@@ -12,9 +12,19 @@ permissions:
   contents: read
 
 jobs:
+  # Тег проходит те же проверки, что и ветка: не полагаемся на то, что CI уже видел этот коммит.
+  # На PR, меняющем только release.yml, пробная сборка идёт без полного CI.
+  verify:
+    name: Verify
+    if: startsWith(github.ref, 'refs/tags/v')
+    uses: ./.github/workflows/ci.yml
+
   build:
     name: Build (${{ matrix.name }})
+    needs: verify
+    if: ${{ !cancelled() && (needs.verify.result == 'success' || needs.verify.result == 'skipped') }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -33,7 +43,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Check that the tag matches the app version
         if: startsWith(github.ref, 'refs/tags/v')
@@ -47,19 +57,18 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: System libraries (Linux)
+      - uses: ./.github/actions/linux-build-deps
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
 
       - name: Wails CLI
         run: |
@@ -85,7 +94,36 @@ jobs:
           esac
           ls -l dist
 
-      - uses: actions/upload-artifact@v7
+      - name: Build .deb
+        if: runner.os == 'Linux'
+        env:
+          NFPM_VERSION: "2.46.3"
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF_TYPE" = tag ]; then ver="${GITHUB_REF_NAME#v}"; else ver="0.0.0-snapshot"; fi
+          # '-' в SemVer — разделитель ревизии Debian: 1.2.3-rc.1 в dpkg старше 1.2.3.
+          # '~' сортируется раньше всего, поэтому предрелиз остаётся младше релиза.
+          deb_version="${ver/-/\~}"
+          deb_name="kubron_${deb_version}_amd64.deb"
+          # go install проверяется по sum.golang.org, чего не умеет скачанный бинарь релиза
+          go install "github.com/goreleaser/nfpm/v2/cmd/nfpm@v${NFPM_VERSION}"
+          VERSION="$deb_version" nfpm package \
+            --config build/linux/nfpm.yaml --packager deb --target "dist/${deb_name}"
+
+          # Имя файла и поле Version обязаны совпадать, содержимое — быть ожидаемым
+          dpkg-deb --info "dist/${deb_name}"
+          [ "$(dpkg-deb --field "dist/${deb_name}" Version)" = "$deb_version" ]
+          contents="$(dpkg-deb --contents "dist/${deb_name}")"
+          for f in ./usr/bin/kubron ./usr/share/applications/kubron.desktop \
+                   ./usr/share/doc/kubron/LICENSE ./usr/share/doc/kubron/NOTICE; do
+            grep -qF "$f" <<<"$contents" || { echo "В .deb нет $f"; exit 1; }
+          done
+          base="${deb_version%%[~+]*}"
+          if [ "$deb_version" != "$base" ]; then
+            dpkg --compare-versions "$deb_version" lt "$base"
+          fi
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: kubron-${{ matrix.name }}
           path: dist/*
@@ -98,12 +136,15 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+      # Подтверждение происхождения: связывает бинарь с коммитом и запуском workflow
+      attestations: write
+      id-token: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           path: dist
           pattern: kubron-*
@@ -111,7 +152,13 @@ jobs:
 
       - name: Checksums
         working-directory: dist
-        run: sha256sum Kubron_* > SHA256SUMS.txt
+        run: sha256sum Kubron_* kubron_*.deb > SHA256SUMS.txt
+
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
+        with:
+          subject-path: |
+            dist/Kubron_*
+            dist/kubron_*.deb
 
       # Описание релиза берётся из CHANGELOG.md (раздел версии; для rc-тегов без раздела: [Unreleased])
       - name: Release notes

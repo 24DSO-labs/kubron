@@ -1,0 +1,3 @@
+# Минимальная установка: только обязательный существующий Secret
+secrets:
+  existingSecret: kubron-secrets

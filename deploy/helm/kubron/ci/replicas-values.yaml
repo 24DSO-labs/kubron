@@ -1,0 +1,11 @@
+# Две реплики: рендерится PodDisruptionBudget, NOTES.txt предупреждает, что HA ещё не поддержан
+secrets:
+  existingSecret: kubron-secrets
+replicaCount: 2
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: kubron

@@ -173,3 +173,72 @@ func TestWithoutAccessLegacyRolesApply(t *testing.T) {
 		t.Errorf("десктоп: роль user не пишет: %v", err)
 	}
 }
+
+func TestCheckTeam(t *testing.T) {
+	admin, bob, eve, _ := accessFixture(t)
+	// eve — админ blue: управляет составом и кластерами blue, но не red.
+	if err := eve.AuthorizeTeam(PermUsersManage, "blue"); err != nil {
+		t.Errorf("админ команды управляет составом: %v", err)
+	}
+	if err := eve.AuthorizeTeam(PermClusterManage, "blue"); err != nil {
+		t.Errorf("админ команды управляет кластерами: %v", err)
+	}
+	if err := eve.AuthorizeTeam(PermUsersManage, "red"); !errors.Is(err, ErrTeamNotFound) {
+		t.Errorf("чужая команда: %v", err)
+	}
+	// bob — оператор red: состав не меняет, но о существовании команды знает.
+	if err := bob.AuthorizeTeam(PermUsersManage, "red"); !errors.Is(err, ErrForbidden) {
+		t.Errorf("оператор меняет состав: %v", err)
+	}
+	if err := bob.AuthorizeTeam(PermUsersManage, "blue"); !errors.Is(err, ErrTeamNotFound) {
+		t.Errorf("оператор, чужая команда: %v", err)
+	}
+	// org-admin: состав любой команды — да; кластеры команды без членства — нет.
+	if err := admin.AuthorizeTeam(PermUsersManage, "red"); err != nil {
+		t.Errorf("org-admin и состав команды: %v", err)
+	}
+	if err := admin.AuthorizeTeam(PermClusterManage, "red"); !errors.Is(err, ErrForbidden) {
+		t.Errorf("org-admin и кластеры чужой команды: %v", err)
+	}
+	// Без входа.
+	bob.Logout()
+	if err := bob.AuthorizeTeam(PermUsersManage, "red"); !errors.Is(err, ErrNotAuthenticated) {
+		t.Errorf("без входа: %v", err)
+	}
+}
+
+func TestCheckTeamWithoutAccessUsesGlobalRole(t *testing.T) {
+	s, _ := setupWithUser(t)
+	loginAdmin(t, s)
+	if err := s.AuthorizeTeam(PermClusterManage, ""); err != nil {
+		t.Errorf("десктоп: %v", err)
+	}
+	v := s.NewSession("")
+	loginAs(t, v, "bob", bobPass)
+	if err := v.AuthorizeTeam(PermClusterManage, ""); !errors.Is(err, ErrForbidden) {
+		t.Errorf("десктоп, роль user: %v", err)
+	}
+}
+
+func TestActorContextAndTeamsWith(t *testing.T) {
+	_, bob, eve, _ := accessFixture(t)
+	a, err := bob.CheckCluster(PermRead, "c1")
+	if err != nil || a.ClusterID != "c1" || a.TeamID != "red" {
+		t.Errorf("контекст для журнала: %+v %v", a, err)
+	}
+	// Отказ в чужой команде не раскрывает её в журнале как «свою» (команда неизвестна — кластер не найден).
+	a, _ = bob.CheckCluster(PermRead, "c3")
+	if a.TeamID != "" {
+		t.Errorf("чужая команда в контексте: %+v", a)
+	}
+	a, _ = eve.CheckTeam(PermUsersManage, "blue")
+	if a.TeamID != "blue" {
+		t.Errorf("%+v", a)
+	}
+	if got := eve.TeamsWith(PermClusterManage); len(got) != 1 || got[0] != "blue" {
+		t.Errorf("команды, где eve админ: %v", got)
+	}
+	if got := bob.TeamsWith(PermClusterManage); len(got) != 0 {
+		t.Errorf("оператор не админ: %v", got)
+	}
+}

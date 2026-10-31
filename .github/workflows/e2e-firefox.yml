@@ -1,0 +1,116 @@
+name: E2E (Firefox, CSP)
+
+# Проверка нарушений CSP в Firefox (frontend/e2e/web-csp.spec.ts). Отдельный workflow: ci.yml ставит
+# только Chromium, а менять его нельзя во избежание конфликтов с этапом 3. Повторяет подготовку job `e2e`
+# из ci.yml (веб-сборка, сервер, kind) и запускает оба проекта Playwright: Firefox-проект берёт
+# администратора и кластер, созданные тестами Chromium-проекта.
+on:
+  push:
+    branches: [main, master, dev, refactor]
+    paths: &paths
+      - internal/server/headers.go
+      - internal/server/server.go
+      - frontend/e2e/**
+      - frontend/playwright.config.ts
+      - frontend/index.html
+      - frontend/vite.config.ts
+      - .github/workflows/e2e-firefox.yml
+  pull_request:
+    paths: *paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-firefox-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  GO_TAGS: webkit2_41
+
+jobs:
+  e2e-firefox:
+    name: E2E (Chromium + Firefox, kind)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: stable
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: ./.github/actions/linux-build-deps
+
+      - name: Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2)
+
+      - run: npm ci
+        working-directory: frontend
+
+      - name: Generate Wails bindings
+        run: |
+          mkdir -p frontend/dist && touch frontend/dist/.keep
+          wails generate module -tags $GO_TAGS
+
+      - name: Build web frontend and server
+        run: |
+          npm run build:web
+          cd .. && go build -tags "$GO_TAGS" -o kubron-server ./cmd/kubron-server
+        working-directory: frontend
+
+      - name: kind cluster
+        uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1
+        with:
+          cluster_name: kubron-e2e
+
+      - name: Pods for the e2e tests
+        run: |
+          kubectl run e2e-shell --image=busybox:1.36 --restart=Never -- sleep 3600
+          kubectl wait --for=condition=Ready pod/e2e-shell --timeout=120s
+          kubectl run e2e-logs --image=busybox:1.36 --restart=Never -- sh -c 'while true; do echo tick; sleep 1; done'
+          kubectl wait --for=condition=Ready pod/e2e-logs --timeout=120s
+
+      - name: Export kubeconfig
+        run: kind export kubeconfig --name kubron-e2e --kubeconfig "$RUNNER_TEMP/kind.kubeconfig"
+
+      - name: Start kubron-server
+        run: |
+          export KUBRON_DATA_DIR="$RUNNER_TEMP/kubron-data"
+          mkdir -p "$KUBRON_DATA_DIR"
+          ./kubron-server --listen 127.0.0.1:8080 > "$RUNNER_TEMP/server.log" 2>&1 &
+          for i in $(seq 1 30); do curl -fs http://127.0.0.1:8080/healthz && exit 0; sleep 1; done
+          cat "$RUNNER_TEMP/server.log"; exit 1
+
+      - run: npx playwright install --with-deps chromium firefox
+        working-directory: frontend
+
+      - name: Playwright (chromium + firefox)
+        run: npx playwright test
+        working-directory: frontend
+        env:
+          E2E_FIREFOX: "1"
+          E2E_KUBECONFIG: ${{ runner.temp }}/kind.kubeconfig
+          E2E_TERMINAL_POD: default/e2e-shell/e2e-shell
+          E2E_LOG_POD: default/e2e-logs/e2e-logs
+
+      - name: Server log
+        if: always()
+        run: cat "$RUNNER_TEMP/server.log" || true
+
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        if: failure()
+        with:
+          name: playwright-report-firefox
+          path: |
+            frontend/playwright-report
+            frontend/test-results

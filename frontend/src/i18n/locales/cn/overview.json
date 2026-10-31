@@ -1,0 +1,127 @@
+{
+  "title": "概览",
+  "updated": "更新于 {time}",
+  "staleData": "更新失败，显示上次数据",
+  "refreshing": "刷新中…",
+  "loading": "正在加载集群数据…",
+  "loadFailed": "加载集群概览失败",
+  "stats": {
+    "nodes": "节点",
+    "pods": "Pod",
+    "restarts": "重启次数（24 小时）",
+    "warnings": "警告（1 小时）",
+    "nodesReady": "就绪：{n}",
+    "podsRunning": "运行中：{n}",
+    "podsProblems": "问题：{problems} · 运行中：{running}",
+    "oomKilled": "OOMKilled：{n}",
+    "containersRestarted": "容器重启",
+    "noRestarts": "无重启",
+    "noWarnings": "无警告"
+  },
+  "cores": "{value} 核",
+  "time": {
+    "justNow": "刚刚",
+    "minutesAgo": "{n} 分钟前",
+    "hoursAgo": "{n} 小时前",
+    "daysAgo": "{n} 天前"
+  },
+  "usage": {
+    "title": "资源使用",
+    "memory": "内存",
+    "cpuDetail": "{used} / {total} 核",
+    "requestedCpu": "已请求 {used} / {total} 核（{percent}%）",
+    "requestedMemory": "已请求 {used} / {total}（{percent}%）",
+    "installingTitle": "指标组件正在安装",
+    "installingText": "组件启动后数据将显示。",
+    "degradedTitle": "指标组件运行异常",
+    "degradedText": "请在集群设置中检查组件。",
+    "openSettings": "打开设置",
+    "unavailableTitle": "指标不可用",
+    "unavailableText": "在集群设置中安装指标组件以查看 CPU 和内存负载。",
+    "install": "安装指标"
+  },
+  "topPods": {
+    "title": "最接近限制",
+    "memory": "内存",
+    "usedOfLimit": "已用 {used}（上限）",
+    "emptyMemory": "没有设置内存限制的 Pod",
+    "emptyCpu": "没有设置 CPU 限制的 Pod",
+    "needMetrics": "在集群设置中安装指标组件以查看此项"
+  },
+  "storage": {
+    "title": "存储",
+    "empty": "暂无卷指标（kubelet 仅报告已挂载的卷）",
+    "needMetrics": "在集群设置中安装指标组件以查看卷使用情况",
+    "pvcPending": "{n} 个 PVC 处于 Pending",
+    "pvcLost": "{n} 个 PVC 处于 Lost"
+  },
+  "warnings": {
+    "title": "最近一小时的警告",
+    "empty": "最近一小时无警告",
+    "viewAll": "查看所有事件 →"
+  },
+  "workloads": {
+    "title": "工作负载",
+    "countOf": "{n} / {total}",
+    "allNamespaces": "所有命名空间",
+    "search": "搜索工作负载…",
+    "searchLabel": "搜索工作负载",
+    "type": "类型",
+    "ready": "就绪",
+    "upToDate": "已更新",
+    "noMatch": "没有匹配筛选条件的项",
+    "empty": "此集群中没有工作负载"
+  },
+  "problems": {
+    "title": "需要关注",
+    "restarts": "{n} 次重启 | {n} 次重启",
+    "empty": "所有 Pod 状态正常",
+    "viewAll": "查看所有 Pod（{total}）→"
+  },
+  "health": {
+    "title": "集群健康",
+    "score": "健康评分 {score} / 100",
+    "status": {
+      "Healthy": "健康",
+      "Degraded": "降级",
+      "Critical": "严重"
+    },
+    "component": {
+      "healthy": "健康",
+      "unhealthy": "不健康",
+      "unknown": "未知"
+    },
+    "chipBad": "{names}：不健康",
+    "chipOk": "控制平面健康"
+  },
+  "changes": {
+    "title": "变更内容",
+    "window60": "1 小时",
+    "window360": "6 小时",
+    "window1440": "24 小时",
+    "empty": "此时间段内无变更"
+  },
+  "capacity": {
+    "title": "调度余量",
+    "largestSlot": "最大空闲槽位",
+    "on": "在 {node}",
+    "free": "空闲 {value}",
+    "hint": "基于请求；已封锁和 NotReady 的节点会被跳过。条形图：CPU、内存。",
+    "empty": "没有可调度节点"
+  },
+  "blockers": {
+    "title": "阻塞项",
+    "quotas": "配额接近上限",
+    "pdbs": "PDB 阻止驱逐",
+    "pdbDetail": "健康 {healthy}/{expected}，需要 {desired}",
+    "none": "没有配额超过 {percent}%，也没有阻止驱逐的 PodDisruptionBudget"
+  },
+  "certs": {
+    "title": "证书",
+    "expired": "{n} 天前过期",
+    "today": "今天",
+    "left": "剩余 {n} 天",
+    "none": "30 天内没有 TLS 证书过期（已检查 {checked} 个）",
+    "more": "以及其他 {n} 个"
+  }
+}

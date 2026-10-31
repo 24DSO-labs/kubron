@@ -30,5 +30,9 @@
     "searchPlaceholder": "Поиск...",
     "updated": "Обновлено {time}",
     "refreshing": "Обновление…"
+  },
+  "management": {
+    "label": "Управление",
+    "back": "Назад"
   }
 }

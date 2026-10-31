@@ -1,0 +1,38 @@
+{
+  "header": {
+    "disconnect": "断开与集群的连接"
+  },
+  "welcome": {
+    "title": "欢迎使用 Kubron！",
+    "addPrompt": "添加集群以开始使用",
+    "addButton": "添加集群",
+    "noClusters": "尚未添加任何集群。请联系管理员。"
+  },
+  "select": {
+    "title": "选择集群",
+    "hint": "点击左侧的集群图标进行连接"
+  },
+  "connecting": "连接中…",
+  "errors": {
+    "unknownResource": "未知资源类型：{kind}",
+    "noWritePermission": "权限不足，无法修改资源",
+    "loadNamespaces": "加载命名空间出错",
+    "generic": "错误"
+  },
+  "yaml": {
+    "created": "{kind} \"{name}\" 已创建",
+    "updated": "{type} {name} 已更新",
+    "createError": "创建错误：{message}",
+    "applyError": "应用错误：{message}"
+  },
+  "content": {
+    "count": "{n} 项 | {n} 项",
+    "searchPlaceholder": "搜索…",
+    "updated": "更新于 {time}",
+    "refreshing": "刷新中…"
+  },
+  "management": {
+    "label": "管理",
+    "back": "返回"
+  }
+}

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Kubron
+GenericName=Kubernetes Desktop Manager
+Comment=Desktop application for managing Kubernetes clusters
+Exec=kubron
+Icon=kubron
+Terminal=false
+Categories=Development;System;
+Keywords=kubernetes;k8s;cluster;kubectl;
+StartupWMClass=Kubron

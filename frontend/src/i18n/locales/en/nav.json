@@ -6,7 +6,7 @@
   "namespace": "Namespace",
   "allNamespaces": "All namespaces",
   "resizeSidebar": "Resize sidebar",
-  "customResources": "Custom resources",
+  "customResources": "CRD",
   "definitions": "Definitions",
   "filterKinds": "Filter kinds…",
   "groups": {
@@ -20,6 +20,10 @@
     "argocdSettings": "Settings"
   },
   "views": {
-    "argoDashboard": "Dashboard"
-  }
+    "argoDashboard": "Dashboard",
+    "helmRepos": "Repositories",
+    "helmCatalog": "Catalog",
+    "helmOps": "Operations"
+  },
+  "teams": "Teams"
 }

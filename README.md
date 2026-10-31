@@ -22,6 +22,10 @@ A lightweight, open-source Kubernetes desktop IDE built with **Go** and **Wails*
 
 ## Features
 
+### Internationalization
+- **Multi-language UI** — the interface supports multiple languages with automatic detection; switch languages in Settings at any time
+- **Localized dates and numbers** — formatting follows the selected locale, not the system or hardcoded values
+
 ### Clusters
 - **Multi-cluster management** — add clusters from a kubeconfig, switch between them from a single window, and give each one a name, color, icon and environment tag (`dev` / `test` / `stage` / `prod`)
 - **Namespace scoping** — pick one, several or all namespaces; works with restricted RBAC (no cluster-wide `list` required) and reports partial failures instead of hiding them
@@ -119,9 +123,6 @@ go run ./cmd/kubron-server --listen 127.0.0.1:8080
 The Kubron core is open source under [Apache-2.0](LICENSE).
 
 Paid subscription features are planned. The first one — **SSO/OIDC login for organizations** — will ship as a separate commercial module. The open core will always include local users, roles, audit log and emergency admin access.
-
-## Contributors
-- [VadimIl224](https://github.com/VadimIl224)
 
 ## Contributing
 

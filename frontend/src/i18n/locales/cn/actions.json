@@ -1,0 +1,13 @@
+{
+  "noPermission": "您没有执行此操作的权限",
+  "loadYamlFailed": "加载 YAML 失败：{error}",
+  "deleteUnsupported": "不支持删除 {kind}",
+  "createUnsupported": "不支持创建 {kind}",
+  "deleted": "{kind} \"{name}\" 已删除",
+  "deleteFailed": "删除失败：{error}",
+  "bulkDeleted": "{kind}：已删除 {done}/{total}",
+  "bulkFailed": "删除失败 {failed}/{total}：{list}",
+  "andMore": "以及其他 {n} 个",
+  "unavailable": "\"{label}\" 对 {name} 不可用",
+  "scaled": "{kind} {name} 已扩缩至 {n} 个副本"
+}

@@ -13,12 +13,26 @@ export interface ClusterMeta {
   contextName: string
   /** dev | test | stage | prod; '' — не задано */
   environment: string
+  /** Команда-владелец (только сервисный режим) */
+  teamId?: string
+  /** Способ подключения: kubeconfig (или пусто), in-cluster, oidc-password (сервисный режим) */
+  mode?: string
+}
+
+/** Результат фоновой проверки соединения с кластером (сервисный режим; в десктопе поля нет) */
+export interface ClusterHealth {
+  state: 'ok' | 'unreachable' | 'unauthorized' | 'misconfigured' | 'unknown'
+  /** Причина как её вернул клиент Kubernetes (по-английски, без секретов) */
+  message?: string
+  latencyMs?: number
+  checkedAt: string
 }
 
 export interface ClusterStatus extends ClusterMeta {
   connected: boolean
   active: boolean
   error: string
+  health?: ClusterHealth
 }
 
 /** Свойства кластера, которые пользователь задаёт при добавлении и правке (зеркало k8s.ClusterSettings) */
@@ -44,6 +58,17 @@ export interface KubeconfigContextInfo {
   user: string
   namespace: string
   server: string
+  /** Как контекст получает учётные данные (k8s.AuthKind); у старых ответов поля нет */
+  auth?: KubeconfigAuth | string
+}
+
+/** static — токен, сертификат; oidc-password — oidc-login с паролем; oidc-authcode — oidc-login через браузер; exec — другой плагин */
+export type KubeconfigAuth = 'static' | 'oidc-password' | 'oidc-authcode' | 'exec'
+
+/** Логин и пароль для oidc-login: сервер сам получает токен у провайдера входа */
+export interface OIDCCredentials {
+  username: string
+  password: string
 }
 
 export interface KubeconfigInfo {
@@ -69,7 +94,15 @@ export interface ClusterUpdateResult {
 /** Что отправляет диалог добавления кластера */
 export type AddClusterPayload =
   | { kind: 'file'; path: string; settings: ClusterSettings }
-  | { kind: 'text'; text: string; settings: ClusterSettings }
+  | {
+    kind: 'text'; text: string; settings: ClusterSettings
+    /** команда-владелец (сервисный режим) */
+    teamId?: string
+    /** для kubeconfig с oidc-login (grant password) */
+    oidc?: OIDCCredentials
+  }
+  /** Кластер, в котором работает сам сервер (админ организации) */
+  | { kind: 'in-cluster'; settings: ClusterSettings; teamId: string }
 
 /** Итог операции, которая может завершиться понятной пользователю ошибкой */
 export type Outcome<T> = { ok: true; value: T } | { ok: false; error: string }
@@ -762,4 +795,27 @@ export interface ClusterRoleBinding {
     name: string
     namespace?: string
   }>
+}
+
+/** Команда (Go: auth.Team + роль текущего пользователя, app.TeamView) */
+export interface Team {
+  id: string
+  name: string
+  members: number
+  clusters: number
+  /** Роль текущего пользователя в команде; '' — не член (администратор организации видит все команды) */
+  myRole: string
+}
+
+/** Участник команды (Go: auth.Member) */
+export interface TeamMember {
+  userId: string
+  username: string
+  role: string
+}
+
+/** Пользователь для добавления в команду (Go: auth.UserBrief) */
+export interface UserBrief {
+  id: string
+  username: string
 }

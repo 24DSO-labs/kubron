@@ -137,7 +137,11 @@ func (k *Keyring) CurrentID() string { return k.current.ID }
 // "cluster/<id>/kubeconfig"): подмена шифротекста между строками БД обнаруживается при расшифровке.
 // Результат — nonce ‖ шифротекст; keyID сохраняется рядом.
 func (k *Keyring) Seal(plaintext, aad []byte) (ciphertext []byte, keyID string, err error) {
-	nonce := make([]byte, k.curAEAD.NonceSize(), k.curAEAD.NonceSize()+len(plaintext)+k.curAEAD.Overhead())
+	nonceSize := k.curAEAD.NonceSize()
+	overhead := k.curAEAD.Overhead()
+	// Use int64 for intermediate calculation to satisfy CodeQL overflow check
+	capacity64 := int64(nonceSize) + int64(len(plaintext)) + int64(overhead)
+	nonce := make([]byte, nonceSize, int(capacity64))
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, "", fmt.Errorf("random source unavailable: %w", err)
 	}

@@ -576,6 +576,8 @@ body {
 }
 .dot-green { background: #a6e3a1; }
 .dot-gray { background: #585b70; }
+.dot-red { background: #f38ba8; }
+.cluster-icon-wrap.unhealthy .cluster-pill { background: #f38ba8; }
 
 /* Context Menu */
 .cluster-context-menu {
@@ -661,6 +663,16 @@ body {
   color: #a6adc8;
 }
 .welcome-screen h2 { color: #89b4fa; font-size: 24px; }
+.mgmt-links { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+.mgmt-screen { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.mgmt-tabs { display: flex; gap: 4px; padding: 8px 16px; border-bottom: 1px solid #313244; align-items: center; }
+.mgmt-spacer { flex: 1; }
+.mgmt-tab {
+  background: transparent; border: 0; color: #a6adc8; padding: 6px 12px; border-radius: 6px; cursor: pointer; font: inherit;
+}
+.mgmt-tab:hover { background: #313244; color: #cdd6f4; }
+.mgmt-tab.active { background: #313244; color: #89b4fa; }
+.mgmt-screen .content { flex: 1; overflow: auto; }
 .welcome-screen p { font-size: 15px; }
 
 /* Active cluster in header */

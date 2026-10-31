@@ -10,6 +10,9 @@
  *       С --fallback-unreleased при отсутствии раздела берётся «## [Unreleased]» (для rc-тегов).
  *   node scripts/changelog.mjs has <версия> [--file путь]
  *       код 0, если раздел версии есть и не пуст
+ *   node scripts/changelog.mjs check [--file путь]
+ *       проверяет структуру: первым идёт [Unreleased], версии не повторяются, у версий есть дата,
+ *       текст и ссылка внизу файла; код 1 при ошибках
  *   node scripts/changelog.mjs roll <версия> [YYYY-MM-DD] [--file путь]
  *       переносит содержимое «## [Unreleased]» в новый раздел версии, оставляет пустой Unreleased
  *       и обновляет ссылки внизу файла; код 1, если в Unreleased нет изменений
@@ -68,11 +71,38 @@ function args(argv) {
 function main() {
   const { positional, flags } = args(process.argv.slice(2))
   const [command, version, date] = positional
-  if (!command || !version) fail('использование: changelog.mjs notes|has|roll <версия> [...]')
-  if (!SEMVER.test(version)) fail(`некорректная версия «${version}» (ожидается X.Y.Z или X.Y.Z-rc.1)`)
+  if (!command) fail('использование: changelog.mjs notes|has|roll <версия> | check')
+  if (command !== 'check') {
+    if (!version) fail('укажите версию')
+    if (!SEMVER.test(version)) fail(`некорректная версия «${version}» (ожидается X.Y.Z или X.Y.Z-rc.1)`)
+  }
 
   const text = readFileSync(flags.file, 'utf8')
   const parsed = parse(text)
+
+  if (command === 'check') {
+    const errors = []
+    if (parsed.sections[0]?.name.toLowerCase() !== 'unreleased') errors.push('первым должен идти раздел [Unreleased]')
+    const refs = new Set(
+      parsed.lines.slice(parsed.linkStart).map((l) => LINKREF.exec(l)?.[1].toLowerCase()).filter(Boolean),
+    )
+    const seen = new Set()
+    for (const section of parsed.sections) {
+      const key = section.name.toLowerCase()
+      if (seen.has(key)) errors.push(`раздел [${section.name}] повторяется`)
+      seen.add(key)
+      if (!refs.has(key)) errors.push(`внизу файла нет ссылки [${section.name}]: ...`)
+      if (key === 'unreleased') continue
+      if (!SEMVER.test(section.name)) errors.push(`некорректная версия в заголовке [${section.name}]`)
+      if (!section.date) errors.push(`у раздела [${section.name}] нет даты (## [${section.name}] - ГГГГ-ММ-ДД)`)
+      if (!bodyOf(parsed, section).length) errors.push(`раздел [${section.name}] пуст`)
+    }
+    if (errors.length) {
+      errors.forEach((e) => console.error(`changelog: ${e}`))
+      process.exit(1)
+    }
+    return
+  }
 
   if (command === 'notes' || command === 'has') {
     const section = find(parsed, version)

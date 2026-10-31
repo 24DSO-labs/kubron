@@ -4,6 +4,9 @@ on:
   push:
     branches: [main, master, dev, refactor]
   pull_request:
+  # release.yml гоняет тот же набор проверок перед сборкой тега
+  workflow_call:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -18,41 +21,93 @@ env:
   GO_TAGS: webkit2_41
 
 jobs:
+  # Правки только в документации пропускают тяжёлые job'ы. Job, пропущенный по `if`,
+  # считается успешным, поэтому required checks остаются зелёными (в отличие от
+  # paths-ignore на уровне workflow, где проверка не отчитывается и PR не вливается).
+  # !cancelled() нужен, чтобы сбой этого job запускал остальные, а не «проходил» их пропуском.
+  changes:
+    name: Changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          # pull_request проверяется на merge-коммите: HEAD^1..HEAD — весь PR целиком
+          fetch-depth: 2
+
+      - name: Diff against the base
+        id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          docs_only='^(docs/|\.github/ISSUE_TEMPLATE/)|\.md$'
+          base=
+          if [[ $EVENT == pull_request ]]; then
+            base=HEAD^1
+          elif [[ $EVENT == push && $REF == refs/heads/* && ! $BEFORE =~ ^0*$ ]] &&
+            git fetch --no-tags --depth=1 origin "$BEFORE"; then
+            base=$BEFORE
+          fi
+          # Теги, вызов из release.yml, ручной запуск и всё, что нельзя сравнить, гоняют всё
+          code=true
+          changed=
+          if [[ -n $base ]] && changed=$(git diff --no-renames --name-only "$base" HEAD) &&
+            [[ -n $changed ]] && ! grep -qvE "$docs_only" <<<"$changed"; then
+            code=false
+          fi
+          printf '%s\n' "$changed"
+          echo "code=$code" | tee -a "$GITHUB_OUTPUT"
+
   dco:
     name: DCO (Signed-off-by)
     if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
+          persist-credentials: false
       - run: scripts/check-dco.sh "origin/${{ github.base_ref }}" "${{ github.event.pull_request.head.sha }}"
 
   headers:
     name: License headers
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
       - run: python3 scripts/license-headers.py
+      - run: node scripts/changelog.mjs check
 
   licenses:
     name: Dependency licenses
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version: stable
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: System libraries (cgo, webkit)
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+      - uses: ./.github/actions/linux-build-deps
 
       - name: Stub frontend/dist
         run: mkdir -p frontend/dist && touch frontend/dist/.keep
@@ -76,16 +131,20 @@ jobs:
 
   go:
     name: Go (build, vet, test)
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version: stable
 
-      - name: System libraries (cgo, webkit)
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+      - uses: ./.github/actions/linux-build-deps
 
       # main.go встраивает frontend/dist (//go:embed): для Go-проверок достаточно заглушки
       - name: Stub frontend/dist
@@ -98,6 +157,10 @@ jobs:
       - run: go build -tags $GO_TAGS ./...
       - run: go test -tags $GO_TAGS ./...
 
+      # Конкурентный код: informer'ы, стримы логов, exec-сессии, RPC-сервер
+      - name: go test -race
+        run: go test -race -tags $GO_TAGS ./internal/...
+
       # pkg/ext и пример внешнего модуля — отдельные Go-модули (go test ./... в корне их не видит)
       - name: pkg/ext
         run: go vet ./... && go test ./...
@@ -109,7 +172,10 @@ jobs:
   # SQL-схема сервиса: применяется и откатывается на настоящем PostgreSQL (задача 3.1a).
   migrations:
     name: SQL migrations (PostgreSQL 16)
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:16
@@ -128,9 +194,11 @@ jobs:
       PGPASSWORD: postgres
       PGDATABASE: postgres
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
       - run: scripts/check-migrations.sh
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
       - name: Integration tests of the PostgreSQL store
@@ -140,40 +208,86 @@ jobs:
           psql -c 'CREATE DATABASE kubron_test'
           go test -race -count=1 ./internal/pgstore/ ./internal/migrate/ ./internal/secretbox/
 
-  lint:
-    name: Go (golangci-lint)
-    runs-on: ubuntu-24.04
+  # Windows-код (ConPTY и т.п.) Linux-job не компилирует
+  windows:
+    name: Go (Windows)
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    runs-on: windows-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
-      - name: System libraries (cgo, webkit)
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+      - run: go vet ./internal/...
+      - run: go build ./internal/...
+
+  # Сообщает, но не блокирует: чужой CVE не должен держать релиз
+  vulncheck:
+    name: Vulnerabilities (govulncheck)
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+      - uses: ./.github/actions/linux-build-deps
       - name: Stub frontend/dist
         run: mkdir -p frontend/dist && touch frontend/dist/.keep
-      - uses: golangci/golangci-lint-action@v9
+      - name: govulncheck
+        continue-on-error: true
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest -tags $GO_TAGS ./...
+
+  lint:
+    name: Go (golangci-lint)
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+      - uses: ./.github/actions/linux-build-deps
+      - name: Stub frontend/dist
+        run: mkdir -p frontend/dist && touch frontend/dist/.keep
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         with:
           version: v2.15
 
   frontend:
     name: Frontend (test, type-check, build)
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version: stable
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: System libraries (cgo, webkit)
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+      - uses: ./.github/actions/linux-build-deps
 
       - name: Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2)
@@ -203,22 +317,26 @@ jobs:
   # Блокирует сборку: gate этапов 1 и 2 (в том числе два пользователя одновременно).
   e2e:
     name: E2E (web, Playwright + kind)
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version: stable
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: System libraries (cgo, webkit)
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+      - uses: ./.github/actions/linux-build-deps
 
       - name: Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2)
@@ -239,7 +357,7 @@ jobs:
         working-directory: frontend
 
       - name: kind cluster
-        uses: helm/kind-action@v1
+        uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1
         with:
           cluster_name: kubron-e2e
 
@@ -277,10 +395,102 @@ jobs:
         if: always()
         run: cat "$RUNNER_TEMP/server.log" || true
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         if: failure()
         with:
           name: playwright-report
           path: |
             frontend/playwright-report
+            frontend/test-results
+
+  # Gate этапа 3: сервисный режим на PostgreSQL. Два пользователя в двух командах не видят кластеры друг друга,
+  # администратор команды управляет составом, администратор организации без членства не читает кластер (docs/e2e.md).
+  e2e-pg:
+    name: E2E (web on PostgreSQL, teams)
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kubron_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: stable
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: ./.github/actions/linux-build-deps
+
+      - name: Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2)
+
+      - run: npm ci
+        working-directory: frontend
+
+      - name: Generate Wails bindings
+        run: |
+          mkdir -p frontend/dist && touch frontend/dist/.keep
+          wails generate module -tags $GO_TAGS
+
+      - name: Build web frontend and server
+        run: |
+          npm run build:web
+          cd .. && go build -tags "$GO_TAGS" -o kubron-server ./cmd/kubron-server
+        working-directory: frontend
+
+      - name: kind cluster
+        uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1
+        with:
+          cluster_name: kubron-e2e-pg
+
+      - name: Export kubeconfig
+        run: kind export kubeconfig --name kubron-e2e-pg --kubeconfig "$RUNNER_TEMP/kind.kubeconfig"
+
+      - name: Start kubron-server on PostgreSQL
+        run: |
+          export KUBRON_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/kubron_e2e?sslmode=disable"
+          export KUBRON_SECRET_KEY="ci1:$(openssl rand -base64 32)"
+          ./kubron-server --listen 127.0.0.1:8081 > "$RUNNER_TEMP/server-pg.log" 2>&1 &
+          for i in $(seq 1 30); do curl -fs http://127.0.0.1:8081/healthz && exit 0; sleep 1; done
+          cat "$RUNNER_TEMP/server-pg.log"; exit 1
+
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+
+      - name: Playwright (teams)
+        run: npx playwright test -c playwright.pg.config.ts
+        working-directory: frontend
+        env:
+          E2E_KUBECONFIG: ${{ runner.temp }}/kind.kubeconfig
+
+      - name: Server log
+        if: always()
+        run: cat "$RUNNER_TEMP/server-pg.log" || true
+
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        if: failure()
+        with:
+          name: playwright-report-pg
+          path: |
+            frontend/playwright-report-pg
             frontend/test-results

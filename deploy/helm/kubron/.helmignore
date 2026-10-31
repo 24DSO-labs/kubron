@@ -1,0 +1,13 @@
+# Всё, что не должно попасть в упакованный чарт
+.DS_Store
+.git/
+.gitignore
+*.swp
+*.bak
+*.tmp
+*.orig
+*~
+.vscode/
+.idea/
+# Наборы values для CI (`helm lint -f`, `helm template -f`) в пакет не входят
+ci/

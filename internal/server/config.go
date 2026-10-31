@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -34,15 +35,35 @@ type Config struct {
 	// TrustProxy — доверять X-Forwarded-Proto от обратного прокси: тогда cookie помечается
 	// Secure (KUBRON_TRUST_PROXY=1). Включайте, только если сервер доступен лишь через прокси.
 	TrustProxy bool
+	// TrustedProxyHops — сколько доверенных прокси стоит перед сервером (KUBRON_TRUSTED_PROXY_HOPS, по умолчанию 1; 0 равносилен 1).
+	// Адрес клиента берётся из X-Forwarded-For справа: клиент = элемент len-hops. Нужен, когда перед
+	// сервером цепочка (балансировщик → ingress). Требует TrustProxy.
+	TrustedProxyHops int
+	// TrustedProxies — адреса доверенных прокси, CIDR или адреса через запятую (KUBRON_TRUSTED_PROXIES).
+	// Если задан, вместо счётчика клиентом считается первый справа адрес вне списка; X-Forwarded-For
+	// от недоверенного собеседника игнорируется. Требует TrustProxy.
+	TrustedProxies []netip.Prefix
+	// CSPReportOnly — отдавать Content-Security-Policy в режиме Report-Only (KUBRON_CSP_REPORT_ONLY=1):
+	// нарушения видны в консоли браузера, но ничего не блокируется. Для обкатки; по умолчанию политика применяется.
+	CSPReportOnly bool
 	// SessionTTL — абсолютный срок жизни веб-сессии (KUBRON_SESSION_TTL, по умолчанию 12h);
 	// простой отслеживает ядро (SetIdleTimeout).
 	SessionTTL time.Duration
+	// ClusterCheckInterval — как часто сервер проверяет соединение с кластерами в фоне
+	// (KUBRON_CLUSTER_CHECK_INTERVAL, по умолчанию 30s; 0 — не проверять).
+	ClusterCheckInterval time.Duration
 	// Лимиты ресурсов на одного пользователя (0 — без ограничения):
 	// KUBRON_MAX_TERMINALS, KUBRON_MAX_LOG_STREAMS, KUBRON_MAX_PORT_FORWARDS.
 	MaxTerminals    int
 	MaxLogStreams   int
 	MaxPortForwards int
 }
+
+// Фоновая проверка кластеров: интервал по умолчанию и нижняя граница (чаще — лишняя нагрузка на API-серверы).
+const (
+	DefaultClusterCheckInterval = 30 * time.Second
+	MinClusterCheckInterval     = 5 * time.Second
+)
 
 // Лимиты ресурсов на пользователя по умолчанию (ADR-0005).
 const (
@@ -53,7 +74,7 @@ const (
 
 // LoadConfig разбирает флаги args (без имени программы) и окружение через getenv.
 func LoadConfig(args []string, getenv func(string) string, out io.Writer) (Config, error) {
-	cfg := Config{Listen: "127.0.0.1:8080", SessionTTL: 12 * time.Hour,
+	cfg := Config{Listen: "127.0.0.1:8080", SessionTTL: 12 * time.Hour, ClusterCheckInterval: DefaultClusterCheckInterval, TrustedProxyHops: 1,
 		MaxTerminals: DefaultMaxTerminals, MaxLogStreams: DefaultMaxLogStreams, MaxPortForwards: DefaultMaxPortForwards}
 	if v := getenv("KUBRON_LISTEN"); v != "" {
 		cfg.Listen = v
@@ -61,6 +82,15 @@ func LoadConfig(args []string, getenv func(string) string, out io.Writer) (Confi
 	cfg.AllowRemote = truthy(getenv("KUBRON_ALLOW_REMOTE"))
 	cfg.DataDir = getenv("KUBRON_DATA_DIR")
 	cfg.TrustProxy = truthy(getenv("KUBRON_TRUST_PROXY"))
+	cfg.CSPReportOnly = truthy(getenv("KUBRON_CSP_REPORT_ONLY"))
+	if v := getenv("KUBRON_TRUSTED_PROXY_HOPS"); v != "" {
+		n, err := strconv.Atoi(strings.TrimSpace(v))
+		if err != nil {
+			return Config{}, fmt.Errorf("KUBRON_TRUSTED_PROXY_HOPS %q: %w", v, err)
+		}
+		cfg.TrustedProxyHops = n
+	}
+	trusted := getenv("KUBRON_TRUSTED_PROXIES")
 	cfg.DatabaseURL = getenv("KUBRON_DATABASE_URL")
 	cfg.SecretKey = strings.TrimSpace(getenv("KUBRON_SECRET_KEY"))
 	for _, k := range strings.Split(getenv("KUBRON_SECRET_KEY_PREVIOUS"), ",") {
@@ -74,6 +104,13 @@ func LoadConfig(args []string, getenv func(string) string, out io.Writer) (Confi
 			return Config{}, fmt.Errorf("KUBRON_SESSION_TTL %q: %w", v, err)
 		}
 		cfg.SessionTTL = d
+	}
+	if v := getenv("KUBRON_CLUSTER_CHECK_INTERVAL"); v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("KUBRON_CLUSTER_CHECK_INTERVAL %q: %w", v, err)
+		}
+		cfg.ClusterCheckInterval = d
 	}
 
 	for _, l := range []struct {
@@ -103,13 +140,26 @@ func LoadConfig(args []string, getenv func(string) string, out io.Writer) (Confi
 		"PostgreSQL URL; empty means file storage in the data directory (env KUBRON_DATABASE_URL, preferred: arguments are visible in the process list)")
 	fs.BoolVar(&cfg.TrustProxy, "trust-proxy", cfg.TrustProxy,
 		"trust X-Forwarded-Proto from a reverse proxy, set Secure on cookies (env KUBRON_TRUST_PROXY)")
+	fs.IntVar(&cfg.TrustedProxyHops, "trusted-proxy-hops", cfg.TrustedProxyHops,
+		"number of trusted reverse proxies in front of the server, the client address is taken from the right of X-Forwarded-For (env KUBRON_TRUSTED_PROXY_HOPS)")
+	fs.StringVar(&trusted, "trusted-proxies", trusted,
+		"comma-separated CIDRs or addresses of trusted reverse proxies, replaces trusted-proxy-hops (env KUBRON_TRUSTED_PROXIES)")
+	fs.BoolVar(&cfg.CSPReportOnly, "csp-report-only", cfg.CSPReportOnly,
+		"send Content-Security-Policy as Report-Only: violations are logged by the browser, nothing is blocked (env KUBRON_CSP_REPORT_ONLY)")
 	fs.DurationVar(&cfg.SessionTTL, "session-ttl", cfg.SessionTTL, "web session lifetime (env KUBRON_SESSION_TTL)")
+	fs.DurationVar(&cfg.ClusterCheckInterval, "cluster-check-interval", cfg.ClusterCheckInterval,
+		"how often cluster connectivity is checked in the background, 0 disables (env KUBRON_CLUSTER_CHECK_INTERVAL)")
 	fs.IntVar(&cfg.MaxTerminals, "max-terminals", cfg.MaxTerminals, "terminals per user, 0 for unlimited (env KUBRON_MAX_TERMINALS)")
 	fs.IntVar(&cfg.MaxLogStreams, "max-log-streams", cfg.MaxLogStreams, "log streams per user, 0 for unlimited (env KUBRON_MAX_LOG_STREAMS)")
 	fs.IntVar(&cfg.MaxPortForwards, "max-port-forwards", cfg.MaxPortForwards, "port-forwards per user, 0 for unlimited (env KUBRON_MAX_PORT_FORWARDS)")
 	if err := fs.Parse(args); err != nil {
 		return Config{}, err
 	}
+	proxies, err := ParseTrustedProxies(trusted)
+	if err != nil {
+		return Config{}, fmt.Errorf("KUBRON_TRUSTED_PROXIES %q: %w", trusted, err)
+	}
+	cfg.TrustedProxies = proxies
 	return cfg, cfg.Validate()
 }
 
@@ -125,6 +175,16 @@ func truthy(s string) bool {
 func (c Config) Validate() error {
 	if c.SessionTTL <= 0 {
 		return errors.New("session lifetime must be positive")
+	}
+	if c.TrustedProxyHops < 0 {
+		return errors.New("trusted proxy hops cannot be negative")
+	}
+	// Без доверия к прокси X-Forwarded-For игнорируется: настройка молча не работала бы
+	if !c.TrustProxy && (len(c.TrustedProxies) > 0 || c.TrustedProxyHops > 1) {
+		return errors.New("trusted proxies and hops are used only together with trust-proxy (KUBRON_TRUST_PROXY=1)")
+	}
+	if c.ClusterCheckInterval != 0 && c.ClusterCheckInterval < MinClusterCheckInterval {
+		return errors.New("cluster check interval must be 0 (off) or at least 5s")
 	}
 	if c.MaxTerminals < 0 || c.MaxLogStreams < 0 || c.MaxPortForwards < 0 {
 		return errors.New("resource limits cannot be negative (0 means unlimited)")

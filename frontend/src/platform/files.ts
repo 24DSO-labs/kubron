@@ -36,3 +36,18 @@ export function pickTextFile(accept = '', maxBytes = 1 << 20): Promise<string | 
     input.click()
   })
 }
+
+/**
+ * Сохраняет текст файлом через браузер (ссылка на Blob). Нужен вебу; в десктопе (Wails) такая загрузка не
+ * показывает диалог сохранения, поэтому там выгрузки не предлагаются (см. capabilities.teams).
+ */
+export function downloadTextFile(name: string, content: string, mime = 'text/plain'): void {
+  const url = URL.createObjectURL(new Blob([content], { type: `${mime};charset=utf-8` }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}

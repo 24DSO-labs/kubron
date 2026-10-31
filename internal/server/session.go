@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"net/http"
+	"net/netip"
 	"sync"
 	"time"
 
@@ -151,6 +152,22 @@ func (s *Sessions) Reap(alive func(view any) bool) int {
 	return len(ended)
 }
 
+// Views возвращает виды живых сессий. Фоновые проверки обходят их вне блокировки реестра: проверка прав
+// и закрытие ресурсов сессии не должны задерживать вход и выход остальных.
+func (s *Sessions) Views() []any {
+	s.mu.Lock()
+	ended := s.sweepLocked()
+	out := make([]any, 0, len(s.items))
+	for _, it := range s.items {
+		if it.View != nil {
+			out = append(out, it.View)
+		}
+	}
+	s.mu.Unlock()
+	s.notify(ended)
+	return out
+}
+
 // Len — число живых сессий (для тестов и метрик).
 func (s *Sessions) Len() int {
 	s.mu.Lock()
@@ -188,6 +205,13 @@ type Guard struct {
 	Sessions *Sessions
 	// TrustProxy: доверять X-Forwarded-Proto от обратного прокси (TLS завершается на нём).
 	TrustProxy bool
+	// TrustedProxyHops — сколько доверенных прокси стоит перед сервером (по умолчанию 1): адрес клиента
+	// берётся из X-Forwarded-For справа, а не слева (левые элементы подделывает клиент).
+	TrustedProxyHops int
+	// TrustedProxies — адреса доверенных прокси; если задан, вместо счётчика используется он (clientip.go).
+	TrustedProxies []netip.Prefix
+	// AnonLimiter — ограничение частоты запросов без сессии по адресу клиента; nil — без ограничения.
+	AnonLimiter *RateLimiter
 	// Hub — WebSocket-хаб событий; nil отключает /api/ws.
 	Hub *Hub
 	// Terminals — реестр веб-терминалов; nil отключает /api/terminal/{id}.
@@ -209,8 +233,14 @@ func (g *Guard) CloseSession(sessionID string) {
 	g.termConns.closeSession(sessionID)
 }
 
-func (g *Guard) secure(r *http.Request) bool {
-	return r.TLS != nil || (g.TrustProxy && r.Header.Get("X-Forwarded-Proto") == "https")
+func (g *Guard) secure(r *http.Request) bool { return isSecure(r, g.TrustProxy) }
+
+// clientIP — адрес клиента для журнала и блокировки перебора паролей (см. ProxyTrust).
+func (g *Guard) clientIP(r *http.Request) string {
+	if g == nil {
+		return remoteHost(r)
+	}
+	return ProxyTrust{Enabled: g.TrustProxy, Hops: g.TrustedProxyHops, CIDRs: g.TrustedProxies}.ClientIP(r)
 }
 
 func (g *Guard) token(r *http.Request) string {

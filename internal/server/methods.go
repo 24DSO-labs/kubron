@@ -9,6 +9,20 @@ package server
 // или в deniedMethods (см. TestEveryAppMethodIsClassified). Каждый метод по-прежнему сам
 // проверяет права через authz.
 var allowedMethods = []string{
+	"ExportAuditLog",
+	"AddClusterToTeam",
+	"AddOIDCClusterToTeam",
+	"AddInClusterToTeam",
+	"SetClusterOIDCCredentials",
+	"CreateTeam",
+	"DeleteTeam",
+	"ListTeamMembers",
+	"ListTeamUsers",
+	"ListTeams",
+	"MoveCluster",
+	"RemoveTeamMember",
+	"RenameTeam",
+	"SetTeamMember",
 	"AddClusterFromText",
 	"AddHelmOCIChart",
 	"AddHelmOCIRepo",

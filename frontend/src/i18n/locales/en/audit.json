@@ -13,7 +13,11 @@
     "anyResult": "Any result",
     "period": "Period",
     "limit": "Number of records",
-    "show": "Show {n}"
+    "show": "Show {n}",
+    "team": "Team",
+    "anyTeam": "Any team",
+    "cluster": "Cluster",
+    "anyCluster": "Any cluster"
   },
   "periods": {
     "all": "All time",
@@ -29,7 +33,8 @@
     "user": "User",
     "action": "Action",
     "result": "Result",
-    "detail": "Details"
+    "detail": "Details",
+    "scope": "Team / cluster"
   },
   "truncated": "Showing the latest {n} records. Narrow the filter or period to see the rest.",
   "results": {
@@ -86,6 +91,20 @@
     "SuspendArgoAutoSync": "Argo CD: auto-sync disabled",
     "ResumeArgoAutoSync": "Argo CD: auto-sync enabled",
     "DeleteArgoApplication": "Argo CD: application deleted",
-    "GetHelmReleaseContent": "Helm: release values / manifest viewed"
+    "GetHelmReleaseContent": "Helm: release values / manifest viewed",
+    "CreateTeam": "Team creation",
+    "RenameTeam": "Team rename",
+    "DeleteTeam": "Team deletion",
+    "SetTeamMember": "Team member added / role changed",
+    "RemoveTeamMember": "Team member removed",
+    "AddClusterToTeam": "Cluster added to a team",
+    "MoveCluster": "Cluster moved to another team",
+    "ExportAuditLog": "Audit log export"
+  },
+  "export": {
+    "csv": "Export CSV",
+    "json": "Export JSON",
+    "done": "Exported {n} records",
+    "doneTruncated": "Exported the latest {n} records; narrow the filter to get the rest"
   }
 }

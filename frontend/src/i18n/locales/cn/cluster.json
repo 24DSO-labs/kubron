@@ -1,0 +1,103 @@
+{
+  "connectionError": "连接错误：{message}",
+  "errorPrefix": "错误：{message}",
+  "pickKubeconfigTitle": "选择 kubeconfig 文件",
+  "deleteConfirm": "删除集群 \"{name}\"？其 kubeconfig 将从 Kubron 中移除。",
+  "bar": {
+    "label": "集群",
+    "add": "添加集群",
+    "edit": "编辑…",
+    "delete": "删除…"
+  },
+  "glyph": {
+    "server": "服务器",
+    "cloud": "云",
+    "database": "数据",
+    "shield": "盾牌",
+    "flask": "实验室",
+    "cube": "立方体"
+  },
+  "env": {
+    "none": "未设置",
+    "dev": "开发",
+    "test": "测试",
+    "stage": "预发",
+    "prod": "生产"
+  },
+  "dialog": {
+    "newTitle": "新建集群",
+    "untitled": "未命名",
+    "addSubtitle": "向 Kubron 添加集群",
+    "sectionMain": "常规",
+    "sectionConnection": "连接",
+    "sectionAppearance": "外观",
+    "name": "名称",
+    "namePlaceholder": "例如：Production EU",
+    "kubeconfigSource": "Kubeconfig 来源",
+    "methodFile": "文件",
+    "methodText": "粘贴文本",
+    "chooseFile": "选择 kubeconfig…",
+    "chooseOther": "选择其他…",
+    "noFile": "未选择文件",
+    "kubeconfigText": "Kubeconfig 文本",
+    "textHint": "内容将存储在 Kubron 目录中，仅您可读。",
+    "submit": "添加集群",
+    "uploadFromFile": "从文件上传…",
+    "sectionTeam": "所有者",
+    "team": "团队",
+    "teamHint": "集群属于此团队；其成员根据角色获得访问权限。",
+    "noAdminTeams": "您不是任何团队的管理员，因此无法添加集群。请联系组织管理员。",
+    "methodInCluster": "本服务器所在的集群",
+    "inClusterHint": "添加 Kubron 服务器自身运行的集群。访问使用服务器的 ServiceAccount，因此团队中拥有角色的所有人都会获得相应权限。",
+    "oidcHint": "此 kubeconfig 通过 oidc-login 登录。服务器无法运行它，因此将使用下方的登录名和密码自行向身份提供商登录，并自动续订令牌。",
+    "oidcUser": "登录名",
+    "oidcPassword": "密码",
+    "oidcStored": "密码以加密方式存储，之后不再显示。您可以稍后在集群设置中更改。",
+    "authCodeUnsupported": "此 kubeconfig 通过浏览器登录（oidc-login、authcode）。这在服务器上无法工作。请使用带 password 授权、令牌或客户端证书的 kubeconfig。",
+    "execForbidden": "此 kubeconfig 通过外部命令获取凭证（exec）。服务器不允许此操作。请使用令牌或客户端证书。"
+  },
+  "edit": {
+    "kubeconfig": "Kubeconfig",
+    "replaceWithFile": "用文件替换…",
+    "editText": "编辑文本",
+    "revert": "还原",
+    "textWarning": "文本包含集群凭证。请勿向他人展示屏幕。",
+    "stateFile": "将使用所选文件替换",
+    "stateDirty": "已手动编辑。点击“保存”后生效",
+    "stateText": "正在编辑文本：尚无更改",
+    "stateKeep": "已存储在 Kubron 中",
+    "deleteCluster": "删除集群",
+    "oidcTitle": "登录身份提供商",
+    "oidcHint": "服务器使用此登录名和密码向身份提供商登录。如果密码已在提供商处更改，请输入新密码：保存前会进行验证。",
+    "oidcUpdate": "更新登录名和密码",
+    "oidcUpdated": "登录名和密码已更新。"
+  },
+  "appearance": {
+    "environment": "环境",
+    "prodHint": "生产集群：打开时应用头部会显示红线，以免与其他集群混淆。",
+    "glyph": "图标",
+    "monogram": "名称首字母",
+    "color": "颜色",
+    "customColor": "自定义颜色"
+  },
+  "connection": {
+    "context": "上下文",
+    "defaultSuffix": "（默认）",
+    "namespace": "默认命名空间",
+    "allNamespaces": "所有命名空间",
+    "namespaceInvalid": "仅限小写拉丁字母、数字和连字符；最多 63 个字符。",
+    "namespaceAuto": "连接集群时自动选择。",
+    "testing": "检查中…",
+    "test": "测试连接",
+    "reachable": "可达 · {version} · {latency} 毫秒",
+    "failed": "无法连接"
+  },
+  "accessRevoked": "您不再有权访问集群 \"{name}\"。其终端、日志流和端口转发已关闭。",
+  "health": {
+    "ok": "可用",
+    "unreachable": "不可达",
+    "unauthorized": "凭证被拒绝",
+    "misconfigured": "配置错误",
+    "unknown": "未检查"
+  }
+}

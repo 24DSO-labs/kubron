@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-31
+
+### Added
+
+- **Deploy:** `Dockerfile` for kubron-server (distroless, non-root, read-only rootfs) and the Helm chart
+  `deploy/helm/kubron` (Deployment, Service, Ingress, NetworkPolicy, PodDisruptionBudget, optional
+  read-only RBAC for in-cluster mode). Guide: `docs/deploy.md`. Single replica only until HA.
+
+### Security
+
+- **HTTP:** `kubron-server` now sends `Content-Security-Policy` (scripts `'self'`, no `unsafe-inline`/`unsafe-eval`),
+  `Strict-Transport-Security` (secure non-loopback requests only), `Permissions-Policy`, COOP and CORP.
+  `KUBRON_CSP_REPORT_ONLY=1` switches the policy to report-only. See `docs/http-security.md`.
+- **Rate limit:** the client address behind a proxy is read from the right of `X-Forwarded-For`
+  (`KUBRON_TRUSTED_PROXY_HOPS`, `KUBRON_TRUSTED_PROXIES`); IPv6 is keyed by /64; a flood of unique logins or
+  addresses no longer wipes active lockouts; `ChangePassword` guessing is limited; anonymous RPC calls get a
+  per-address token bucket (`429` with `Retry-After`).
+
 ## [0.3.0] - 2026-10-29
 
 ### Added
@@ -16,8 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Helm: fixed issues #37 and #38.
-
-## [0.2.0] - 2026-10-29
 
 ## [0.2.0] - 2026-10-29
 
@@ -69,7 +85,8 @@ First public release.
 - Experimental web mode (`cmd/kubron-server`): several concurrent sessions, per-session
   cluster managers with per-user resource limits, idle informers released after a TTL.
 
-[Unreleased]: https://github.com/VadimIl224/kubron/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/VadimIl224/kubron/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/VadimIl224/kubron/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/VadimIl224/kubron/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/VadimIl224/kubron/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/VadimIl224/kubron/releases/tag/v0.1.0

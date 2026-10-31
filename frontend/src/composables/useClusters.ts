@@ -3,7 +3,7 @@
 
 import { ref } from 'vue'
 import type {
-  ClusterMeta, ClusterSettings, ClusterStatus, ClusterUpdateResult, KubeconfigSource, Outcome,
+  ClusterMeta, ClusterSettings, ClusterStatus, ClusterUpdateResult, KubeconfigSource, OIDCCredentials, Outcome,
 } from '../types'
 import { askConfirm } from '../resources/confirm'
 import { errorText } from './errorText'
@@ -17,7 +17,7 @@ const clusterError = ref('')
 
 async function loadClusters() {
   try {
-    clusters.value = await callApp('GetClusterStatuses') || []
+    clusters.value = ((await callApp('GetClusterStatuses')) as ClusterStatus[]) || []
   } catch (e: any) {
     clusters.value = []
   }
@@ -57,10 +57,30 @@ async function addClusterFromFile(path: string, settings: ClusterSettings): Prom
   }
 }
 
-async function addClusterFromText(text: string, settings: ClusterSettings): Promise<Outcome<ClusterMeta>> {
+async function addClusterFromText(text: string, settings: ClusterSettings, teamId?: string, oidc?: OIDCCredentials): Promise<Outcome<ClusterMeta>> {
   try {
     clusterError.value = ''
-    const cluster = await callApp('AddClusterFromText', text, settings)
+    // В сервисном режиме кластер добавляется в выбранную команду
+    let cluster: ClusterMeta
+    if (teamId) {
+      cluster = oidc
+        ? await callApp('AddOIDCClusterToTeam', teamId, text, settings, oidc)
+        : await callApp('AddClusterToTeam', teamId, text, settings)
+    } else {
+      cluster = await callApp('AddClusterFromText', text, settings)
+    }
+    await loadClusters()
+    return { ok: true, value: cluster }
+  } catch (e) {
+    clusterError.value = errorText(e)
+    return { ok: false, error: clusterError.value }
+  }
+}
+
+async function addInCluster(settings: ClusterSettings, teamId: string): Promise<Outcome<ClusterMeta>> {
+  try {
+    clusterError.value = ''
+    const cluster = await callApp('AddInClusterToTeam', teamId, settings)
     await loadClusters()
     return { ok: true, value: cluster }
   } catch (e) {
@@ -123,6 +143,7 @@ export function useClusters() {
     pickKubeconfigFile,
     addClusterFromFile,
     addClusterFromText,
+    addInCluster,
     deleteCluster,
     updateCluster,
     autoConnect,

@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VadimIl224/kubron/internal/auth"
+	"github.com/VadimIl224/kubron/internal/clusterhealth"
 	"github.com/VadimIl224/kubron/internal/secretbox"
 	"github.com/VadimIl224/kubron/pkg/ext"
 )
@@ -489,4 +491,318 @@ func TestAccessSnapshotIsCachedAndInvalidated(t *testing.T) {
 	if _, ok := acc.ClusterTeam("c1"); ok {
 		t.Error("после сброса кэша кластера быть не должно")
 	}
+}
+
+func TestDirectory(t *testing.T) {
+	s := newTestStore(t, keyString("k1"))
+	zero := time.Duration(0)
+	s.accessTTLOverride = &zero
+	dir, acc := s.Directory(), s.Access()
+	now := time.Now()
+	if err := s.Users().Save(&ext.UserData{Users: []ext.UserRecord{
+		{ID: "adm", Username: "admin", Role: "admin", CreatedAt: now},
+		{ID: "bob", Username: "bob", Role: "user", CreatedAt: now},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+
+	teams, err := dir.Teams()
+	if err != nil || len(teams) != 1 || teams[0].Name != DefaultName || teams[0].Members != 2 || dir.DefaultTeam() != teams[0].ID {
+		t.Fatalf("%+v %v", teams, err)
+	}
+	blue, err := dir.CreateTeam("  Blue ")
+	if err != nil || blue.Name != "Blue" {
+		t.Fatalf("%+v %v", blue, err)
+	}
+	if _, err := dir.CreateTeam("Blue"); !errors.Is(err, ErrConflict) {
+		t.Errorf("точный повтор имени: %v", err)
+	}
+	if _, err := dir.CreateTeam("   "); err == nil {
+		t.Error("пустое имя")
+	}
+	if err := dir.RenameTeam(blue.ID, "Azure"); err != nil {
+		t.Fatal(err)
+	}
+	if err := dir.RenameTeam("nope", "X"); !errors.Is(err, auth.ErrTeamNotFound) {
+		t.Errorf("%v", err)
+	}
+
+	// Участники.
+	if err := dir.SetMember(blue.ID, "bob", "operator"); err != nil {
+		t.Fatal(err)
+	}
+	if err := dir.SetMember(blue.ID, "bob", "admin"); err != nil { // смена роли
+		t.Fatal(err)
+	}
+	if r, ok := acc.TeamRole("bob", blue.ID); !ok || r != "admin" {
+		t.Errorf("доступ сразу после изменения: %q %v", r, ok)
+	}
+	if err := dir.SetMember(blue.ID, "ghost", "user"); !errors.Is(err, auth.ErrTeamNotFound) {
+		t.Errorf("несуществующий пользователь: %v", err)
+	}
+	if err := dir.SetMember(blue.ID, "bob", "root"); !errors.Is(err, auth.ErrUnknownRole) {
+		t.Errorf("неизвестная роль: %v", err)
+	}
+	ms, err := dir.Members(blue.ID)
+	if err != nil || len(ms) != 1 || ms[0].Username != "bob" || ms[0].Role != "admin" {
+		t.Fatalf("%+v %v", ms, err)
+	}
+	if _, err := dir.Members("nope"); !errors.Is(err, auth.ErrTeamNotFound) {
+		t.Errorf("%v", err)
+	}
+
+	// Передача кластера и удаление команды.
+	saveCluster(t, s, "c1", "C1", []byte("kc"))
+	if err := dir.MoveCluster("c1", blue.ID); err != nil {
+		t.Fatal(err)
+	}
+	if team, _ := acc.ClusterTeam("c1"); team != blue.ID {
+		t.Errorf("владелец после передачи: %q", team)
+	}
+	if err := dir.MoveCluster("c1", "nope"); !errors.Is(err, auth.ErrTeamNotFound) {
+		t.Errorf("%v", err)
+	}
+	if err := dir.MoveCluster("nope", blue.ID); !errors.Is(err, ErrClusterNotFound) {
+		t.Errorf("%v", err)
+	}
+	saveCluster(t, s, "c2", "C1", []byte("kc")) // то же имя, но в Default — допустимо
+	if err := dir.MoveCluster("c2", blue.ID); !errors.Is(err, ErrConflict) {
+		t.Errorf("одноимённый кластер в целевой команде: %v", err)
+	}
+	if err := dir.DeleteTeam(blue.ID); !errors.Is(err, ErrTeamNotEmpty) {
+		t.Errorf("команда с кластерами: %v", err)
+	}
+	if err := dir.DeleteTeam(dir.DefaultTeam()); !errors.Is(err, ErrDefaultTeam) {
+		t.Errorf("команда по умолчанию: %v", err)
+	}
+	_ = s.Clusters().Delete("c1")
+	if err := dir.RemoveMember(blue.ID, "bob"); err != nil {
+		t.Fatal(err)
+	}
+	if err := dir.DeleteTeam(blue.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := dir.DeleteTeam(blue.ID); !errors.Is(err, auth.ErrTeamNotFound) {
+		t.Errorf("повторное удаление: %v", err)
+	}
+}
+
+func TestAuditKeepsTeamAndClusterContext(t *testing.T) {
+	s := newTestStore(t, keyString("k1"))
+	a := s.Audit()
+	if err := a.Append([]byte(`{"time":"2026-10-30T01:00:00Z","user":"u","action":"DeletePod","result":"ok","teamId":"t1","clusterId":"c1","source":"10.0.0.7"}`)); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.Append([]byte(`{"time":"2026-10-30T02:00:00Z","user":"u","action":"Login","result":"ok"}`)); err != nil {
+		t.Fatal(err)
+	}
+	var got []map[string]any
+	_ = a.ScanNewestFirst(func(line []byte) bool {
+		var m map[string]any
+		_ = json.Unmarshal(line, &m)
+		got = append(got, m)
+		return true
+	})
+	if len(got) != 2 || got[0]["action"] != "Login" || got[0]["teamId"] != nil {
+		t.Fatalf("%+v", got)
+	}
+	if got[1]["teamId"] != "t1" || got[1]["clusterId"] != "c1" || got[1]["source"] != "10.0.0.7" {
+		t.Errorf("контекст потерян: %+v", got[1])
+	}
+}
+
+func TestHealthSaveLoadAndCascade(t *testing.T) {
+	s := newTestStore(t, keyString("k1"))
+	ctx := context.Background()
+	saveCluster(t, s, "c1", "One", []byte("kc"))
+	h := s.Health()
+
+	at := time.Now().UTC().Truncate(time.Millisecond)
+	if err := h.Save(ctx, "c1", clusterhealth.Health{State: clusterhealth.Unreachable, Message: "i/o timeout", LatencyMs: 12, CheckedAt: at}); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.Save(ctx, "c1", clusterhealth.Health{State: clusterhealth.OK, LatencyMs: 3, CheckedAt: at}); err != nil { // обновление той же записи
+		t.Fatal(err)
+	}
+	// проверка удалённого или неизвестного кластера не создаёт строку и не падает
+	if err := h.Save(ctx, "ghost", clusterhealth.Health{State: clusterhealth.OK}); err != nil {
+		t.Fatalf("a check that finished after the cluster was deleted is not an error: %v", err)
+	}
+	if err := h.Save(ctx, "c1", clusterhealth.Health{State: "bogus"}); err == nil {
+		t.Fatal("unknown state must be rejected by the schema")
+	}
+
+	all, err := h.Load(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all) != 1 || all["c1"].State != clusterhealth.OK || all["c1"].Message != "" || all["c1"].LatencyMs != 3 || !all["c1"].CheckedAt.Equal(at) {
+		t.Fatalf("got %+v", all)
+	}
+
+	if err := s.Clusters().Delete("c1"); err != nil {
+		t.Fatal(err)
+	}
+	if all, _ := h.Load(ctx); len(all) != 0 {
+		t.Fatalf("health must disappear with the cluster: %+v", all)
+	}
+}
+
+func TestLeaderIsExclusiveAndFailsOver(t *testing.T) {
+	a := newTestStore(t, keyString("k1"))
+	// вторая «реплика»: свой пул к той же БД
+	b, err := Open(context.Background(), os.Getenv("KUBRON_TEST_DATABASE_URL"), a.keys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(b.Close)
+	ctx := context.Background()
+	la, lb := a.Leader(LeaderKey), b.Leader(LeaderKey)
+
+	if !la.Acquire(ctx) {
+		t.Fatal("the first replica must become the leader")
+	}
+	if !la.Acquire(ctx) {
+		t.Fatal("the leader stays the leader on the next tick")
+	}
+	if lb.Acquire(ctx) {
+		t.Fatal("two leaders at the same time")
+	}
+	la.Release()
+	la.Release() // повторный вызов безопасен
+	if !lb.Acquire(ctx) {
+		t.Fatal("after release the other replica must take over")
+	}
+	lb.Release()
+}
+
+func TestLeaderLockDropsWithTheConnection(t *testing.T) {
+	a := newTestStore(t, keyString("k1"))
+	b, err := Open(context.Background(), os.Getenv("KUBRON_TEST_DATABASE_URL"), a.keys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(b.Close)
+	ctx := context.Background()
+	la, lb := a.Leader(LeaderKey), b.Leader(LeaderKey)
+	if !la.Acquire(ctx) {
+		t.Fatal("no leadership")
+	}
+	// реплика упала: её соединение закрыто, блокировку снимает сервер
+	la.mu.Lock()
+	_ = la.conn.Conn().Close(ctx)
+	la.mu.Unlock()
+	deadline := time.Now().Add(5 * time.Second)
+	for !lb.Acquire(ctx) {
+		if time.Now().After(deadline) {
+			t.Fatal("the lock was not released after the leader connection died")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	// упавший лидер сам замечает потерю и не считает себя лидером
+	if la.Acquire(ctx) {
+		t.Fatal("the old leader must not reclaim a lock held by another replica")
+	}
+	lb.Release()
+}
+
+func TestClusterSecretIsEncryptedSeparatelyAndSurvivesUpdates(t *testing.T) {
+	s := newTestStore(t, keyString("k1"))
+	ctx := context.Background()
+	c := s.Clusters()
+	cl := &Cluster{ID: "oidc", DisplayName: "OIDC", Mode: "oidc-password"}
+	secret := []byte(`{"username":"vasya","password":"s3cret-pass-word"}`)
+	if err := c.SaveWithSecret(cl, []byte("kubeconfig-body"), secret); err != nil {
+		t.Fatal(err)
+	}
+
+	var raw []byte
+	if err := s.pool.QueryRow(ctx, `SELECT secret_enc FROM clusters WHERE id='oidc'`).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(raw, []byte("s3cret-pass-word")) || bytes.Contains(raw, []byte("vasya")) {
+		t.Fatal("the secret is stored in plain text")
+	}
+	if got, err := c.Secret("oidc"); err != nil || !bytes.Equal(got, secret) {
+		t.Fatalf("got %q, %v", got, err)
+	}
+
+	// Обновление настроек и замена kubeconfig не трогают секрет
+	if err := c.Save(&Cluster{ID: "oidc", DisplayName: "Renamed", Mode: "oidc-password"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Save(&Cluster{ID: "oidc", DisplayName: "Renamed", Mode: "oidc-password"}, []byte("kubeconfig-2")); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := c.Secret("oidc"); !bytes.Equal(got, secret) {
+		t.Fatalf("the secret changed after a plain update: %q", got)
+	}
+	// Явная замена секрета
+	if err := c.SaveWithSecret(&Cluster{ID: "oidc", DisplayName: "Renamed", Mode: "oidc-password"}, nil, []byte("new")); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := c.Secret("oidc"); string(got) != "new" {
+		t.Fatalf("got %q", got)
+	}
+	if b, _ := c.Kubeconfig("oidc"); string(b) != "kubeconfig-2" {
+		t.Fatalf("kubeconfig must stay: %q", b)
+	}
+
+	// Подмена шифротекста секрета другим кластером не расшифровывается (AAD привязан к id)
+	saveCluster(t, s, "other", "Other", []byte("kc"))
+	if _, err := s.pool.Exec(ctx, `UPDATE clusters SET secret_enc=(SELECT secret_enc FROM clusters WHERE id='oidc'),
+		secret_key_id=(SELECT secret_key_id FROM clusters WHERE id='oidc') WHERE id='other'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Secret("other"); err == nil {
+		t.Fatal("a secret copied to another cluster must not decrypt")
+	}
+	if _, err := c.Secret("missing"); !errors.Is(err, ErrClusterNotFound) {
+		t.Fatalf("got %v", err)
+	}
+	if got, err := s.Clusters().Secret("oidc"); err != nil || got == nil {
+		t.Fatal(err)
+	}
+}
+
+func TestInClusterModeWithoutKubeconfigAndSecretRekey(t *testing.T) {
+	oldK := keyString("old")
+	s := newTestStore(t, oldK)
+	ctx := context.Background()
+	if err := s.Clusters().SaveWithSecret(&Cluster{ID: "o", DisplayName: "O", Mode: "oidc-password"}, []byte("kc"), []byte("pw")); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Clusters().Save(&Cluster{ID: "self", DisplayName: "Self", Mode: "in-cluster"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if sec, err := s.Clusters().Secret("self"); err != nil || sec != nil {
+		t.Fatalf("a cluster without a secret returns nil, got %q %v", sec, err)
+	}
+
+	n, err := Open(ctx, os.Getenv("KUBRON_TEST_DATABASE_URL"), mustKeyring(t, keyString("new"), oldK))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(n.Close)
+	n.orgID, n.teamID = s.orgID, s.teamID
+	rep, err := n.Rekey(ctx)
+	if err != nil || rep.Secrets != 1 || rep.Clusters != 1 {
+		t.Fatalf("%+v %v", rep, err)
+	}
+	if got, err := n.Clusters().Secret("o"); err != nil || string(got) != "pw" {
+		t.Fatalf("got %q %v", got, err)
+	}
+	var kid string
+	if err := n.pool.QueryRow(ctx, `SELECT secret_key_id FROM clusters WHERE id='o'`).Scan(&kid); err != nil || kid != "new" {
+		t.Fatalf("secret must move to the current key: %q %v", kid, err)
+	}
+}
+
+func mustKeyring(t *testing.T, cur string, prev ...string) *secretbox.Keyring {
+	t.Helper()
+	k, err := secretbox.ParseKeyring(cur, prev...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return k
 }
