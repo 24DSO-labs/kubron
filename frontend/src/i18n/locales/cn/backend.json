@@ -510,6 +510,9 @@
   "trustedProxyHopsCannotBeNegative": "可信代理数量不能为负数",
   "trustedProxiesAndHopsAreUsed": "可信代理及其数量仅与 trust-proxy 一起生效 (KUBRON_TRUST_PROXY=1)",
   "tooManyRequestsTryAgainIn": "请求过多，请在 {p0} 秒后重试",
+
+  "webSessionNotFound": "未找到 Web 会话",
+  "sessionStoreIsUnavailable": "会话存储不可用"
   "kubronDrainDelay": "KUBRON_DRAIN_DELAY {p0}: {p1}",
   "drainDelayMustBeBetween0And": "排空延迟必须在 0 到 60 秒之间",
   "replicaIdMustBe1To63": "副本标识长度必须为 1 到 63 个字符",
@@ -532,4 +535,5 @@
   "kubronPfSchemeMustBeHttpsOrHttp": "KUBRON_PF_SCHEME 必须为 https 或 http",
   "portForwardTimeoutsCannotBeNegative": "port-forward 超时不能为负数",
   "kubronPfSchemeHttpIsAllowedOnlyForALocalhostBaseDomain": "KUBRON_PF_SCHEME=http 仅允许用于 localhost 基础域名"
+
 }

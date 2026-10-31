@@ -510,6 +510,10 @@
   "trustedProxyHopsCannotBeNegative": "число доверенных прокси не может быть отрицательным",
   "trustedProxiesAndHopsAreUsed": "доверенные прокси и их число действуют только вместе с trust-proxy (KUBRON_TRUST_PROXY=1)",
   "tooManyRequestsTryAgainIn": "слишком много запросов, повторите через {p0} с",
+
+  "webSessionNotFound": "веб-сессия не найдена",
+  "sessionStoreIsUnavailable": "хранилище сессий недоступно"
+
   "kubronDrainDelay": "KUBRON_DRAIN_DELAY {p0}: {p1}",
   "drainDelayMustBeBetween0And": "пауза перед остановкой должна быть от 0 до 60 с",
   "replicaIdMustBe1To63": "идентификатор реплики должен содержать от 1 до 63 символов",
@@ -532,4 +536,5 @@
   "kubronPfSchemeMustBeHttpsOrHttp": "KUBRON_PF_SCHEME должен быть https или http",
   "portForwardTimeoutsCannotBeNegative": "таймауты port-forward не могут быть отрицательными",
   "kubronPfSchemeHttpIsAllowedOnlyForALocalhostBaseDomain": "KUBRON_PF_SCHEME=http допустим только для localhost-домена"
+
 }

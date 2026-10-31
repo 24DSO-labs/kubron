@@ -596,6 +596,52 @@ func (s *Service) Login(username, password string) (*UserInfo, error) {
 	return info, nil
 }
 
+// Resume открывает сессию пользователя userID без пароля: веб-сессия уже проверена общим хранилищем
+// сессий (ADR-0016), а этот вид ядра построен заново на другой реплике. lastActive — последнее действие
+// пользователя, записанное в хранилище; простой считается от него. Пользователя, которого нет в
+// памяти (его создала другая реплика), сервис перечитывает из хранилища.
+func (s *Service) Resume(userID string, lastActive time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	u := s.st.findByID(userID)
+	if u == nil {
+		if err := s.reloadLocked(); err != nil {
+			return err
+		}
+		u = s.st.findByID(userID)
+	}
+	if u == nil || u.Disabled {
+		return ErrNotAuthenticated
+	}
+	s.sessionID = u.ID
+	s.lastActive = lastActive.Round(0)
+	if s.idleExpiredLocked() {
+		s.sessionID = ""
+		return ErrNotAuthenticated
+	}
+	return nil
+}
+
+// SyncActivity подтягивает время последнего действия пользователя, записанное другой репликой:
+// пользователь работает с интерфейсом там, а этот вид ядра простаивает и иначе закрыл бы сессию.
+func (s *Service) SyncActivity(at time.Time) {
+	s.mu.Lock()
+	if at = at.Round(0); at.After(s.lastActive) {
+		s.lastActive = at
+	}
+	s.mu.Unlock()
+}
+
+// reloadLocked перечитывает пользователей и настройки из хранилища (общее состояние всех видов).
+func (s *Service) reloadLocked() error {
+	fresh, err := loadStore(s.st.backend)
+	if err != nil {
+		return err
+	}
+	s.st.users, s.st.settings = fresh.users, fresh.settings
+	return nil
+}
+
 // Logout завершает сессию и вызывает обработчик очистки.
 func (s *Service) Logout() {
 	s.mu.Lock()
