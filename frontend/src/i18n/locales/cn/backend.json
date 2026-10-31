@@ -253,7 +253,6 @@
   "changepassword": "修改密码",
   "invalidKubeconfigFileName": "无效的 kubeconfig file name {p0}",
   "failedToDetermineTheStorageOf": "失败： determine the storage of release {p0}/{p1}: {p2}",
-  "kubeconfigFileOfClusterIsUnavailable": "集群 {p0} 的 kubeconfig 文件不可用：Helm 仅适用于基于文件的集群存储",
   "failedToInitializeHelm": "失败： initialize Helm: {p0}",
   "invalidRevision2": "无效的 revision {p0}",
   "toRevision": "到修订 {p0}",
