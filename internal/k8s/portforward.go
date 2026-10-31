@@ -164,7 +164,7 @@ type PortForwardManager struct {
 // PortForwardObserver вызывается, когда сессия стала активной (запись аудита «start»), и возвращает функцию,
 // которую менеджер вызовет один раз при остановке с причиной (запись «stop»). Пользователя и кластер
 // наблюдатель определяет сам в момент старта: остановка может произойти после выхода пользователя.
-type PortForwardObserver func(s PortForwardSession) (stopped func(reason string))
+type PortForwardObserver func(s *PortForwardSession) (stopped func(reason string))
 
 // SetObserver задаёт наблюдателя сессий; вызывать до первого старта.
 func (pfm *PortForwardManager) SetObserver(o PortForwardObserver) {
@@ -473,7 +473,7 @@ func (pfm *PortForwardManager) start(id, namespace, pod, service string, service
 		obs := pfm.observer
 		pfm.mu.Unlock()
 		if obs != nil {
-			session.attachObserver(obs(snap))
+			session.attachObserver(obs(&snap))
 		}
 		return &snap, nil
 	case err := <-done:
@@ -622,7 +622,7 @@ func (pfm *PortForwardManager) startProxy(namespace, pod, service string, servic
 	pfm.mu.Unlock()
 
 	if obs != nil {
-		session.attachObserver(obs(snap))
+		session.attachObserver(obs(&snap))
 	}
 	err = proxy.Registry.Add(pfproxy.Target{
 		ID: id, Owner: owner, ClusterID: conn.Name, Namespace: namespace, Pod: pod, Service: service,

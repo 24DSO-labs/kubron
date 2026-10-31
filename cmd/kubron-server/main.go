@@ -13,7 +13,6 @@ import (
 	"flag"
 	"io/fs"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -132,7 +131,7 @@ func main() {
 	}()
 	defer terminals.CloseAll()
 
-	var handler http.Handler = server.NewHandler(dispatcher, dist, guard, server.WithCSPReportOnly(cfg.CSPReportOnly))
+	handler := server.NewHandler(dispatcher, dist, guard, server.WithCSPReportOnly(cfg.CSPReportOnly))
 	if pf != nil {
 		go pf.Run(ctx)
 		// Закрытая веб-сессия закрывает и свои потоки port-forward (ReleaseView → StopAll); дополнительно

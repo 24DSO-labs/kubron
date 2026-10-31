@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/httpstream"
+	"k8s.io/streaming/pkg/httpstream"
 	"k8s.io/client-go/transport/spdy"
 )
 

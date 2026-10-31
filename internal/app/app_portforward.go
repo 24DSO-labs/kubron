@@ -52,7 +52,7 @@ func (a *App) portForwardMode() string {
 // portForwardObserver записывает начало и конец проброса. Пользователь и команда определяются при старте и
 // запоминаются: конец (простой, срок, закрытие сессии) наступает, когда вызова пользователя уже нет.
 func (a *App) portForwardObserver() k8s.PortForwardObserver {
-	return func(s k8s.PortForwardSession) func(reason string) {
+	return func(s *k8s.PortForwardSession) func(reason string) {
 		if a.audit == nil || a.auth == nil {
 			return nil
 		}
