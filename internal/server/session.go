@@ -168,6 +168,22 @@ func (s *Sessions) Views() []any {
 	return out
 }
 
+// Alive сообщает, что сессия с публичным идентификатором id жива (не истекла и не закрыта).
+func (s *Sessions) Alive(id string) bool {
+	s.mu.Lock()
+	ended := s.sweepLocked()
+	alive := false
+	for _, it := range s.items {
+		if it.ID == id {
+			alive = true
+			break
+		}
+	}
+	s.mu.Unlock()
+	s.notify(ended)
+	return alive
+}
+
 // Len — число живых сессий (для тестов и метрик).
 func (s *Sessions) Len() int {
 	s.mu.Lock()
