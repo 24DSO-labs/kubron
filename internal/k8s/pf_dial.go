@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/client-go/transport/spdy"
 	"k8s.io/apimachinery/pkg/util/httpstream" //nolint:staticcheck // client-go spdy.NewDialer still returns this type
+	"k8s.io/client-go/transport/spdy"
 )
 
 // portForwardProtocolV1 — подпротокол port-forward kubelet (тот же, что использует kubectl).
