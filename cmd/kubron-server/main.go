@@ -46,7 +46,17 @@ func main() {
 		log.Fatalf("configuration: %v", err)
 	}
 
-	log.Printf("kubron-server %s", version)
+	hostname, _ := os.Hostname()
+	if h := os.Getenv("HOSTNAME"); h != "" {
+		hostname = h // в поде совпадает с его именем
+	}
+	replicaID, err := server.ResolveReplicaID(cfg.ReplicaID, hostname)
+	if err != nil {
+		log.Fatalf("configuration: %v", err)
+	}
+	lifecycle := server.NewLifecycle(replicaID)
+
+	log.Printf("kubron-server %s, replica %s", version, replicaID)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -90,7 +100,7 @@ func main() {
 	terminals := platform.Terminals()
 	guard := &server.Guard{Sessions: sessions, TrustProxy: cfg.TrustProxy, Hub: hub, Terminals: terminals,
 		TrustedProxyHops: cfg.TrustedProxyHops, TrustedProxies: cfg.TrustedProxies,
-		AnonLimiter: server.NewRateLimiter(server.DefaultAnonRate, server.DefaultAnonBurst)}
+		AnonLimiter: server.NewRateLimiter(server.DefaultAnonRate, server.DefaultAnonBurst), Lifecycle: lifecycle}
 	app.SetResourceLimits(core, k8s.Limits{Terminals: cfg.MaxTerminals, LogStreams: cfg.MaxLogStreams, PortForwards: cfg.MaxPortForwards})
 	app.SetClusterIdleTTL(core, 2*time.Minute)
 	guard.NewView = func(src string) any { return app.NewSessionView(core, src) }
@@ -120,7 +130,10 @@ func main() {
 	}()
 	defer terminals.CloseAll()
 
-	if err := server.Run(ctx, cfg, server.NewHandler(dispatcher, dist, guard, server.WithCSPReportOnly(cfg.CSPReportOnly))); err != nil {
+	// SIGTERM: draining (новые соединения не принимаются, /readyz смотрит на lifecycle.Draining()),
+	// пауза для балансировщика, затем закрытие WebSocket кадром 1012 и остановка HTTP-сервера.
+	plan := server.ShutdownPlan{Drain: guard.BeginDrain, DrainDelay: cfg.DrainDelay, CloseConns: guard.CloseConnections}
+	if err := server.RunWith(ctx, cfg, server.NewHandler(dispatcher, dist, guard, server.WithCSPReportOnly(cfg.CSPReportOnly)), plan); err != nil {
 		log.Fatalf("server: %v", err)
 	}
 }

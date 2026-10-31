@@ -52,6 +52,13 @@ type Config struct {
 	// ClusterCheckInterval — как часто сервер проверяет соединение с кластерами в фоне
 	// (KUBRON_CLUSTER_CHECK_INTERVAL, по умолчанию 30s; 0 — не проверять).
 	ClusterCheckInterval time.Duration
+	// ReplicaID — идентификатор реплики (KUBRON_REPLICA_ID): буквы, цифры, «-», «_», до 63 символов, без точки.
+	// Пусто — «<имя узла>-<случайный суффикс процесса>». Заданный вручную должен быть уникален среди реплик.
+	ReplicaID string
+	// DrainDelay — пауза между переходом в draining (SIGTERM) и закрытием WebSocket кадром 1012: за это время
+	// балансировщик снимает реплику с обслуживания (KUBRON_DRAIN_DELAY, по умолчанию 0; для сервиса за
+	// балансировщиком рекомендуется 5s). Меньше предела ожидания остановки пода (terminationGracePeriodSeconds).
+	DrainDelay time.Duration
 	// Лимиты ресурсов на одного пользователя (0 — без ограничения):
 	// KUBRON_MAX_TERMINALS, KUBRON_MAX_LOG_STREAMS, KUBRON_MAX_PORT_FORWARDS.
 	MaxTerminals    int
@@ -64,6 +71,9 @@ const (
 	DefaultClusterCheckInterval = 30 * time.Second
 	MinClusterCheckInterval     = 5 * time.Second
 )
+
+// MaxDrainDelay — верхняя граница KUBRON_DRAIN_DELAY (пауза обязана укладываться в время остановки пода).
+const MaxDrainDelay = 60 * time.Second
 
 // Лимиты ресурсов на пользователя по умолчанию (ADR-0005).
 const (
@@ -80,6 +90,7 @@ func LoadConfig(args []string, getenv func(string) string, out io.Writer) (Confi
 		cfg.Listen = v
 	}
 	cfg.AllowRemote = truthy(getenv("KUBRON_ALLOW_REMOTE"))
+	cfg.ReplicaID = strings.TrimSpace(getenv("KUBRON_REPLICA_ID"))
 	cfg.DataDir = getenv("KUBRON_DATA_DIR")
 	cfg.TrustProxy = truthy(getenv("KUBRON_TRUST_PROXY"))
 	cfg.CSPReportOnly = truthy(getenv("KUBRON_CSP_REPORT_ONLY"))
@@ -104,6 +115,13 @@ func LoadConfig(args []string, getenv func(string) string, out io.Writer) (Confi
 			return Config{}, fmt.Errorf("KUBRON_SESSION_TTL %q: %w", v, err)
 		}
 		cfg.SessionTTL = d
+	}
+	if v := getenv("KUBRON_DRAIN_DELAY"); v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("KUBRON_DRAIN_DELAY %q: %w", v, err)
+		}
+		cfg.DrainDelay = d
 	}
 	if v := getenv("KUBRON_CLUSTER_CHECK_INTERVAL"); v != "" {
 		d, err := time.ParseDuration(v)
@@ -147,6 +165,10 @@ func LoadConfig(args []string, getenv func(string) string, out io.Writer) (Confi
 	fs.BoolVar(&cfg.CSPReportOnly, "csp-report-only", cfg.CSPReportOnly,
 		"send Content-Security-Policy as Report-Only: violations are logged by the browser, nothing is blocked (env KUBRON_CSP_REPORT_ONLY)")
 	fs.DurationVar(&cfg.SessionTTL, "session-ttl", cfg.SessionTTL, "web session lifetime (env KUBRON_SESSION_TTL)")
+	fs.StringVar(&cfg.ReplicaID, "replica-id", cfg.ReplicaID,
+		"replica identifier: letters, digits, '-' and '_', up to 63 characters; empty means hostname plus a random suffix (env KUBRON_REPLICA_ID)")
+	fs.DurationVar(&cfg.DrainDelay, "drain-delay", cfg.DrainDelay,
+		"pause between SIGTERM and closing WebSocket connections, so a load balancer can stop routing to the replica (env KUBRON_DRAIN_DELAY)")
 	fs.DurationVar(&cfg.ClusterCheckInterval, "cluster-check-interval", cfg.ClusterCheckInterval,
 		"how often cluster connectivity is checked in the background, 0 disables (env KUBRON_CLUSTER_CHECK_INTERVAL)")
 	fs.IntVar(&cfg.MaxTerminals, "max-terminals", cfg.MaxTerminals, "terminals per user, 0 for unlimited (env KUBRON_MAX_TERMINALS)")
@@ -182,6 +204,14 @@ func (c Config) Validate() error {
 	// Без доверия к прокси X-Forwarded-For игнорируется: настройка молча не работала бы
 	if !c.TrustProxy && (len(c.TrustedProxies) > 0 || c.TrustedProxyHops > 1) {
 		return errors.New("trusted proxies and hops are used only together with trust-proxy (KUBRON_TRUST_PROXY=1)")
+	}
+	if c.ReplicaID != "" {
+		if err := ValidateReplicaID(c.ReplicaID); err != nil {
+			return err
+		}
+	}
+	if c.DrainDelay < 0 || c.DrainDelay > MaxDrainDelay {
+		return errors.New("drain delay must be between 0 and 60s")
 	}
 	if c.ClusterCheckInterval != 0 && c.ClusterCheckInterval < MinClusterCheckInterval {
 		return errors.New("cluster check interval must be 0 (off) or at least 5s")
