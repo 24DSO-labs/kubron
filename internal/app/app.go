@@ -10,6 +10,7 @@ import (
 	"github.com/VadimIl224/kubron/internal/audit"
 	"github.com/VadimIl224/kubron/internal/auth"
 	"github.com/VadimIl224/kubron/internal/k8s"
+	"github.com/VadimIl224/kubron/internal/pfproxy"
 	"github.com/VadimIl224/kubron/internal/store"
 	"github.com/VadimIl224/kubron/internal/termbuf"
 	"net"
@@ -28,6 +29,9 @@ type App struct {
 	store    store.Store    // nil — файловое хранилище десктопа (SetStore подменяет, например, на PostgreSQL)
 	// sessionID — веб-сессия владельца вида (пусто у корневого экземпляра и в десктопе).
 	sessionID string
+	// Port-forward в вебе (ADR-0017): режим и прокси; задаются до создания видов (SetPortForwardMode/Proxy).
+	pfMode    string
+	pfService *pfproxy.Service
 }
 
 // SetStore задаёт хранилище вместо файлового; вызывается до OnStartup. Это функция пакета, а не метод App:
@@ -41,11 +45,13 @@ func NewApp(p Platform) *App {
 		p = nopPlatform{}
 	}
 	mgr := k8s.NewManager()
-	return &App{
+	a := &App{
 		platform: p,
 		k8sMgr:   mgr,
 		pfMgr:    k8s.NewPortForwardManager(mgr),
 	}
+	a.pfMgr.SetObserver(a.portForwardObserver())
+	return a
 }
 
 // shutdown вызывается Wails при закрытии приложения: гасим все port-forward туннели.
@@ -75,6 +81,12 @@ func (a *App) startup(ctx context.Context) {
 // (экран входа зависит от флагов), поэтому authz не требует: см. publicMethods в policy_test.
 func (a *App) GetCapabilities() Capabilities {
 	c := a.platform.Capabilities()
+	if c.PortForward {
+		c.PortForwardMode = a.portForwardMode()
+		if c.PortForwardMode == k8s.PortForwardModeOff {
+			c.PortForward = false
+		}
+	}
 	c.Teams = a.dir != nil // команды есть там, где хранилище умеет их хранить, а не в оболочке
 	c.InCluster = c.Teams && k8s.InClusterAvailable()
 	return c

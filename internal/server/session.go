@@ -566,6 +566,22 @@ func (s *Sessions) Views() []any {
 	return out
 }
 
+// Alive сообщает, что сессия с публичным идентификатором id жива (не истекла и не закрыта).
+func (s *Sessions) Alive(id string) bool {
+	s.mu.Lock()
+	ended := s.sweepLocked()
+	alive := false
+	for _, it := range s.items {
+		if it.ID == id {
+			alive = true
+			break
+		}
+	}
+	s.mu.Unlock()
+	s.notify(ended)
+	return alive
+}
+
 // Len — число живых сессий (для тестов и метрик).
 func (s *Sessions) Len() int {
 	s.mu.Lock()
@@ -630,10 +646,15 @@ type Guard struct {
 	// Bind сообщает виду идентификатор созданной для него веб-сессии (адресат событий); nil — не нужно.
 	Bind func(view any, sessionID string)
 
+
 	// ActiveCluster возвращает активный кластер вида (для записи в общее хранилище сессий); nil — не запоминать.
 	ActiveCluster func(view any) string
 	// RestoreCluster подключает вид к кластеру, активному в сессии на другой реплике; nil — не подключать.
 	RestoreCluster func(view any, clusterID string) error
+
+	// Lifecycle — идентичность и состояние остановки реплики (draining, закрытие соединений); nil — без них.
+	Lifecycle *Lifecycle
+
 
 	termConns termConns
 }
