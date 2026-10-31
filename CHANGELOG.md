@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-31
+
 ### Added
 
 - **Deploy:** `Dockerfile` for kubron-server (distroless, non-root, read-only rootfs) and the Helm chart
@@ -83,7 +85,8 @@ First public release.
 - Experimental web mode (`cmd/kubron-server`): several concurrent sessions, per-session
   cluster managers with per-user resource limits, idle informers released after a TTL.
 
-[Unreleased]: https://github.com/VadimIl224/kubron/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/VadimIl224/kubron/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/VadimIl224/kubron/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/VadimIl224/kubron/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/VadimIl224/kubron/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/VadimIl224/kubron/releases/tag/v0.1.0
