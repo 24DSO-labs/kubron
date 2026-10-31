@@ -253,7 +253,6 @@
   "changepassword": "ChangePassword",
   "invalidKubeconfigFileName": "invalid kubeconfig file name {p0}",
   "failedToDetermineTheStorageOf": "failed to determine the storage of release {p0}/{p1}: {p2}",
-  "kubeconfigFileOfClusterIsUnavailable": "kubeconfig file of cluster {p0} is unavailable: Helm works only with the file-based cluster store",
   "failedToInitializeHelm": "failed to initialize Helm: {p0}",
   "invalidRevision2": "invalid revision {p0}",
   "toRevision": "to revision {p0}",

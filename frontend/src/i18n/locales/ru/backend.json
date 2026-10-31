@@ -253,7 +253,6 @@
   "changepassword": "смена пароля",
   "invalidKubeconfigFileName": "недопустимое имя файла kubeconfig {p0}",
   "failedToDetermineTheStorageOf": "не удалось определить хранилище релиза {p0}/{p1}: {p2}",
-  "kubeconfigFileOfClusterIsUnavailable": "kubeconfig-файл кластера {p0} недоступен: Helm работает только с файловым хранилищем кластеров",
   "failedToInitializeHelm": "не удалось инициализировать Helm: {p0}",
   "invalidRevision2": "некорректная ревизия {p0}",
   "toRevision": "к ревизии {p0}",
