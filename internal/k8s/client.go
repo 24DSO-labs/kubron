@@ -19,7 +19,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 
-	"github.com/VadimIl224/kubron/internal/clusterhealth"
+	"github.com/24DSO-labs/kubron/internal/clusterhealth"
 )
 
 type ContextInfo struct {

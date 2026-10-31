@@ -18,7 +18,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
-	"github.com/VadimIl224/kubron/internal/oidcpassword"
+	"github.com/24DSO-labs/kubron/internal/oidcpassword"
 )
 
 // Способы подключения к кластеру (ClusterMeta.Mode). Пусто означает kubeconfig.

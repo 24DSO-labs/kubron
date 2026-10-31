@@ -8,7 +8,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/VadimIl224/kubron/internal/clusterhealth"
+	"github.com/24DSO-labs/kubron/internal/clusterhealth"
 )
 
 // События о состоянии кластеров и доступе (фронтенд перечитывает список кластеров).

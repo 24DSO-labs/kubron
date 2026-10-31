@@ -1,8 +1,8 @@
 # Kubron
 
-[![CI](https://github.com/VadimIl224/kubron/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/VadimIl224/kubron/actions/workflows/ci.yml)
+[![CI](https://github.com/24DSO-labs/kubron/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/24DSO-labs/kubron/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/VadimIl224/kubron?include_prereleases)](https://github.com/VadimIl224/kubron/releases)
+[![Release](https://img.shields.io/github/v/release/VadimIl224/kubron?include_prereleases)](https://github.com/24DSO-labs/kubron/releases)
 
 A lightweight, open-source Kubernetes desktop IDE built with **Go** and **Wails** — a fast, private alternative to Lens with **Argo CD built in**. No telemetry, no mandatory account, your kubeconfig never leaves your machine.
 
@@ -75,7 +75,7 @@ A lightweight, open-source Kubernetes desktop IDE built with **Go** and **Wails*
 
 ### Download
 
-Grab the latest release for your platform on the [Releases](https://github.com/VadimIl224/kubron/releases) page:
+Grab the latest release for your platform on the [Releases](https://github.com/24DSO-labs/kubron/releases) page:
 
 | Platform | File |
 |---|---|
@@ -94,7 +94,7 @@ Checksums are in `SHA256SUMS.txt`.
 Requirements: [Go](https://go.dev/dl/), [Node.js](https://nodejs.org/) and the [Wails CLI](https://wails.io/docs/gettingstarted/installation).
 
 ```bash
-git clone https://github.com/VadimIl224/kubron.git
+git clone https://github.com/24DSO-labs/kubron.git
 cd kubron
 wails build
 ```

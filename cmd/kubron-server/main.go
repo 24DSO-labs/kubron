@@ -18,15 +18,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/VadimIl224/kubron/frontend"
-	"github.com/VadimIl224/kubron/internal/app"
-	"github.com/VadimIl224/kubron/internal/k8s"
-	"github.com/VadimIl224/kubron/internal/pgstore"
-	webplatform "github.com/VadimIl224/kubron/internal/platform/web"
-	"github.com/VadimIl224/kubron/internal/secretbox"
-	"github.com/VadimIl224/kubron/internal/server"
-	"github.com/VadimIl224/kubron/internal/store"
-	"github.com/VadimIl224/kubron/internal/websession"
+	"github.com/24DSO-labs/kubron/frontend"
+	"github.com/24DSO-labs/kubron/internal/app"
+	"github.com/24DSO-labs/kubron/internal/k8s"
+	"github.com/24DSO-labs/kubron/internal/pgstore"
+	webplatform "github.com/24DSO-labs/kubron/internal/platform/web"
+	"github.com/24DSO-labs/kubron/internal/secretbox"
+	"github.com/24DSO-labs/kubron/internal/server"
+	"github.com/24DSO-labs/kubron/internal/store"
+	"github.com/24DSO-labs/kubron/internal/websession"
 )
 
 // userRefreshEvery — как часто реплика перечитывает пользователей из PostgreSQL (изменения других реплик).

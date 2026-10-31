@@ -1,10 +1,10 @@
-module github.com/VadimIl224/kubron
+module github.com/24DSO-labs/kubron
 
 go 1.27.3
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
-	github.com/VadimIl224/kubron/pkg/ext v0.0.0
+	github.com/24DSO-labs/kubron/pkg/ext v0.0.0
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/robfig/cron/v3 v3.0.1
@@ -163,4 +163,4 @@ require (
 // replace github.com/wailsapp/wails/v2 v2.11.0 => C:\Users\Вадим\go\pkg\mod
 
 // Публичные точки расширения — отдельный модуль только на stdlib (ADR-0013).
-replace github.com/VadimIl224/kubron/pkg/ext => ./pkg/ext
+replace github.com/24DSO-labs/kubron/pkg/ext => ./pkg/ext

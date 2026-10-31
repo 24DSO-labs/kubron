@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VadimIl224/kubron/pkg/ext"
+	"github.com/24DSO-labs/kubron/pkg/ext"
 )
 
 func userIDs(t *testing.T, s *Store) map[string]ext.UserRecord {

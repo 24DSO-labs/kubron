@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/VadimIl224/kubron/internal/audit"
-	"github.com/VadimIl224/kubron/internal/auth"
-	"github.com/VadimIl224/kubron/internal/k8s"
-	"github.com/VadimIl224/kubron/internal/pfproxy"
+	"github.com/24DSO-labs/kubron/internal/audit"
+	"github.com/24DSO-labs/kubron/internal/auth"
+	"github.com/24DSO-labs/kubron/internal/k8s"
+	"github.com/24DSO-labs/kubron/internal/pfproxy"
 )
 
 // Действия аудита port-forward (подписи — audit.actions.* во фронтенде).

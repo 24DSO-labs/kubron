@@ -17,8 +17,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VadimIl224/kubron/internal/termbuf"
-	"github.com/VadimIl224/kubron/internal/websession"
+	"github.com/24DSO-labs/kubron/internal/termbuf"
+	"github.com/24DSO-labs/kubron/internal/websession"
 )
 
 // Session — веб-сессия браузера: привязывает cookie к пользователю и CSRF-токену.
@@ -646,7 +646,6 @@ type Guard struct {
 	// Bind сообщает виду идентификатор созданной для него веб-сессии (адресат событий); nil — не нужно.
 	Bind func(view any, sessionID string)
 
-
 	// ActiveCluster возвращает активный кластер вида (для записи в общее хранилище сессий); nil — не запоминать.
 	ActiveCluster func(view any) string
 	// RestoreCluster подключает вид к кластеру, активному в сессии на другой реплике; nil — не подключать.
@@ -654,7 +653,6 @@ type Guard struct {
 
 	// Lifecycle — идентичность и состояние остановки реплики (draining, закрытие соединений); nil — без них.
 	Lifecycle *Lifecycle
-
 
 	termConns termConns
 }

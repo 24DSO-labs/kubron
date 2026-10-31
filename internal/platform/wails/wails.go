@@ -8,7 +8,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/VadimIl224/kubron/internal/app"
+	"github.com/24DSO-labs/kubron/internal/app"
 
 	wr "github.com/wailsapp/wails/v2/pkg/runtime"
 )

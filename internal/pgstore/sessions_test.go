@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VadimIl224/kubron/internal/websession"
-	"github.com/VadimIl224/kubron/pkg/ext"
+	"github.com/24DSO-labs/kubron/internal/websession"
+	"github.com/24DSO-labs/kubron/pkg/ext"
 )
 
 func sessHash(s string) websession.Hash { return sha256.Sum256([]byte(s)) }

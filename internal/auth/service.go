@@ -15,7 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/VadimIl224/kubron/internal/audit"
+	"github.com/24DSO-labs/kubron/internal/audit"
 )
 
 // Ошибки отдаются во фронтенд как текст (Wails), поэтому сообщения — на языке интерфейса.

@@ -7,13 +7,13 @@ import (
 	"errors"
 	"time"
 
-	"github.com/VadimIl224/kubron/internal/audit"
-	"github.com/VadimIl224/kubron/internal/auth"
-	"github.com/VadimIl224/kubron/internal/clusterhealth"
-	"github.com/VadimIl224/kubron/internal/k8s"
-	"github.com/VadimIl224/kubron/internal/pgstore"
-	"github.com/VadimIl224/kubron/internal/websession"
-	"github.com/VadimIl224/kubron/pkg/ext"
+	"github.com/24DSO-labs/kubron/internal/audit"
+	"github.com/24DSO-labs/kubron/internal/auth"
+	"github.com/24DSO-labs/kubron/internal/clusterhealth"
+	"github.com/24DSO-labs/kubron/internal/k8s"
+	"github.com/24DSO-labs/kubron/internal/pgstore"
+	"github.com/24DSO-labs/kubron/internal/websession"
+	"github.com/24DSO-labs/kubron/pkg/ext"
 )
 
 // FromPostgres адаптирует хранилище сервиса на PostgreSQL (internal/pgstore) к Store.

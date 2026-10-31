@@ -83,7 +83,7 @@ First public release.
 - Experimental web mode (`cmd/kubron-server`): several concurrent sessions, per-session
   cluster managers with per-user resource limits, idle informers released after a TTL.
 
-[Unreleased]: https://github.com/VadimIl224/kubron/compare/v0.3.0...HEAD
-[0.3.0]: https://github.com/VadimIl224/kubron/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/VadimIl224/kubron/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/VadimIl224/kubron/releases/tag/v0.1.0
+[Unreleased]: https://github.com/24DSO-labs/kubron/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/24DSO-labs/kubron/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/24DSO-labs/kubron/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/24DSO-labs/kubron/releases/tag/v0.1.0

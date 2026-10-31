@@ -10,7 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/VadimIl224/kubron/internal/websession"
+	"github.com/24DSO-labs/kubron/internal/websession"
 )
 
 // Sessions — общее хранилище веб-сессий (ADR-0016, раздел 1). Реализует websession.Backend.

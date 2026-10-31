@@ -11,9 +11,9 @@ import (
 	"io"
 	"os"
 
-	"github.com/VadimIl224/kubron/internal/k8s"
-	"github.com/VadimIl224/kubron/internal/server"
-	"github.com/VadimIl224/kubron/internal/store"
+	"github.com/24DSO-labs/kubron/internal/k8s"
+	"github.com/24DSO-labs/kubron/internal/server"
+	"github.com/24DSO-labs/kubron/internal/store"
 )
 
 // adminCommands — служебные команды: kubron-server <команда>. Настройки БД берутся из окружения
