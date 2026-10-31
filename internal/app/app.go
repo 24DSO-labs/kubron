@@ -81,9 +81,6 @@ func (a *App) startup(ctx context.Context) {
 // (экран входа зависит от флагов), поэтому authz не требует: см. publicMethods в policy_test.
 func (a *App) GetCapabilities() Capabilities {
 	c := a.platform.Capabilities()
-	if !c.PortForward {
-		c.PortForwardMode = k8s.PortForwardModeOff
-	}
 	if c.PortForward {
 		c.PortForwardMode = a.portForwardMode()
 		if c.PortForwardMode == k8s.PortForwardModeOff {
