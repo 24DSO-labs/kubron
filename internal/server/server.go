@@ -17,7 +17,11 @@ import (
 
 // NewHandler собирает маршруты: RPC, служебные ручки, статика фронтенда с SPA-fallback.
 // g — защита веб-API (сессии, CSRF); nil отключает её. static — содержимое собранного фронтенда (корень с index.html); может быть nil.
-func NewHandler(d *Dispatcher, static fs.FS, g *Guard) http.Handler {
+func NewHandler(d *Dispatcher, static fs.FS, g *Guard, opts ...HandlerOption) http.Handler {
+	var o handlerOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
 	mux := http.NewServeMux()
 	mux.Handle("POST /api/rpc/{method}", RPCHandler(d, g))
 	mux.Handle("GET /api/session", SessionHandler(g))
@@ -35,17 +39,7 @@ func NewHandler(d *Dispatcher, static fs.FS, g *Guard) http.Handler {
 		writeError(w, http.StatusNotFound, "not_found", "no such API endpoint")
 	})
 	mux.Handle("/", spaHandler(static))
-	return securityHeaders(mux)
-}
-
-func securityHeaders(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h := w.Header()
-		h.Set("X-Content-Type-Options", "nosniff")
-		h.Set("X-Frame-Options", "DENY")
-		h.Set("Referrer-Policy", "no-referrer")
-		next.ServeHTTP(w, r)
-	})
+	return securityHeaders(mux, g != nil && g.TrustProxy, o)
 }
 
 // spaHandler отдаёт файлы фронтенда; для любого пути без файла (клиентский роутинг) — index.html.

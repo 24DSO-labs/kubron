@@ -88,7 +88,9 @@ func main() {
 	// одновременно могут работать несколько пользователей.
 	sessions := server.NewSessions(cfg.SessionTTL, false)
 	terminals := platform.Terminals()
-	guard := &server.Guard{Sessions: sessions, TrustProxy: cfg.TrustProxy, Hub: hub, Terminals: terminals}
+	guard := &server.Guard{Sessions: sessions, TrustProxy: cfg.TrustProxy, Hub: hub, Terminals: terminals,
+		TrustedProxyHops: cfg.TrustedProxyHops, TrustedProxies: cfg.TrustedProxies,
+		AnonLimiter: server.NewRateLimiter(server.DefaultAnonRate, server.DefaultAnonBurst)}
 	app.SetResourceLimits(core, k8s.Limits{Terminals: cfg.MaxTerminals, LogStreams: cfg.MaxLogStreams, PortForwards: cfg.MaxPortForwards})
 	app.SetClusterIdleTTL(core, 2*time.Minute)
 	guard.NewView = func(src string) any { return app.NewSessionView(core, src) }
@@ -118,7 +120,7 @@ func main() {
 	}()
 	defer terminals.CloseAll()
 
-	if err := server.Run(ctx, cfg, server.NewHandler(dispatcher, dist, guard)); err != nil {
+	if err := server.Run(ctx, cfg, server.NewHandler(dispatcher, dist, guard, server.WithCSPReportOnly(cfg.CSPReportOnly))); err != nil {
 		log.Fatalf("server: %v", err)
 	}
 }

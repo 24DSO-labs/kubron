@@ -9,7 +9,6 @@ import (
 	"io"
 	"log"
 	"mime"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -86,6 +85,10 @@ func RPCHandler(d *Dispatcher, g *Guard) http.Handler {
 		if g != nil {
 			token = g.token(r)
 			sess, authed = g.Sessions.Get(token)
+			// Запросы без сессии (экран входа, перебор, зондирование) ограничиваются по адресу клиента
+			if !authed && !g.limitAnonymous(w, r) {
+				return
+			}
 			if !publicMethods[method] {
 				if !authed {
 					writeError(w, http.StatusUnauthorized, "unauthenticated", auth.ErrNotAuthenticated.Error())
@@ -116,7 +119,7 @@ func RPCHandler(d *Dispatcher, g *Guard) http.Handler {
 		if g != nil {
 			switch {
 			case g.NewView != nil && (method == "Login" || method == "SetupAdmin"):
-				fresh = g.NewView(clientIP(r, g.TrustProxy))
+				fresh = g.NewView(g.clientIP(r))
 				target = fresh
 			case authed:
 				target = sess.View
@@ -229,22 +232,4 @@ func (g *Guard) dropView(view any) {
 	if view != nil && g.Sessions.Release != nil {
 		g.Sessions.Release(view)
 	}
-}
-
-// clientIP — адрес клиента для блокировки перебора паролей. За доверенным обратным прокси
-// берётся последний адрес из X-Forwarded-For (его дописал наш прокси; предыдущие может подделать клиент).
-func clientIP(r *http.Request, trustProxy bool) string {
-	if trustProxy {
-		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			parts := strings.Split(xff, ",")
-			if ip := strings.TrimSpace(parts[len(parts)-1]); ip != "" {
-				return ip
-			}
-		}
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
 }
