@@ -235,7 +235,7 @@ test('журнал аудита: администратор команды ви�
   expect(events.some(e => e.teamId === alphaId)).toBe(false)
 })
 
-test('интерфейс: в полосе кластеров только свои, раздел «Команды» есть у администратора команды', async ({ browser }) => {
+test('интерфейс: в полосе кластеров только свои, раздел «Команды» открывается без кластера', async ({ browser }) => {
   const ctx = await browser.newContext()
   const page = await ctx.newPage()
   try {
@@ -247,7 +247,10 @@ test('интерфейс: в полосе кластеров только сво
     await expect(page.locator('.cluster-bar')).toBeVisible()
     await expect(page.locator('.cluster-icon-wrap[aria-label="alpha-cluster"]')).toBeVisible()
     await expect(page.locator('.cluster-icon-wrap[aria-label="beta-cluster"]')).toHaveCount(0)
-    await expect(page.getByText('Команды', { exact: true }).first()).toBeVisible()
+    // Боковое меню есть только при подключении к кластеру, поэтому разделы управления доступны и с экрана выбора кластера
+    await page.locator('[data-testid="management-links"]').getByRole('button', { name: 'Команды', exact: true }).click()
+    await expect(page.locator('[data-testid="management"]')).toBeVisible()
+    await expect(page.locator('[data-testid="management"]').getByText('alpha').first()).toBeVisible()
   } finally {
     await ctx.close()
   }

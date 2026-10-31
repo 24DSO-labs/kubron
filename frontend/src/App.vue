@@ -37,20 +37,39 @@
         @add="clusterConn.showAddCluster.value = true" @edit="clusterConn.openEditCluster"
         @delete="clusterConn.deleteCluster" />
 
+      <!-- Разделы управления без кластера: команды, пользователи, журнал -->
+      <div v-if="managementOpen" class="mgmt-screen" data-testid="management">
+        <nav class="mgmt-tabs" :aria-label="$t('app.management.label')">
+          <button v-for="m in mgmtViews" :key="m.view" type="button" class="mgmt-tab"
+            :class="{ active: currentView === m.view }" @click="openManagement(m.view)">{{ $t(m.labelKey) }}</button>
+          <span class="mgmt-spacer"></span>
+          <button type="button" class="mgmt-tab" @click="closeManagement">{{ $t('app.management.back') }}</button>
+        </nav>
+        <main class="content">
+          <component :is="activeViewComponent" v-if="activeViewComponent" />
+        </main>
+      </div>
+
       <!-- Нет кластеров -->
-      <div v-if="clusters.length === 0 && !clusterConn.showAddCluster.value" class="welcome-screen">
+      <div v-else-if="clusters.length === 0 && !clusterConn.showAddCluster.value" class="welcome-screen">
         <h2>{{ $t('app.welcome.title') }}</h2>
         <template v-if="can(Perm.ClusterManage)">
           <p>{{ $t('app.welcome.addPrompt') }}</p>
           <button class="btn" @click="clusterConn.showAddCluster.value = true">{{ $t('app.welcome.addButton') }}</button>
         </template>
         <p v-else>{{ $t('app.welcome.noClusters') }}</p>
+        <div v-if="mgmtViews.length" class="mgmt-links" data-testid="management-links">
+          <button v-for="m in mgmtViews" :key="m.view" type="button" class="btn" @click="openManagement(m.view)">{{ $t(m.labelKey) }}</button>
+        </div>
       </div>
 
       <!-- Не подключен, но кластеры есть -->
       <div v-else-if="!activeClusterId && clusters.length > 0 && !clusterConn.connecting.value" class="welcome-screen">
         <h2>{{ $t('app.select.title') }}</h2>
         <p>{{ $t('app.select.hint') }}</p>
+        <div v-if="mgmtViews.length" class="mgmt-links" data-testid="management-links">
+          <button v-for="m in mgmtViews" :key="m.view" type="button" class="btn" @click="openManagement(m.view)">{{ $t(m.labelKey) }}</button>
+        </div>
       </div>
 
       <!-- Основной интерфейс -->
@@ -119,6 +138,8 @@ import { clearResourceStore, reloadActive } from './resources/store'
 import { answerConfirm } from './resources/confirm'
 import { can, useAuth } from './composables/useAuth'
 import { Perm } from './types/auth'
+import { isManagementView, managementViews, type ManagementViewId } from './composables/managementViews'
+import { useCapabilities } from './composables/useCapabilities'
 
 import AuthScreen from './components/auth/AuthScreen.vue'
 import UserMenu from './components/auth/UserMenu.vue'
@@ -239,6 +260,24 @@ function onOpenResource(data: { kind: string; name: string; namespace?: string }
 // ═══════════════════════════════════════════════
 // Динамический view
 // ═══════════════════════════════════════════════
+
+// Разделы управления открываются и без кластера: боковое меню есть только при подключении к кластеру,
+// а свежему администратору организации нужно сначала создать команду и добавить кластер
+const { capabilities: caps } = useCapabilities()
+const mgmtViews = computed(() => managementViews({
+  teams: caps.value.teams, users: can(Perm.UsersManage), audit: can(Perm.AuditRead),
+}))
+const managementOpen = computed(() =>
+  !activeClusterId.value && isManagementView(currentView.value) && mgmtViews.value.some(m => m.view === currentView.value))
+
+function openManagement(view: ManagementViewId) {
+  closeAllDetailPanels()
+  currentView.value = view // без обновления данных: кластера нет
+}
+
+function closeManagement() {
+  currentView.value = 'overview'
+}
 
 const activeResource = computed(() => getResourceByView(currentView.value))
 
