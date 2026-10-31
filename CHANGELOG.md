@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `deploy/helm/kubron` (Deployment, Service, Ingress, NetworkPolicy, PodDisruptionBudget, optional
   read-only RBAC for in-cluster mode). Guide: `docs/deploy.md`. Single replica only until HA.
 
+### Changed
+
+- **Docs:** refreshed README (logo, badges, `.deb` download, links to the user guides, server mode section,
+  roadmap with statuses); fixed the local web-server build steps. Added a social preview image
+  (`docs/images/social-preview.png`).
+
 ### Security
 
 - **HTTP:** `kubron-server` now sends `Content-Security-Policy` (scripts `'self'`, no `unsafe-inline`/`unsafe-eval`),
