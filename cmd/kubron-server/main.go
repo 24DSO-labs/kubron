@@ -29,6 +29,9 @@ import (
 	"github.com/VadimIl224/kubron/internal/websession"
 )
 
+// userRefreshEvery — как часто реплика перечитывает пользователей из PostgreSQL (изменения других реплик).
+const userRefreshEvery = 2 * time.Second
+
 func main() {
 	if len(os.Args) > 1 && adminCommands[os.Args[1]] {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -96,6 +99,7 @@ func main() {
 		}
 	}
 	app.OnStartup(core)(ctx)
+	app.StartUserRefresh(ctx, core, userRefreshEvery) // другие реплики меняют пользователей и роли
 	defer app.OnShutdown(core)(context.Background())
 
 	dispatcher, err := server.NewAppDispatcher(core)

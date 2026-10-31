@@ -5,6 +5,7 @@ package store
 
 import (
 	"errors"
+	"time"
 
 	"github.com/VadimIl224/kubron/internal/audit"
 	"github.com/VadimIl224/kubron/internal/auth"
@@ -12,6 +13,7 @@ import (
 	"github.com/VadimIl224/kubron/internal/k8s"
 	"github.com/VadimIl224/kubron/internal/pgstore"
 	"github.com/VadimIl224/kubron/internal/websession"
+	"github.com/VadimIl224/kubron/pkg/ext"
 )
 
 // FromPostgres адаптирует хранилище сервиса на PostgreSQL (internal/pgstore) к Store.
@@ -19,7 +21,9 @@ func FromPostgres(s *pgstore.Store) Store { return pgBackend{s} }
 
 type pgBackend struct{ s *pgstore.Store }
 
-func (p pgBackend) Users() auth.Backend        { return auth.FromExt(p.s.Users()) }
+func (p pgBackend) Users() auth.Backend {
+	return pgUsers{Backend: auth.FromExt(p.s.Users()), d: p.s.UserDelta()}
+}
 func (p pgBackend) Audit() audit.Backend       { return p.s.Audit() }
 func (p pgBackend) ArgoTokens() k8s.TokenStore { return p.s.ArgoTokens() }
 
@@ -96,5 +100,31 @@ func toMeta(c *pgstore.Cluster) k8s.ClusterMeta {
 		ID: c.ID, DisplayName: c.DisplayName, Icon: c.Icon, Color: c.Color, Environment: c.Environment,
 		DefaultNamespace: c.DefaultNamespace, ContextName: c.ContextName, AddedAt: c.AddedAt, TeamID: c.TeamID,
 		Mode: c.Mode,
+	}
+}
+
+// pgUsers — пользователи в PostgreSQL: помимо Load/Save (заменяют набор целиком) реализует auth.DeltaBackend,
+// чтобы несколько реплик не затирали изменения друг друга.
+type pgUsers struct {
+	auth.Backend
+	d pgstore.UserDelta
+}
+
+var _ auth.DeltaBackend = pgUsers{}
+
+func (u pgUsers) UpsertUser(r auth.UserRecord) error { return u.d.UpsertUser(toExtUser(r)) }
+func (u pgUsers) TouchLogin(id string, at time.Time, passwordHash string) error {
+	return u.d.TouchLogin(id, at, passwordHash)
+}
+func (u pgUsers) DeleteUser(id string) error { return u.d.DeleteUser(id) }
+func (u pgUsers) SaveSettings(s auth.SecuritySettings) error {
+	return u.d.SaveSettings(ext.SecuritySettings{IdleTimeoutMinutes: s.IdleTimeoutMinutes})
+}
+
+func toExtUser(r auth.UserRecord) ext.UserRecord {
+	return ext.UserRecord{
+		ID: r.ID, Username: r.Username, Role: string(r.Role), PasswordHash: r.PasswordHash,
+		Disabled: r.Disabled, MustChangePassword: r.MustChangePassword,
+		CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, LastLoginAt: r.LastLoginAt,
 	}
 }
