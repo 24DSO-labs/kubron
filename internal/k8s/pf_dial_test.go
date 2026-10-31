@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/streaming/pkg/httpstream"
+	"k8s.io/apimachinery/pkg/util/httpstream" //nolint:staticcheck // client-go spdy.NewDialer still returns this type
 )
 
 type fakeStream struct {
