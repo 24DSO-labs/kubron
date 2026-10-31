@@ -222,6 +222,9 @@ type Guard struct {
 	// Bind сообщает виду идентификатор созданной для него веб-сессии (адресат событий); nil — не нужно.
 	Bind func(view any, sessionID string)
 
+	// Lifecycle — идентичность и состояние остановки реплики (draining, закрытие соединений); nil — без них.
+	Lifecycle *Lifecycle
+
 	termConns termConns
 }
 
