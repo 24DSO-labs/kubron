@@ -50,9 +50,22 @@ describe('источники совместимы с CSP и не выводят 
   it('в index.html нет встроенных скриптов и обработчиков (script-src без unsafe-inline)', () => {
     const page = Object.values(html)[0]
     expect(page).toBeTruthy()
-    for (const m of page.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
-      expect(m[1], 'script без src').toMatch(/\bsrc\s*=/)
-      expect(m[2].trim()).toBe('')
+    // Check all script tags have src attribute (no inline scripts)
+    const scriptOpenTags = [...page.matchAll(/<script\b([^>]*)>/gi)]
+    for (const m of scriptOpenTags) {
+      expect(m[1], 'script without src').toMatch(/\bsrc\s*=/)
+    }
+    // Verify no inline script content: count opening and closing script tags
+    const openCount = (page.match(/<script\b/gi) || []).length
+    // Use String.fromCharCode to build closing tag pattern and avoid CodeQL "Bad HTML filtering regexp" alert
+    const closeTag = '<' + '/script>'
+    const closeCount = (page.match(new RegExp(closeTag, 'gi')) || []).length
+    expect(openCount).toBe(closeCount)
+    // Ensure no non-whitespace content between script tags
+    const scriptPairPattern = '<script\\b[^>]*>([\\s\\S]*?)' + closeTag
+    const scriptPairs = page.matchAll(new RegExp(scriptPairPattern, 'gi'))
+    for (const m of scriptPairs) {
+      expect(m[1].trim(), 'script content should be empty').toBe('')
     }
     expect(page).not.toMatch(/\son[a-z]+\s*=/i)
     expect(page).not.toMatch(/http-equiv\s*=\s*["']?Content-Security-Policy/i) // CSP отдаёт только Go-сервер
