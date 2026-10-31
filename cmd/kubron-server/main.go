@@ -103,6 +103,7 @@ func main() {
 		AnonLimiter: server.NewRateLimiter(server.DefaultAnonRate, server.DefaultAnonBurst), Lifecycle: lifecycle}
 	app.SetResourceLimits(core, k8s.Limits{Terminals: cfg.MaxTerminals, LogStreams: cfg.MaxLogStreams, PortForwards: cfg.MaxPortForwards})
 	app.SetClusterIdleTTL(core, 2*time.Minute)
+	pf := setupPortForward(cfg, core, sessions)
 	guard.NewView = func(src string) any { return app.NewSessionView(core, src) }
 	guard.Bind = func(v any, id string) { app.BindView(v.(*app.App), id) }
 	sessions.Release = func(v any) { app.ReleaseView(v.(*app.App)) }
@@ -130,10 +131,17 @@ func main() {
 	}()
 	defer terminals.CloseAll()
 
+	handler := server.NewHandler(dispatcher, dist, guard, server.WithCSPReportOnly(cfg.CSPReportOnly))
+	if pf != nil {
+		go pf.Run(ctx)
+		// Закрытая веб-сессия закрывает и свои потоки port-forward (ReleaseView → StopAll); дополнительно
+		// владелец проверяется на каждом запросе.
+		handler = server.WithPortForwardHosts(handler, pf.Handler(), pf.IsPortForwardHost)
+	}
 	// SIGTERM: draining (новые соединения не принимаются, /readyz смотрит на lifecycle.Draining()),
 	// пауза для балансировщика, затем закрытие WebSocket кадром 1012 и остановка HTTP-сервера.
 	plan := server.ShutdownPlan{Drain: guard.BeginDrain, DrainDelay: cfg.DrainDelay, CloseConns: guard.CloseConnections}
-	if err := server.RunWith(ctx, cfg, server.NewHandler(dispatcher, dist, guard, server.WithCSPReportOnly(cfg.CSPReportOnly)), plan); err != nil {
+	if err := server.RunWith(ctx, cfg, handler, plan); err != nil {
 		log.Fatalf("server: %v", err)
 	}
 }
