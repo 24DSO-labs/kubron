@@ -165,7 +165,7 @@ func (f *fakeKubeAPI) serveConfigMaps(w http.ResponseWriter, r *http.Request) {
 		delete(f.cms, key)
 		writeJSON(w, 200, cm)
 	default:
-		http.Error(w, "unsupported", 405)
+		http.Error(w, "unsupported", http.StatusMethodNotAllowed)
 	}
 }
 
