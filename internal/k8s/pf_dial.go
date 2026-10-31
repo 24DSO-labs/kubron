@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/streaming/pkg/httpstream"
 	"k8s.io/client-go/transport/spdy"
+	"k8s.io/streaming/pkg/httpstream"
 )
 
 // portForwardProtocolV1 — подпротокол port-forward kubelet (тот же, что использует kubectl).
