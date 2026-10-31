@@ -402,3 +402,95 @@ jobs:
           path: |
             frontend/playwright-report
             frontend/test-results
+
+  # Gate этапа 3: сервисный режим на PostgreSQL. Два пользователя в двух командах не видят кластеры друг друга,
+  # администратор команды управляет составом, администратор организации без членства не читает кластер (docs/e2e.md).
+  e2e-pg:
+    name: E2E (web on PostgreSQL, teams)
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kubron_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: stable
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: ./.github/actions/linux-build-deps
+
+      - name: Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2)
+
+      - run: npm ci
+        working-directory: frontend
+
+      - name: Generate Wails bindings
+        run: |
+          mkdir -p frontend/dist && touch frontend/dist/.keep
+          wails generate module -tags $GO_TAGS
+
+      - name: Build web frontend and server
+        run: |
+          npm run build:web
+          cd .. && go build -tags "$GO_TAGS" -o kubron-server ./cmd/kubron-server
+        working-directory: frontend
+
+      - name: kind cluster
+        uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1
+        with:
+          cluster_name: kubron-e2e-pg
+
+      - name: Export kubeconfig
+        run: kind export kubeconfig --name kubron-e2e-pg --kubeconfig "$RUNNER_TEMP/kind.kubeconfig"
+
+      - name: Start kubron-server on PostgreSQL
+        run: |
+          export KUBRON_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/kubron_e2e?sslmode=disable"
+          export KUBRON_SECRET_KEY="ci1:$(openssl rand -base64 32)"
+          ./kubron-server --listen 127.0.0.1:8081 > "$RUNNER_TEMP/server-pg.log" 2>&1 &
+          for i in $(seq 1 30); do curl -fs http://127.0.0.1:8081/healthz && exit 0; sleep 1; done
+          cat "$RUNNER_TEMP/server-pg.log"; exit 1
+
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+
+      - name: Playwright (teams)
+        run: npx playwright test -c playwright.pg.config.ts
+        working-directory: frontend
+        env:
+          E2E_KUBECONFIG: ${{ runner.temp }}/kind.kubeconfig
+
+      - name: Server log
+        if: always()
+        run: cat "$RUNNER_TEMP/server-pg.log" || true
+
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        if: failure()
+        with:
+          name: playwright-report-pg
+          path: |
+            frontend/playwright-report-pg
+            frontend/test-results
